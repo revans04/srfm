@@ -1,0 +1,32 @@
+.DS_Store
+node_modules
+/dist
+/src/firebase/*
+/src/firestore.rules
+.firebase/*
+
+# local env files
+.env.*
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+project-tree.txt
+
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.cache*
+bin
+obj
+packages
+firebase-service-account.json
+env-vars.yaml
+*appsettings*
