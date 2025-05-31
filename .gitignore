@@ -1,12 +1,14 @@
 .DS_Store
 */node_modules
 */dist
-*/src/firebase/*
-*/src/firestore.rules
-.firebase/*
+app/src/firebase/index.ts
+app/functions
+*firestore.rules
+.firebase*
 
 # local env files
-.env.*
+api/.env
+app/.env.*
 
 # Log files
 npm-debug.log*
@@ -17,6 +19,7 @@ project-tree.txt
 
 # Editor directories and files
 .idea
+.firebase
 .vscode
 *.suo
 *.ntvs*
