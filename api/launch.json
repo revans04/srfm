@@ -6,9 +6,9 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build",
-      "program": "${workspaceFolder}/family-budget-api/bin/Debug/net8.0/family-budget-api.dll",
+      "program": "${workspaceFolder}/api/bin/Debug/net8.0/family-budget-api.dll",
       "args": [],
-      "cwd": "${workspaceFolder}/family-budget-api",
+      "cwd": "${workspaceFolder}/api",
       "stopAtEntry": false,
       "serverReadyAction": {
         "action": "openExternally",
