@@ -93,6 +93,7 @@ builder.Services.AddSingleton<BudgetService>();
 builder.Services.AddSingleton<UserService>();
 builder.Services.AddSingleton<AccountService>();
 builder.Services.AddSingleton<BrevoService>();
+builder.Services.AddSingleton<StatementService>();
 
 // Add Brevo
 builder.Services.Configure<FamilyBudgetApi.Models.BrevoSettings>(builder.Configuration.GetSection("Brevo"));
