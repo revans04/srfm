@@ -22,7 +22,14 @@
         <v-btn color="primary" variant="plain" class="mb-4 mr-2" @click="openMatchBankTransactionsDialog"> Match Bank Transactions </v-btn>
 
         <v-card class="mb-4">
-          <v-card-title>Filters</v-card-title>
+          <v-card-title>
+            <v-row class="mt-2">
+              <v-col cols="auto">Filters</v-col>
+              <v-col>
+                <v-checkbox v-model="filterDuplicates" label="Look for Duplicates" density="compact" hide-details @update:modelValue="applyFilters" />
+              </v-col>
+            </v-row>
+          </v-card-title>
           <v-card-text>
             <v-row>
               <v-col cols="12" md="4">
@@ -59,9 +66,7 @@
             </v-row>
             <v-row v-if="budgetOptions.length === 0">
               <v-col cols="12">
-                <v-alert type="info" class="mt-4">
-                  No budgets available. Create a budget in the Dashboard to start tracking transactions.
-                </v-alert>
+                <v-alert type="info" class="mt-4"> No budgets available. Create a budget in the Dashboard to start tracking transactions. </v-alert>
               </v-col>
             </v-row>
 
@@ -173,13 +178,7 @@
                         </div>
                       </v-col>
                       <v-col cols="1" class="text-right">
-                        <v-btn
-                          v-if="transaction.status !== 'C'"
-                          icon
-                          small
-                          @click.stop="selectBudgetTransactionToMatch(transaction)"
-                          title="Match Transaction"
-                        >
+                        <v-btn v-if="transaction.status !== 'C'" icon small @click.stop="selectBudgetTransactionToMatch(transaction)" title="Match Transaction">
                           <v-icon color="primary">mdi-link</v-icon>
                         </v-btn>
                         <v-icon small @click.stop="deleteTransaction(transaction.id)" title="Delete Entry" color="error">mdi-trash-can-outline</v-icon>
@@ -336,15 +335,40 @@ const filterNote = ref<string>("");
 const filterStatus = ref<string>("");
 const filterDate = ref<string>("");
 const filterAccount = ref<string>("");
+const filterDuplicates = ref<boolean>(false);
 
 const userId = computed(() => auth.currentUser?.uid || "");
 
 const entityOptions = computed(() => {
-  const options = (familyStore.family?.entities || []).map(entity => ({
+  const options = (familyStore.family?.entities || []).map((entity) => ({
     id: entity.id,
     name: entity.name,
   }));
   return [{ id: "", name: "All Entities" }, ...options];
+});
+
+const potentialDuplicateIds = computed(() => {
+  const ids = new Set<string>();
+  const txs = transactions.value;
+  for (let i = 0; i < txs.length; i++) {
+    const a = txs[i];
+    const merchantA = (a.importedMerchant || a.merchant).toLowerCase();
+    const dateA = new Date(a.date);
+    for (let j = i + 1; j < txs.length; j++) {
+      const b = txs[j];
+      if (a.amount !== b.amount) continue;
+      const merchantB = (b.importedMerchant || b.merchant).toLowerCase();
+      if (merchantA.includes(merchantB) || merchantB.includes(merchantA)) {
+        const dateB = new Date(b.date);
+        const diffDays = Math.abs(dateA.getTime() - dateB.getTime()) / (1000 * 60 * 60 * 24);
+        if (diffDays <= 3) {
+          ids.add(a.id);
+          ids.add(b.id);
+        }
+      }
+    }
+  }
+  return ids;
 });
 
 const expenseTransactions = computed(() => {
@@ -357,8 +381,11 @@ const expenseTransactions = computed(() => {
   });
 
   if (filterMerchant.value) {
-    temp = temp.filter((t) => t.merchant.toLowerCase().includes(filterMerchant.value.toLowerCase()) ||
-      (t.importedMerchant && t.importedMerchant.toLowerCase().includes(filterMerchant.value.toLowerCase())));
+    temp = temp.filter(
+      (t) =>
+        t.merchant.toLowerCase().includes(filterMerchant.value.toLowerCase()) ||
+        (t.importedMerchant && t.importedMerchant.toLowerCase().includes(filterMerchant.value.toLowerCase()))
+    );
   }
   if (filterAmount.value) {
     const amount = parseFloat(filterAmount.value);
@@ -383,6 +410,11 @@ const expenseTransactions = computed(() => {
     );
   }
 
+  if (filterDuplicates.value) {
+    const dupes = potentialDuplicateIds.value;
+    temp = temp.filter((t) => dupes.has(t.id));
+  }
+
   return temp;
 });
 
@@ -391,11 +423,13 @@ const unmatchedImportedTransactions = computed(() => {
 });
 
 const budgetOptions = computed(() => {
-  return Array.from(budgetStore.budgets.entries()).map(([budgetId, budget]) => ({
-    budgetId,
-    month: budget.month,
-    familyId: budget.familyId,
-  })).sort((a, b) => b.month.localeCompare(a.month));
+  return Array.from(budgetStore.budgets.entries())
+    .map(([budgetId, budget]) => ({
+      budgetId,
+      month: budget.month,
+      familyId: budget.familyId,
+    }))
+    .sort((a, b) => b.month.localeCompare(a.month));
 });
 
 onMounted(async () => {
@@ -421,7 +455,7 @@ onMounted(async () => {
     const family = await familyStore.getFamily();
     if (family) {
       availableAccounts.value = await dataAccess.getAccounts(family.id);
-      availableAccounts.value = availableAccounts.value.filter(account => account.type === "Bank" || account.type === "CreditCard");
+      availableAccounts.value = availableAccounts.value.filter((account) => account.type === "Bank" || account.type === "CreditCard");
     }
   } catch (error: any) {
     showSnackbar(`Error loading data: ${error.message}`, "error");
@@ -524,7 +558,7 @@ function editTransaction(item: Transaction) {
   newTransaction.value = { ...item, categories: [...item.categories] };
   editMode.value = true;
   targetBudgetId.value = item.budgetId || selectedBudgetId.value[0];
-  familyStore.selectEntity(item.entityId || ''); // Set entity for editing
+  familyStore.selectEntity(item.entityId || ""); // Set entity for editing
   showTransactionDialog.value = true;
 }
 
@@ -535,18 +569,16 @@ async function deleteTransaction(id: string) {
   }
 
   try {
-    let targetBudgetIdToUse: string | null = null;
-    let originalId: string | null = null;
-    let targetTransaction: any | null = null;
+    const targetTransaction = transactions.value.find((tx) => tx.id === id);
 
-    for (const budgetId of selectedBudgetId.value) {
-      targetTransaction = transactions.value.find((tx) => tx.id === id);
-      if (targetTransaction) {
-        targetBudgetIdToUse = budgetId;
-        originalId = targetTransaction.originalId ?? targetTransaction.id;
-        break;
-      }
+    if (!targetTransaction) {
+      showSnackbar("Transaction not found in selected budgets", "error");
+      return;
     }
+
+    // when loading transactions, we add budgetId
+    const targetBudgetIdToUse = targetTransaction.budgetId;
+    const originalId = targetTransaction.originalId ?? targetTransaction.id;
 
     if (!targetBudgetIdToUse || !originalId) {
       showSnackbar("Transaction not found in selected budgets", "error");
@@ -689,23 +721,23 @@ function resetForm() {
 }
 
 function getAccountId(accountNumber: string): string {
-  const account = availableAccounts.value.find(a => a.accountNumber === accountNumber);
+  const account = availableAccounts.value.find((a) => a.accountNumber === accountNumber);
   return account ? account.id : "";
 }
 
 function getAccountName(accountNumber: string): string {
-  const account = availableAccounts.value.find(a => a.accountNumber === accountNumber);
+  const account = availableAccounts.value.find((a) => a.accountNumber === accountNumber);
   return account ? account.name : "Unknown Account";
 }
 
 function getEntityName(entityId: string): string {
   if (!entityId) return "N/A";
-  const entity = familyStore.family?.entities?.find(e => e.id === entityId);
+  const entity = familyStore.family?.entities?.find((e) => e.id === entityId);
   if (entity) return entity.name;
   // Fallback: Check if entityId is a budgetId and get entityId from budget
   const budget = budgetStore.getBudget(entityId);
   if (budget?.entityId) {
-    const budgetEntity = familyStore.family?.entities?.find(e => e.id === budget.entityId);
+    const budgetEntity = familyStore.family?.entities?.find((e) => e.id === budget.entityId);
     return budgetEntity ? budgetEntity.name : "N/A";
   }
   return "N/A";

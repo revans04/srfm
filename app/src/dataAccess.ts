@@ -123,10 +123,14 @@ export class DataAccess {
     }
 
     if (budget.budgetId) {
-      budgetStore.updateBudget(budget.budgetId, {
-        ...budget,
-        transactions: budget.transactions.map((tx) => (tx.id === transaction.id ? transaction : tx)),
-      });
+      const idx = budget.transactions.findIndex((tx) => tx.id === retValue.id);
+      if (idx >= 0) {
+        budget.transactions[idx] = retValue;
+      } else {
+        budget.transactions.push(retValue);
+      }
+      budgetStore.updateBudget(budget.budgetId, { ...budget });
+
       if (budget && futureBudgetsExist && (await this.hasFundCategory(transaction, budget))) {
         const [uid, entityId, budgetMonth] = budget.budgetId.split("_"); // Updated to parse new ID format
         await this.recalculateCarryoverForFutureBudgets(uid, entityId, budgetMonth, transaction.categories);

@@ -5,7 +5,8 @@
       <v-row class="pa-0">
         <v-col cols="6"> <v-btn variant="text" type="submit" color="primary" :loading="loading" @click="save()">Save</v-btn></v-col>
         <v-col cols="6" class="text-right">
-          <v-btn v-if="showCancel" @click="emit('cancel')" variant="text" type="submit" color="primary" :loading="loading">Cancel</v-btn></v-col>
+          <v-btn v-if="showCancel" @click="emit('cancel')" variant="text" type="submit" color="primary" :loading="loading">Cancel</v-btn></v-col
+        >
       </v-row>
     </div>
     <v-form ref="form" @submit.prevent="save">
@@ -89,12 +90,7 @@
       </v-row>
 
       <div class="v-row form-row">
-        <v-textarea
-          v-model="locTrnsx.notes"
-          label="Notes"
-          variant="plain"
-          @focus="scrollToNoteField"
-        ></v-textarea>
+        <v-textarea v-model="locTrnsx.notes" label="Notes" variant="plain" @focus="scrollToNoteField"></v-textarea>
       </div>
 
       <v-row class="rounded-5 bg-light mb-2" justify="center">
@@ -118,12 +114,7 @@
       </v-row>
 
       <v-checkbox v-model="locTrnsx.recurring" label="Recurring"></v-checkbox>
-      <v-select
-        v-if="locTrnsx.recurring"
-        v-model="locTrnsx.recurringInterval"
-        :items="intervals"
-        label="Recurring Interval"
-      ></v-select>
+      <v-select v-if="locTrnsx.recurring" v-model="locTrnsx.recurringInterval" :items="intervals" label="Recurring Interval"></v-select>
 
       <!-- Imported Transaction Fields (Shown only if matched) -->
       <div v-if="locTrnsx.status && (locTrnsx.status == 'C' || locTrnsx.status == 'R')" class="mt-4">
@@ -359,6 +350,12 @@ async function save() {
       const targetBudgetMonth = locTrnsx.budgetMonth;
       const targetBudgetId = currentBudgetMonth === targetBudgetMonth ? props.budgetId : `${props.userId}_${entityId}_${targetBudgetMonth}`;
 
+      let moved = false;
+      if (currentBudgetMonth !== targetBudgetMonth && locTrnsx.id) {
+        await dataAccess.deleteTransaction(budget.value, locTrnsx.id, !isLastMonth.value);
+        moved = true;
+      }
+
       if (currentBudgetMonth !== targetBudgetMonth && locTrnsx.id) {
         await dataAccess.deleteTransaction(budget.value, locTrnsx.id, !isLastMonth.value);
       }
@@ -366,12 +363,17 @@ async function save() {
       const targetBudget = budgetStore.getBudget(targetBudgetId);
       if (targetBudget) {
         const savedTransaction = await dataAccess.saveTransaction(targetBudget, locTrnsx, !isLastMonth.value);
-
         const index = transactions.value.findIndex((t) => t.id === savedTransaction.id);
-        if (index >= 0) {
-          transactions.value[index] = savedTransaction;
+        if (moved) {
+          if (index >= 0) {
+            transactions.value.splice(index, 1);
+          }
         } else {
-          transactions.value.push(savedTransaction);
+          if (index >= 0) {
+            transactions.value[index] = savedTransaction;
+          } else {
+            transactions.value.push(savedTransaction);
+          }
         }
         emit("update-transactions", transactions.value);
 

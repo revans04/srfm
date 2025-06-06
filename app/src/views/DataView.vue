@@ -372,6 +372,7 @@ const loadingData = ref(false);
 const exporting = ref(false);
 const importing = ref(false);
 const loading = computed(() => loadingData.value || importing.value || exporting.value);
+const activeTab = ref<string>("import");
 const availableAccounts = ref<Account[]>([]);
 const selectedAccountId = ref<string>("");
 const selectedEntityId = ref<string>("");

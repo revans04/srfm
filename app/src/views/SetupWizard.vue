@@ -383,18 +383,18 @@ function initNewEntity() {
 
 function onEntitySaved() {
   hasUnsavedEntityChanges.value = false;
+  const currentId = selectedEntityId.value;
   if (familyStore.family) {
     family.value = JSON.parse(JSON.stringify(familyStore.family));
-    showSnackbarMessage(messages.entityAdded(family.value.name), "success");
+    const saved = family.value.entities.find((e) => e.id === currentId);
+    showSnackbarMessage(messages.entityAdded(saved?.name || "Entity"), "success");
   }
+
+  selectedEntityId.value = "";
 
   if (pendingNavigationArgs.value && pendingNavigationArgs.value.direction !== "select_entity") {
     executePendingNavigation();
-  } else if (
-    pendingNavigationArgs.value &&
-    pendingNavigationArgs.value.direction === "select_entity" &&
-    pendingNavigationArgs.value.entityId === selectedEntityId.value
-  ) {
+  } else if (pendingNavigationArgs.value && pendingNavigationArgs.value.direction === "select_entity" && pendingNavigationArgs.value.entityId === currentId) {
     pendingNavigationArgs.value = null;
   }
 }

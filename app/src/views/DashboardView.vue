@@ -29,7 +29,7 @@
     <!-- Main Content (hidden during loading) -->
     <div v-else>
       <v-row :class="isMobile ? 'pa-2' : 'pe-16'">
-        <v-col cols="12" sm="4">
+        <v-col cols="12">
           <!-- Entity Dropdown -->
           <v-select
             v-model="familyStore.selectedEntityId"
@@ -41,47 +41,61 @@
             density="compact"
             clearable
             @update:modelValue="loadBudgets"
+            class="entity-select mb-2"
           ></v-select>
-          <v-menu offset-y :close-on-content-click="false" v-model="menuOpen">
-            <template v-slot:activator="{ props }">
-              <div v-bind="props" class="month-selector no-wrap" :class="{ 'white--text': isMobile }">
-                <h1>
-                  {{ formatMonth(currentMonth) }}
-                  <v-icon small>mdi-chevron-down</v-icon>
-                </h1>
-              </div>
-            </template>
-            <v-card class="month-menu">
-              <v-row no-gutters class="month-navigation">
-                <v-col cols="auto">
-                  <v-btn icon small @click.stop="shiftMonths(-6)">
-                    <v-icon>mdi-chevron-left</v-icon>
-                  </v-btn>
-                </v-col>
-                <v-col class="text-center">
-                  <span>{{ displayYear }}</span>
-                </v-col>
-                <v-col cols="auto">
-                  <v-btn icon small @click.stop="shiftMonths(6)">
-                    <v-icon>mdi-chevron-right</v-icon>
-                  </v-btn>
-                </v-col>
-              </v-row>
-              <v-row no-gutters>
-                <v-col v-for="month in displayedMonths" :key="month.value" cols="4" class="month-item">
-                  <div
-                    class="pa-1 rounded-5 cursor-pointer ma-1 text-center"
-                    :class="month.value === currentMonth ? 'bg-primary text-white' : ''"
-                    style="border-width: 1px; border-color: rgb(var(--v-theme-primary))"
-                    :style="monthExists(month.value) ? 'border-style: solid;' : 'border-style: dashed;'"
-                    @click="selectMonth(month.value)"
-                  >
-                    {{ month.label }}
-                  </div>
-                </v-col>
-              </v-row>
-            </v-card>
-          </v-menu>
+          <div class="d-flex align-center">
+            <v-menu offset-y :close-on-content-click="false" v-model="menuOpen">
+              <template v-slot:activator="{ props }">
+                <div v-bind="props" class="month-selector no-wrap" :class="{ 'white--text': isMobile }">
+                  <h1>
+                    {{ formatMonth(currentMonth) }}
+                    <v-icon small>mdi-chevron-down</v-icon>
+                  </h1>
+                </div>
+              </template>
+              <v-card class="month-menu">
+                <v-row no-gutters class="month-navigation">
+                  <v-col cols="auto">
+                    <v-btn icon small @click.stop="shiftMonths(-6)">
+                      <v-icon>mdi-chevron-left</v-icon>
+                    </v-btn>
+                  </v-col>
+                  <v-col class="text-center">
+                    <span>{{ displayYear }}</span>
+                  </v-col>
+                  <v-col cols="auto">
+                    <v-btn icon small @click.stop="shiftMonths(6)">
+                      <v-icon>mdi-chevron-right</v-icon>
+                    </v-btn>
+                  </v-col>
+                </v-row>
+                <v-row no-gutters>
+                  <v-col v-for="month in displayedMonths" :key="month.value" cols="4" class="month-item">
+                    <div
+                      class="pa-1 rounded-5 cursor-pointer ma-1 text-center"
+                      :class="month.value === currentMonth ? 'bg-primary text-white' : ''"
+                      style="border-width: 1px; border-color: rgb(var(--v-theme-primary))"
+                      :style="monthExists(month.value) ? 'border-style: solid;' : 'border-style: dashed;'"
+                      @click="selectMonth(month.value)"
+                    >
+                      {{ month.label }}
+                    </div>
+                  </v-col>
+                </v-row>
+              </v-card>
+            </v-menu>
+            <div class="ml-2">
+              <v-btn v-if="!isMobile && !isEditing" icon class="mr-1" @click="isEditing = true" title="Edit Budget" variant="plain">
+                <v-icon color="primary">mdi-pencil</v-icon>
+              </v-btn>
+              <v-btn v-if="isEditing" icon class="mr-1" @click="isEditing = false" title="Cancel" variant="plain">
+                <v-icon>mdi-close</v-icon>
+              </v-btn>
+              <v-btn v-if="!isMobile && !isEditing" icon title="Delete Budget" variant="plain">
+                <v-icon color="error">mdi-trash-can-outline</v-icon>
+              </v-btn>
+            </div>
+          </div>
           <div
             class="pr-2 py-0"
             :class="{
@@ -95,19 +109,12 @@
             {{ remainingToBudget >= 0 ? "left to budget" : "over budget" }}
           </div>
         </v-col>
-        <v-col v-if="!isMobile || selectedCategory == null" cols="12" sm="4">
+        <v-col v-if="!isMobile || selectedCategory == null" cols="12" sm="6">
           <div class="my-2 bg-white rounded-10 pt-2 pr-3 pl-3 mb-4">
             <v-text-field append-inner-icon="mdi-magnify" density="compact" label="Search" variant="plain" single-line v-model="search"></v-text-field>
           </div>
         </v-col>
-        <v-col cols="12" sm="4" class="text-right pr-2 py-0">
-          <v-btn v-if="!isMobile && !isEditing" icon class="mr-3" @click="isEditing = true" title="Edit Budget" variant="plain"
-            ><v-icon color="primary">mdi-pencil</v-icon></v-btn
-          >
-          <v-btn v-if="isEditing" icon class="mr-3" @click="isEditing = false" title="Cancel" variant="plain"><v-icon>mdi-close</v-icon></v-btn>
-          <v-btn v-if="!isMobile && !isEditing" icon title="Delete Budget" variant="plain"><v-icon color="error">mdi-trash-can-outline</v-icon></v-btn>
-          <v-fab v-if="isMobile && !selectedCategory" icon="mdi-plus" variant="plain" color="white" app location="top right" @click="addTransaction"></v-fab>
-        </v-col>
+        <v-fab v-if="isMobile && !selectedCategory" icon="mdi-plus" variant="plain" color="white" app location="top right" @click="addTransaction"></v-fab>
       </v-row>
 
       <v-row>
@@ -185,29 +192,20 @@
                   <v-col>{{ item.name }}</v-col>
                   <v-col v-if="!isMobile" cols="auto">{{ formatCurrency(toDollars(toCents(item.planned))) }}</v-col>
                   <v-col :cols="isMobile ? 'auto' : '2'" class="text-right">
-                    <div
-                      v-if="formatCurrency(toDollars(toCents(item.planned))) > formatCurrency(toDollars(toCents(item.received)))"
-                      :class="item.received > item.planned ? 'text-success' : ''"
-                    >
+                    <div :class="item.received > item.planned ? 'text-success' : ''">
                       {{ formatCurrency(toDollars(toCents(item.received))) }}
-                    </div>
-                    <div v-else class="pr-4">
-                      <v-icon color="success">mdi-check-circle-outline</v-icon>
                     </div>
                   </v-col>
                 </v-row>
               </div>
-              <v-row v-if="!isMobile || plannedIncome !== actualIncome" dense>
+              <v-row v-if="!isMobile" dense>
                 <v-col>
                   <v-spacer></v-spacer>
                 </v-col>
                 <v-col v-if="!isMobile" cols="auto" class="font-weight-bold"> {{ formatCurrency(toDollars(toCents(plannedIncome))) }}</v-col>
                 <v-col :cols="isMobile ? 'auto' : '2'">
-                  <div v-if="plannedIncome !== actualIncome" class="font-weight-bold text-right" :class="actualIncome > plannedIncome ? 'text-success' : ''">
+                  <div class="font-weight-bold text-right" :class="actualIncome > plannedIncome ? 'text-success' : ''">
                     {{ formatCurrency(toDollars(toCents(actualIncome))) }}
-                  </div>
-                  <div v-else class="text-right pr-4">
-                    <v-icon color="success">mdi-check-circle-outline</v-icon>
                   </div>
                 </v-col>
               </v-row>
@@ -226,12 +224,47 @@
                     <v-col :cols="isMobile ? 'auto' : '2'">Remaining</v-col>
                   </v-row>
                   <div v-for="(item, idx) in catTransactions.filter((c) => c.group == g.group)" :key="idx">
-                    <v-row @click="onCategoryRowClick(item)" class="cursor-pointer">
-                      <v-col>
-                        <v-icon v-if="item.isFund" small class="mr-1" color="primary">mdi-piggy-bank-outline</v-icon>
-                        {{ item.name }}</v-col
+                    <v-row @click="handleRowClick(item)" class="cursor-pointer">
+                      <v-col
+                        v-if="!(inlineEdit.item?.name === item.name && inlineEdit.field === 'name')"
+                        @dblclick.stop="handleNameDblClick(item)"
+                        @touchstart="startTouch(item, 'name')"
+                        @touchend="endTouch"
                       >
-                      <v-col v-if="!isMobile" cols="2">{{ formatCurrency(item.target) }}</v-col>
+                        <v-icon v-if="item.isFund" small class="mr-1" color="primary">mdi-piggy-bank-outline</v-icon>
+                        {{ item.name }}
+                      </v-col>
+                      <v-col v-else>
+                        <v-text-field
+                          v-model="inlineEdit.value"
+                          density="compact"
+                          hide-details
+                          variant="solo"
+                          autofocus
+                          @keydown.enter="saveInlineEdit"
+                          @keydown.esc="cancelInlineEdit"
+                          @blur="saveInlineEdit"
+                        ></v-text-field>
+                      </v-col>
+                      <v-col
+                        v-if="!isMobile && !(inlineEdit.item?.name === item.name && inlineEdit.field === 'target')"
+                        cols="2"
+                        @dblclick.stop="handleTargetDblClick(item)"
+                        @touchstart="startTouch(item, 'target')"
+                        @touchend="endTouch"
+                      >
+                        {{ formatCurrency(item.target) }}
+                      </v-col>
+                      <v-col v-else-if="!isMobile" cols="2">
+                        <Currency-Input
+                          v-model.number="inlineEdit.value"
+                          density="compact"
+                          hide-details
+                          @keydown.enter="saveInlineEdit"
+                          @keydown.esc="cancelInlineEdit"
+                          @blur="saveInlineEdit"
+                        ></Currency-Input>
+                      </v-col>
                       <v-col :cols="isMobile ? 'auto' : '2'" :class="item.remaining && item.remaining < 0 ? 'text-error' : ''">{{
                         formatCurrency(item.remaining)
                       }}</v-col>
@@ -396,6 +429,15 @@ const debouncedSearch = ref("");
 const monthOffset = ref(0);
 const duplicating = ref(false);
 const menuOpen = ref(false);
+
+let clickTimeout: ReturnType<typeof setTimeout> | null = null;
+let touchTimeout: ReturnType<typeof setTimeout> | null = null;
+
+const inlineEdit = ref({
+  item: null as BudgetCategoryTrx | null,
+  field: null as "name" | "target" | null,
+  value: "" as string | number,
+});
 
 const isMobile = computed(() => window.innerWidth < 960);
 
@@ -763,7 +805,7 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
       familyId: familyId,
       entityId: entityId,
       month: month,
-      incomeTarget:  0,
+      incomeTarget: 0,
       categories: predefinedTemplate.categories.map((cat) => ({
         ...cat,
         carryover: cat.isFund ? 0 : 0,
@@ -1188,6 +1230,110 @@ async function duplicateCurrentMonth(month: string) {
   }
 }
 
+function handleRowClick(item: BudgetCategoryTrx) {
+  if (clickTimeout) clearTimeout(clickTimeout);
+  clickTimeout = setTimeout(() => {
+    onCategoryRowClick(item);
+    clickTimeout = null;
+  }, 250);
+}
+
+function handleNameDblClick(item: BudgetCategoryTrx) {
+  if (clickTimeout) {
+    clearTimeout(clickTimeout);
+    clickTimeout = null;
+  }
+  startInlineEdit(item, "name");
+}
+
+function handleTargetDblClick(item: BudgetCategoryTrx) {
+  if (clickTimeout) {
+    clearTimeout(clickTimeout);
+    clickTimeout = null;
+  }
+  startInlineEdit(item, "target");
+}
+
+function startTouch(item: BudgetCategoryTrx, field: "name" | "target") {
+  touchTimeout = setTimeout(() => {
+    if (clickTimeout) {
+      clearTimeout(clickTimeout);
+      clickTimeout = null;
+    }
+    startInlineEdit(item, field);
+  }, 500);
+}
+
+function endTouch() {
+  if (touchTimeout) {
+    clearTimeout(touchTimeout);
+    touchTimeout = null;
+  }
+}
+
+function startInlineEdit(item: BudgetCategoryTrx, field: "name" | "target") {
+  inlineEdit.value.item = item;
+  inlineEdit.value.field = field;
+  inlineEdit.value.value = field === "name" ? item.name : item.target;
+  console.log(inlineEdit.value);
+}
+
+async function saveInlineEdit() {
+  if (!inlineEdit.value.item || !inlineEdit.value.field) {
+    cancelInlineEdit();
+    return;
+  }
+
+  const item = inlineEdit.value.item;
+  const field = inlineEdit.value.field;
+  const idx = budget.value.categories.findIndex((c) => c.name === item.name);
+  if (idx === -1) {
+    cancelInlineEdit();
+    return;
+  }
+
+  if (field === "name") {
+    const oldName = budget.value.categories[idx].name;
+    const newName = String(inlineEdit.value.value).trim();
+    if (newName === "" || newName === oldName) {
+      cancelInlineEdit();
+      return;
+    }
+    budget.value.categories[idx].name = newName;
+    item.name = newName;
+    budget.value.transactions.forEach((t) => {
+      t.categories.forEach((c) => {
+        if (c.category === oldName) c.category = newName;
+      });
+    });
+    const optIdx = categoryOptions.value.indexOf(oldName);
+    if (optIdx !== -1) categoryOptions.value.splice(optIdx, 1, newName);
+    if (selectedCategory.value && selectedCategory.value.name === oldName) {
+      selectedCategory.value.name = newName;
+    }
+  } else {
+    const amount = typeof inlineEdit.value.value === "number" ? inlineEdit.value.value : parseFloat(String(inlineEdit.value.value));
+    budget.value.categories[idx].target = isNaN(amount) ? 0 : amount;
+    item.target = isNaN(amount) ? 0 : amount;
+  }
+
+  try {
+    budget.value.budgetId = budgetId.value;
+    await dataAccess.saveBudget(budgetId.value, budget.value);
+    budgetStore.updateBudget(budgetId.value, { ...budget.value });
+    showSnackbar("Budget updated");
+  } catch (error: any) {
+    showSnackbar(`Error saving budget: ${error.message}`, "error");
+  }
+
+  cancelInlineEdit();
+}
+
+function cancelInlineEdit() {
+  inlineEdit.value.item = null;
+  inlineEdit.value.field = null;
+}
+
 function showSnackbar(text: string, color = "success", retry?: () => void) {
   snackbarText.value = text;
   snackbarColor.value = color;
@@ -1221,6 +1367,14 @@ interface GroupCategory {
 h1 {
   font-size: 1.3em;
   text-wrap: nowrap;
+}
+.entity-select .v-field__input {
+  font-size: 1.6rem;
+  font-weight: bold;
+  color: rgb(var(--v-theme-primary));
+}
+.search-container {
+  max-width: 400px;
 }
 .month-selector {
   cursor: pointer;

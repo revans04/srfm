@@ -44,6 +44,15 @@
                       {{ smartMatchesSortDirection === "asc" ? "Ascending" : "Descending" }}
                     </v-btn>
                   </v-col>
+                  <v-col cols="12" md="4">
+                    <v-text-field
+                      v-model="smartMatchDateRange"
+                      label="Match Date Range (days)"
+                      type="number"
+                      variant="outlined"
+                      @input="computeSmartMatchesLocal()"
+                    ></v-text-field>
+                  </v-col>
                   <v-col>
                     <v-btn
                       color="primary"
@@ -357,6 +366,7 @@ const smartMatchesSortFields = [
   { text: "Merchant", value: "merchant" },
   { text: "Amount", value: "bankAmount" },
 ];
+const smartMatchDateRange = ref<string>("7");
 
 // Local state for Remaining Transactions
 const currentBankTransactionIndex = ref<number>(0);
@@ -375,9 +385,7 @@ const potentialMatchesSortFields = [
 
 // Split transaction state
 const showSplitForm = ref(false);
-const transactionSplits = ref<Array<{ entityId: string; category: string; amount: number }>>([
-  { entityId: "", category: "", amount: 0 },
-]);
+const transactionSplits = ref<Array<{ entityId: string; category: string; amount: number }>>([{ entityId: "", category: "", amount: 0 }]);
 const splitForm = ref<InstanceType<typeof VForm> | null>(null);
 
 const showTransactionDialog = ref(false);
@@ -399,7 +407,7 @@ const newTransactionBudgetId = ref<string>(""); // Track budgetId for Transactio
 const isMobile = computed(() => window.innerWidth < 960);
 
 const entityOptions = computed(() => {
-  return (familyStore.family?.entities || []).map(entity => ({
+  return (familyStore.family?.entities || []).map((entity) => ({
     id: entity.id,
     name: entity.name,
   }));
@@ -498,11 +506,19 @@ watch(
   }
 );
 
+watch(
+  () => smartMatchDateRange.value,
+  () => {
+    computeSmartMatchesLocal();
+  }
+);
+
 async function initializeState() {
   remainingImportedTransactions.value = Array.isArray(props.remainingImportedTransactions) ? [...props.remainingImportedTransactions] : [];
   selectedBankTransaction.value = props.selectedBankTransaction || remainingImportedTransactions.value[0] || null;
 
   smartMatches.value = [];
+  smartMatchDateRange.value = "7";
   computeSmartMatchesLocal();
 
   resetState(false);
@@ -634,7 +650,7 @@ async function matchBankTransaction(budgetTransaction: Transaction) {
       date: budgetTransaction.date || importedTx.postedDate || new Date().toISOString().split("T")[0],
       merchant: budgetTransaction.merchant || importedTx.payee || "",
       categories: budgetTransaction.categories || [{ category: "", amount: 0 }],
-      amount: budgetTransaction.amount || (importedTx.debitAmount || importedTx.creditAmount || 0),
+      amount: budgetTransaction.amount || importedTx.debitAmount || importedTx.creditAmount || 0,
       notes: budgetTransaction.notes || "",
       recurring: budgetTransaction.recurring || false,
       recurringInterval: budgetTransaction.recurringInterval || "Monthly",
@@ -973,7 +989,7 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
   const confirmedIds = new Set(confirmedMatches.map((m) => m.importedTransaction.id));
   const newSmartMatches = smartMatches.value.filter((match) => !confirmedIds.has(match.importedTransaction.id));
 
-  const defaultDateRangeDays = 7;
+  const dateRangeDays = parseInt(smartMatchDateRange.value) || 7;
   const unmatchedImported = remainingImportedTransactions.value.filter(
     (tx) => !confirmedIds.has(tx.id) && !newSmartMatches.some((m) => m.importedTransaction.id === tx.id)
   );
@@ -984,6 +1000,8 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
     budgetId: string;
     bankAmount: number;
     bankType: string;
+    merchantMatch: boolean;
+    dateExact: boolean;
   }> = [];
 
   unmatchedImported.forEach((importedTx) => {
@@ -993,21 +1011,23 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
     const normalizedBankDate = new Date(bankDateStr);
 
     const startDate = new Date(normalizedBankDate);
-    startDate.setDate(normalizedBankDate.getDate() - defaultDateRangeDays);
+    startDate.setDate(normalizedBankDate.getDate() - dateRangeDays);
     const endDate = new Date(normalizedBankDate);
-    endDate.setDate(normalizedBankDate.getDate() + defaultDateRangeDays);
+    endDate.setDate(normalizedBankDate.getDate() + dateRangeDays);
 
     props.transactions.forEach((tx) => {
       const txDate = new Date(tx.date);
       const txDateStr = txDate.toISOString().split("T")[0];
       const normalizedTxDate = new Date(txDateStr);
       const txAmount = tx.amount;
+      const typeMatch = tx.isIncome === !!importedTx.creditAmount;
       if (
         normalizedTxDate >= startDate &&
         normalizedTxDate <= endDate &&
         Math.abs(txAmount - bankAmount) < 0.01 &&
         (!tx.status || tx.status === "U") &&
-        !tx.deleted
+        !tx.deleted &&
+        typeMatch
       ) {
         potentialMatches.push({
           importedTx,
@@ -1015,6 +1035,9 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
           budgetId: tx.budgetId || `${props.userId}_${tx.entityId}_${toBudgetMonth(importedTx.postedDate)}`,
           bankAmount,
           bankType: importedTx.debitAmount ? "Debit" : "Credit",
+          merchantMatch:
+            !!importedTx.payee && importedTx.payee.toLowerCase().includes(tx.merchant.toLowerCase()),
+          dateExact: normalizedTxDate.getTime() === normalizedBankDate.getTime(),
         });
       }
     });
@@ -1023,28 +1046,39 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
   const usedBudgetTxIds = new Set<string>();
   const usedBankTxIds = new Set<string>();
   const smartMatchesToAdd: typeof potentialMatches = [];
-  const conflictedMatches: typeof potentialMatches = [];
 
-  potentialMatches.forEach((match) => {
-    const budgetTxId = match.budgetTx.id;
-    const bankTxId = match.importedTx.id;
+  const matchesByBank: Record<string, typeof potentialMatches> = {};
+  potentialMatches.forEach((m) => {
+    if (!matchesByBank[m.importedTx.id]) matchesByBank[m.importedTx.id] = [];
+    matchesByBank[m.importedTx.id].push(m);
+  });
 
-    const matchesForBudgetTx = potentialMatches.filter((m) => m.budgetTx.id === budgetTxId);
-    const matchesForBankTx = potentialMatches.filter((m) => m.importedTx.id === bankTxId);
+  Object.values(matchesByBank).forEach((cands) => {
+    const available = cands.filter((c) => !usedBudgetTxIds.has(c.budgetTx.id));
+    if (available.length === 0) return;
+    let chosen: (typeof cands)[0] | null = null;
 
-    if (
-      matchesForBudgetTx.length === 1 &&
-      matchesForBankTx.length === 1 &&
-      !usedBudgetTxIds.has(budgetTxId) &&
-      !usedBankTxIds.has(bankTxId)
-    ) {
-      smartMatchesToAdd.push(match);
-      usedBudgetTxIds.add(budgetTxId);
-      usedBankTxIds.add(bankTxId);
+    if (available.length === 1) {
+      chosen = available[0];
     } else {
-      conflictedMatches.push(match);
+      const merchantMatches = available.filter((c) => c.merchantMatch);
+      if (merchantMatches.length === 1) {
+        chosen = merchantMatches[0];
+      } else {
+        const dateMatches = available.filter((c) => c.dateExact);
+        if (dateMatches.length === 1) {
+          chosen = dateMatches[0];
+        }
+      }
+    }
+
+    if (chosen && !usedBudgetTxIds.has(chosen.budgetTx.id) && !usedBankTxIds.has(chosen.importedTx.id)) {
+      smartMatchesToAdd.push(chosen);
+      usedBudgetTxIds.add(chosen.budgetTx.id);
+      usedBankTxIds.add(chosen.importedTx.id);
     }
   });
+
 
   smartMatchesToAdd.forEach((match) => {
     newSmartMatches.push({
@@ -1060,16 +1094,12 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
   selectedSmartMatchIds.value = [];
 
   const smartMatchImportedIds = new Set(smartMatches.value.map((m) => m.importedTransaction.id));
-  remainingImportedTransactions.value = unmatchedImported.filter(
-    (tx) => !smartMatchImportedIds.has(tx.id)
-  );
+  remainingImportedTransactions.value = unmatchedImported.filter((tx) => !smartMatchImportedIds.has(tx.id));
 }
 
 function updateRemainingTransactions() {
   const matchedIds = new Set(
-    smartMatches.value
-      .filter((match) => selectedSmartMatchIds.value.includes(match.importedTransaction.id))
-      .map((match) => match.importedTransaction.id)
+    smartMatches.value.filter((match) => selectedSmartMatchIds.value.includes(match.importedTransaction.id)).map((match) => match.importedTransaction.id)
   );
   remainingImportedTransactions.value = remainingImportedTransactions.value.filter((importedTx) => !matchedIds.has(importedTx.id));
 
@@ -1117,12 +1147,12 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
   let sourceBudget: Budget | undefined;
 
   // Look for previous budget (preferred)
-  const previousBudgets = availableBudgets.filter(b => b.month < month && b.entityId === entityId);
+  const previousBudgets = availableBudgets.filter((b) => b.month < month && b.entityId === entityId);
   if (previousBudgets.length > 0) {
     sourceBudget = previousBudgets[previousBudgets.length - 1]; // Most recent previous
   } else {
     // Fall back to earliest future budget
-    const futureBudgets = availableBudgets.filter(b => b.month > month && b.entityId === entityId);
+    const futureBudgets = availableBudgets.filter((b) => b.month > month && b.entityId === entityId);
     if (futureBudgets.length > 0) {
       sourceBudget = futureBudgets[0]; // Earliest future
     }
