@@ -35,7 +35,7 @@
         <v-btn color="primary" @click="openStatementDialog">Add Statement</v-btn>
       </v-col>
       <v-col cols="auto" v-if="selectedStatement">
-        <v-btn color="primary" @click="openReconcileDialog">Mark Reconciled</v-btn>
+        <v-btn color="primary" @click="startReconcile">Reconcile Statement</v-btn>
       </v-col>
     </v-row>
 
@@ -198,6 +198,10 @@
         show-select
         :item-selectable="(item) => item.status === 'U'"
         item-value="id"
+        fixed-header
+        fixed-footer
+        height="600"
+        :item-class="getRowClass"
       >
         <template v-slot:item.amount="{ item }">
           <span :class="item.isIncome ? 'text-success' : 'text-error'">
@@ -449,48 +453,32 @@
       </v-card>
     </v-dialog>
 
-    <!-- Reconcile Statement Dialog -->
-    <v-dialog v-model="showReconcileDialog" max-width="800">
-      <v-card>
-        <v-card-title class="bg-primary py-3">
-          <span class="text-white">Reconcile Statement</span>
-        </v-card-title>
-        <v-card-text>
-          <p>
-            Select transactions to reconcile for
-            {{ selectedStatement?.startDate }} - {{ selectedStatement?.endDate }}
-          </p>
-          <v-data-table
-            v-model="selectedRows"
-            :headers="reconcileHeaders"
-            :items="statementTransactions"
-            class="elevation-1"
-            items-per-page="0"
-            :hide-default-footer="true"
-            show-select
-            item-value="id"
-          >
-            <template #item.amount="{ item }">
-              <span :class="item.amount >= 0 ? 'text-success' : 'text-error'">
-                {{ formatCurrency(item.amount) }}
-              </span>
-            </template>
-          </v-data-table>
-          <div class="mt-4">
-            <p>Starting Balance: {{ formatCurrency(selectedStatement?.startingBalance || 0) }}</p>
-            <p>Selected Total: {{ formatCurrency(selectedTransactionsTotal) }}</p>
-            <p>Calculated Ending Balance: {{ formatCurrency(calculatedEndingBalance) }}</p>
-            <p :class="{ 'text-error': !reconcileMatches }">Statement Ending Balance: {{ formatCurrency(selectedStatement?.endingBalance || 0) }}</p>
-            <v-alert type="warning" v-if="!reconcileMatches" class="mt-2" dense> Calculated ending balance does not match statement ending balance. </v-alert>
-          </div>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn color="grey" variant="text" @click="closeReconcileDialog">Cancel</v-btn>
-          <v-btn color="primary" variant="flat" @click="markStatementReconciled" :loading="saving">Reconcile</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <!-- Reconcile Summary -->
+    <v-card class="mt-4" v-if="reconciling && selectedStatement">
+      <v-card-title class="bg-primary py-3">
+        <span class="text-white">Reconcile Statement</span>
+      </v-card-title>
+      <v-card-text>
+        <p>
+          Select transactions to reconcile for
+          {{ selectedStatement.startDate }} - {{ selectedStatement.endDate }}
+        </p>
+        <div class="mt-4">
+          <p>Starting Balance: {{ formatCurrency(selectedStatement.startingBalance) }}</p>
+          <p>Selected Total: {{ formatCurrency(selectedTransactionsTotal) }}</p>
+          <p>Calculated Ending Balance: {{ formatCurrency(calculatedEndingBalance) }}</p>
+          <p :class="{ 'text-error': !reconcileMatches }">Statement Ending Balance: {{ formatCurrency(selectedStatement.endingBalance) }}</p>
+          <v-alert type="warning" v-if="!reconcileMatches" class="mt-2" dense>
+            Calculated ending balance does not match statement ending balance.
+          </v-alert>
+        </div>
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer></v-spacer>
+        <v-btn color="grey" variant="text" @click="cancelReconcile">Cancel</v-btn>
+        <v-btn color="primary" variant="flat" @click="markStatementReconciled" :loading="saving">Reconcile</v-btn>
+      </v-card-actions>
+    </v-card>
 
     <v-snackbar v-model="snackbar" :color="snackbarColor" timeout="3000">
       {{ snackbarText }}
@@ -581,7 +569,7 @@ const newStatement = ref<Statement>({
   endingBalance: 0,
   reconciled: false,
 });
-const showReconcileDialog = ref(false);
+const reconciling = ref(false);
 const selectedStatement = computed(() => statements.value.find((s) => s.id === selectedStatementId.value) || null);
 const categoryOptions = computed(() => {
   const categories = new Set<string>(["Income"]);
@@ -941,6 +929,12 @@ function getEntityName(entityId: string): string {
     return budgetEntity ? budgetEntity.name : "N/A";
   }
   return "N/A";
+}
+
+function getRowClass(item: DisplayTransaction) {
+  if (item.status === "U") return "status-u";
+  if (item.status === "C") return "status-c";
+  return "";
 }
 
 function confirmAction(transaction: any, action: string) {
@@ -1417,13 +1411,13 @@ function openBalanceAdjustmentDialog() {
   showBalanceAdjustmentDialog.value = true;
 }
 
-function openReconcileDialog() {
+function startReconcile() {
   selectedRows.value = statementTransactions.value.map((t) => t.id);
-  showReconcileDialog.value = true;
+  reconciling.value = true;
 }
 
-function closeReconcileDialog() {
-  showReconcileDialog.value = false;
+function cancelReconcile() {
+  reconciling.value = false;
 }
 
 async function saveBalanceAdjustment() {
@@ -1595,7 +1589,7 @@ async function markStatementReconciled() {
     await statementStore.saveStatement(familyId.value, selectedAccount.value, updated, txRefs);
     statements.value = statementStore.getStatements(familyId.value, selectedAccount.value);
     showSnackbar("Statement reconciled", "success");
-    showReconcileDialog.value = false;
+    reconciling.value = false;
     selectedRows.value = [];
   } catch (error: any) {
     console.error("Error reconciling statement:", error);
@@ -1638,5 +1632,10 @@ function applyFilters() {
 </script>
 
 <style scoped>
-/* No additional styles needed beyond existing */
+.status-u {
+  background-color: #fff9e6;
+}
+.status-c {
+  background-color: #e6f4ff;
+}
 </style>
