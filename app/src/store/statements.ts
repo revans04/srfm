@@ -6,22 +6,24 @@ import { dataAccess } from "@/dataAccess";
 export const useStatementStore = defineStore("statements", () => {
   const statements = ref<Record<string, Statement[]>>({});
 
-  async function loadStatements(accountNumber: string) {
-    const list = await dataAccess.getStatements(accountNumber);
-    statements.value[accountNumber] = list.sort((a, b) => a.startDate.localeCompare(b.startDate));
+  async function loadStatements(familyId: string, accountNumber: string) {
+    const list = await dataAccess.getStatements(familyId, accountNumber);
+    const key = `${familyId}_${accountNumber}`;
+    statements.value[key] = list.sort((a, b) => a.startDate.localeCompare(b.startDate));
   }
 
-  function getStatements(accountNumber: string): Statement[] {
-    return statements.value[accountNumber] || [];
+  function getStatements(familyId: string, accountNumber: string): Statement[] {
+    return statements.value[`${familyId}_${accountNumber}`] || [];
   }
 
   async function saveStatement(
+    familyId: string,
     accountNumber: string,
     statement: Statement,
     transactionRefs: { budgetId: string; transactionId: string }[]
   ) {
-    await dataAccess.saveStatement(accountNumber, statement, transactionRefs);
-    await loadStatements(accountNumber);
+    await dataAccess.saveStatement(familyId, accountNumber, statement, transactionRefs);
+    await loadStatements(familyId, accountNumber);
   }
 
   return { statements, loadStatements, getStatements, saveStatement };

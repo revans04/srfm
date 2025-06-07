@@ -17,9 +17,11 @@ namespace FamilyBudgetApi.Services
             _logger = logger;
         }
 
-        public async Task<List<Statement>> GetStatements(string accountNumber)
+        public async Task<List<Statement>> GetStatements(string familyId, string accountNumber)
         {
-            var colRef = _db.Collection("accounts").Document(accountNumber).Collection("statements");
+            var colRef = _db.Collection("families").Document(familyId)
+                .Collection("accounts").Document(accountNumber)
+                .Collection("statements");
             var snap = await colRef.GetSnapshotAsync();
             return snap.Documents.Select(d =>
             {
@@ -28,9 +30,11 @@ namespace FamilyBudgetApi.Services
             }).OrderBy(s => s.StartDate).ToList();
         }
 
-        public async Task SaveStatement(string accountNumber, Statement statement, List<(string budgetId, string transactionId)> txRefs, string userId, string userEmail)
+        public async Task SaveStatement(string familyId, string accountNumber, Statement statement, List<(string budgetId, string transactionId)> txRefs, string userId, string userEmail)
         {
-            var docRef = _db.Collection("accounts").Document(accountNumber).Collection("statements").Document(statement.Id);
+            var docRef = _db.Collection("families").Document(familyId)
+                .Collection("accounts").Document(accountNumber)
+                .Collection("statements").Document(statement.Id);
             await docRef.SetAsync(statement, SetOptions.MergeAll);
 
             if (txRefs == null || txRefs.Count == 0) return;

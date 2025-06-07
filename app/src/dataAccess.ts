@@ -715,16 +715,21 @@ export class DataAccess {
   }
 
   // Statement Functions
-  async getStatements(accountNumber: string): Promise<Statement[]> {
+  async getStatements(familyId: string, accountNumber: string): Promise<Statement[]> {
     const headers = await this.getAuthHeaders();
-    const response = await fetch(`${this.apiBaseUrl}/accounts/${accountNumber}/statements`, { headers });
+    const response = await fetch(`${this.apiBaseUrl}/families/${familyId}/accounts/${accountNumber}/statements`, { headers });
     if (!response.ok) throw new Error(`Failed to fetch statements: ${response.statusText}`);
     return await response.json();
   }
 
-  async saveStatement(accountNumber: string, statement: Statement, transactionRefs: { budgetId: string; transactionId: string }[]): Promise<void> {
+  async saveStatement(
+    familyId: string,
+    accountNumber: string,
+    statement: Statement,
+    transactionRefs: { budgetId: string; transactionId: string }[]
+  ): Promise<void> {
     const headers = await this.getAuthHeaders();
-    const response = await fetch(`${this.apiBaseUrl}/accounts/${accountNumber}/statements/${statement.id}`, {
+    const response = await fetch(`${this.apiBaseUrl}/families/${familyId}/accounts/${accountNumber}/statements/${statement.id}`, {
       method: "PUT",
       headers,
       body: JSON.stringify({ statement, transactions: transactionRefs }),
