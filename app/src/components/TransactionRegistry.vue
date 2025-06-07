@@ -13,8 +13,14 @@
           @update:modelValue="loadTransactions"
         ></v-select>
       </v-col>
+      <v-col cols="auto" class="d-flex align-center">
+        <v-btn color="primary" variant="plain" @click="refreshData" :loading="loading">
+          <v-icon start>mdi-refresh</v-icon>
+          Refresh
+        </v-btn>
+      </v-col>
     </v-row>
-    <v-row v-if="statementOptions.length">
+    <v-row v-if="selectedAccount">
       <v-col cols="12" md="4">
         <v-select
           v-model="selectedStatementId"
@@ -24,6 +30,9 @@
           item-title="title"
           item-value="id"
         ></v-select>
+      </v-col>
+      <v-col cols="auto">
+        <v-btn color="primary" @click="openStatementDialog">Add Statement</v-btn>
       </v-col>
       <v-col cols="auto" v-if="selectedStatement">
         <v-btn color="primary" @click="openReconcileDialog">Mark Reconciled</v-btn>
@@ -90,32 +99,57 @@
           </v-col>
         </v-row>
         <v-row>
-          <v-col cols="12" md="3">
+          <v-col cols="12" md="2">
             <v-text-field v-model="filterMerchant" label="Merchant" variant="outlined" density="compact" @input="applyFilters"></v-text-field>
           </v-col>
-          <v-col cols="12" md="3">
+          <v-col cols="12" md="2">
             <v-text-field v-model="filterAmount" label="Amount" type="number" variant="outlined" density="compact" @input="applyFilters"></v-text-field>
           </v-col>
           <v-col cols="12" md="3">
             <v-text-field v-model="filterImportedMerchant" label="Imported Merchant" variant="outlined" density="compact" @input="applyFilters"></v-text-field>
           </v-col>
-          <v-col cols="12" md="3">
-            <v-text-field
-              v-model="filterDate"
-              label="Date"
-              type="date"
-              variant="outlined"
-              density="compact"
-              :clearable="true"
-              @input="applyFilters"
-            ></v-text-field>
+          <v-col cols="12" md="5">
+            <v-row>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="filterStartDate"
+                  label="Start Date"
+                  type="date"
+                  variant="outlined"
+                  density="compact"
+                  :clearable="true"
+                  @input="applyFilters"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="filterEndDate"
+                  label="End Date"
+                  type="date"
+                  variant="outlined"
+                  density="compact"
+                  :clearable="true"
+                  @input="applyFilters"
+                ></v-text-field>
+              </v-col>
+            </v-row>
           </v-col>
         </v-row>
       </v-card-text>
     </v-card>
 
     <v-card v-if="!loading">
-      <v-card-title>Transaction Registry</v-card-title>
+      <v-card-title>
+        <v-row :dense="true">
+          <v-col>Transaction Registry</v-col>
+          <v-col cols="auto">
+            <v-btn icon variant="plain" @click="downloadCsv" :disabled="displayTransactions.length === 0">
+              <v-icon>mdi-download</v-icon>
+              <v-tooltip activator="parent" location="top">Download CSV</v-tooltip>
+            </v-btn>
+          </v-col>
+        </v-row>
+      </v-card-title>
       <v-card-text>
         <v-btn
           v-if="selectedRows.length > 0"
@@ -128,6 +162,30 @@
           })"
         >
           Batch Match {{ selectedRows.length }} Transaction{{ selectedRows.length > 1 ? "s" : "" }}
+        </v-btn>
+        <v-btn
+          v-if="selectedRows.length > 0"
+          color="warning"
+          class="mb-4 ml-2"
+          @click="confirmBatchAction('Ignore')"
+          :disabled="loading || !selectedRows.every(id => {
+            const tx = displayTransactions.find((t: DisplayTransaction) => t.id === id);
+            return tx && tx.status === 'U' && !tx.budgetId;
+          })"
+        >
+          Ignore {{ selectedRows.length }}
+        </v-btn>
+        <v-btn
+          v-if="selectedRows.length > 0"
+          color="error"
+          class="mb-4 ml-2"
+          @click="confirmBatchAction('Delete')"
+          :disabled="loading || !selectedRows.every(id => {
+            const tx = displayTransactions.find((t: DisplayTransaction) => t.id === id);
+            return tx && tx.status === 'U' && !tx.budgetId;
+          })"
+        >
+          Delete {{ selectedRows.length }}
         </v-btn>
       </v-card-text>
       <v-data-table
@@ -261,6 +319,85 @@
       </v-card>
     </v-dialog>
 
+    <!-- Add Statement Dialog -->
+    <v-dialog v-model="showStatementDialog" max-width="500">
+      <v-card>
+        <v-card-title class="bg-primary py-3">
+          <span class="text-white">Add Statement</span>
+        </v-card-title>
+        <v-card-text>
+          <v-form ref="statementForm">
+            <v-row>
+              <v-col>
+                <v-text-field
+                  v-model="newStatement.startDate"
+                  label="Start Date"
+                  type="date"
+                  variant="outlined"
+                  density="compact"
+                  :rules="requiredField"
+                ></v-text-field>
+              </v-col>
+              <v-col>
+                <v-text-field
+                  v-model.number="newStatement.startingBalance"
+                  label="Starting Balance"
+                  type="number"
+                  variant="outlined"
+                  density="compact"
+                  :rules="requiredField"
+                ></v-text-field>
+              </v-col>
+            </v-row>
+            <v-row>
+              <v-col>
+                <v-text-field
+                  v-model="newStatement.endDate"
+                  label="End Date"
+                  type="date"
+                  variant="outlined"
+                  density="compact"
+                  :rules="requiredField"
+                ></v-text-field>
+              </v-col>
+              <v-col>
+                <v-text-field
+                  v-model.number="newStatement.endingBalance"
+                  label="Ending Balance"
+                  type="number"
+                  variant="outlined"
+                  density="compact"
+                  :rules="requiredField"
+                ></v-text-field>
+              </v-col>
+            </v-row>
+          </v-form>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="grey" variant="text" @click="closeStatementDialog">Cancel</v-btn>
+          <v-btn color="primary" variant="flat" @click="saveStatement" :loading="saving">Save</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Batch Action Dialog -->
+    <v-dialog v-model="showBatchActionDialog" max-width="400" @keyup.enter="executeBatchAction">
+      <v-card>
+        <v-card-title class="bg-warning py-3">
+          <span class="text-white">{{ batchAction }} Selected Transactions</span>
+        </v-card-title>
+        <v-card-text class="pt-4">
+          Are you sure you want to {{ batchAction.toLowerCase() }} {{ selectedRows.length }} transaction{{ selectedRows.length > 1 ? "s" : "" }}?
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="grey" variant="text" @click="showBatchActionDialog = false">Cancel</v-btn>
+          <v-btn color="warning" variant="flat" @click="executeBatchAction" :loading="saving">{{ batchAction }}</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- Balance Adjustment Dialog -->
     <v-dialog v-model="showBalanceAdjustmentDialog" max-width="500">
       <v-card>
@@ -343,12 +480,8 @@
             <p>Starting Balance: {{ formatCurrency(selectedStatement?.startingBalance || 0) }}</p>
             <p>Selected Total: {{ formatCurrency(selectedTransactionsTotal) }}</p>
             <p>Calculated Ending Balance: {{ formatCurrency(calculatedEndingBalance) }}</p>
-            <p :class="{ 'text-error': !reconcileMatches }">
-              Statement Ending Balance: {{ formatCurrency(selectedStatement?.endingBalance || 0) }}
-            </p>
-            <v-alert type="warning" v-if="!reconcileMatches" class="mt-2" dense>
-              Calculated ending balance does not match statement ending balance.
-            </v-alert>
+            <p :class="{ 'text-error': !reconcileMatches }">Statement Ending Balance: {{ formatCurrency(selectedStatement?.endingBalance || 0) }}</p>
+            <v-alert type="warning" v-if="!reconcileMatches" class="mt-2" dense> Calculated ending balance does not match statement ending balance. </v-alert>
           </div>
         </v-card-text>
         <v-card-actions>
@@ -372,11 +505,13 @@
 import { ref, onMounted, computed } from "vue";
 import { auth } from "../firebase/index";
 import { dataAccess } from "../dataAccess";
+import Papa from "papaparse";
+import { saveAs } from "file-saver";
 import { useBudgetStore } from "../store/budget";
 import { useFamilyStore } from "../store/family";
 import { useStatementStore } from "../store/statements";
 import { Transaction, ImportedTransaction, Budget, Account, ImportedTransactionDoc, Statement } from "../types";
-import { formatCurrency, toBudgetMonth, adjustTransactionDate } from "../utils/helpers";
+import { formatCurrency, toBudgetMonth, adjustTransactionDate, todayISO } from "../utils/helpers";
 import { VForm } from "vuetify/components";
 import { v4 as uuidv4 } from "uuid";
 import { DEFAULT_BUDGET_TEMPLATES } from "../constants/budgetTemplates";
@@ -425,7 +560,7 @@ const transactionToAction = ref<any | null>(null);
 const transactionAction = ref("");
 const showBalanceAdjustmentDialog = ref(false);
 const adjustmentAmount = ref<number>(0);
-const adjustmentDate = ref<string>(new Date().toISOString().split("T")[0]);
+const adjustmentDate = ref<string>(todayISO());
 const adjustmentForm = ref<InstanceType<typeof VForm> | null>(null);
 const selectedRows = ref<string[]>([]);
 const showBatchMatchDialog = ref(false);
@@ -433,6 +568,19 @@ const batchMatchForm = ref<InstanceType<typeof VForm> | null>(null);
 const batchMerchant = ref("");
 const batchCategory = ref("");
 const selectedEntityId = ref<string>("");
+const showBatchActionDialog = ref(false);
+const batchAction = ref<string>("");
+const showStatementDialog = ref(false);
+const statementForm = ref<InstanceType<typeof VForm> | null>(null);
+const newStatement = ref<Statement>({
+  id: "",
+  accountNumber: "",
+  startDate: "",
+  startingBalance: 0,
+  endDate: "",
+  endingBalance: 0,
+  reconciled: false,
+});
 const showReconcileDialog = ref(false);
 const selectedStatement = computed(() => statements.value.find((s) => s.id === selectedStatementId.value) || null);
 const categoryOptions = computed(() => {
@@ -457,7 +605,8 @@ const filterMerchant = ref("");
 const filterMatched = ref(false);
 const filterAmount = ref("");
 const filterImportedMerchant = ref("");
-const filterDate = ref("");
+const filterStartDate = ref("");
+const filterEndDate = ref("");
 
 // Validation rules
 const requiredField = [(value: string) => !!value || "This field is required"];
@@ -577,9 +726,14 @@ const displayTransactions = computed((): DisplayTransaction[] => {
     unmatchedTxs = unmatchedTxs.filter((t) => t.merchant.toLowerCase().includes(importedMerchantFilter));
   }
 
-  if (filterDate.value) {
-    matchedTxs = matchedTxs.filter((t) => t.date === filterDate.value);
-    unmatchedTxs = unmatchedTxs.filter((t) => t.date === filterDate.value);
+  if (filterStartDate.value) {
+    matchedTxs = matchedTxs.filter((t) => t.date >= filterStartDate.value);
+    unmatchedTxs = unmatchedTxs.filter((t) => t.date >= filterStartDate.value);
+  }
+
+  if (filterEndDate.value) {
+    matchedTxs = matchedTxs.filter((t) => t.date <= filterEndDate.value);
+    unmatchedTxs = unmatchedTxs.filter((t) => t.date <= filterEndDate.value);
   }
 
   if (search.value) {
@@ -623,8 +777,12 @@ const displayTransactions = computed((): DisplayTransaction[] => {
     retTrxs = retTrxs.filter((t) => t.merchant.toLowerCase().includes(importedMerchantFilter));
   }
 
-  if (filterDate.value) {
-    retTrxs = retTrxs.filter((t) => t.date === filterDate.value);
+  if (filterStartDate.value) {
+    retTrxs = retTrxs.filter((t) => t.date >= filterStartDate.value);
+  }
+
+  if (filterEndDate.value) {
+    retTrxs = retTrxs.filter((t) => t.date <= filterEndDate.value);
   }
 
   if (search.value) {
@@ -643,16 +801,8 @@ const statementTransactions = computed((): DisplayTransaction[] => {
   const end = selectedStatement.value.endDate;
 
   const budgetTxs: DisplayTransaction[] = budgets.value
-    .flatMap((budget) =>
-      (budget.transactions || []).map((tx) => ({ tx, budget }))
-    )
-    .filter(
-      ({ tx }) =>
-        tx.accountNumber === selectedAccount.value &&
-        tx.date >= start &&
-        tx.date <= end &&
-        !tx.deleted
-    )
+    .flatMap((budget) => (budget.transactions || []).map((tx) => ({ tx, budget })))
+    .filter(({ tx }) => tx.accountNumber === selectedAccount.value && tx.date >= start && tx.date <= end && !tx.deleted)
     .map(({ tx, budget }) => ({
       id: tx.id,
       date: tx.date,
@@ -663,13 +813,7 @@ const statementTransactions = computed((): DisplayTransaction[] => {
     }));
 
   const importedTxs: DisplayTransaction[] = importedTransactions.value
-    .filter(
-      (itx) =>
-        itx.accountNumber === selectedAccount.value &&
-        itx.postedDate >= start &&
-        itx.postedDate <= end &&
-        !itx.deleted
-    )
+    .filter((itx) => itx.accountNumber === selectedAccount.value && itx.postedDate >= start && itx.postedDate <= end && !itx.deleted)
     .map((itx) => ({
       id: itx.id,
       date: itx.postedDate,
@@ -696,9 +840,7 @@ const calculatedEndingBalance = computed(() => {
 
 const reconcileMatches = computed(() => {
   if (!selectedStatement.value) return false;
-  return (
-    Math.abs(calculatedEndingBalance.value - selectedStatement.value.endingBalance) < 0.01
-  );
+  return Math.abs(calculatedEndingBalance.value - selectedStatement.value.endingBalance) < 0.01;
 });
 
 onMounted(async () => {
@@ -880,8 +1022,17 @@ async function executeAction() {
 
     if (!budgetId && transactionAction.value == "Delete") {
       await dataAccess.deleteImportedTransaction(docId, id);
+      const importedTxIndex = importedTransactions.value.findIndex((tx) => tx.id === id);
+      if (importedTxIndex !== -1) {
+        importedTransactions.value[importedTxIndex].deleted = true;
+      }
     } else if (!budgetId && transactionAction.value == "Ignore") {
       await dataAccess.updateImportedTransaction(docId, id, false, true);
+      const importedTxIndex = importedTransactions.value.findIndex((tx) => tx.id === id);
+      if (importedTxIndex !== -1) {
+        importedTransactions.value[importedTxIndex].matched = false;
+        importedTransactions.value[importedTxIndex].ignored = true;
+      }
     }
 
     showSnackbar(`${transactionAction.value} action completed successfully`, "success");
@@ -1044,6 +1195,59 @@ async function executeBatchMatch() {
     showSnackbar(`Error performing batch match: ${error.message}`, "error");
   } finally {
     saving.value = false;
+  }
+}
+
+function confirmBatchAction(action: string) {
+  if (
+    selectedRows.value.length === 0 ||
+    !selectedRows.value.every((id) => {
+      const tx = displayTransactions.value?.find((t) => t.id === id);
+      return tx && tx.status === "U" && !tx.budgetId;
+    })
+  ) {
+    showSnackbar("Please select unmatched imported transactions", "error");
+    return;
+  }
+  batchAction.value = action;
+  showBatchActionDialog.value = true;
+}
+
+async function executeBatchAction() {
+  if (!["Ignore", "Delete"].includes(batchAction.value)) {
+    showBatchActionDialog.value = false;
+    return;
+  }
+
+  saving.value = true;
+  try {
+    for (const txId of selectedRows.value) {
+      const tx = displayTransactions.value?.find((t) => t.id === txId);
+      if (!tx || tx.status !== "U" || tx.budgetId) continue;
+      const parts = tx.id.split("-");
+      const docId = parts.slice(0, -1).join("-");
+      if (batchAction.value === "Delete") {
+        await dataAccess.deleteImportedTransaction(docId, tx.id);
+        const index = importedTransactions.value.findIndex((itx) => itx.id === tx.id);
+        if (index !== -1) importedTransactions.value.splice(index, 1);
+      } else if (batchAction.value === "Ignore") {
+        await dataAccess.updateImportedTransaction(docId, tx.id, false, true);
+        const index = importedTransactions.value.findIndex((itx) => itx.id === tx.id);
+        if (index !== -1) importedTransactions.value[index].ignored = true;
+      }
+    }
+    showSnackbar(
+      `Successfully ${batchAction.value.toLowerCase()}d ${selectedRows.value.length} transaction${selectedRows.value.length > 1 ? "s" : ""}`,
+      "success"
+    );
+    selectedRows.value = [];
+  } catch (error: any) {
+    console.error("Error performing batch action:", error);
+    showSnackbar(`Error performing batch action: ${error.message}`, "error");
+  } finally {
+    saving.value = false;
+    showBatchActionDialog.value = false;
+    batchAction.value = "";
   }
 }
 
@@ -1290,7 +1494,70 @@ async function saveBalanceAdjustment() {
 function closeBalanceAdjustmentDialog() {
   showBalanceAdjustmentDialog.value = false;
   adjustmentAmount.value = 0;
-  adjustmentDate.value = new Date().toISOString().split("T")[0];
+  adjustmentDate.value = todayISO();
+}
+
+async function refreshData() {
+  const prevAccount = selectedAccount.value;
+  const prevStatement = selectedStatementId.value;
+  await loadData();
+  if (prevAccount) {
+    selectedAccount.value = prevAccount;
+    await loadTransactions();
+    if (prevStatement && statements.value.some((s) => s.id === prevStatement)) {
+      selectedStatementId.value = prevStatement;
+    }
+  }
+}
+
+function openStatementDialog() {
+  showStatementDialog.value = true;
+  if (statements.value.length > 0) {
+    newStatement.value.startDate = statements.value[statements.value.length - 1].endDate;
+  }
+}
+
+async function saveStatement() {
+  if (!statementForm.value || !selectedAccount.value) return;
+
+  const { valid } = await statementForm.value.validate();
+  if (!valid) {
+    showSnackbar("Please fill in all required fields", "error");
+    return;
+  }
+
+  saving.value = true;
+  try {
+    const st: Statement = {
+      ...newStatement.value,
+      id: uuidv4(),
+      accountNumber: selectedAccount.value,
+      reconciled: false,
+    };
+    await statementStore.saveStatement(familyId.value, selectedAccount.value, st, []);
+    statements.value = statementStore.getStatements(familyId.value, selectedAccount.value);
+    selectedStatementId.value = st.id;
+    showSnackbar("Statement saved successfully", "success");
+    closeStatementDialog();
+  } catch (error: any) {
+    console.error("Error saving statement:", error);
+    showSnackbar(`Error saving statement: ${error.message}`, "error");
+  } finally {
+    saving.value = false;
+  }
+}
+
+function closeStatementDialog() {
+  showStatementDialog.value = false;
+  newStatement.value = {
+    id: "",
+    accountNumber: "",
+    startDate: "",
+    startingBalance: 0,
+    endDate: "",
+    endingBalance: 0,
+    reconciled: false,
+  };
 }
 
 async function markStatementReconciled() {
@@ -1336,6 +1603,27 @@ async function markStatementReconciled() {
   } finally {
     saving.value = false;
   }
+}
+
+function downloadCsv() {
+  const rows = displayTransactions.value.map((tx) => ({
+    id: tx.id,
+    date: tx.date,
+    merchant: tx.merchant,
+    category: tx.category,
+    entity: getEntityName(tx.entityId || tx.budgetId),
+    amount: tx.amount,
+    isIncome: tx.isIncome ? "true" : "false",
+    status: tx.status,
+    notes: tx.notes,
+    balance: tx.balance ?? "",
+  }));
+  const csv = Papa.unparse(rows);
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const account = accounts.value.find((a) => a.accountNumber === selectedAccount.value);
+  const name = account ? account.name.replace(/[^a-zA-Z0-9_-]/g, "_").toLowerCase() : "transactions";
+  const today = todayISO();
+  saveAs(blob, `${name}_${today}.csv`);
 }
 
 function showSnackbar(text: string, color = "success") {
