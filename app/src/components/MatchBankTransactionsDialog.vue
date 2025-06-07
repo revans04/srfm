@@ -980,7 +980,7 @@ function searchBudgetTransactions() {
     const amountMatch = Math.abs(txAmount - amount) < 0.01;
     const merchantMatch = merchant ? txMerchant.includes(merchant) : true;
 
-    return !tx.deleted && dateMatch && amountMatch && merchantMatch && !tx.status;
+    return !tx.deleted && dateMatch && amountMatch && merchantMatch && (!tx.status || tx.status === "U");
   });
 }
 
@@ -1035,8 +1035,7 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
           budgetId: tx.budgetId || `${props.userId}_${tx.entityId}_${toBudgetMonth(importedTx.postedDate)}`,
           bankAmount,
           bankType: importedTx.debitAmount ? "Debit" : "Credit",
-          merchantMatch:
-            !!importedTx.payee && importedTx.payee.toLowerCase().includes(tx.merchant.toLowerCase()),
+          merchantMatch: !!importedTx.payee && importedTx.payee.toLowerCase().includes(tx.merchant.toLowerCase()),
           dateExact: normalizedTxDate.getTime() === normalizedBankDate.getTime(),
         });
       }
@@ -1078,7 +1077,6 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
       usedBankTxIds.add(chosen.importedTx.id);
     }
   });
-
 
   smartMatchesToAdd.forEach((match) => {
     newSmartMatches.push({
