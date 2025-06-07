@@ -1455,12 +1455,12 @@ async function confirmImport() {
       const duplicates: ImportedTransaction[] = [];
 
       previewBankTransactions.value.forEach((tx, index) => {
-        const amount = tx.debitAmount || tx.creditAmount || 0;
         const key = {
           accountNumber: selectedAccount.accountNumber || "",
           postedDate: tx.postedDate,
           payee: tx.payee,
-          amount: amount,
+          debitAmount: parseFloat(tx.debitAmount) || 0,
+          creditAmount: parseFloat(tx.creditAmount) || 0,
         };
 
         const isDuplicate = dataAccess.findImportedTransactionByKey(existingDocs, key);

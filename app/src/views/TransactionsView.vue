@@ -296,6 +296,7 @@ const newTransaction = ref<Transaction>({
   userId: "",
   isIncome: false,
   entityId: familyStore.selectedEntityId, // Initialize with selected entity
+  taxMetadata: []
 });
 const availableAccounts = ref<Account[]>([]);
 const categoryOptions = ref<string[]>(["Income"]);
@@ -357,6 +358,7 @@ const potentialDuplicateIds = computed(() => {
     for (let j = i + 1; j < txs.length; j++) {
       const b = txs[j];
       if (a.amount !== b.amount) continue;
+      if (a.isIncome !== b.isIncome) continue;
       const merchantB = (b.importedMerchant || b.merchant).toLowerCase();
       if (merchantA.includes(merchantB) || merchantB.includes(merchantA)) {
         const dateB = new Date(b.date);

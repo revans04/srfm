@@ -409,7 +409,13 @@ export class DataAccess {
 
   findImportedTransactionByKey(
     existingDocs: ImportedTransactionDoc[],
-    key: { accountNumber: string; postedDate: string; payee: string; amount: number }
+    key: {
+      accountNumber: string;
+      postedDate: string;
+      payee: string;
+      debitAmount: number;
+      creditAmount: number;
+    }
   ): boolean {
     return existingDocs.some((doc) =>
       doc.importedTransactions.some(
@@ -417,7 +423,8 @@ export class DataAccess {
           tx.accountNumber === key.accountNumber &&
           tx.postedDate === key.postedDate &&
           tx.payee === key.payee &&
-          (tx.debitAmount === key.amount || tx.creditAmount === key.amount)
+          (tx.debitAmount ?? 0) === key.debitAmount &&
+          (tx.creditAmount ?? 0) === key.creditAmount
       )
     );
   }
