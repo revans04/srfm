@@ -175,7 +175,7 @@
 import { ref, computed, onMounted, watch, reactive } from "vue";
 import { dataAccess } from "../dataAccess";
 import { Budget, Transaction } from "../types";
-import { toCents, toDollars } from "../utils/helpers";
+import { toCents, toDollars, todayISO, currentMonthISO } from "../utils/helpers";
 import CurrencyInput from "./CurrencyInput.vue";
 import ToggleButton from "./ToggleButton.vue";
 import { VForm } from "vuetify/components";
@@ -210,8 +210,8 @@ const form = ref<InstanceType<typeof VForm> | null>(null);
 
 const defaultTransaction: Transaction = {
   id: "",
-  budgetMonth: new Date().toISOString().slice(0, 7),
-  date: new Date().toISOString().split("T")[0],
+  budgetMonth: currentMonthISO(),
+  date: todayISO(),
   merchant: "",
   categories: [{ category: "", amount: 0 }],
   amount: 0,
@@ -220,6 +220,7 @@ const defaultTransaction: Transaction = {
   recurringInterval: "Monthly",
   userId: props.userId,
   isIncome: false,
+  taxMetadata: [],
 };
 
 const locTrnsx = reactive<Transaction>(

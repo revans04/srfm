@@ -361,7 +361,7 @@ import CategoryTransactions from "../components/CategoryTransactions.vue";
 import TransactionForm from "../components/TransactionForm.vue";
 import { Transaction, Budget, IncomeTarget, BudgetCategoryTrx, BudgetCategory, Entity } from "../types";
 import version from "../version";
-import { toDollars, toCents, formatCurrency, adjustTransactionDate } from "../utils/helpers";
+import { toDollars, toCents, formatCurrency, adjustTransactionDate, todayISO, currentMonthISO } from "../utils/helpers";
 import { useBudgetStore } from "../store/budget";
 import { useMerchantStore } from "../store/merchants";
 import { useFamilyStore } from "../store/family";
@@ -376,13 +376,13 @@ const budgets = ref<Budget[]>([]);
 
 const appVersion = version;
 
-const currentMonth = ref(new Date().toISOString().slice(0, 7));
+const currentMonth = ref(currentMonthISO());
 const initialMonth = ref(currentMonth.value);
 const isInitialLoad = ref(true);
 const availableBudgets = ref<Budget[]>([]);
 const budget = ref<Budget>({
   familyId: "",
-  month: new Date().toISOString().slice(0, 7),
+  month: currentMonthISO(),
   incomeTarget: 0,
   categories: [],
   transactions: [],
@@ -399,8 +399,8 @@ const showLoadingMessage = ref(false);
 let loadingTimeout: ReturnType<typeof setTimeout> | null = null;
 const newTransaction = ref<Transaction>({
   id: "",
-  date: new Date().toISOString().split("T")[0],
-  budgetMonth: new Date().toISOString().slice(0, 7),
+  date: todayISO(),
+  budgetMonth: currentMonthISO(),
   merchant: "",
   categories: [{ category: "", amount: 0 }],
   amount: 0,
@@ -1124,7 +1124,7 @@ function addTransaction() {
   if (!showTransactionDialog.value) {
     newTransaction.value = {
       id: uuidv4(),
-      date: new Date().toISOString().split("T")[0],
+      date: todayISO(),
       budgetMonth: currentMonth.value,
       merchant: "",
       categories: [{ category: "", amount: 0 }],
@@ -1150,7 +1150,7 @@ function addTransactionForCategory(category: string) {
   if (!showTransactionDialog.value) {
     newTransaction.value = {
       id: uuidv4(),
-      date: new Date().toISOString().split("T")[0],
+      date: todayISO(),
       budgetMonth: currentMonth.value,
       merchant: "",
       categories: [{ category: category, amount: 0 }],
@@ -1175,7 +1175,7 @@ function addIncome() {
 
   newTransaction.value = {
     id: uuidv4(),
-    date: new Date().toISOString().split("T")[0],
+    date: todayISO(),
     budgetMonth: currentMonth.value,
     merchant: "",
     categories: [{ category: "Income", amount: 0 }],

@@ -4,6 +4,16 @@ import { EntityType, Transaction } from "@/types";
 import { v4 as uuidv4 } from "uuid";
 import { Timestamp } from "firebase/firestore";
 
+export function todayISO(date: Date = new Date()): string {
+  const tzOffset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - tzOffset).toISOString().slice(0, 10);
+}
+
+export function currentMonthISO(date: Date = new Date()): string {
+  const tzOffset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - tzOffset).toISOString().slice(0, 7);
+}
+
 /**
  * Formats a date string (YYYY-MM) or Date object to a localized string.
  * @param date - Date string (e.g., "2025-03") or Date object

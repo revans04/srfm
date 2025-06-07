@@ -468,7 +468,7 @@ import { useBudgetStore } from "../store/budget";
 import { useFamilyStore } from "../store/family";
 import { useStatementStore } from "../store/statements";
 import { Transaction, ImportedTransaction, Budget, Account, ImportedTransactionDoc, Statement } from "../types";
-import { formatCurrency, toBudgetMonth, adjustTransactionDate } from "../utils/helpers";
+import { formatCurrency, toBudgetMonth, adjustTransactionDate, todayISO } from "../utils/helpers";
 import { VForm } from "vuetify/components";
 import { v4 as uuidv4 } from "uuid";
 import { DEFAULT_BUDGET_TEMPLATES } from "../constants/budgetTemplates";
@@ -516,7 +516,7 @@ const transactionToAction = ref<any | null>(null);
 const transactionAction = ref("");
 const showBalanceAdjustmentDialog = ref(false);
 const adjustmentAmount = ref<number>(0);
-const adjustmentDate = ref<string>(new Date().toISOString().split("T")[0]);
+const adjustmentDate = ref<string>(todayISO());
 const adjustmentForm = ref<InstanceType<typeof VForm> | null>(null);
 const selectedRows = ref<string[]>([]);
 const showBatchMatchDialog = ref(false);
@@ -1385,7 +1385,7 @@ async function saveBalanceAdjustment() {
 function closeBalanceAdjustmentDialog() {
   showBalanceAdjustmentDialog.value = false;
   adjustmentAmount.value = 0;
-  adjustmentDate.value = new Date().toISOString().split("T")[0];
+  adjustmentDate.value = todayISO();
 }
 
 async function refreshData() {
@@ -1493,7 +1493,7 @@ function downloadCsv() {
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const account = accounts.value.find((a) => a.accountNumber === selectedAccount.value);
   const name = account ? account.name.replace(/[^a-zA-Z0-9_-]/g, "_").toLowerCase() : "transactions";
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISO();
   saveAs(blob, `${name}_${today}.csv`);
 }
 

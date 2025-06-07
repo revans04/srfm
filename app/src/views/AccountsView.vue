@@ -227,7 +227,7 @@ import { useFamilyStore } from "../store/family";
 import AccountList from "../components/AccountList.vue";
 import AccountForm from "../components/AccountForm.vue"; // Import AccountForm directly
 import { Account, Snapshot, ImportedTransaction, Transaction } from "../types";
-import { formatCurrency, formatTimestamp } from "../utils/helpers";
+import { formatCurrency, formatTimestamp, todayISO } from "../utils/helpers";
 import { v4 as uuidv4 } from "uuid";
 import { Timestamp } from "firebase/firestore";
 
@@ -279,7 +279,7 @@ const newSnapshot = ref<{
     value: number;
   }>;
 }>({
-  date: new Date().toISOString().slice(0, 10),
+  date: todayISO(),
   accounts: [],
 });
 const accountToDelete = ref<string | null>(null);
@@ -549,7 +549,7 @@ function openSnapshotDialog() {
   });
 
   newSnapshot.value = {
-    date: new Date().toISOString().slice(0, 10),
+    date: todayISO(),
     accounts: a.map((a) => ({
       accountId: a.id,
       accountName: a.name,

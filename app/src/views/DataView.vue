@@ -357,7 +357,7 @@ import { v4 as uuidv4 } from "uuid";
 import { useBudgetStore } from "../store/budget";
 import { useFamilyStore } from "../store/family";
 import EntityForm from "../components/EntityForm.vue";
-import { timestampToDate, toBudgetMonth, stringToFirestoreTimestamp, parseAmount, adjustTransactionDate } from "@/utils/helpers";
+import { timestampToDate, toBudgetMonth, stringToFirestoreTimestamp, parseAmount, adjustTransactionDate, todayISO } from "@/utils/helpers";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import { Timestamp } from "firebase/firestore";
@@ -1877,7 +1877,7 @@ async function exportDataToCSV() {
     );
     zip.file("entities.csv", entityCsv);
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayISO();
     const zipBlob = await zip.generateAsync({ type: "blob" });
     saveAs(zipBlob, `steady-rise-export-${today}.zip`);
 

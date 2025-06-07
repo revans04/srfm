@@ -273,7 +273,7 @@ import MatchBankTransactionsDialog from "../components/MatchBankTransactionsDial
 import MatchBudgetTransactionDialog from "../components/MatchBudgetTransactionDialog.vue";
 import TransactionRegistry from "../components/TransactionRegistry.vue";
 import { Transaction, BudgetInfo, ImportedTransaction, Account, Entity } from "../types";
-import { formatDateLong, toDollars, toCents, formatCurrency, toBudgetMonth } from "../utils/helpers";
+import { formatDateLong, toDollars, toCents, formatCurrency, toBudgetMonth, todayISO } from "../utils/helpers";
 import { useBudgetStore } from "../store/budget";
 import { useFamilyStore } from "../store/family";
 import { v4 as uuidv4 } from "uuid";
@@ -286,7 +286,7 @@ const tab = ref("entries");
 const transactions = ref<Transaction[]>([]);
 const newTransaction = ref<Transaction>({
   id: uuidv4(),
-  date: new Date().toISOString().split("T")[0],
+  date: todayISO(),
   merchant: "",
   categories: [{ category: "", amount: 0 }],
   amount: 0,
@@ -707,7 +707,7 @@ function cancelDialog() {
 function resetForm() {
   newTransaction.value = {
     id: uuidv4(),
-    date: new Date().toISOString().split("T")[0],
+    date: todayISO(),
     merchant: "",
     categories: [{ category: "", amount: 0 }],
     amount: 0,

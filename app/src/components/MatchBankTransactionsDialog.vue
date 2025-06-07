@@ -306,7 +306,7 @@
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, nextTick } from "vue";
 import { Transaction, ImportedTransaction, Budget } from "../types";
-import { toDollars, toCents, toBudgetMonth, adjustTransactionDate } from "../utils/helpers";
+import { toDollars, toCents, toBudgetMonth, adjustTransactionDate, todayISO } from "../utils/helpers";
 import { dataAccess } from "../dataAccess";
 import { useBudgetStore } from "../store/budget";
 import { useFamilyStore } from "../store/family";
@@ -646,8 +646,8 @@ async function matchBankTransaction(budgetTransaction: Transaction) {
       status: "C",
       id: budgetTransaction.id,
       userId: budgetTransaction.userId || user.uid,
-      budgetMonth: budgetTransaction.budgetMonth || toBudgetMonth(importedTx.postedDate || new Date().toISOString().split("T")[0]),
-      date: budgetTransaction.date || importedTx.postedDate || new Date().toISOString().split("T")[0],
+      budgetMonth: budgetTransaction.budgetMonth || toBudgetMonth(importedTx.postedDate || todayISO()),
+      date: budgetTransaction.date || importedTx.postedDate || todayISO(),
       merchant: budgetTransaction.merchant || importedTx.payee || "",
       categories: budgetTransaction.categories || [{ category: "", amount: 0 }],
       amount: budgetTransaction.amount || importedTx.debitAmount || importedTx.creditAmount || 0,
@@ -751,12 +751,12 @@ async function saveSplitTransaction() {
     // Group splits by budget (based on entityId and budgetMonth)
     const transactionsByBudget: { [budgetId: string]: Transaction[] } = {};
     for (const split of transactionSplits.value) {
-      const budgetMonth = toBudgetMonth(importedTx.postedDate || new Date().toISOString().split("T")[0]);
+      const budgetMonth = toBudgetMonth(importedTx.postedDate || todayISO());
       const budgetId = `${user.uid}_${split.entityId}_${budgetMonth}`;
       const transaction: Transaction = {
         id: uuidv4(),
         budgetMonth,
-        date: importedTx.postedDate || new Date().toISOString().split("T")[0],
+        date: importedTx.postedDate || todayISO(),
         merchant: importedTx.payee || "",
         categories: [{ category: split.category, amount: split.amount }],
         amount: split.amount,
@@ -875,7 +875,7 @@ async function addNewTransaction() {
     return;
   }
 
-  const postedDate = selectedBankTransaction.value.postedDate || new Date().toISOString().split("T")[0];
+  const postedDate = selectedBankTransaction.value.postedDate || todayISO();
   let budgetMonth = toBudgetMonth(postedDate);
 
   if (!budgetStore.availableBudgetMonths.includes(budgetMonth)) {
@@ -886,7 +886,7 @@ async function addNewTransaction() {
   newTransaction.value = {
     id: "",
     budgetMonth,
-    date: selectedBankTransaction.value.postedDate || new Date().toISOString().split("T")[0],
+    date: selectedBankTransaction.value.postedDate || todayISO(),
     merchant: selectedBankTransaction.value.payee || "",
     categories: [
       {

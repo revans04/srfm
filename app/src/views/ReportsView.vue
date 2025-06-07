@@ -165,7 +165,7 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend, LineElement, PointElemen
 import { useBudgetStore } from "../store/budget";
 import { Timestamp } from "firebase/firestore";
 import "chartjs-adapter-date-fns";
-import { timestampToDate } from "@/utils/helpers";
+import { timestampToDate, currentMonthISO } from "@/utils/helpers";
 
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend, LineElement, PointElement, LinearScale, TimeScale, Filler);
@@ -591,7 +591,7 @@ onMounted(async () => {
     budgetOptions.value = Array.from(budgetStore.budgets.values());
 
     // Default to current month
-    const currentMonth = new Date().toISOString().slice(0, 7);
+    const currentMonth = currentMonthISO();
     const currentBudget = budgetOptions.value.find((b) => b.month === currentMonth);
     if (currentBudget && currentBudget.budgetId) {
       selectedBudgets.value = [currentBudget.budgetId];
