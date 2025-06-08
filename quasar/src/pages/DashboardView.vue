@@ -1,36 +1,36 @@
-<!-- src/pages/DashboardPage.vue -->
+<!-- src/pages/DashboardView.vue -->
 <template>
   <q-page :class="isMobile ? 'pt-0 px-0' : ''">
     <!-- Loading Animation -->
-    <div v-if="loading" class="row justify-center q-mt-lg">
+    <q-row v-if="loading" justify="center" class="q-mt-lg">
       <q-spinner color="primary" size="50px" />
-      <div v-if="showLoadingMessage" class="col-12 text-center q-mt-sm">
+      <q-col v-if="showLoadingMessage" cols="12" class="text-center q-mt-sm">
         <span>Still loading budgets, please wait...</span>
-      </div>
-    </div>
+      </q-col>
+    </q-row>
 
     <!-- No Budgets Found -->
-    <div v-else-if="!loading && budgets.length === 0" class="row justify-center q-mt-lg">
-      <div class="col-12 text-center">
-        <q-card flat bordered class="q-pa-md">
-          <q-card-section class="row items-center">
-            <div class="col grow">
+    <q-row v-else-if="!loading && budgets.length === 0" justify="center" class="q-mt-lg">
+      <q-col cols="12" class="text-center">
+        <q-banner dense class="bg-info text-white">
+          <q-row align="center">
+            <q-col class="grow">
               No budgets found for {{ selectedEntity?.name || 'selected entity' }}. Would you like
               to create a default budget for {{ formatMonth(currentMonth) }}? You can also import
               budget information from the Data Page.
-            </div>
-            <div class="col shrink">
+            </q-col>
+            <q-col class="shrink">
               <q-btn color="primary" label="Create Default Budget" @click="createDefaultBudget" />
-            </div>
-          </q-card-section>
-        </q-card>
-      </div>
-    </div>
+            </q-col>
+          </q-row>
+        </q-banner>
+      </q-col>
+    </q-row>
 
     <!-- Main Content (hidden during loading) -->
     <div v-else>
-      <div class="row" :class="isMobile ? 'q-pa-sm' : 'q-pr-xl'">
-        <div class="col-12">
+      <q-row :class="isMobile ? 'q-pa-sm' : 'q-pr-xl'">
+        <q-col cols="12">
           <!-- Entity Dropdown -->
           <q-select
             v-model="familyStore.selectedEntityId"
@@ -46,34 +46,35 @@
           />
           <div class="row items-center">
             <q-menu v-model="menuOpen" :offset="[0, 8]">
-              <template v-slot:activator="{ toggle }">
-                <div
-                  class="month-selector no-wrap"
-                  :class="{ 'text-white': isMobile }"
-                  @click="toggle"
-                >
-                  <h1>
+              <template v-slot:default="{ toggle }">
+                <div class="month-selector" :class="{ 'text-white': isMobile }" @click="toggle">
+                  <h1 class="text-h4">
                     {{ formatMonth(currentMonth) }}
                     <q-icon name="mdi-chevron-down" size="sm" />
                   </h1>
                 </div>
               </template>
               <q-card class="month-menu">
-                <div class="row no-wrap items-center q-pa-sm month-navigation">
-                  <div class="col-auto">
+                <q-row no-gutters class="month-navigation items-center">
+                  <q-col cols="auto">
                     <q-btn icon="mdi-chevron-left" flat dense @click.stop="shiftMonths(-6)" />
-                  </div>
-                  <div class="col text-center">
+                  </q-col>
+                  <q-col class="text-center">
                     <span>{{ displayYear }}</span>
-                  </div>
-                  <div class="col-auto">
+                  </q-col>
+                  <q-col cols="auto">
                     <q-btn icon="mdi-chevron-right" flat dense @click.stop="shiftMonths(6)" />
-                  </div>
-                </div>
-                <div class="row no-wrap">
-                  <div v-for="month in displayedMonths" :key="month.value" class="col-4 month-item">
+                  </q-col>
+                </q-row>
+                <q-row no-gutters>
+                  <q-col
+                    v-for="month in displayedMonths"
+                    :key="month.value"
+                    cols="4"
+                    class="month-item"
+                  >
                     <div
-                      class="q-pa-xs rounded-5 cursor-pointer q-ma-xs text-center"
+                      class="q-pa-xs rounded-borders cursor-pointer q-ma-xs text-center"
                       :class="month.value === currentMonth ? 'bg-primary text-white' : ''"
                       :style="{
                         borderWidth: '1px',
@@ -84,8 +85,8 @@
                     >
                       {{ month.label }}
                     </div>
-                  </div>
-                </div>
+                  </q-col>
+                </q-row>
               </q-card>
             </q-menu>
             <div class="q-ml-sm">
@@ -93,33 +94,31 @@
                 v-if="!isMobile && !isEditing"
                 icon="mdi-pencil"
                 flat
-                round
+                dense
                 color="primary"
                 title="Edit Budget"
                 @click="isEditing = true"
-                class="q-mr-xs"
               />
               <q-btn
                 v-if="isEditing"
                 icon="mdi-close"
                 flat
-                round
+                dense
                 title="Cancel"
                 @click="isEditing = false"
-                class="q-mr-xs"
               />
               <q-btn
                 v-if="!isMobile && !isEditing"
                 icon="mdi-trash-can-outline"
                 flat
-                round
+                dense
                 color="negative"
                 title="Delete Budget"
               />
             </div>
           </div>
           <div
-            class="q-pr-sm q-py-0"
+            class="q-pr-sm q-py-none"
             :class="{
               'text-center': isMobile,
               'text-left': !isMobile,
@@ -130,40 +129,30 @@
             {{ formatCurrency(toDollars(toCents(Math.abs(remainingToBudget)))) }}
             {{ remainingToBudget >= 0 ? 'left to budget' : 'over budget' }}
           </div>
-        </div>
-        <div v-if="!isMobile || selectedCategory == null" class="col-12 col-sm-6">
-          <div class="q-my-sm bg-white rounded-10 q-pa-sm q-mb-lg">
-            <q-input
-              v-model="search"
-              append-icon="mdi-magnify"
-              dense
-              label="Search"
-              standout
-              single-line
-            />
+        </q-col>
+        <q-col v-if="!isMobile || selectedCategory == null" cols="12" sm="6">
+          <div class="q-my-sm bg-white rounded-borders q-pa-sm q-mb-lg">
+            <q-input v-model="search" label="Search" dense outlined append-icon="mdi-magnify" />
           </div>
-        </div>
+        </q-col>
         <q-btn
           v-if="isMobile && !selectedCategory"
           icon="mdi-plus"
           round
           color="white"
-          class="fixed-top-right q-ma-sm"
+          class="fixed-top-right"
           @click="addTransaction"
         />
-      </div>
+      </q-row>
 
-      <div class="row">
+      <q-row>
         <!-- Main Content -->
-        <div
-          :class="{
-            'col-12': !selectedCategory,
-            'col-8': selectedCategory && !isMobile,
-            'd-none': selectedCategory && isMobile,
-          }"
+        <q-col
+          :cols="selectedCategory ? (isMobile ? 0 : 8) : 12"
+          :class="{ 'd-none': selectedCategory && isMobile }"
         >
           <!-- Budget Editing Form -->
-          <q-card v-if="isEditing" flat bordered>
+          <q-card v-if="isEditing">
             <q-card-section>
               <div class="text-h6">
                 Edit Budget for {{ selectedEntity?.name || 'selected entity' }}
@@ -172,161 +161,163 @@
             <q-card-section>
               <q-form @submit="saveBudget">
                 <!-- Merchants Section -->
-                <div class="row q-mt-md">
-                  <div class="col-12">
+                <q-row class="q-mt-md">
+                  <q-col cols="12">
                     <h3>Merchants</h3>
-                    <q-chip
-                      v-for="(merchant, index) in budget.merchants"
-                      :key="merchant.name"
-                      removable
-                      @remove="removeMerchant(index)"
-                      class="q-ma-xs"
-                    >
-                      {{ merchant.name }} ({{ merchant.usageCount }})
-                    </q-chip>
+                    <q-chip-group column>
+                      <q-chip
+                        v-for="(merchant, index) in budget.merchants"
+                        :key="merchant.name"
+                        :label="`${merchant.name} (${merchant.usageCount})`"
+                        removable
+                        @remove="removeMerchant(index)"
+                        class="q-ma-xs"
+                      />
+                    </q-chip-group>
                     <q-input
                       v-model="newMerchantName"
                       label="Add Merchant"
                       dense
+                      outlined
                       class="q-mt-sm"
                       @keyup.enter="addMerchant"
                       append-icon="mdi-plus"
                       @click:append="addMerchant"
                     />
-                  </div>
-                </div>
+                  </q-col>
+                </q-row>
 
-                <div class="row q-mt-md">
-                  <div class="col-12">
+                <q-row class="q-mt-md">
+                  <q-col cols="12">
                     <h3>Categories</h3>
-                  </div>
-                </div>
-                <div
+                  </q-col>
+                </q-row>
+                <q-row
                   v-for="(cat, index) in budget.categories"
                   :key="index"
-                  class="row items-center no-wrap"
+                  class="items-center"
+                  no-gutters
                 >
-                  <div class="col-12 col-sm-3 q-pa-sm">
-                    <q-input v-model="cat.name" label="Category" required dense />
-                  </div>
-                  <div class="col-12 col-sm-2 q-pa-sm">
-                    <q-input v-model="cat.group" label="Group (e.g., Utilities)" dense />
-                  </div>
-                  <div class="col-12 col-sm-2 q-pa-sm">
-                    <currency-input
+                  <q-col cols="12" sm="3" class="q-pa-sm">
+                    <q-input v-model="cat.name" label="Category" outlined dense required />
+                  </q-col>
+                  <q-col cols="12" sm="2" class="q-pa-sm">
+                    <q-input v-model="cat.group" label="Group (e.g., Utilities)" outlined dense />
+                  </q-col>
+                  <q-col cols="12" sm="2" class="q-pa-sm">
+                    <Currency-Input
                       v-model.number="cat.target"
                       label="Target"
                       class="text-right"
                       dense
                       required
                     />
-                  </div>
-                  <div class="col-12 col-sm-2 q-pa-sm">
-                    <currency-input
+                  </q-col>
+                  <q-col cols="12" sm="2" class="q-pa-sm">
+                    <Currency-Input
                       v-model="cat.carryover"
                       label="Carryover"
                       class="text-right"
                       dense
                     />
-                  </div>
-                  <div class="col-12 col-sm-2 q-pa-sm">
+                  </q-col>
+                  <q-col cols="12" sm="2" class="q-pa-sm">
                     <q-checkbox v-model="cat.isFund" label="Is Fund?" dense />
-                  </div>
-                  <div class="col-12 col-sm-1 q-pa-sm">
+                  </q-col>
+                  <q-col cols="12" sm="1" class="q-pa-sm">
                     <q-btn
                       icon="mdi-close"
                       color="negative"
                       flat
-                      round
+                      dense
                       @click="removeCategory(index)"
                     />
-                  </div>
-                </div>
+                  </q-col>
+                </q-row>
 
-                <q-btn color="primary" label="Add Category" @click="addCategory" class="q-mt-sm" />
+                <q-btn color="primary" label="Add Category" class="q-mt-sm" @click="addCategory" />
                 <q-btn
                   color="positive"
                   label="Add Income Category"
-                  @click="addIncomeCategory"
                   class="q-mt-sm q-ml-sm"
+                  @click="addIncomeCategory"
                 />
                 <q-btn
                   type="submit"
                   color="positive"
                   label="Save Budget"
-                  :loading="saving"
                   class="q-mt-sm q-ml-sm"
+                  :loading="saving"
                 />
               </q-form>
             </q-card-section>
           </q-card>
 
           <!-- Income Section -->
-          <q-card v-if="!isEditing && incomeItems" flat bordered class="q-mt-md">
+          <q-card v-if="!isEditing && incomeItems">
             <q-card-section>
-              <div class="row">
-                <div class="col font-weight-bold">
+              <q-row>
+                <q-col class="text-bold">
                   Income for {{ selectedEntity?.name || 'selected entity' }}
-                </div>
-                <div v-if="!isMobile" class="col-auto">Planned</div>
-                <div :class="isMobile ? 'col-auto' : 'col-2'" class="text-right">Received</div>
-              </div>
+                </q-col>
+                <q-col v-if="!isMobile" cols="auto">Planned</q-col>
+                <q-col :cols="isMobile ? 'auto' : '2'" class="text-right">Received</q-col>
+              </q-row>
               <div
                 v-for="item in incomeItems"
                 :key="item.name"
-                style="border-bottom: solid 1px var(--q-light)"
+                style="border-bottom: 1px solid var(--q-light)"
                 class="q-py-sm"
               >
-                <div class="row cursor-pointer" @click="onIncomeRowClick(item)">
-                  <div class="col">{{ item.name }}</div>
-                  <div v-if="!isMobile" class="col-auto">
+                <q-row @click="onIncomeRowClick(item)" class="cursor-pointer">
+                  <q-col>{{ item.name }}</q-col>
+                  <q-col v-if="!isMobile" cols="auto">
                     {{ formatCurrency(toDollars(toCents(item.planned))) }}
-                  </div>
-                  <div :class="isMobile ? 'col-auto' : 'col-2'" class="text-right">
+                  </q-col>
+                  <q-col :cols="isMobile ? 'auto' : '2'" class="text-right">
                     <div :class="item.received > item.planned ? 'text-positive' : ''">
                       {{ formatCurrency(toDollars(toCents(item.received))) }}
                     </div>
-                  </div>
-                </div>
+                  </q-col>
+                </q-row>
               </div>
-              <div v-if="!isMobile" class="row dense">
-                <div class="col">
+              <q-row v-if="!isMobile" no-gutters>
+                <q-col>
                   <q-space />
-                </div>
-                <div class="col-auto font-weight-bold">
+                </q-col>
+                <q-col cols="auto" class="text-bold">
                   {{ formatCurrency(toDollars(toCents(plannedIncome))) }}
-                </div>
-                <div :class="isMobile ? 'col-auto' : 'col-2'">
+                </q-col>
+                <q-col :cols="isMobile ? 'auto' : '2'">
                   <div
-                    class="font-weight-bold text-right"
+                    class="text-bold text-right"
                     :class="actualIncome > plannedIncome ? 'text-positive' : ''"
                   >
                     {{ formatCurrency(toDollars(toCents(actualIncome))) }}
                   </div>
-                </div>
-              </div>
+                </q-col>
+              </q-row>
             </q-card-section>
           </q-card>
 
           <!-- Category Tables -->
-          <div v-if="!isEditing && catTransactions" class="row q-mt-md">
-            <div v-for="(g, gIdx) in groups" :key="gIdx" class="col-12">
-              <q-card flat bordered>
+          <q-row v-if="!isEditing && catTransactions" class="q-mt-md">
+            <q-col cols="12" v-for="(g, gIdx) in groups" :key="gIdx">
+              <q-card>
                 <q-card-section>
-                  <div class="row text-info">
-                    <div class="col">{{ g.group || 'Ungrouped' }}</div>
+                  <q-row class="text-info">
+                    <q-col>{{ g.group || 'Ungrouped' }}</q-col>
                     <q-space />
-                    <div v-if="!isMobile" class="col-2">Planned</div>
-                    <div :class="isMobile ? 'col-auto' : 'col-2'">Remaining</div>
-                  </div>
+                    <q-col v-if="!isMobile" cols="2">Planned</q-col>
+                    <q-col :cols="isMobile ? 'auto' : '2'">Remaining</q-col>
+                  </q-row>
                   <div
                     v-for="(item, idx) in catTransactions.filter((c) => c.group == g.group)"
                     :key="idx"
                   >
-                    <div class="row cursor-pointer">
-                      <div
+                    <q-row @click="handleRowClick(item)" class="cursor-pointer">
+                      <q-col
                         v-if="!(inlineEdit.item?.name === item.name && inlineEdit.field === 'name')"
-                        class="col"
                         @dblclick.stop="handleNameDblClick(item)"
                         @touchstart="startTouch(item, 'name')"
                         @touchend="endTouch"
@@ -339,76 +330,74 @@
                           class="q-mr-xs"
                         />
                         {{ item.name }}
-                      </div>
-                      <div v-else class="col">
+                      </q-col>
+                      <q-col v-else>
                         <q-input
                           v-model="inlineEdit.value"
                           dense
-                          hide-details
-                          standout
+                          filled
                           autofocus
                           @keydown.enter="saveInlineEdit"
                           @keydown.esc="cancelInlineEdit"
                           @blur="saveInlineEdit"
                         />
-                      </div>
-                      <div
+                      </q-col>
+                      <q-col
                         v-if="
                           !isMobile &&
                           !(inlineEdit.item?.name === item.name && inlineEdit.field === 'target')
                         "
-                        class="col-2"
+                        cols="2"
                         @dblclick.stop="handleTargetDblClick(item)"
                         @touchstart="startTouch(item, 'target')"
                         @touchend="endTouch"
                       >
                         {{ formatCurrency(item.target) }}
-                      </div>
-                      <div v-else-if="!isMobile" class="col-2">
-                        <currency-input
+                      </q-col>
+                      <q-col v-else-if="!isMobile" cols="2">
+                        <Currency-Input
                           v-model.number="inlineEdit.value"
                           dense
-                          hide-details
                           @keydown.enter="saveInlineEdit"
                           @keydown.esc="cancelInlineEdit"
                           @blur="saveInlineEdit"
                         />
-                      </div>
-                      <div
-                        :class="isMobile ? 'col-auto' : 'col-2'"
+                      </q-col>
+                      <q-col
+                        :cols="isMobile ? 'auto' : '2'"
                         :class="item.remaining && item.remaining < 0 ? 'text-negative' : ''"
                       >
                         {{ formatCurrency(item.remaining) }}
-                      </div>
-                    </div>
-                    <div class="row dense">
-                      <div class="col-12">
+                      </q-col>
+                    </q-row>
+                    <q-row no-gutters>
+                      <q-col cols="12">
                         <q-linear-progress
                           :value="item.percentage / 100"
                           color="primary"
-                          track-color="grey-4"
+                          track-color="grey-3"
                           class="progress-bar"
                         />
-                      </div>
-                    </div>
+                      </q-col>
+                    </q-row>
                   </div>
                 </q-card-section>
               </q-card>
-            </div>
-            <div v-if="groups.length === 0" class="col-12">
-              <q-card flat bordered class="q-pa-md">
-                <q-card-section class="text-warning"
-                  >No categories defined for this budget.</q-card-section
-                >
-              </q-card>
-            </div>
-          </div>
-        </div>
+            </q-col>
+            <q-col cols="12" v-if="groups.length === 0">
+              <q-banner dense class="bg-warning text-black">
+                No categories defined for this budget.
+              </q-banner>
+            </q-col>
+          </q-row>
+        </q-col>
 
         <!-- Transaction List Sidebar -->
-        <div
+        <q-col
           v-if="selectedCategory && !isEditing"
-          :class="isMobile ? 'col-12 sidebar-mobile' : 'col-4 sidebar'"
+          :cols="isMobile ? 12 : 4"
+          class="sidebar"
+          :class="{ 'sidebar-mobile': isMobile }"
         >
           <category-transactions
             :category="selectedCategory"
@@ -421,22 +410,24 @@
             @add-transaction="addTransactionForCategory(selectedCategory.name)"
             @update-transactions="updateTransactions"
           />
-        </div>
-      </div>
+        </q-col>
+      </q-row>
 
       <!-- Version Info -->
-      <div class="row">
+      <q-row>
         <q-space />
-        <div class="col-auto">
-          <span class="text-caption text-center">{{ `Version: ${appVersion}` }}</span>
-        </div>
-      </div>
+        <q-col cols="auto">
+          <div class="text-caption text-center">
+            {{ `Version: ${appVersion}` }}
+          </div>
+        </q-col>
+      </q-row>
 
       <!-- Transaction Dialog -->
-      <q-dialog v-model="showTransactionDialog" max-width="600px">
-        <q-card>
-          <q-card-section class="text-h6">
-            {{ isIncomeTransaction ? 'Add Income' : 'Add Transaction' }}
+      <q-dialog v-model="showTransactionDialog" :maximized="isMobile" persistent>
+        <q-card :style="{ width: isMobile ? '100%' : '600px', maxWidth: '600px' }">
+          <q-card-section class="bg-primary text-white">
+            <div class="text-h6">{{ isIncomeTransaction ? 'Add Income' : 'Add Transaction' }}</div>
           </q-card-section>
           <q-card-section>
             <transaction-form
@@ -454,32 +445,30 @@
       </q-dialog>
 
       <!-- Snackbar -->
-      <q-toast v-model="snackbar" :color="snackbarColor" :timeout="timeout" position="bottom">
+      <q-notification v-model="snackbar" :color="snackbarColor" position="top" :timeout="timeout">
         {{ snackbarText }}
-        <template v-slot:action>
+        <template v-slot:actions>
           <q-btn v-if="showRetry" flat label="Retry" @click="retryAction" />
           <q-btn flat label="Close" @click="snackbar = false" />
         </template>
-      </q-toast>
+      </q-notification>
 
       <!-- Duplicating Overlay -->
-      <q-dialog v-model="duplicating" persistent>
-        <q-card class="q-pa-md">
-          <q-spinner color="primary" size="50px" />
-          <span class="q-ml-sm">Duplicating budget...</span>
-        </q-card>
-      </q-dialog>
+      <q-inner-loading :showing="duplicating">
+        <q-spinner color="primary" size="50px" />
+        <span class="q-ml-sm">Duplicating budget...</span>
+      </q-inner-loading>
     </div>
   </q-page>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick, onUnmounted } from 'vue';
-import { auth } from '@/firebase';
-import { dataAccess } from '@/dataAccess';
-import CurrencyInput from '@/components/CurrencyInput.vue';
-import CategoryTransactions from '@/components/CategoryTransactions.vue';
-import TransactionForm from '@/components/TransactionForm.vue';
+import { auth } from '../firebase';
+import { dataAccess } from '../dataAccess';
+import CurrencyInput from '../components/CurrencyInput.vue';
+import CategoryTransactions from '../components/CategoryTransactions.vue';
+import TransactionForm from '../components/TransactionForm.vue';
 import {
   Transaction,
   Budget,
@@ -487,8 +476,8 @@ import {
   BudgetCategoryTrx,
   BudgetCategory,
   Entity,
-} from '@/types';
-import version from '@/version';
+} from '../types';
+import version from '../version';
 import {
   toDollars,
   toCents,
@@ -496,14 +485,16 @@ import {
   adjustTransactionDate,
   todayISO,
   currentMonthISO,
-} from '@/utils/helpers';
-import { useBudgetStore } from '@/store/budget';
-import { useMerchantStore } from '@/store/merchants';
-import { useFamilyStore } from '@/store/family';
+} from '../utils/helpers';
+import { useBudgetStore } from '../store/budget';
+import { useMerchantStore } from '../store/merchants';
+import { useFamilyStore } from '../store/family';
 import { debounce } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
-import { DEFAULT_BUDGET_TEMPLATES } from '@/constants/budgetTemplates';
+import { DEFAULT_BUDGET_TEMPLATES } from '../constants/budgetTemplates';
+import { useQuasar } from 'quasar';
 
+const $q = useQuasar();
 const budgetStore = useBudgetStore();
 const merchantStore = useMerchantStore();
 const familyStore = useFamilyStore();
@@ -547,7 +538,7 @@ const newTransaction = ref<Transaction>({
 });
 const snackbar = ref(false);
 const snackbarText = ref('');
-const snackbarColor = ref('success');
+const snackbarColor = ref('positive');
 const showRetry = ref(false);
 const retryAction = ref<(() => void) | null>(null);
 const timeout = ref(-1);
@@ -574,9 +565,8 @@ const inlineEdit = ref({
   value: '' as string | number,
 });
 
-const isMobile = computed(() => window.innerWidth < 960);
+const isMobile = computed(() => $q.screen.lt.md);
 
-// Entity-related computed properties
 const entityOptions = computed(() => {
   const options = (familyStore.family?.entities || []).map((entity) => ({
     id: entity.id,
@@ -866,7 +856,7 @@ watch(currentMonth, () => {
 onMounted(async () => {
   const user = auth.currentUser;
   if (!user) {
-    showSnackbar('Please log in to view the dashboard', 'error');
+    showSnackbar('Please log in to view the dashboard', 'negative');
     loading.value = false;
     return;
   }
@@ -877,10 +867,10 @@ onMounted(async () => {
       console.log('Loading timeout triggered');
     }, 5000);
 
-    await familyStore.loadFamily(user.uid); // Load family to get entities
+    await familyStore.loadFamily(user.uid);
     await loadBudgets();
   } catch (error: any) {
-    showSnackbar(`Error loading data: ${error.message}`, 'error');
+    showSnackbar(`Error loading data: ${error.message}`, 'negative');
   } finally {
     if (loadingTimeout) clearTimeout(loadingTimeout);
     showLoadingMessage.value = false;
@@ -902,7 +892,7 @@ async function loadBudgets() {
   try {
     await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
   } catch (error: any) {
-    showSnackbar(`Error loading budgets: ${error.message}`, 'error');
+    showSnackbar(`Error loading budgets: ${error.message}`, 'negative');
   } finally {
     loading.value = false;
   }
@@ -920,7 +910,6 @@ async function createBudgetForMonth(
     return existingBudget;
   }
 
-  // Check entity template budget
   const entity = familyStore.family?.entities?.find((e) => e.id === entityId);
   const templateBudget = entity?.templateBudget;
 
@@ -946,7 +935,6 @@ async function createBudgetForMonth(
     return newBudget;
   }
 
-  // Use predefined template based on entity.type
   if (entity && DEFAULT_BUDGET_TEMPLATES[entity.type]) {
     const predefinedTemplate = DEFAULT_BUDGET_TEMPLATES[entity.type];
     const newBudget: Budget = {
@@ -970,7 +958,6 @@ async function createBudgetForMonth(
     return newBudget;
   }
 
-  // Fallback: Copy most recent previous budget or earliest future budget
   const availableBudgets = Array.from(budgetStore.budgets.values()).sort((a, b) =>
     a.month.localeCompare(b.month),
   );
@@ -980,13 +967,13 @@ async function createBudgetForMonth(
     (b) => b.month < month && b.entityId === entityId,
   );
   if (previousBudgets.length > 0) {
-    sourceBudget = previousBudgets[previousBudgets.length - 1]; // Most recent previous
+    sourceBudget = previousBudgets[previousBudgets.length - 1];
   } else {
     const futureBudgets = availableBudgets.filter(
       (b) => b.month > month && b.entityId === entityId,
     );
     if (futureBudgets.length > 0) {
-      sourceBudget = futureBudgets[0]; // Earliest future
+      sourceBudget = futureBudgets[0];
     }
   }
 
@@ -1016,7 +1003,6 @@ async function createBudgetForMonth(
       budgetId: budgetId,
     };
 
-    // Copy recurring transactions
     const recurringTransactions: Transaction[] = [];
     if (sourceBudget.transactions) {
       const recurringGroups = sourceBudget.transactions.reduce(
@@ -1057,7 +1043,6 @@ async function createBudgetForMonth(
     return newBudget;
   }
 
-  // Default budget as last resort
   const defaultBudget: Budget = {
     familyId: familyId,
     entityId: entityId,
@@ -1080,12 +1065,12 @@ async function createBudgetForMonth(
 async function createDefaultBudget() {
   const user = auth.currentUser;
   if (!user) {
-    showSnackbar('Please log in to create a budget', 'error');
+    showSnackbar('Please log in to create a budget', 'negative');
     return;
   }
 
   if (!familyStore.selectedEntityId) {
-    showSnackbar('Please select an entity before creating a budget', 'error');
+    showSnackbar('Please select an entity before creating a budget', 'negative');
     return;
   }
 
@@ -1093,7 +1078,7 @@ async function createDefaultBudget() {
   try {
     const family = await familyStore.getFamily();
     if (!family) {
-      showSnackbar('No family found for user', 'error');
+      showSnackbar('No family found for user', 'negative');
       return;
     }
 
@@ -1104,10 +1089,10 @@ async function createDefaultBudget() {
       familyStore.selectedEntityId,
     );
     await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
-    showSnackbar('Budget created successfully', 'success');
+    showSnackbar('Budget created successfully', 'positive');
   } catch (error: any) {
     console.error('Error creating budget:', error);
-    showSnackbar(`Failed to create budget: ${error.message}`, 'error');
+    showSnackbar(`Failed to create budget: ${error.message}`, 'negative');
   } finally {
     loading.value = false;
   }
@@ -1125,7 +1110,7 @@ async function refreshBudget() {
       }
     }
   } catch (error: any) {
-    showSnackbar(`Error refreshing budget: ${error.message}`, 'error');
+    showSnackbar(`Error refreshing budget: ${error.message}`, 'negative');
   }
 }
 
@@ -1147,7 +1132,7 @@ async function onTransactionSaved(transaction: Transaction) {
       isIncomeTransaction.value ? 'Income added successfully' : 'Transaction added successfully',
     );
   } catch (error: any) {
-    showSnackbar(`Error updating transaction: ${error.message}`, 'error');
+    showSnackbar(`Error updating transaction: ${error.message}`, 'negative');
   }
 }
 
@@ -1157,7 +1142,7 @@ async function updateTransactions(newTransactions: Transaction[]) {
     budgetStore.updateBudget(budgetId.value, { ...budget.value });
     updateMerchants();
   } catch (error: any) {
-    showSnackbar(`Error updating transactions: ${error.message}`, 'error');
+    showSnackbar(`Error updating transactions: ${error.message}`, 'negative');
   }
 }
 
@@ -1167,7 +1152,7 @@ function shiftMonths(offset: number) {
 
 async function selectMonth(month: string) {
   if (!familyStore.selectedEntityId) {
-    showSnackbar('Please select an entity before selecting a month', 'error');
+    showSnackbar('Please select an entity before selecting a month', 'negative');
     return;
   }
 
@@ -1207,7 +1192,7 @@ async function selectMonth(month: string) {
       }
     }
   } catch (error: any) {
-    showSnackbar(`Error loading budget: ${error.message}`, 'error');
+    showSnackbar(`Error loading budget: ${error.message}`, 'negative');
   } finally {
     loading.value = false;
   }
@@ -1216,12 +1201,12 @@ async function selectMonth(month: string) {
 async function saveBudget() {
   const user = auth.currentUser;
   if (!user) {
-    showSnackbar('You don’t have permission to save budgets', 'error');
+    showSnackbar('You don’t have permission to save budgets', 'negative');
     return;
   }
 
   if (!familyStore.selectedEntityId) {
-    showSnackbar('Please select an entity before saving the budget', 'error');
+    showSnackbar('Please select an entity before saving the budget', 'negative');
     return;
   }
 
@@ -1233,7 +1218,7 @@ async function saveBudget() {
     showSnackbar('Budget saved successfully');
     isEditing.value = false;
   } catch (error: any) {
-    showSnackbar(`Error saving budget: ${error.message}`, 'error', async () => {
+    showSnackbar(`Error saving budget: ${error.message}`, 'negative', async () => {
       await saveBudget();
     });
   } finally {
@@ -1293,7 +1278,7 @@ function removeMerchant(index: number) {
 
 function addTransaction() {
   if (!familyStore.selectedEntityId) {
-    showSnackbar('Please select an entity before adding a transaction', 'error');
+    showSnackbar('Please select an entity before adding a transaction', 'negative');
     return;
   }
 
@@ -1319,7 +1304,7 @@ function addTransaction() {
 
 function addTransactionForCategory(category: string) {
   if (!familyStore.selectedEntityId) {
-    showSnackbar('Please select an entity before adding a transaction', 'error');
+    showSnackbar('Please select an entity before adding a transaction', 'negative');
     return;
   }
 
@@ -1345,7 +1330,7 @@ function addTransactionForCategory(category: string) {
 
 function addIncome() {
   if (!familyStore.selectedEntityId) {
-    showSnackbar('Please select an entity before adding income', 'error');
+    showSnackbar('Please select an entity before adding income', 'negative');
     return;
   }
 
@@ -1370,12 +1355,12 @@ function addIncome() {
 async function duplicateCurrentMonth(month: string) {
   const user = auth.currentUser;
   if (!user) {
-    showSnackbar('Please log in to duplicate a budget', 'error');
+    showSnackbar('Please log in to duplicate a budget', 'negative');
     return;
   }
 
   if (!familyStore.selectedEntityId) {
-    showSnackbar('Please select an entity before duplicating a budget', 'error');
+    showSnackbar('Please select an entity before duplicating a budget', 'negative');
     return;
   }
 
@@ -1383,7 +1368,7 @@ async function duplicateCurrentMonth(month: string) {
   try {
     const family = await familyStore.getFamily();
     if (!family) {
-      showSnackbar('No family found for user', 'error');
+      showSnackbar('No family found for user', 'negative');
       return;
     }
 
@@ -1405,7 +1390,7 @@ async function duplicateCurrentMonth(month: string) {
     showSnackbar("Created new month's budget");
   } catch (error: any) {
     console.error('Error duplicating budget:', error);
-    showSnackbar(`Failed to duplicate budget: ${error.message}`, 'error');
+    showSnackbar(`Failed to duplicate budget: ${error.message}`, 'negative');
   } finally {
     duplicating.value = false;
   }
@@ -1507,7 +1492,7 @@ async function saveInlineEdit() {
     budgetStore.updateBudget(budgetId.value, { ...budget.value });
     showSnackbar('Budget updated');
   } catch (error: any) {
-    showSnackbar(`Error saving budget: ${error.message}`, 'error');
+    showSnackbar(`Error saving budget: ${error.message}`, 'negative');
   }
 
   cancelInlineEdit();
@@ -1518,7 +1503,7 @@ function cancelInlineEdit() {
   inlineEdit.value.field = null;
 }
 
-function showSnackbar(text: string, color = 'success', retry?: () => void) {
+function showSnackbar(text: string, color = 'positive', retry?: () => void) {
   snackbarText.value = text;
   snackbarColor.value = color;
   showRetry.value = !!retry;
@@ -1552,14 +1537,13 @@ h1 {
   font-size: 1.3em;
   white-space: nowrap;
 }
+
 .entity-select .q-field__control {
   font-size: 1.6rem;
   font-weight: bold;
   color: var(--q-primary);
 }
-.search-container {
-  max-width: 400px;
-}
+
 .month-selector {
   cursor: pointer;
   display: inline-flex;
@@ -1567,31 +1551,23 @@ h1 {
   font-size: 1.5rem;
   font-weight: bold;
 }
+
 .month-menu {
   width: 300px;
   padding: 8px;
 }
+
 .month-navigation {
   padding: 8px 0;
   border-bottom: 1px solid #e0e0e0;
-  align-items: center;
 }
+
 .month-item {
   padding: 4px;
 }
-.month-item .q-btn {
+
+.q-btn {
   text-transform: none;
   font-size: 0.875rem;
-}
-.today-row {
-  padding: 8px 0;
-  border-top: 1px solid #e0e0e0;
-}
-.today-label {
-  font-size: 0.875rem;
-  color: #757575;
-}
-.rounded-10 {
-  border-radius: 10px;
 }
 </style>

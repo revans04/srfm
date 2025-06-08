@@ -1,238 +1,305 @@
-<!-- src/views/SettingsView.vue -->
+<!-- src/pages/SettingsView.vue -->
 <template>
-  <v-container>
-    <h1>Settings</h1>
+  <q-page padding>
+    <q-card flat>
+      <q-card-section>
+        <div class="text-h4">Settings</div>
+      </q-card-section>
 
-    <v-alert v-if="userEmail && !emailVerified" type="warning" class="mb-4">
-      Your email ({{ userEmail }}) is not verified. Please check your inbox or resend the verification email.
-      <template v-slot:actions>
-        <v-btn variant="plain" @click="sendVerificationEmail" :loading="resending">Resend</v-btn>
-      </template>
-    </v-alert>
+      <!-- Email Verification Alert -->
+      <q-banner v-if="userEmail && !emailVerified" class="bg-warning text-white q-mb-md">
+        Your email ({{ userEmail }}) is not verified. Please check your inbox or resend the verification email.
+        <template v-slot:action>
+          <q-btn flat label="Resend" :loading="resending" @click="sendVerificationEmail" />
+        </template>
+      </q-banner>
 
-    <v-tabs v-model="activeTab" color="primary" class="mt-4">
-      <v-tab value="group">Manage Family/Group</v-tab>
-      <v-tab value="entity">Manage Entities</v-tab>
-      <v-tab value="manageTransactions">Manage Imports</v-tab>
-      <v-tab value="manageBudgets">Manage Budgets</v-tab>
-    </v-tabs>
+      <!-- Tabs -->
+      <q-tabs
+        v-model="activeTab"
+        dense
+        class="bg-primary text-white q-mt-md"
+        active-color="white"
+        indicator-color="white"
+      >
+        <q-tab name="group" label="Manage Family/Group" />
+        <q-tab name="entity" label="Manage Entities" />
+        <q-tab name="manageTransactions" label="Manage Imports" />
+        <q-tab name="manageBudgets" label="Manage Budgets" />
+      </q-tabs>
 
-    <v-window v-model="activeTab">
-      <!-- Group Management Tab -->
-      <v-window-item value="group">
-        <v-card class="mt-4">
-          <v-card-title>Family/Group Information</v-card-title>
-          <v-card-text>
-            <v-list>
-              <v-list-item v-for="member in acceptedMembers" :key="member.uid">
-                {{ member.email }} ({{ member.role }}) - Last Accessed: {{ formatDate(member.lastAccessed) || "Never" }}
-                <v-btn v-if="member.uid !== user.uid" @click="removeMember(member.uid)">Remove</v-btn>
-              </v-list-item>
-              <v-list-item v-for="invite in pendingInvites" :key="invite.token">
-                {{ invite.inviteeEmail }} (Pending) - Invited: {{ formatDate(invite.createdAt) }}
-              </v-list-item>
-            </v-list>
-            <v-form @submit.prevent="inviteMember">
-              <v-text-field v-model="inviteEmail" label="Invite Email" type="email" required></v-text-field>
-              <v-btn type="submit" :loading="inviting">Invite</v-btn>
-            </v-form>
-          </v-card-text>
-        </v-card>
-      </v-window-item>
+      <!-- Tab Content -->
+      <q-tab-panels v-model="activeTab" animated>
+        <!-- Group Management Tab -->
+        <q-tab-panel name="group">
+          <q-card flat bordered class="q-mt-md">
+            <q-card-section>
+              <div class="text-h6">Family/Group Information</div>
+            </q-card-section>
+            <q-card-section>
+              <q-list>
+                <q-item v-for="member in acceptedMembers" :key="member.uid">
+                  <q-item-section>
+                    {{ member.email }} ({{ member.role }}) - Last Accessed: {{ formatDate(member.lastAccessed) || 'Never' }}
+                  </q-item-section>
+                  <q-item-section side v-if="member.uid !== user.uid">
+                    <q-btn flat color="negative" label="Remove" @click="removeMember(member.uid)" />
+                  </q-item-section>
+                </q-item>
+                <q-item v-for="invite in pendingInvites" :key="invite.token">
+                  <q-item-section>
+                    {{ invite.inviteeEmail }} (Pending) - Invited: {{ formatDate(invite.createdAt) }}
+                  </q-item-section>
+                </q-item>
+              </q-list>
+              <q-form @submit="inviteMember">
+                <q-input
+                  v-model="inviteEmail"
+                  label="Invite Email"
+                  type="email"
+                  outlined
+                  dense
+                  required
+                  class="q-mb-md"
+                />
+                <q-btn type="submit" color="primary" label="Invite" :loading="inviting" />
+              </q-form>
+            </q-card-section>
+          </q-card>
+        </q-tab-panel>
 
-      <!-- Entity Management Tab -->
-      <v-window-item value="entity">
-        <v-card class="mt-4">
-          <v-card-title>Entities</v-card-title>
-          <v-card-text>
-            <v-btn color="primary" @click="openCreateEntityDialog" class="mb-4">Add Entity</v-btn>
-            <v-list>
-              <v-list-item v-for="entity in entities" :key="entity.id">
-                <v-row :dense="true">
-                  <v-col>
-                    {{ entity.name }} ({{ entity.type }}) - Owner: {{ entity.members.find((m) => m.role === "Admin")?.email || "N/A" }}
-                    <v-chip v-if="entity.templateBudget" color="success" size="small" class="ml-2">Has Template</v-chip>
-                  </v-col>
-                  <v-col cols="auto">
-                    <v-btn variant="plain" color="primary" icon @click="openEditEntityDialog(entity)">
-                      <v-icon>mdi-pencil</v-icon>
-                    </v-btn>
-                  </v-col>
-                  <v-col cols="auto">
-                    <v-btn variant="plain" icon @click="confirmDeleteEntity(entity)" color="error">
-                      <v-icon>mdi-trash-can-outline</v-icon>
-                    </v-btn>
-                  </v-col>
-                </v-row>
-              </v-list-item>
-              <v-list-item v-if="!entities.length"> No entities found. Create an entity to start managing budgets. </v-list-item>
-            </v-list>
-          </v-card-text>
-        </v-card>
-      </v-window-item>
+        <!-- Entity Management Tab -->
+        <q-tab-panel name="entity">
+          <q-card flat bordered class="q-mt-md">
+            <q-card-section>
+              <div class="text-h6">Entities</div>
+            </q-card-section>
+            <q-card-section>
+              <q-btn color="primary" label="Add Entity" @click="openCreateEntityDialog" class="q-mb-md" />
+              <q-list>
+                <q-item v-for="entity in entities" :key="entity.id">
+                  <q-item-section>
+                    {{ entity.name }} ({{ entity.type }}) - Owner:
+                    {{ entity.members.find((m) => m.role === 'Admin')?.email || 'N/A' }}
+                    <q-chip v-if="entity.templateBudget" color="positive" size="sm" class="q-ml-sm">
+                      Has Template
+                    </q-chip>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-btn flat icon="mdi-pencil" color="primary" @click="openEditEntityDialog(entity)" />
+                    <q-btn
+                      flat
+                      icon="mdi-trash-can-outline"
+                      color="negative"
+                      @click="confirmDeleteEntity(entity)"
+                    />
+                  </q-item-section>
+                </q-item>
+                <q-item v-if="!entities.length">
+                  No entities found. Create an entity to start managing budgets.
+                </q-item>
+              </q-list>
+            </q-card-section>
+          </q-card>
+        </q-tab-panel>
 
-      <!-- Manage Imported Transactions Tab -->
-      <v-window-item value="manageTransactions">
-        <v-row>
-          <v-col cols="12">
-            <v-card>
-              <v-card-title>Imported Transaction</v-card-title>
-              <v-card-text>
-                <v-data-table :headers="transactionDocHeaders" :items="importedTransactionDocs" :items-per-page="10" class="elevation-1">
-                  <template v-slot:item.createdAt="{ item }">
-                    {{ getDateRange(item) }}
-                  </template>
-                  <template v-slot:item.account="{ item }">
-                    {{ getAccountInfo(item) }}
-                  </template>
-                  <template v-slot:item.actions="{ item }">
-                    <v-btn
-                      icon
-                      density="compact"
-                      variant="plain"
-                      color="error"
-                      @click.stop="confirmDeleteTransactionDoc(item)"
+        <!-- Manage Imported Transactions Tab -->
+        <q-tab-panel name="manageTransactions">
+          <q-card flat bordered>
+            <q-card-section>
+              <div class="text-h6">Imported Transactions</div>
+            </q-card-section>
+            <q-card-section>
+              <q-table
+                :rows="importedTransactionDocs"
+                :columns="transactionDocHeaders"
+                row-key="id"
+                :pagination="{ rowsPerPage: 10 }"
+                class="elevation-1"
+              >
+                <template v-slot:body-cell-createdAt="props">
+                  <q-td :props="props">
+                    {{ getDateRange(props.row) }}
+                  </q-td>
+                </template>
+                <template v-slot:body-cell-account="props">
+                  <q-td :props="props">
+                    {{ getAccountInfo(props.row) }}
+                  </q-td>
+                </template>
+                <template v-slot:body-cell-actions="props">
+                  <q-td :props="props">
+                    <q-btn
+                      flat
+                      icon="mdi-trash-can-outline"
+                      color="negative"
+                      @click="confirmDeleteTransactionDoc(props.row)"
                       title="Delete Transaction Document"
-                    >
-                      <v-icon>mdi-trash-can-outline</v-icon>
-                    </v-btn>
-                  </template>
-                </v-data-table>
-              </v-card-text>
-            </v-card>
-          </v-col>
-        </v-row>
-      </v-window-item>
+                    />
+                  </q-td>
+                </template>
+              </q-table>
+            </q-card-section>
+          </q-card>
+        </q-tab-panel>
 
-      <!-- Manage Budgets Tab -->
-      <v-window-item value="manageBudgets">
-        <v-row>
-          <v-col cols="12">
-            <v-card>
-              <v-card-title>Monthly Budgets</v-card-title>
-              <v-card-text>
-                <v-data-table :headers="budgetHeaders" :items="budgets" :items-per-page="10" class="elevation-1">
-                  <template v-slot:item.entityName="{ item }">
-                    {{ getEntityName(item.entityId) }}
-                  </template>
-                  <template v-slot:item.transactionCount="{ item }">
-                    {{ item.transactions?.length || 0 }}
-                  </template>
-                  <template v-slot:item.actions="{ item }">
-                    <v-btn icon density="compact" variant="plain" color="error" @click.stop="confirmDeleteBudget(item)" title="Delete Budget">
-                      <v-icon>mdi-trash-can-outline</v-icon>
-                    </v-btn>
-                  </template>
-                </v-data-table>
-              </v-card-text>
-            </v-card>
-          </v-col>
-        </v-row>
-      </v-window-item>
-    </v-window>
+        <!-- Manage Budgets Tab -->
+        <q-tab-panel name="manageBudgets">
+          <q-card flat bordered>
+            <q-card-section>
+              <div class="text-h6">Monthly Budgets</div>
+            </q-card-section>
+            <q-card-section>
+              <q-table
+                :rows="budgets"
+                :columns="budgetHeaders"
+                row-key="budgetId"
+                :pagination="{ rowsPerPage: 10 }"
+                class="elevation-1"
+              >
+                <template v-slot:body-cell-entityName="props">
+                  <q-td :props="props">
+                    {{ getEntityName(props.row.entityId) }}
+                  </q-td>
+                </template>
+                <template v-slot:body-cell-transactionCount="props">
+                  <q-td :props="props">
+                    {{ props.row.transactions?.length || 0 }}
+                  </q-td>
+                </template>
+                <template v-slot:body-cell-actions="props">
+                  <q-td :props="props">
+                    <q-btn
+                      flat
+                      icon="mdi-trash-can-outline"
+                      color="negative"
+                      @click="confirmDeleteBudget(props.row)"
+                      title="Delete Budget"
+                    />
+                  </q-td>
+                </template>
+              </q-table>
+            </q-card-section>
+          </q-card>
+        </q-tab-panel>
+      </q-tab-panels>
 
-    <!-- Delete Transaction Doc Confirmation Dialog -->
-    <v-dialog v-model="showDeleteDialog" max-width="400" @keyup.enter="deleteTransactionDoc">
-      <v-card>
-        <v-card-title class="bg-error py-3">
-          <span class="text-white">Delete Transaction Document</span>
-        </v-card-title>
-        <v-card-text class="pt-4">
-          Are you sure you want to delete the transaction document with ID "{{ transactionDocToDelete?.id }}" containing
-          {{ transactionDocToDelete?.importedTransactions.length }} transactions? This action cannot be undone.
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn color="grey" variant="text" @click="showDeleteDialog = false">Cancel</v-btn>
-          <v-btn color="error" variant="flat" @click="deleteTransactionDoc">Delete</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+      <!-- Delete Transaction Doc Confirmation Dialog -->
+      <q-dialog v-model="showDeleteDialog" max-width="400px">
+        <q-card>
+          <q-card-section class="bg-negative text-white">
+            <div class="text-h6">Delete Transaction Document</div>
+          </q-card-section>
+          <q-card-section class="q-pt-md">
+            Are you sure you want to delete the transaction document with ID "{{ transactionDocToDelete?.id }}"
+            containing {{ transactionDocToDelete?.importedTransactions.length }} transactions? This action cannot be undone.
+          </q-card-section>
+          <q-card-actions align="right">
+            <q-btn flat label="Cancel" color="grey" @click="showDeleteDialog = false" />
+            <q-btn flat label="Delete" color="negative" @click="deleteTransactionDoc" />
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
 
-    <!-- Delete Budget Confirmation Dialog -->
-    <v-dialog v-model="showDeleteBudgetDialog" max-width="400" @keyup.enter="deleteBudget">
-      <v-card>
-        <v-card-title class="bg-error py-3">
-          <span class="text-white">Delete Budget</span>
-        </v-card-title>
-        <v-card-text class="pt-4">
-          Are you sure you want to delete the budget for "{{ budgetToDelete?.month }}" (ID: {{ budgetToDelete?.budgetId }}) containing
-          {{ budgetToDelete?.transactions?.length || 0 }} transactions? This action cannot be undone.
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn color="grey" variant="text" @click="showDeleteBudgetDialog = false">Cancel</v-btn>
-          <v-btn color="error" variant="flat" @click="deleteBudget">Delete</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+      <!-- Delete Budget Confirmation Dialog -->
+      <q-dialog v-model="showDeleteBudgetDialog" max-width="400px">
+        <q-card>
+          <q-card-section class="bg-negative text-white">
+            <div class="text-h6">Delete Budget</div>
+          </q-card-section>
+          <q-card-section class="q-pt-md">
+            Are you sure you want to delete the budget for "{{ budgetToDelete?.month }}" (ID:
+            {{ budgetToDelete?.budgetId }}) containing {{ budgetToDelete?.transactions?.length || 0 }}
+            transactions? This action cannot be undone.
+          </q-card-section>
+          <q-card-actions align="right">
+            <q-btn flat label="Cancel" color="grey" @click="showDeleteBudgetDialog = false" />
+            <q-btn flat label="Delete" color="negative" @click="deleteBudget" />
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
 
-    <!-- Delete Entity Confirmation Dialog -->
-    <v-dialog v-model="showDeleteEntityDialog" max-width="400" @keyup.enter="deleteEntity">
-      <v-card>
-        <v-card-title class="bg-error py-3">
-          <span class="text-white">Delete Entity</span>
-        </v-card-title>
-        <v-card-text class="pt-4">
-          Are you sure you want to delete the entity "{{ entityToDelete?.name }}" (ID: {{ entityToDelete?.id }})?
-          <span v-if="associatedBudgets.length > 0"> This entity has {{ associatedBudgets.length }} associated budget(s), which must be deleted first. </span>
-          <span v-else>This action cannot be undone.</span>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn color="grey" variant="text" @click="showDeleteEntityDialog = false">Cancel</v-btn>
-          <v-btn color="error" variant="flat" @click="deleteEntity" :disabled="associatedBudgets.length > 0">Delete</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+      <!-- Delete Entity Confirmation Dialog -->
+      <q-dialog v-model="showDeleteEntityDialog" max-width="400px">
+        <q-card>
+          <q-card-section class="bg-negative text-white">
+            <div class="text-h6">Delete Entity</div>
+          </q-card-section>
+          <q-card-section class="q-pt-md">
+            Are you sure you want to delete the entity "{{ entityToDelete?.name }}" (ID: {{ entityToDelete?.id }})?
+            <span v-if="associatedBudgets.length > 0">
+              This entity has {{ associatedBudgets.length }} associated budget(s), which must be deleted first.
+            </span>
+            <span v-else>This action cannot be undone.</span>
+          </q-card-section>
+          <q-card-actions align="right">
+            <q-btn flat label="Cancel" color="grey" @click="showDeleteEntityDialog = false" />
+            <q-btn
+              flat
+              label="Delete"
+              color="negative"
+              @click="deleteEntity"
+              :disable="associatedBudgets.length > 0"
+            />
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
 
-    <!-- Entity Form Dialog -->
-    <v-dialog v-model="showEntityDialog" max-width="1000px" persistent>
-      <entity-form
-        v-if="selectedEntity"
-        :key="selectedEntity.id"
-        ref="entityFormRef"
-        :entity-id="selectedEntity.id"
-        @cancel="closeEntityForm"
-        @save="handleEntitySave"
-        @update:unsaved="closeEntityForm"
-      />
-    </v-dialog>
+      <!-- Entity Form Dialog -->
+      <q-dialog v-model="showEntityDialog" persistent max-width="1000px">
+        <entity-form
+          v-if="selectedEntity"
+          :key="selectedEntity.id"
+          :entity-id="selectedEntity.id"
+          @cancel="closeEntityForm"
+          @save="handleEntitySave"
+          @update:unsaved="closeEntityForm"
+        />
+      </q-dialog>
 
-    <v-snackbar v-model="snackbar" :color="snackbarColor" timeout="3000">
-      {{ snackbarText }}
-      <template v-slot:actions>
-        <v-btn variant="text" @click="snackbar = false">Close</v-btn>
-      </template>
-    </v-snackbar>
-  </v-container>
+      <!-- Snackbar -->
+      <q-notification
+        v-model="snackbar"
+        :color="snackbarColor"
+        position="top"
+        :timeout="3000"
+      >
+        {{ snackbarText }}
+        <template v-slot:action>
+          <q-btn flat label="Close" @click="snackbar = false" />
+        </template>
+      </q-notification>
+    </q-card>
+  </q-page>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from "vue";
-import { auth } from "../firebase/index";
-import { dataAccess } from "../dataAccess";
-import { Timestamp } from "firebase/firestore";
-import { Family, PendingInvite, Entity, Budget, ImportedTransactionDoc } from "@/types";
-import { useFamilyStore } from "../store/family";
-import EntityForm from "../components/EntityForm.vue";
-import { timestampToDate } from "@/utils/helpers";
+import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { auth } from '../firebase/index';
+import { dataAccess } from '../dataAccess';
+import { Timestamp } from 'firebase/firestore';
+import { Family, PendingInvite, Entity, Budget, ImportedTransactionDoc } from '@/types';
+import { useFamilyStore } from '../store/family';
+import EntityForm from '../components/EntityForm.vue';
+import { timestampToDate } from '@/utils/helpers';
 
 const familyStore = useFamilyStore();
-const inviteEmail = ref("");
+const inviteEmail = ref('');
 const inviting = ref(false);
 const resending = ref(false);
 const snackbar = ref(false);
-const snackbarText = ref("");
-const snackbarColor = ref("success");
+const snackbarText = ref('');
+const snackbarColor = ref('success');
 const userEmail = ref<string | null>(null);
 const emailVerified = ref(false);
 const user = ref(auth.currentUser);
 const family = ref<Family | null>(null);
-const acceptedMembers = ref<Array<{ uid: string; email: string; role: string; lastAccessed?: Timestamp }>>([]);
+const acceptedMembers = ref<
+  Array<{ uid: string; email: string; role: string; lastAccessed?: Timestamp }>
+>([]);
 const pendingInvites = ref<PendingInvite[]>([]);
 const selectedEntity = ref<Entity | null>(null);
-const activeTab = ref("group");
+const activeTab = ref('group');
 const budgets = ref<Budget[]>([]);
 const importedTransactionDocs = ref<ImportedTransactionDoc[]>([]);
 const showDeleteDialog = ref(false);
@@ -247,25 +314,25 @@ const associatedBudgets = ref<Budget[]>([]);
 const entities = computed(() => family.value?.entities || []);
 
 const transactionDocHeaders = [
-  { title: "Document ID", value: "id" },
-  { title: "Transaction Count", value: "importedTransactions.length" },
-  { title: "Account Info", value: "account" },
-  { title: "Created At", value: "createdAt" },
-  { title: "Actions", value: "actions" },
+  { title: 'Document ID', key: 'id' },
+  { title: 'Transaction Count', key: 'importedTransactions.length' },
+  { title: 'Account Info', key: 'account' },
+  { title: 'Created At', key: 'createdAt' },
+  { title: 'Actions', key: 'actions' },
 ];
 
 const budgetHeaders = [
-  { title: "Budget ID", value: "budgetId" },
-  { title: "Month", value: "month" },
-  { title: "Entity Name", value: "entityName" },
-  { title: "Transaction Count", value: "transactionCount" },
-  { title: "Actions", value: "actions" },
+  { title: 'Budget ID', key: 'budgetId' },
+  { title: 'Month', key: 'month' },
+  { title: 'Entity Name', key: 'entityName' },
+  { title: 'Transaction Count', key: 'transactionCount' },
+  { title: 'Actions', key: 'actions' },
 ];
 
 onMounted(async () => {
   const currentUser = auth.currentUser;
   if (!currentUser) {
-    showSnackbar("Please log in to view settings", "error");
+    showSnackbar('Please log in to view settings', 'error');
     return;
   }
   user.value = currentUser;
@@ -293,7 +360,7 @@ async function loadAllData() {
             .map(async (m) => ({
               uid: m.uid,
               email: m.email,
-              role: "Editor",
+              role: 'Editor',
               lastAccessed: await dataAccess.getLastAccessed(m.uid),
             }))
         )
@@ -308,13 +375,13 @@ async function loadAllData() {
     budgets.value = await dataAccess.loadAccessibleBudgets(user.uid);
     importedTransactionDocs.value = await dataAccess.getImportedTransactionDocs();
   } catch (error: any) {
-    showSnackbar(`Error loading data: ${error.message}`, "error");
+    showSnackbar(`Error loading data: ${error.message}`, 'error');
   }
 }
 
 function getAccountInfo(item: ImportedTransactionDoc): string {
   if (!item.importedTransactions || item.importedTransactions.length === 0) {
-    return "No transactions available";
+    return 'No transactions available';
   }
 
   const t = item.importedTransactions[0];
@@ -323,13 +390,15 @@ function getAccountInfo(item: ImportedTransactionDoc): string {
 
 function getDateRange(item: ImportedTransactionDoc): string {
   if (!item.importedTransactions || item.importedTransactions.length === 0) {
-    return "No transactions available";
+    return 'No transactions available';
   }
 
-  const validTransactions = item.importedTransactions.filter((tx) => tx.postedDate && !isNaN(new Date(tx.postedDate).getTime()));
+  const validTransactions = item.importedTransactions.filter(
+    (tx) => tx.postedDate && !isNaN(new Date(tx.postedDate).getTime())
+  );
 
   if (validTransactions.length === 0) {
-    return "No valid dates available";
+    return 'No valid dates available';
   }
 
   const dates = validTransactions.map((tx) => new Date(tx.postedDate));
@@ -337,8 +406,8 @@ function getDateRange(item: ImportedTransactionDoc): string {
   const endDate = new Date(Math.max(...dates.map((d) => d.getTime())));
 
   const formatDate = (date: Date): string => {
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
     const year = date.getFullYear();
     return `${month}/${day}/${year}`;
   };
@@ -349,18 +418,18 @@ function getDateRange(item: ImportedTransactionDoc): string {
 async function inviteMember() {
   const user = auth.currentUser;
   if (!user) {
-    showSnackbar("Please log in to invite users", "error");
+    showSnackbar('Please log in to invite users', 'error');
     return;
   }
 
   const normalizedEmail = inviteEmail.value.toLowerCase().trim();
   if (!normalizedEmail) {
-    showSnackbar("Please enter an email address", "error");
+    showSnackbar('Please enter an email address', 'error');
     return;
   }
 
   if (normalizedEmail === user.email?.toLowerCase()) {
-    showSnackbar("You cannot invite yourself", "error");
+    showSnackbar('You cannot invite yourself', 'error');
     return;
   }
 
@@ -368,14 +437,14 @@ async function inviteMember() {
   try {
     await dataAccess.inviteUser({
       inviterUid: user.uid,
-      inviterEmail: user.email || "no-reply@budgetapp.com",
+      inviterEmail: user.email || 'no-reply@budgetapp.com',
       inviteeEmail: normalizedEmail,
     });
     showSnackbar(`Invitation sent to ${normalizedEmail}`);
-    inviteEmail.value = "";
+    inviteEmail.value = '';
     await loadAllData();
   } catch (error: any) {
-    showSnackbar(`Error inviting user: ${error.message}`, "error");
+    showSnackbar(`Error inviting user: ${error.message}`, 'error');
   } finally {
     inviting.value = false;
   }
@@ -384,32 +453,32 @@ async function inviteMember() {
 async function removeMember(uid: string) {
   const user = auth.currentUser;
   if (!user || !family.value || !uid) {
-    showSnackbar("Cannot remove member: invalid family or user data", "error");
+    showSnackbar('Cannot remove member: invalid family or user data', 'error');
     return;
   }
 
   try {
     await dataAccess.removeFamilyMember(family.value.id, uid);
-    showSnackbar("Member removed");
+    showSnackbar('Member removed');
     await loadAllData();
   } catch (error: any) {
-    showSnackbar(`Error removing member: ${error.message}`, "error");
+    showSnackbar(`Error removing member: ${error.message}`, 'error');
   }
 }
 
 async function sendVerificationEmail() {
   const user = auth.currentUser;
   if (!user) {
-    showSnackbar("Please log in to resend verification email", "error");
+    showSnackbar('Please log in to resend verification email', 'error');
     return;
   }
 
   resending.value = true;
   try {
     await dataAccess.resendVerificationEmail();
-    showSnackbar("Verification email sent. Please check your inbox.", "success");
+    showSnackbar('Verification email sent. Please check your inbox.', 'success');
   } catch (error: any) {
-    showSnackbar(`Error sending verification email: ${error.message}`, "error");
+    showSnackbar(`Error sending verification email: ${error.message}`, 'error');
   } finally {
     resending.value = false;
   }
@@ -429,7 +498,7 @@ async function handleEntitySave() {
   showEntityDialog.value = false;
   selectedEntity.value = null;
   await loadAllData();
-  showSnackbar("Entity saved successfully", "success");
+  showSnackbar('Entity saved successfully', 'success');
 }
 
 function closeEntityForm() {
@@ -453,16 +522,16 @@ async function deleteEntity() {
   try {
     // Prevent deletion if there are associated budgets
     if (associatedBudgets.value.length > 0) {
-      showSnackbar("Cannot delete entity: associated budgets exist. Delete budgets first.", "error");
+      showSnackbar('Cannot delete entity: associated budgets exist. Delete budgets first.', 'error');
       return;
     }
 
     await familyStore.deleteEntity(family.value.id, entityToDelete.value.id);
-    showSnackbar(`Entity "${entityToDelete.value.name}" deleted successfully`, "success");
+    showSnackbar(`Entity "${entityToDelete.value.name}" deleted successfully`, 'success');
     await loadAllData();
   } catch (error: any) {
-    console.error("Error deleting entity:", error);
-    showSnackbar(`Error deleting entity: ${error.message}`, "error");
+    console.error('Error deleting entity:', error);
+    showSnackbar(`Error deleting entity: ${error.message}`, 'error');
   } finally {
     showDeleteEntityDialog.value = false;
     entityToDelete.value = null;
@@ -485,10 +554,10 @@ async function deleteTransactionDoc() {
     const docId = transactionDocToDelete.value.id;
     await dataAccess.deleteImportedTransactionDoc(docId);
     importedTransactionDocs.value = importedTransactionDocs.value.filter((doc) => doc.id !== docId);
-    showSnackbar(`Transaction document ${docId} deleted successfully`, "success");
+    showSnackbar(`Transaction document ${docId} deleted successfully`, 'success');
   } catch (error: any) {
-    console.error("Error deleting transaction document:", error);
-    showSnackbar(`Error deleting transaction document: ${error.message}`, "error");
+    console.error('Error deleting transaction document:', error);
+    showSnackbar(`Error deleting transaction document: ${error.message}`, 'error');
   } finally {
     showDeleteDialog.value = false;
     transactionDocToDelete.value = null;
@@ -497,7 +566,7 @@ async function deleteTransactionDoc() {
 
 function getEntityName(entityId: string): string {
   const entity = family.value?.entities?.find((e) => e.id === entityId);
-  return entity ? entity.name : "Unknown";
+  return entity ? entity.name : 'Unknown';
 }
 
 function confirmDeleteBudget(budget: Budget) {
@@ -515,10 +584,10 @@ async function deleteBudget() {
     const budgetId = budgetToDelete.value.budgetId;
     await dataAccess.deleteBudget(budgetId);
     budgets.value = budgets.value.filter((budget) => budget.budgetId !== budgetId);
-    showSnackbar(`Budget ${budgetId} deleted successfully`, "success");
+    showSnackbar(`Budget ${budgetId} deleted successfully`, 'success');
   } catch (error: any) {
-    console.error("Error deleting budget:", error);
-    showSnackbar(`Error deleting budget: ${error.message}`, "error");
+    console.error('Error deleting budget:', error);
+    showSnackbar(`Error deleting budget: ${error.message}`, 'error');
   } finally {
     showDeleteBudgetDialog.value = false;
     budgetToDelete.value = null;
@@ -526,10 +595,10 @@ async function deleteBudget() {
 }
 
 function formatDate(timestamp: Timestamp | null) {
-  return timestamp ? timestampToDate(timestamp).toLocaleString() : "N/A";
+  return timestamp ? timestampToDate(timestamp).toLocaleString() : 'N/A';
 }
 
-function showSnackbar(text: string, color = "success") {
+function showSnackbar(text: string, color = 'success') {
   snackbarText.value = text;
   snackbarColor.value = color;
   snackbar.value = true;

@@ -1,16 +1,22 @@
+<!-- src/views/EmailVerification.vue -->
 <template>
-  <v-container>
-    <v-row justify="center">
-      <v-col cols="12" md="6">
-        <v-card>
-          <v-card-title>Email Verification</v-card-title>
-          <v-card-text v-if="loading">Verifying...</v-card-text>
-          <v-card-text v-else-if="error">{{ error }}</v-card-text>
-          <v-card-text v-else>Email verified successfully! You can now <router-link to="/login">log in</router-link>.</v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
-  </v-container>
+  <q-page padding>
+    <q-row justify="center">
+      <q-col cols="12" md="6">
+        <q-card flat bordered>
+          <q-card-section>
+            <div class="text-h6">Email Verification</div>
+          </q-card-section>
+          <q-card-section v-if="loading">Verifying...</q-card-section>
+          <q-card-section v-else-if="error">{{ error }}</q-card-section>
+          <q-card-section v-else>
+            Email verified successfully! You can now
+            <router-link to="/login">log in</router-link>.
+          </q-card-section>
+        </q-card>
+      </q-col>
+    </q-row>
+  </q-page>
 </template>
 
 <script setup lang="ts">

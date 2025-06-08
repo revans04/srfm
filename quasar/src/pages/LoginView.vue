@@ -1,26 +1,28 @@
-<!-- LoginView.vue -->
+<!-- src/pages/LoginView.vue -->
 <template>
-  <v-container class="fill-height" fluid>
-    <v-row align="center" justify="center">
-      <v-col cols="12" sm="8" md="4">
-        <v-card class="elevation-12">
-          <v-toolbar color="primary" dark flat>
-            <v-toolbar-title>Steady Rise Login</v-toolbar-title>
-          </v-toolbar>
-          <v-card-text>
+  <q-page class="flex flex-center">
+    <q-row align="center" justify="center" class="full-width">
+      <q-col cols="12" sm="8" md="4">
+        <q-card class="shadow-12">
+          <q-toolbar class="bg-primary text-white">
+            <q-toolbar-title>Steady Rise Login</q-toolbar-title>
+          </q-toolbar>
+          <q-card-section>
             <p class="text-center">
               Sign in with your Google account to manage your finances.
             </p>
-          </v-card-text>
-          <v-card-actions class="justify-center pb-4">
-            <!-- Replace v-btn with a div for Google button -->
+          </q-card-section>
+          <q-card-actions class="justify-center q-pb-md">
+            <!-- Google Sign-In button container -->
             <div id="google-signin-button"></div>
-          </v-card-actions>
-          <v-alert v-if="error" type="error" dense>{{ error }}</v-alert>
-        </v-card>
-      </v-col>
-    </v-row>
-  </v-container>
+          </q-card-actions>
+          <q-banner v-if="error" dense class="bg-negative text-white">
+            {{ error }}
+          </q-banner>
+        </q-card>
+      </q-col>
+    </q-row>
+  </q-page>
 </template>
 
 <script setup lang="ts">
@@ -94,7 +96,8 @@ const handleCredentialResponse = async (response: any) => {
 </script>
 
 <style scoped>
-.fill-height {
+.q-page {
   height: 100vh;
+  background-color: var(--q-light);
 }
 </style>
