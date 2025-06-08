@@ -11,12 +11,7 @@
       aria-required="true"
     />
     <q-input v-model="localAccount.institution" label="Institution" outlined dense />
-    <q-checkbox
-      v-if="showPersonalOption"
-      v-model="isPersonalAccount"
-      label="Personal Account (not shared with family)"
-      dense
-    />
+    <q-checkbox v-if="showPersonalOption" v-model="isPersonalAccount" label="Personal Account (not shared with family)" dense />
     <q-input
       v-if="localAccount.type === 'Bank' || localAccount.type === 'CreditCard'"
       v-model="localAccount.accountNumber"
@@ -26,7 +21,7 @@
     />
     <q-input
       v-if="localAccount.type === 'Loan' || localAccount.type === 'CreditCard'"
-      v-model.number="localAccount.details.interestRate"
+      v-model.number="localAccount.details!.interestRate"
       label="Interest Rate (%)"
       type="number"
       step="0.01"
@@ -35,7 +30,7 @@
     />
     <q-input
       v-if="localAccount.type === AccountType.Property"
-      v-model.number="localAccount.details.appraisedValue"
+      v-model.number="localAccount.details!.appraisedValue"
       label="Original Value"
       type="number"
       outlined
@@ -43,14 +38,14 @@
     />
     <q-input
       v-if="localAccount.type === AccountType.Property"
-      v-model="localAccount.details.address"
+      v-model="localAccount.details!.address"
       :label="localAccount.type === AccountType.Property ? 'Address' : 'Description'"
       outlined
       dense
     />
     <q-input
       v-if="localAccount.type === AccountType.Investment || localAccount.type === AccountType.Loan"
-      v-model="localAccount.details.maturityDate"
+      v-model="localAccount.details!.maturityDate"
       label="Maturity Date"
       type="date"
       outlined
@@ -93,6 +88,7 @@ const validForm = ref(false);
 const saving = ref(false);
 const isPersonalAccount = ref(false);
 
+// Initialize localAccount with a guaranteed details object
 const localAccount = ref<Account>({
   id: "",
   name: "",
@@ -112,11 +108,19 @@ watch(
   () => props.account,
   (newAccount) => {
     if (newAccount) {
-      localAccount.value = { ...newAccount, details: { ...newAccount.details } };
+      localAccount.value = {
+        ...newAccount,
+        details: {
+          interestRate: newAccount.details?.interestRate,
+          appraisedValue: newAccount.details?.appraisedValue,
+          address: newAccount.details?.address,
+          maturityDate: newAccount.details?.maturityDate,
+        },
+      };
       isPersonalAccount.value = !!newAccount.userId;
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 watch(
@@ -124,7 +128,7 @@ watch(
   (newType) => {
     localAccount.value.type = newType;
     localAccount.value.category = newType === AccountType.CreditCard || newType === AccountType.Loan ? "Liability" : "Asset";
-  }
+  },
 );
 
 function save() {
@@ -133,6 +137,7 @@ function save() {
   emit("save", localAccount.value, isPersonalAccount.value);
   saving.value = false;
 }
+
 function cancel() {
   emit("cancel");
 }

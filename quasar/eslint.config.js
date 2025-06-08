@@ -42,6 +42,7 @@ export default defineConfigWithVueTs(
         'error',
         { prefer: 'type-imports' }
       ],
+      'max-len': ['warn', { code: 160 }]
     }
   },
   // https://github.com/vuejs/eslint-config-typescript
