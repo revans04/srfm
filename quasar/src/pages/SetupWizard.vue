@@ -224,8 +224,8 @@ import GroupNamingForm from '../components/GroupNamingForm.vue';
 import AccountList from '../components/AccountList.vue';
 import AccountForm from '../components/AccountForm.vue';
 import { v4 as uuidv4 } from 'uuid';
-import { Timestamp } from 'firebase/firestore';
-import { AccountType, type Family, type Entity, type Account } from '@/types';
+import type { Timestamp } from 'firebase/firestore';
+import { AccountType, type Family, type Account } from '@/types';
 
 interface WizardStep {
   value: string;
@@ -246,6 +246,12 @@ const messages = {
   accountUpdated: (type: string) => `${type} account updated successfully.`,
   entityAdded: (name: string) => `Entity "${name}" added successfully.`,
 };
+
+interface EntityFormMethods {
+  save: () => Promise<void>;
+  resetFormInternal?: () => void;
+  resetForm?: () => void;
+}
 
 // Stepper State
 const initialSteps: WizardStep[] = [
@@ -281,7 +287,7 @@ const highestStepReached = ref<string>(wizardSteps.value[0].value);
 
 // Entity Step State
 const selectedEntityId = ref('');
-const entityFormRef = ref<InstanceType<typeof EntityForm> | null>(null);
+const entityFormRef = ref<EntityFormMethods | null>(null);
 const hasUnsavedEntityChanges = ref(false);
 const savingEntity = ref(false);
 const showUnsavedEntityDialog = ref(false);
@@ -293,8 +299,9 @@ const pendingNavigationArgs = ref<{
 // Account Step State
 const showWizardAccountDialog = ref(false);
 const editMode = ref(false);
-const accountsData = ref<Account[]>([]);
-const newWizardAccount = ref<Partial<Account> & { type: AccountType | string }>({
+type TempAccount = Account & { tempId?: string };
+const accountsData = ref<TempAccount[]>([]);
+const newWizardAccount = ref<Partial<TempAccount> & { type: AccountType | string }>({
   name: '',
   type: AccountType.Bank,
   accountNumber: '',
@@ -357,7 +364,7 @@ onMounted(async () => {
   const user = auth.currentUser;
   if (!user) {
     showSnackbarMessage('Please log in to complete setup.', 'error');
-    router.push('/login');
+    void router.push('/login');
     return;
   }
   if (familyStore.family) {
@@ -368,17 +375,18 @@ onMounted(async () => {
       if (fam) {
         family.value = fam;
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading family:', error);
     }
   }
 
   if (family.value) {
     try {
-      accountsData.value = await dataAccess.getAccounts(family.value.id);
-    } catch (error: any) {
+      accountsData.value = (await dataAccess.getAccounts(family.value.id)) as TempAccount[];
+    } catch (error: unknown) {
       console.error('Error loading accounts:', error);
-      showSnackbarMessage(`Error loading accounts: ${error.message}`, 'error');
+      const err = error as Error;
+      showSnackbarMessage(`Error loading accounts: ${err.message}`, 'error');
     }
   }
 });
@@ -407,7 +415,7 @@ function canNavigateFromEntities(): boolean {
   return true;
 }
 
-async function navigateStep(direction: 'next' | 'back') {
+function navigateStep(direction: 'next' | 'back') {
   const currentIndex = currentStepIndex.value;
   let targetStepValue: string | undefined;
 
@@ -493,34 +501,8 @@ function updateUnsavedChanges(unsaved: boolean) {
   hasUnsavedEntityChanges.value = unsaved;
 }
 
-async function saveEntityAndProceed() {
-  if (entityFormRef.value) {
-    savingEntity.value = true;
-    try {
-      await entityFormRef.value.save();
-    } catch (error) {
-      showSnackbarMessage('Failed to save entity.', 'error');
-      cancelPendingNavigation();
-    } finally {
-      savingEntity.value = false;
-    }
-  }
-}
-
-function discardChangesAndProceed() {
-  hasUnsavedEntityChanges.value = false;
-  if (entityFormRef.value && typeof entityFormRef.value.resetFormInternal === 'function') {
-    entityFormRef.value.resetFormInternal();
-  } else if (entityFormRef.value && typeof entityFormRef.value.resetForm === 'function') {
-    entityFormRef.value.resetForm();
-  }
-  showUnsavedEntityDialog.value = false;
-  executePendingNavigation();
-}
-
 function executePendingNavigation() {
   if (!pendingNavigationArgs.value) return;
-  const { direction, entityId } = pendingNavigationArgs.value;
   const currentPendingArgs = pendingNavigationArgs.value;
   pendingNavigationArgs.value = null;
 
@@ -534,7 +516,7 @@ function executePendingNavigation() {
 }
 
 // Account Step Functions
-function getAccountsByType(type: AccountType | string | undefined): Account[] {
+function getAccountsByType(type: AccountType | string | undefined): TempAccount[] {
   if (!type) return [];
   return accountsData.value.filter((acc) => acc.type === type);
 }
@@ -563,8 +545,8 @@ function closeWizardAccountDialog() {
   editMode.value = false;
 }
 
-function saveWizardAccount(account: Account, isPersonal: boolean) {
-  const accountToAdd: Account = {
+function saveWizardAccount(account: TempAccount) {
+  const accountToAdd: TempAccount = {
     id: account.id || account.tempId || uuidv4(),
     familyId: '',
     name: account.name,
@@ -596,7 +578,7 @@ function saveWizardAccount(account: Account, isPersonal: boolean) {
   closeWizardAccountDialog();
 }
 
-function removeWizardAccount(account: Account) {
+function removeWizardAccount(account: TempAccount) {
   const keyToRemove = account.tempId || account.id;
   accountsData.value = accountsData.value.filter((acc) => (acc.tempId || acc.id) !== keyToRemove);
   showSnackbarMessage(messages.accountRemoved(account.name), 'info');
@@ -621,20 +603,23 @@ async function finishSetup() {
       const newAccountToSave: Account = {
         ...accData,
         id: accountId,
-        familyId: family.value!.id,
+        familyId: family.value.id,
         createdAt:
           accData.createdAt instanceof Timestamp
             ? accData.createdAt
             : Timestamp.fromDate(new Date()),
         updatedAt: Timestamp.fromDate(new Date()),
       };
-      delete (newAccountToSave as any).tempId;
-      await dataAccess.saveAccount(family.value!.id, newAccountToSave);
+      delete newAccountToSave.tempId;
+      await dataAccess.saveAccount(family.value.id, newAccountToSave);
     }
     showSnackbarMessage('Setup completed successfully! Redirecting...', 'success');
-    setTimeout(() => router.push('/dashboard'), 1500);
-  } catch (error: any) {
-    showSnackbarMessage(`Error saving accounts: ${error.message || 'Unknown error'}`, 'error');
+    setTimeout(() => {
+      void router.push('/dashboard');
+    }, 1500);
+  } catch (error: unknown) {
+    const err = error as Error;
+    showSnackbarMessage(`Error saving accounts: ${err.message || 'Unknown error'}`, 'error');
     console.error('Error in finishSetup:', error);
   } finally {
     finishingSetup.value = false;
@@ -642,7 +627,7 @@ async function finishSetup() {
 }
 
 // Snackbar Helper
-function showSnackbarMessage(keyOrText: string, color: string = 'success', ...args: any[]) {
+function showSnackbarMessage(keyOrText: string, color: string = 'success', ...args: unknown[]) {
   const text = messages[keyOrText] ? messages[keyOrText](...args) : keyOrText;
   snackbar.value = { show: true, text, color };
 }

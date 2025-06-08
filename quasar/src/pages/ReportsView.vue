@@ -214,7 +214,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { auth } from '../firebase/index';
 import { dataAccess } from '../dataAccess';
-import { Budget, Snapshot } from '../types';
+import type { Budget, Snapshot, Account } from '../types';
 import { Doughnut, Line } from 'vue-chartjs';
 import {
   Chart as ChartJS,
@@ -228,7 +228,6 @@ import {
   Filler,
 } from 'chart.js';
 import { useBudgetStore } from '../store/budget';
-import { Timestamp } from 'firebase/firestore';
 import 'chartjs-adapter-date-fns';
 import { timestampToDate, currentMonthISO } from '@/utils/helpers';
 
@@ -272,6 +271,12 @@ const groupColors = ref([
   '#8BC34A', // Light Green
 ]);
 
+interface TooltipContext {
+  label?: string;
+  raw?: number;
+  dataset: { label?: string };
+}
+
 // Chart data for the donut chart
 const chartData = computed(() => ({
   labels: budgetGroups.value.map((group) => group.name),
@@ -295,7 +300,7 @@ const chartOptions = ref({
     },
     tooltip: {
       callbacks: {
-        label: (context: any) => {
+        label: (context: TooltipContext) => {
           const label = context.label || '';
           const value = context.raw || 0;
           return `${label}: $${value.toLocaleString('en-US', {
@@ -423,7 +428,7 @@ const netWorthChartOptions = ref({
     },
     tooltip: {
       callbacks: {
-        label: (context: any) => {
+        label: (context: TooltipContext) => {
           const label = context.dataset.label || '';
           const value = context.raw || 0;
           return `${label}: $${value.toLocaleString('en-US', {
@@ -562,7 +567,7 @@ const assetDebtChartOptions = ref({
     },
     tooltip: {
       callbacks: {
-        label: (context: any) => {
+        label: (context: TooltipContext) => {
           const label = context.dataset.label || '';
           const value = context.raw || 0;
           return `${label}: $${Math.abs(value).toLocaleString('en-US', {
@@ -635,7 +640,7 @@ const monthlyBudgetChartOptions = ref({
     },
     tooltip: {
       callbacks: {
-        label: (context: any) => {
+        label: (context: TooltipContext) => {
           const label = context.dataset.label || '';
           const value = context.raw || 0;
           return `${label}: $${value.toLocaleString('en-US', {
@@ -648,12 +653,7 @@ const monthlyBudgetChartOptions = ref({
   },
 });
 
-const accounts = ref<any[]>([]); // To store account details for mapping in assetDebtData
-
-// Helper function to get account details by ID
-function getAccountDetails(accountId: string) {
-  return accounts.value.find((account) => account.id === accountId);
-}
+const accounts = ref<Account[]>([]); // To store account details for mapping in assetDebtData
 
 onMounted(async () => {
   const user = auth.currentUser;
@@ -695,7 +695,7 @@ onMounted(async () => {
       accounts.value = [];
       snapshots.value = [];
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error loading data for reports:', error);
     accounts.value = [];
     snapshots.value = [];
@@ -792,7 +792,7 @@ async function updateReportData() {
       planned: data.planned,
       actual: data.actual,
     }));
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error updating report data:', error);
     budgetGroups.value = [];
   }
