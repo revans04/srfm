@@ -1,230 +1,331 @@
-<!-- src/views/TransactionsView.vue -->
+<!-- src/pages/TransactionsView.vue -->
 <template>
-  <v-container :class="isMobile ? 'ps-0' : ''">
-    <h1>Transaction and Registry</h1>
+  <q-page :padding="!isMobile">
+    <h1 class="text-h4 q-mb-md">Transaction and Registry</h1>
 
     <!-- Loading Overlay -->
-    <v-overlay :model-value="loading" class="align-center justify-center" scrim="#00000080">
-      <v-progress-circular indeterminate color="primary" size="50" />
-    </v-overlay>
+    <q-inner-loading :showing="loading">
+      <q-spinner color="primary" size="50px" />
+    </q-inner-loading>
 
     <!-- Tabs -->
-    <v-tabs v-model="tab" color="primary">
-      <v-tab value="entries">Budget Entries</v-tab>
-      <v-tab value="register">Transaction Register</v-tab>
-    </v-tabs>
+    <q-tabs
+      v-model="tab"
+      dense
+      class="bg-primary text-white q-mb-md"
+      active-color="accent"
+      indicator-color="accent"
+    >
+      <q-tab name="entries" label="Budget Entries" />
+      <q-tab name="register" label="Transaction Register" />
+    </q-tabs>
 
-    <v-window v-model="tab">
+    <!-- Tab Content -->
+    <q-tab-panels v-model="tab" animated>
       <!-- Budget Entries -->
-      <v-window-item value="entries">
-        <!-- Add Transaction Button -->
-        <v-btn color="primary" variant="plain" class="mb-4 mr-2" @click="showTransactionDialog = true"> Add Transaction </v-btn>
-        <v-btn color="primary" variant="plain" class="mb-4 mr-2" @click="openMatchBankTransactionsDialog"> Match Bank Transactions </v-btn>
+      <q-tab-panel name="entries">
+        <!-- Add Transaction Buttons -->
+        <q-btn
+          color="primary"
+          flat
+          label="Add Transaction"
+          class="q-mr-sm q-mb-md"
+          @click="showTransactionDialog = true"
+        />
+        <q-btn
+          color="primary"
+          flat
+          label="Match Bank Transactions"
+          class="q-mb-md"
+          @click="openMatchBankTransactionsDialog"
+        />
 
-        <v-card class="mb-4">
-          <v-card-title>
-            <v-row class="mt-2">
-              <v-col cols="auto">Filters</v-col>
-              <v-col>
-                <v-checkbox v-model="entriesFilterDuplicates" label="Look for Duplicates" density="compact" hide-details @update:modelValue="applyFilters" />
-              </v-col>
-            </v-row>
-          </v-card-title>
-          <v-card-text>
-            <v-row>
-              <v-col cols="12" md="4">
-                <v-select
+        <q-card class="q-mb-md">
+          <q-card-section>
+            <q-row class="q-mt-sm">
+              <q-col cols="auto" class="text-h6">Filters</q-col>
+              <q-col>
+                <q-checkbox
+                  v-model="entriesFilterDuplicates"
+                  label="Look for Duplicates"
+                  dense
+                  @update:model-value="applyFilters"
+                />
+              </q-col>
+            </q-row>
+          </q-card-section>
+          <q-card-section>
+            <q-row>
+              <q-col cols="12" md="4">
+                <q-select
                   v-model="familyStore.selectedEntityId"
-                  :items="entityOptions"
-                  item-title="name"
-                  item-value="id"
+                  :options="entityOptions"
+                  option-label="name"
+                  option-value="id"
                   label="Select Entity"
-                  variant="outlined"
-                  density="compact"
+                  outlined
+                  dense
                   clearable
-                  @update:modelValue="loadBudgets"
-                ></v-select>
-              </v-col>
-              <v-col cols="12" md="4">
-                <v-text-field
-                  append-inner-icon="mdi-magnify"
-                  density="compact"
-                  label="Search"
-                  variant="outlined"
-                  single-line
+                  @update:model-value="loadBudgets"
+                />
+              </q-col>
+              <q-col cols="12" md="4">
+                <q-input
                   v-model="entriesSearch"
-                ></v-text-field>
-              </v-col>
-              <v-col cols="12" md="4">
-                <v-select
+                  label="Search"
+                  outlined
+                  dense
+                  append-icon="mdi-magnify"
+                />
+              </q-col>
+              <q-col cols="12" md="4">
+                <q-select
                   v-model="selectedBudgetIds"
-                  :items="budgetOptions"
-                  density="compact"
+                  :options="budgetOptions"
+                  option-label="month"
+                  option-value="budgetId"
                   label="Select Budgets"
-                  item-title="month"
-                  item-value="budgetId"
-                  variant="outlined"
+                  outlined
+                  dense
                   multiple
                   clearable
-                  :disabled="budgetOptions.length === 0"
-                  @update:modelValue="loadTransactions"
-                ></v-select>
-              </v-col>
-            </v-row>
-            <v-row v-if="budgetOptions.length === 0">
-              <v-col cols="12">
-                <v-alert type="info" class="mt-4"> No budgets available. Create a budget in the Dashboard to start tracking transactions. </v-alert>
-              </v-col>
-            </v-row>
+                  :disable="budgetOptions.length === 0"
+                  @update:model-value="loadTransactions"
+                />
+              </q-col>
+            </q-row>
+            <q-row v-if="budgetOptions.length === 0">
+              <q-col cols="12">
+                <q-banner dense class="bg-info text-white q-mt-md">
+                  No budgets available. Create a budget in the Dashboard to start tracking transactions.
+                </q-banner>
+              </q-col>
+            </q-row>
 
-            <v-row>
-              <v-col cols="12" md="2">
-                <v-text-field v-model="entriesFilterMerchant" label="Merchant" variant="outlined" density="compact" @input="applyFilters"></v-text-field>
-              </v-col>
-              <v-col cols="12" md="2">
-                <v-text-field
+            <q-row>
+              <q-col cols="12" md="2">
+                <q-input
+                  v-model="entriesFilterMerchant"
+                  label="Merchant"
+                  outlined
+                  dense
+                  @input="applyFilters"
+                />
+              </q-col>
+              <q-col cols="12" md="2">
+                <q-input
                   v-model="entriesFilterAmount"
                   label="Amount"
                   type="number"
-                  variant="outlined"
-                  density="compact"
+                  outlined
+                  dense
                   @input="applyFilters"
-                ></v-text-field>
-              </v-col>
-              <v-col cols="12" md="2">
-                <v-text-field v-model="entriesFilterNote" label="Note/Memo" variant="outlined" density="compact" @input="applyFilters"></v-text-field>
-              </v-col>
-              <v-col cols="12" md="2">
-                <v-text-field
+                />
+              </q-col>
+              <q-col cols="12" md="2">
+                <q-input
+                  v-model="entriesFilterNote"
+                  label="Note/Memo"
+                  outlined
+                  dense
+                  @input="applyFilters"
+                />
+              </q-col>
+              <q-col cols="12" md="2">
+                <q-input
                   v-model="entriesFilterDate"
                   label="Date"
                   type="date"
-                  variant="outlined"
-                  density="compact"
-                  :clearable="true"
-                  @input="applyFilters"
-                ></v-text-field>
-              </v-col>
-              <v-col cols="12" md="2">
-                <v-text-field v-model="entriesFilterStatus" label="Status" variant="outlined" density="compact" @input="applyFilters"></v-text-field>
-              </v-col>
-              <v-col cols="12" md="2">
-                <v-select
-                  v-model="entriesFilterAccount"
-                  :items="availableAccounts"
-                  item-title="name"
-                  item-value="id"
-                  label="Account"
-                  variant="outlined"
-                  density="compact"
+                  outlined
+                  dense
                   clearable
-                  @update:modelValue="applyFilters"
-                ></v-select>
-              </v-col>
-            </v-row>
-          </v-card-text>
-        </v-card>
+                  @input="applyFilters"
+                />
+              </q-col>
+              <q-col cols="12" md="2">
+                <q-input
+                  v-model="entriesFilterStatus"
+                  label="Status"
+                  outlined
+                  dense
+                  @input="applyFilters"
+                />
+              </q-col>
+              <q-col cols="12" md="2">
+                <q-select
+                  v-model="entriesFilterAccount"
+                  :options="availableAccounts"
+                  option-label="name"
+                  option-value="id"
+                  label="Account"
+                  outlined
+                  dense
+                  clearable
+                  @update:model-value="applyFilters"
+                />
+              </q-col>
+            </q-row>
+          </q-card-section>
+        </q-card>
 
-        <v-card density="compact">
-          <v-card-title>Budget Entries</v-card-title>
-          <v-list dense>
-            <v-list-item v-for="transaction in expenseTransactions" :key="transaction.id" class="transaction-item" @click="editTransaction(transaction)">
+        <q-card flat>
+          <q-card-section>
+            <div class="text-h6">Budget Entries</div>
+          </q-card-section>
+          <q-list separator>
+            <q-item
+              v-for="transaction in expenseTransactions"
+              :key="transaction.id"
+              clickable
+              class="transaction-item"
+              @click="editTransaction(transaction)"
+            >
               <!-- Desktop Layout -->
               <template v-if="!isMobile">
-                <v-row class="pa-2 align-center">
-                  <v-col cols="2" class="text-center">
+                <q-row class="q-pa-sm items-center">
+                  <q-col cols="2" class="text-center">
                     {{ formatDateLong(transaction.date) }}
-                  </v-col>
-                  <v-col cols="2">
+                  </q-col>
+                  <q-col cols="2">
                     <div class="merchant">{{ transaction.merchant }}</div>
-                  </v-col>
-                  <v-col cols="2">
+                  </q-col>
+                  <q-col cols="2">
                     <div>{{ getEntityName(transaction.entityId || transaction.budgetId) }}</div>
-                  </v-col>
-                  <v-col cols="2" class="text-right">
-                    <div class="total" :class="transaction.isIncome ? 'text-success' : ''">${{ toDollars(toCents(transaction.amount)) }}</div>
-                  </v-col>
-                  <v-col cols="1" class="text-center">
-                    <span v-if="transaction.status === 'C'" class="text-success font-weight-bold" title="Cleared"> C </span>
-                  </v-col>
-                  <v-col cols="2">
-                    <div v-if="transaction.notes" class="text-caption text-grey">Notes: {{ transaction.notes }}</div>
-                    <div v-if="transaction.categories.length > 1" class="text-caption text-grey">Split: {{ formatCategories(transaction.categories) }}</div>
+                  </q-col>
+                  <q-col cols="2" class="text-right">
+                    <div class="total" :class="transaction.isIncome ? 'text-positive' : ''">
+                      ${{ toDollars(toCents(transaction.amount)) }}
+                    </div>
+                  </q-col>
+                  <q-col cols="1" class="text-center">
+                    <span
+                      v-if="transaction.status === 'C'"
+                      class="text-positive text-bold"
+                      title="Cleared"
+                    >
+                      C
+                    </span>
+                  </q-col>
+                  <q-col cols="2">
+                    <div v-if="transaction.notes" class="text-caption text-grey">
+                      Notes: {{ transaction.notes }}
+                    </div>
+                    <div v-if="transaction.categories.length > 1" class="text-caption text-grey">
+                      Split: {{ formatCategories(transaction.categories) }}
+                    </div>
                     <div v-if="transaction.status === 'C'" class="text-caption text-grey">
                       Imported: {{ transaction.accountSource || "N/A" }}
                       {{ getAccountName(transaction.accountNumber) }}
                       {{ transaction.postedDate ? `@ ${transaction.postedDate}` : "" }}
                       {{ transaction.importedMerchant ? ` ${transaction.importedMerchant}` : "" }}
                     </div>
-                    <div v-if="transaction.recurring" class="text-caption text-primary">Repeats: {{ transaction.recurringInterval }}</div>
-                  </v-col>
-                  <v-col cols="1" class="text-right">
-                    <v-icon
+                    <div v-if="transaction.recurring" class="text-caption text-primary">
+                      Repeats: {{ transaction.recurringInterval }}
+                    </div>
+                  </q-col>
+                  <q-col cols="1" class="text-right">
+                    <q-btn
                       v-if="transaction.status !== 'C'"
+                      icon="mdi-link"
+                      flat
+                      dense
                       color="primary"
-                      small
-                      @click.stop="selectBudgetTransactionToMatch(transaction)"
                       title="Match Transaction"
-                      >mdi-link</v-icon
-                    >
-                    <v-icon small @click.stop="deleteTransaction(transaction.id)" title="Delete Entry" color="error" class="ml-2">mdi-trash-can-outline</v-icon>
-                  </v-col>
-                </v-row>
+                      @click.stop="selectBudgetTransactionToMatch(transaction)"
+                    />
+                    <q-btn
+                      icon="mdi-trash-can-outline"
+                      flat
+                      dense
+                      color="negative"
+                      title="Delete Entry"
+                      class="q-ml-sm"
+                      @click.stop="deleteTransaction(transaction.id)"
+                    />
+                  </q-col>
+                </q-row>
               </template>
 
               <!-- Mobile Layout -->
               <template v-else>
-                <v-card>
-                  <v-card-item>
-                    <v-row no-gutters class="align-center">
-                      <v-col cols="3" class="text-caption">
+                <q-card flat>
+                  <q-card-section>
+                    <q-row no-gutters class="items-center">
+                      <q-col cols="3" class="text-caption">
                         {{ formatDateLong(transaction.date) }}
-                      </v-col>
-                      <v-col class="font-weight-bold">
+                      </q-col>
+                      <q-col class="text-bold">
                         {{ transaction.merchant }}
-                      </v-col>
-                      <v-col cols="auto" class="text-right">
-                        <div :class="transaction.isIncome ? 'text-success' : ''">
+                      </q-col>
+                      <q-col cols="auto" class="text-right">
+                        <div :class="transaction.isIncome ? 'text-positive' : ''">
                           {{ formatCurrency(toDollars(toCents(transaction.amount))) }}
-                          <span v-if="transaction.status === 'C'" class="text-success font-weight-bold" title="Cleared">
+                          <span
+                            v-if="transaction.status === 'C'"
+                            class="text-positive text-bold"
+                            title="Cleared"
+                          >
                             {{ transaction.status }}
                           </span>
                         </div>
-                      </v-col>
-                      <v-col cols="1" class="text-right">
-                        <v-btn v-if="transaction.status !== 'C'" icon small @click.stop="selectBudgetTransactionToMatch(transaction)" title="Match Transaction">
-                          <v-icon color="primary">mdi-link</v-icon>
-                        </v-btn>
-                        <v-icon small @click.stop="deleteTransaction(transaction.id)" title="Delete Entry" color="error">mdi-trash-can-outline</v-icon>
-                      </v-col>
-                    </v-row>
-                    <v-row no-gutters class="mt-1 text-caption text-grey">
-                      <v-col cols="12">Entity: {{ getEntityName(transaction.entityId || transaction.budgetId) }}</v-col>
-                      <v-col cols="12" v-if="transaction.notes"> Notes: {{ transaction.notes }} </v-col>
-                      <v-col cols="12" v-if="transaction.categories.length > 1"> Split: {{ formatCategories(transaction.categories) }} </v-col>
-                      <v-col cols="12" v-if="transaction.status === 'C'">
+                      </q-col>
+                      <q-col cols="1" class="text-right">
+                        <q-btn
+                          v-if="transaction.status !== 'C'"
+                          icon="mdi-link"
+                          flat
+                          dense
+                          color="primary"
+                          title="Match Transaction"
+                          @click.stop="selectBudgetTransactionToMatch(transaction)"
+                        />
+                        <q-btn
+                          icon="mdi-trash-can-outline"
+                          flat
+                          dense
+                          color="negative"
+                          title="Delete Entry"
+                          @click.stop="deleteTransaction(transaction.id)"
+                        />
+                      </q-col>
+                    </q-row>
+                    <q-row no-gutters class="q-mt-xs text-caption text-grey">
+                      <q-col cols="12">
+                        Entity: {{ getEntityName(transaction.entityId || transaction.budgetId) }}
+                      </q-col>
+                      <q-col cols="12" v-if="transaction.notes">
+                        Notes: {{ transaction.notes }}
+                      </q-col>
+                      <q-col cols="12" v-if="transaction.categories.length > 1">
+                        Split: {{ formatCategories(transaction.categories) }}
+                      </q-col>
+                      <q-col cols="12" v-if="transaction.status === 'C'">
                         Imported: {{ transaction.accountSource || "N/A" }}
                         {{ getAccountName(transaction.accountNumber) }}
                         {{ transaction.postedDate ? `@ ${transaction.postedDate}` : "" }}
-                      </v-col>
-                      <v-col cols="12" v-if="transaction.recurring" class="text-primary"> Repeats: {{ transaction.recurringInterval }} </v-col>
-                    </v-row>
-                  </v-card-item>
-                </v-card>
+                      </q-col>
+                      <q-col cols="12" v-if="transaction.recurring" class="text-primary">
+                        Repeats: {{ transaction.recurringInterval }}
+                      </q-col>
+                    </q-row>
+                  </q-card-section>
+                </q-card>
               </template>
-            </v-list-item>
-            <v-list-item v-if="expenseTransactions.length === 0">
-              <v-list-item-title>No transactions found.</v-list-item-title>
-            </v-list-item>
-          </v-list>
-        </v-card>
-      </v-window-item>
+            </q-item>
+            <q-item v-if="expenseTransactions.length === 0">
+              <q-item-section>
+                <q-item-label>No transactions found.</q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-card>
+      </q-tab-panel>
 
       <!-- Transaction Register -->
-      <v-window-item value="register">
-        <TransactionRegistry></TransactionRegistry>
-      </v-window-item>
-    </v-window>
+      <q-tab-panel name="register">
+        <TransactionRegistry />
+      </q-tab-panel>
+    </q-tab-panels>
 
     <!-- Transaction Dialog Component -->
     <TransactionDialog
@@ -236,7 +337,7 @@
       :category-options="categoryOptions"
       :budget-id="targetBudgetId"
       :user-id="userId"
-      @update:showDialog="showTransactionDialog = $event"
+      @update:show-dialog="showTransactionDialog = $event"
       @save="saveTransaction"
       @cancel="cancelDialog"
       @update-transactions="updateTransactions"
@@ -254,7 +355,7 @@
       :category-options="categoryOptions"
       :user-id="userId"
       @update:matching="matching = $event"
-      @update:showDialog="showMatchBankTransactionsDialog = $event"
+      @update:show-dialog="showMatchBankTransactionsDialog = $event"
       @transactions-updated="loadTransactions"
     />
 
@@ -265,17 +366,23 @@
       :selected-budget-transaction="selectedBudgetTransaction"
       :unmatched-imported-transactions="unmatchedImportedTransactions"
       :available-accounts="availableAccounts"
-      @update:showDialog="showMatchBudgetTransactionDialog = $event"
+      @update:show-dialog="showMatchBudgetTransactionDialog = $event"
       @match-transaction="matchTransaction"
     />
 
-    <v-snackbar v-model="snackbar" :color="snackbarColor" timeout="3000">
+    <!-- Snackbar -->
+    <q-notification
+      v-model="snackbar"
+      :color="snackbarColor"
+      position="top"
+      :timeout="3000"
+    >
       {{ snackbarText }}
       <template v-slot:actions>
-        <v-btn variant="text" @click="snackbar = false">Close</v-btn>
+        <q-btn flat label="Close" @click="snackbar = false" />
       </template>
-    </v-snackbar>
-  </v-container>
+    </q-notification>
+  </q-page>
 </template>
 
 <script setup lang="ts">
@@ -293,7 +400,9 @@ import { useBudgetStore } from "../store/budget";
 import { useFamilyStore } from "../store/family";
 import { useUIStore } from "../store/ui";
 import { v4 as uuidv4 } from "uuid";
+import { useQuasar } from "quasar";
 
+const $q = useQuasar();
 const budgetStore = useBudgetStore();
 const familyStore = useFamilyStore();
 const uiStore = useUIStore();
@@ -323,7 +432,7 @@ const newTransaction = ref<Transaction>({
   recurringInterval: "Monthly",
   userId: "",
   isIncome: false,
-  entityId: familyStore.selectedEntityId, // Initialize with selected entity
+  entityId: familyStore.selectedEntityId,
   taxMetadata: [],
 });
 const availableAccounts = ref<Account[]>([]);
@@ -332,7 +441,7 @@ const loading = ref(false);
 const editMode = ref(false);
 const snackbar = ref(false);
 const snackbarText = ref("");
-const snackbarColor = ref("success");
+const snackbarColor = ref("positive");
 const showTransactionDialog = ref(false);
 const showMatchBudgetTransactionDialog = ref(false);
 const showMatchBankTransactionsDialog = ref(false);
@@ -353,7 +462,7 @@ const matching = ref(false);
 const remainingImportedTransactions = ref<ImportedTransaction[]>([]);
 const pendingImportedTx = ref<ImportedTransaction | null>(null);
 const targetBudgetId = ref<string>("");
-const isMobile = computed(() => window.innerWidth < 960);
+const isMobile = computed(() => $q.screen.lt.md);
 
 const userId = computed(() => auth.currentUser?.uid || "");
 
@@ -425,7 +534,7 @@ const expenseTransactions = computed(() => {
 
   if (entriesSearch.value && entriesSearch.value !== "") {
     temp = temp.filter(
-      (t) => t.merchant.toLowerCase().includes(entriesSearch.value.toLowerCase()) || t.amount.toString().toLowerCase().includes(search.value.toLowerCase())
+      (t) => t.merchant.toLowerCase().includes(entriesSearch.value.toLowerCase()) || t.amount.toString().toLowerCase().includes(entriesSearch.value.toLowerCase())
     );
   }
 
@@ -454,7 +563,7 @@ const budgetOptions = computed(() => {
 onMounted(async () => {
   const user = auth.currentUser;
   if (!user) {
-    showSnackbar("Please log in to view transactions", "error");
+    showSnackbar("Please log in to view transactions", "negative");
     return;
   }
 
@@ -477,7 +586,7 @@ onMounted(async () => {
       availableAccounts.value = availableAccounts.value.filter((account) => account.type === "Bank" || account.type === "CreditCard");
     }
   } catch (error: any) {
-    showSnackbar(`Error loading data: ${error.message}`, "error");
+    showSnackbar(`Error loading data: ${error.message}`, "negative");
   } finally {
     loading.value = false;
   }
@@ -505,7 +614,7 @@ async function loadBudgets() {
   try {
     await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
   } catch (error: any) {
-    showSnackbar(`Error loading budgets: ${error.message}`, "error");
+    showSnackbar(`Error loading budgets: ${error.message}`, "negative");
   } finally {
     loading.value = false;
   }
@@ -532,7 +641,7 @@ async function loadTransactions() {
           .map((tx) => ({
             ...tx,
             budgetId,
-            entityId: tx.entityId || budget.entityId, // Use transaction entityId or fall back to budget
+            entityId: tx.entityId || budget.entityId,
           }));
         allTransactions.push(...budgetTransactions);
         budget.categories.forEach((cat) => allCategories.add(cat.name));
@@ -542,7 +651,7 @@ async function loadTransactions() {
     transactions.value = allTransactions;
     categoryOptions.value = Array.from(allCategories).sort((a, b) => b.localeCompare(a));
   } catch (error: any) {
-    showSnackbar(`Error loading transactions: ${error.message}`, "error");
+    showSnackbar(`Error loading transactions: ${error.message}`, "negative");
   } finally {
     loading.value = false;
   }
@@ -561,13 +670,13 @@ async function saveTransaction(transaction: Transaction) {
       targetBudgetIdToUse = transaction.budgetId || selectedBudgetIds.value[0];
     }
 
-    transaction.entityId = familyStore.selectedEntityId || transaction.entityId; // Ensure entityId is set
+    transaction.entityId = familyStore.selectedEntityId || transaction.entityId;
     showSnackbar(editMode.value ? "Transaction updated successfully" : "Transaction added successfully");
     resetForm();
     showTransactionDialog.value = false;
     await loadTransactions();
   } catch (error: any) {
-    showSnackbar(`Error: ${error.message}`, "error");
+    showSnackbar(`Error: ${error.message}`, "negative");
   } finally {
     loading.value = false;
   }
@@ -577,13 +686,13 @@ function editTransaction(item: Transaction) {
   newTransaction.value = { ...item, categories: [...item.categories] };
   editMode.value = true;
   targetBudgetId.value = item.budgetId || selectedBudgetIds.value[0];
-  familyStore.selectEntity(item.entityId || ""); // Set entity for editing
+  familyStore.selectEntity(item.entityId || "");
   showTransactionDialog.value = true;
 }
 
 async function deleteTransaction(id: string) {
   if (selectedBudgetIds.value.length === 0) {
-    showSnackbar("Please select at least one budget to delete transactions", "error");
+    showSnackbar("Please select at least one budget to delete transactions", "negative");
     return;
   }
 
@@ -591,16 +700,15 @@ async function deleteTransaction(id: string) {
     const targetTransaction = transactions.value.find((tx) => tx.id === id);
 
     if (!targetTransaction) {
-      showSnackbar("Transaction not found in selected budgets", "error");
+      showSnackbar("Transaction not found in selected budgets", "negative");
       return;
     }
 
-    // when loading transactions, we add budgetId
     const targetBudgetIdToUse = targetTransaction.budgetId;
     const originalId = targetTransaction.originalId ?? targetTransaction.id;
 
     if (!targetBudgetIdToUse || !originalId) {
-      showSnackbar("Transaction not found in selected budgets", "error");
+      showSnackbar("Transaction not found in selected budgets", "negative");
       return;
     }
 
@@ -611,7 +719,7 @@ async function deleteTransaction(id: string) {
     showSnackbar("Transaction deleted successfully");
     await loadTransactions();
   } catch (error: any) {
-    showSnackbar(`Error: ${error.message}`, "error");
+    showSnackbar(`Error: ${error.message}`, "negative");
   }
 }
 
@@ -622,7 +730,7 @@ function selectBudgetTransactionToMatch(transaction: Transaction) {
 
 async function matchTransaction(importedTx: ImportedTransaction) {
   if (!selectedBudgetTransaction.value) {
-    showSnackbar("No budget transaction selected to match", "error");
+    showSnackbar("No budget transaction selected to match", "negative");
     return;
   }
 
@@ -649,7 +757,7 @@ async function matchTransaction(importedTx: ImportedTransaction) {
       recurring: budgetTx.recurring || false,
       recurringInterval: budgetTx.recurringInterval || "Monthly",
       isIncome: budgetTx.isIncome || false,
-      entityId: budgetTx.entityId, // Preserve entityId
+      entityId: budgetTx.entityId,
     };
 
     let targetBudgetIdToUse = budgetTx.budgetId;
@@ -664,7 +772,7 @@ async function matchTransaction(importedTx: ImportedTransaction) {
     }
 
     if (!targetBudgetIdToUse) {
-      showSnackbar("Transaction not found in selected budgets", "error");
+      showSnackbar("Transaction not found in selected budgets", "negative");
       return;
     }
 
@@ -689,7 +797,7 @@ async function matchTransaction(importedTx: ImportedTransaction) {
     await loadTransactions();
   } catch (error: any) {
     console.log(error);
-    showSnackbar(`Error matching transaction: ${error.message}`, "error");
+    showSnackbar(`Error matching transaction: ${error.message}`, "negative");
   } finally {
     loading.value = false;
   }
@@ -734,7 +842,7 @@ function resetForm() {
     recurringInterval: "Monthly",
     userId: "",
     isIncome: false,
-    entityId: familyStore.selectedEntityId, // Set default entityId
+    entityId: familyStore.selectedEntityId,
   };
   editMode.value = false;
   targetBudgetId.value = selectedBudgetIds.value.length > 0 ? selectedBudgetIds.value[0] : "";
@@ -754,7 +862,6 @@ function getEntityName(entityId: string): string {
   if (!entityId) return "N/A";
   const entity = familyStore.family?.entities?.find((e) => e.id === entityId);
   if (entity) return entity.name;
-  // Fallback: Check if entityId is a budgetId and get entityId from budget
   const budget = budgetStore.getBudget(entityId);
   if (budget?.entityId) {
     const budgetEntity = familyStore.family?.entities?.find((e) => e.id === budget.entityId);
@@ -773,7 +880,7 @@ function formatCategories(categories: { category: string; amount: number }[] | u
   return categories.map((c) => `${c.category} (${formatCurrency(toDollars(toCents(c.amount)))})`).join(", ");
 }
 
-function showSnackbar(text: string, color = "success") {
+function showSnackbar(text: string, color = "positive") {
   snackbarText.value = text;
   snackbarColor.value = color;
   snackbar.value = true;
@@ -793,3 +900,4 @@ function applyFilters() {
   border-bottom: 1px solid #e0e0e0;
 }
 </style>
+
