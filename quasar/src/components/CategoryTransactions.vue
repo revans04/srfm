@@ -175,7 +175,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { dataAccess } from '../dataAccess';
 import TransactionForm from './TransactionForm.vue';
-import { BudgetCategory, Transaction, Budget } from '../types';
+import type { BudgetCategory, Transaction } from '../types';
 import { toDollars, toCents, formatCurrency } from '../utils/helpers';
 import { useBudgetStore } from '../store/budget';
 
@@ -345,7 +345,7 @@ async function executeDelete() {
     if (updatedTransactions) {
       emit('update-transactions', updatedTransactions);
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error moving transaction to trash:', error);
   } finally {
     loading.value = false;
@@ -354,7 +354,7 @@ async function executeDelete() {
   }
 }
 
-async function onTransactionSaved(savedTransaction: Transaction) {
+function onTransactionSaved() {
   showEditDialog.value = false;
   // No need to emit update-transactions here; TransactionForm already emits it
 }
@@ -364,7 +364,7 @@ function updateTransactions(updatedTransactions: Transaction[]) {
   emit('update-transactions', updatedTransactions);
 }
 
-onMounted(async () => {
+onMounted(() => {
   // Rely on budgetStore instead of fetching directly
   const budget = budgetStore.getBudget(props.budgetId);
   if (!budget) {
