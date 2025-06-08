@@ -8,7 +8,8 @@ import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
 import "@mdi/font/css/materialdesignicons.css";
 import { setupAuthListener } from "./firebase/auth";
-import { createPinia } from "pinia"; // Import createPinia
+import { createPinia } from "pinia";
+import persistedState from "./store/plugins/persistedState";
 import "./styles/budget.css";
 
 const vuetify = createVuetify({
@@ -36,6 +37,7 @@ const vuetify = createVuetify({
 });
 
 const pinia = createPinia(); // Create Pinia instance
+pinia.use(persistedState); // Enable persisted state
 
 const app = createApp(App);
 setupAuthListener();
