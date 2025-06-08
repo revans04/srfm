@@ -35,6 +35,12 @@ export interface Transaction {
   id: string;
   date: string;
   budgetMonth?: string;
+  /**
+   * Optional budget identifier. Some views expect transactions
+   * to reference the budget they belong to when returned from
+   * the backend, so include this field for convenience.
+   */
+  budgetId?: string;
   merchant: string;
   categories: Array<{
     category: string;

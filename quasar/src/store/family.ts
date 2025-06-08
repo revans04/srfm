@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import { Family, Entity, EntityType } from "../types";
 import { dataAccess } from "../dataAccess";
-import { auth } from "@/firebase";
+import { auth } from "@/firebase/index";
 
 export const useFamilyStore = defineStore("family", () => {
   const family = ref<Family>();
