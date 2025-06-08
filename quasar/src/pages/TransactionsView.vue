@@ -864,6 +864,7 @@ function resetForm() {
     recurringInterval: 'Monthly',
     userId: '',
     isIncome: false,
+    taxMetadata: [],
     entityId: familyStore.selectedEntityId,
   };
   editMode.value = false;

@@ -535,6 +535,7 @@ const newTransaction = ref<Transaction>({
   recurringInterval: 'Monthly',
   userId: '',
   isIncome: false,
+  taxMetadata: [],
 });
 const snackbar = ref(false);
 const snackbarText = ref('');
@@ -1295,6 +1296,7 @@ function addTransaction() {
       recurringInterval: 'Monthly',
       userId: userId.value,
       isIncome: false,
+      taxMetadata: [],
       entityId: familyStore.selectedEntityId,
     };
     isIncomeTransaction.value = false;
@@ -1321,6 +1323,7 @@ function addTransactionForCategory(category: string) {
       recurringInterval: 'Monthly',
       userId: userId.value,
       isIncome: false,
+      taxMetadata: [],
       entityId: familyStore.selectedEntityId,
     };
     isIncomeTransaction.value = false;
@@ -1346,6 +1349,7 @@ function addIncome() {
     recurringInterval: 'Monthly',
     userId: userId.value,
     isIncome: true,
+    taxMetadata: [],
     entityId: familyStore.selectedEntityId,
   };
   isIncomeTransaction.value = true;

@@ -224,7 +224,7 @@ import GroupNamingForm from '../components/GroupNamingForm.vue';
 import AccountList from '../components/AccountList.vue';
 import AccountForm from '../components/AccountForm.vue';
 import { v4 as uuidv4 } from 'uuid';
-import type { Timestamp } from 'firebase/firestore';
+import { Timestamp } from 'firebase/firestore';
 import { AccountType, type Family, type Account } from '@/types';
 
 interface WizardStep {
@@ -337,7 +337,7 @@ const isStepEditable = (stepValue: string): boolean => {
 
 // Step Icons
 function getStepIcon(stepValue: string): string {
-  const icons = {
+  const icons: Record<string, string> = {
     family: 'mdi-account-group',
     entities: 'mdi-domain',
     'account-bank': 'mdi-bank',
@@ -480,7 +480,7 @@ function onEntitySaved() {
   const currentId = selectedEntityId.value;
   if (familyStore.family) {
     family.value = JSON.parse(JSON.stringify(familyStore.family));
-    const saved = family.value.entities.find((e) => e.id === currentId);
+    const saved = family.value?.entities.find((e) => e.id === currentId);
     showSnackbarMessage(messages.entityAdded(saved?.name || 'Entity'), 'success');
   }
 
@@ -548,7 +548,6 @@ function closeWizardAccountDialog() {
 function saveWizardAccount(account: TempAccount) {
   const accountToAdd: TempAccount = {
     id: account.id || account.tempId || uuidv4(),
-    familyId: '',
     name: account.name,
     type: account.type as AccountType,
     category: account.category,
@@ -600,18 +599,17 @@ async function finishSetup() {
   try {
     for (const accData of accountsData.value) {
       const accountId = accData.id || uuidv4();
-      const newAccountToSave: Account = {
+      const newAccountToSave: TempAccount = {
         ...accData,
         id: accountId,
-        familyId: family.value.id,
         createdAt:
           accData.createdAt instanceof Timestamp
             ? accData.createdAt
             : Timestamp.fromDate(new Date()),
         updatedAt: Timestamp.fromDate(new Date()),
       };
-      delete newAccountToSave.tempId;
-      await dataAccess.saveAccount(family.value.id, newAccountToSave);
+      const { tempId: _discard, ...accountToSave } = newAccountToSave;
+      await dataAccess.saveAccount(family.value.id, accountToSave);
     }
     showSnackbarMessage('Setup completed successfully! Redirecting...', 'success');
     setTimeout(() => {

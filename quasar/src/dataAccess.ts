@@ -386,7 +386,7 @@ export class DataAccess {
       payload = { matched, ignored };
     } else {
       transactionId = transactionOrId.id;
-      payload = transactionOrId;
+      payload = transactionOrId as unknown as Record<string, unknown>;
     }
 
     const response = await fetch(`${this.apiBaseUrl}/budget/imported-transactions/${docId}/${transactionId}`, {

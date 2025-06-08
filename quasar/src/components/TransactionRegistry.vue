@@ -766,8 +766,8 @@ const displayTransactions = computed((): DisplayTransaction[] => {
       merchant: tx.payee || 'N/A',
       category: '',
       entityId: '',
-      amount: tx.debitAmount > 0 ? -tx.debitAmount : tx.creditAmount,
-      isIncome: tx.creditAmount > 0,
+      amount: tx.debitAmount && tx.debitAmount > 0 ? -tx.debitAmount : tx.creditAmount || 0,
+      isIncome: (tx.creditAmount || 0) > 0,
       status: tx.status || 'U',
       notes: '',
     }));
@@ -904,8 +904,12 @@ const statementTransactions = computed((): DisplayTransaction[] => {
       id: tx.id,
       date: tx.date,
       merchant: tx.importedMerchant || tx.merchant || 'N/A',
+      category: tx.categories[0]?.category || '',
+      entityId: tx.entityId || '',
       amount: tx.isIncome ? tx.amount : -1 * tx.amount,
+      isIncome: tx.isIncome,
       status: tx.status || 'U',
+      notes: tx.notes || '',
       budgetId: budget.budgetId,
     }));
 
@@ -921,8 +925,12 @@ const statementTransactions = computed((): DisplayTransaction[] => {
       id: itx.id,
       date: itx.postedDate,
       merchant: itx.payee || 'N/A',
-      amount: itx.debitAmount > 0 ? -itx.debitAmount : itx.creditAmount,
+      category: '',
+      entityId: itx.entityId || '',
+      amount: itx.debitAmount && itx.debitAmount > 0 ? -itx.debitAmount : itx.creditAmount || 0,
+      isIncome: (itx.creditAmount || 0) > 0,
       status: itx.status || 'U',
+      notes: '',
     }));
 
   return [...budgetTxs, ...importedTxs].sort((a, b) => a.date.localeCompare(b.date));
@@ -987,7 +995,9 @@ async function loadData() {
       .filter((tx) => tx.accountNumber)
       .map((tx) => tx.accountNumber);
 
-    const uniqueAccountNumbers = [...new Set([...budgetAccounts, ...importedAccounts])];
+    const uniqueAccountNumbers = [
+      ...new Set([...budgetAccounts, ...importedAccounts].filter(Boolean)),
+    ] as string[];
 
     // Create account options with name and number
     accountOptions.value = uniqueAccountNumbers
@@ -1274,6 +1284,7 @@ async function executeBatchMatch() {
         recurringInterval: 'Monthly',
         userId: user.uid,
         isIncome: isIncome,
+        taxMetadata: [],
         accountSource: importedTx.accountSource || '',
         accountNumber: importedTx.accountNumber || '',
         postedDate: importedTx.postedDate || '',
@@ -1734,7 +1745,10 @@ async function markStatementReconciled() {
       if (idx !== -1) {
         const parts = id.split('-');
         const docId = parts.slice(0, -1).join('-');
-        const updatedTx = { ...importedTransactions.value[idx], status: 'R' };
+        const updatedTx = {
+          ...importedTransactions.value[idx],
+          status: 'R' as 'R',
+        };
         importedTransactions.value[idx].status = 'R';
         await dataAccess.updateImportedTransaction(docId, updatedTx);
       }
@@ -1786,7 +1800,7 @@ async function unreconcileStatement() {
       ) {
         const parts = itx.id.split('-');
         const docId = parts.slice(0, -1).join('-');
-        const updatedTx = { ...itx, status: 'C' };
+        const updatedTx = { ...itx, status: 'C' as 'C' };
         itx.status = 'C';
         await dataAccess.updateImportedTransaction(docId, updatedTx);
       }
@@ -1841,7 +1855,7 @@ async function deleteStatement() {
       ) {
         const parts = itx.id.split('-');
         const docId = parts.slice(0, -1).join('-');
-        const updatedTx = { ...itx, status: 'C' };
+        const updatedTx = { ...itx, status: 'C' as 'C' };
         itx.status = 'C';
         await dataAccess.updateImportedTransaction(docId, updatedTx);
       }
@@ -1875,7 +1889,7 @@ function downloadCsv() {
     date: tx.date,
     merchant: tx.merchant,
     category: tx.category,
-    entity: getEntityName(tx.entityId || tx.budgetId),
+    entity: getEntityName(tx.entityId || tx.budgetId || ''),
     amount: tx.amount,
     isIncome: tx.isIncome ? 'true' : 'false',
     status: tx.status,
