@@ -18,7 +18,7 @@ import { useBudgetStore } from "./store/budget";
 import { Timestamp } from "firebase/firestore";
 
 export class DataAccess {
-  private apiBaseUrl = process.env.VUE_APP_API_BASE_URL || "http://localhost:8080/api";
+  private apiBaseUrl = process.env.API_BASE_URL || "http://localhost:8080/api";
 
   private async getAuthHeaders(): Promise<HeadersInit> {
     const token = await auth.currentUser?.getIdToken();
