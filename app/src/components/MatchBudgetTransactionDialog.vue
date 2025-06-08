@@ -1,10 +1,6 @@
 <!-- src/components/MatchBudgetTransactionDialog.vue -->
 <template>
-  <v-dialog
-    v-model="localShowDialog"
-    :fullscreen="isMobile"
-    @update:modelValue="handleDialogClose"
-  >
+  <v-dialog v-model="localShowDialog" :fullscreen="isMobile" @update:modelValue="handleDialogClose">
     <v-card>
       <v-card-title>Match Budget Transaction</v-card-title>
       <v-card-text>
@@ -24,15 +20,9 @@
                 <tr>
                   <td>{{ selectedBudgetTransaction?.date }}</td>
                   <td>{{ selectedBudgetTransaction?.merchant }}</td>
+                  <td>${{ toDollars(toCents(selectedBudgetTransaction?.amount || 0)) }}</td>
                   <td>
-                    ${{
-                      toDollars(toCents(selectedBudgetTransaction?.amount || 0))
-                    }}
-                  </td>
-                  <td>
-                    {{
-                      formatCategories(selectedBudgetTransaction?.categories)
-                    }}
+                    {{ formatCategories(selectedBudgetTransaction?.categories) }}
                   </td>
                 </tr>
               </tbody>
@@ -42,29 +32,15 @@
         <v-row class="mt-4">
           <v-col>
             <h3>Select Bank Transaction to Match</h3>
-           <v-row class="mb-2">
+            <v-row class="mb-2">
               <v-col cols="12" md="4">
-                <v-text-field
-                  v-model="searchAmount"
-                  label="Amount"
-                  type="number"
-                  variant="outlined"
-                ></v-text-field>
+                <v-text-field v-model="searchAmount" label="Amount" type="number" variant="outlined"></v-text-field>
               </v-col>
               <v-col cols="12" md="4">
-                <v-text-field
-                  v-model="searchMerchant"
-                  label="Merchant"
-                  variant="outlined"
-                ></v-text-field>
+                <v-text-field v-model="searchMerchant" label="Merchant" variant="outlined"></v-text-field>
               </v-col>
               <v-col cols="12" md="4">
-                <v-text-field
-                  v-model="searchDateRange"
-                  label="Date Range (days)"
-                  type="number"
-                  variant="outlined"
-                ></v-text-field>
+                <v-text-field v-model="searchDateRange" label="Date Range (days)" type="number" variant="outlined"></v-text-field>
               </v-col>
             </v-row>
             <v-data-table
@@ -77,18 +53,10 @@
               @click:row="selectImportedTransaction"
             >
               <template v-slot:item.creditAmount="{ item }">
-                {{
-                  item.creditAmount
-                    ? `$${toDollars(toCents(item.creditAmount))}`
-                    : ""
-                }}
+                {{ item.creditAmount ? `$${toDollars(toCents(item.creditAmount))}` : "" }}
               </template>
               <template v-slot:item.debitAmount="{ item }">
-                {{
-                  item.debitAmount
-                    ? `$${toDollars(toCents(item.debitAmount))}`
-                    : ""
-                }}
+                {{ item.debitAmount ? `$${toDollars(toCents(item.debitAmount))}` : "" }}
               </template>
               <template v-slot:item.accountId="{ item }">
                 {{ getAccountName(item.accountId) }}
@@ -100,13 +68,7 @@
       <v-card-actions>
         <v-spacer></v-spacer>
         <v-btn color="error" @click="localShowDialog = false">Cancel</v-btn>
-        <v-btn
-          color="primary"
-          @click="matchTransaction"
-          :disabled="!selectedImportedTransaction.length"
-        >
-          Match
-        </v-btn>
+        <v-btn color="primary" @click="matchTransaction" :disabled="!selectedImportedTransaction.length"> Match </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -131,7 +93,7 @@ const emit = defineEmits<{
 
 // Local state
 const localShowDialog = ref(props.showDialog);
-const selectedImportedTransaction = ref<ImportedTransaction[]>([]);
+const selectedImportedTransaction = ref<string[]>([]);
 const searchAmount = ref<string>("");
 const searchMerchant = ref<string>("");
 const searchDateRange = ref<number>(4);
@@ -157,9 +119,7 @@ const filteredImportedTransactions = computed(() => {
 
   const merchant = searchMerchant.value.toLowerCase();
   if (merchant) {
-    results = results.filter((tx) =>
-      tx.payee.toLowerCase().includes(merchant)
-    );
+    results = results.filter((tx) => tx.payee.toLowerCase().includes(merchant));
   }
 
   const amount = parseFloat(searchAmount.value);
@@ -172,7 +132,6 @@ const filteredImportedTransactions = computed(() => {
 
   return results;
 });
-
 
 const importedTransactionHeaders = [
   { title: "Posted Date", value: "postedDate" },
@@ -192,9 +151,7 @@ watch(
     localShowDialog.value = newVal;
     if (newVal) {
       searchDateRange.value = 7;
-      searchAmount.value = props.selectedBudgetTransaction
-        ? props.selectedBudgetTransaction.amount.toString()
-        : "";
+      searchAmount.value = props.selectedBudgetTransaction ? props.selectedBudgetTransaction.amount.toString() : "";
       searchMerchant.value = "";
     }
     selectedImportedTransaction.value = [];
@@ -205,48 +162,39 @@ watch(
   () => props.selectedBudgetTransaction,
   () => {
     searchDateRange.value = 7;
-    searchAmount.value = props.selectedBudgetTransaction
-      ? props.selectedBudgetTransaction.amount.toString()
-      : "";
+    searchAmount.value = props.selectedBudgetTransaction ? props.selectedBudgetTransaction.amount.toString() : "";
     searchMerchant.value = "";
   }
 );
-
 
 function handleDialogClose(value: boolean) {
   emit("update:showDialog", value);
 }
 
-function selectImportedTransaction(
-  event: any,
-  { item }: { item: ImportedTransaction }
-) {
-  selectedImportedTransaction.value = [item];
+function selectImportedTransaction(event: any, item: any) {
+  selectedImportedTransaction.value = [item.item.id];
 }
 
 function matchTransaction() {
   if (selectedImportedTransaction.value.length > 0) {
-    emit("match-transaction", selectedImportedTransaction.value[0]);
+    const firstSelectedTx = props.unmatchedImportedTransactions.find((t) => t.id === selectedImportedTransaction.value[0]);
+    if (firstSelectedTx) emit("match-transaction", firstSelectedTx);
   }
 }
 
 function getAccountName(accountId: string): string {
-  const account = props.availableAccounts.find(a => a.id === accountId);
+  const account = props.availableAccounts.find((a) => a.id === accountId);
   return account ? account.name : "Unknown Account";
 }
 
-function formatCategories(
-  categories: { category: string; amount: number }[] | undefined | null
-) {
+function formatCategories(categories: { category: string; amount: number }[] | undefined | null) {
   if (!categories || !Array.isArray(categories)) {
     return "No categories";
   }
   if (categories.length === 1) {
     return categories[0].category;
   }
-  return categories
-    .map((c) => `${c.category} ($${c.amount.toFixed(2)})`)
-    .join(",\n");
+  return categories.map((c) => `${c.category} ($${c.amount.toFixed(2)})`).join(",\n");
 }
 </script>
 

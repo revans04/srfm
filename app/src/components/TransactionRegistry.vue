@@ -491,6 +491,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
+import { storeToRefs } from "pinia";
 import { auth } from "../firebase/index";
 import { dataAccess } from "../dataAccess";
 import Papa from "papaparse";
@@ -498,6 +499,7 @@ import { saveAs } from "file-saver";
 import { useBudgetStore } from "../store/budget";
 import { useFamilyStore } from "../store/family";
 import { useStatementStore } from "../store/statements";
+import { useUIStore } from "../store/ui";
 import { Transaction, ImportedTransaction, Budget, Account, ImportedTransactionDoc, Statement } from "../types";
 import { formatCurrency, toBudgetMonth, adjustTransactionDate, todayISO } from "../utils/helpers";
 import { VForm } from "vuetify/components";
@@ -527,7 +529,17 @@ const familyId = computed(() => familyStore.family?.id || "");
 
 const loading = ref(false);
 const saving = ref(false);
-const selectedAccount = ref<string | null>(null);
+const uiStore = useUIStore();
+const {
+  selectedAccount,
+  search,
+  filterMerchant,
+  filterMatched,
+  filterAmount,
+  filterImportedMerchant,
+  filterStartDate,
+  filterEndDate,
+} = storeToRefs(uiStore);
 const budgets = ref<Budget[]>([]);
 const importedTransactions = ref<ImportedTransaction[]>([]);
 const accounts = ref<Account[]>([]);
@@ -586,15 +598,6 @@ const entityOptions = computed(() => {
     name: entity.name,
   }));
 });
-
-// Filter state
-const search = ref("");
-const filterMerchant = ref("");
-const filterMatched = ref(false);
-const filterAmount = ref("");
-const filterImportedMerchant = ref("");
-const filterStartDate = ref("");
-const filterEndDate = ref("");
 
 // Validation rules
 const requiredField = [(value: string) => !!value || "This field is required"];

@@ -26,7 +26,7 @@
             <v-row class="mt-2">
               <v-col cols="auto">Filters</v-col>
               <v-col>
-                <v-checkbox v-model="filterDuplicates" label="Look for Duplicates" density="compact" hide-details @update:modelValue="applyFilters" />
+                <v-checkbox v-model="entriesFilterDuplicates" label="Look for Duplicates" density="compact" hide-details @update:modelValue="applyFilters" />
               </v-col>
             </v-row>
           </v-card-title>
@@ -46,11 +46,18 @@
                 ></v-select>
               </v-col>
               <v-col cols="12" md="4">
-                <v-text-field append-inner-icon="mdi-magnify" density="compact" label="Search" variant="outlined" single-line v-model="search"></v-text-field>
+                <v-text-field
+                  append-inner-icon="mdi-magnify"
+                  density="compact"
+                  label="Search"
+                  variant="outlined"
+                  single-line
+                  v-model="entriesSearch"
+                ></v-text-field>
               </v-col>
               <v-col cols="12" md="4">
                 <v-select
-                  v-model="selectedBudgetId"
+                  v-model="selectedBudgetIds"
                   :items="budgetOptions"
                   density="compact"
                   label="Select Budgets"
@@ -72,17 +79,24 @@
 
             <v-row>
               <v-col cols="12" md="2">
-                <v-text-field v-model="filterMerchant" label="Merchant" variant="outlined" density="compact" @input="applyFilters"></v-text-field>
-              </v-col>
-              <v-col cols="12" md="2">
-                <v-text-field v-model="filterAmount" label="Amount" type="number" variant="outlined" density="compact" @input="applyFilters"></v-text-field>
-              </v-col>
-              <v-col cols="12" md="2">
-                <v-text-field v-model="filterNote" label="Note/Memo" variant="outlined" density="compact" @input="applyFilters"></v-text-field>
+                <v-text-field v-model="entriesFilterMerchant" label="Merchant" variant="outlined" density="compact" @input="applyFilters"></v-text-field>
               </v-col>
               <v-col cols="12" md="2">
                 <v-text-field
-                  v-model="filterDate"
+                  v-model="entriesFilterAmount"
+                  label="Amount"
+                  type="number"
+                  variant="outlined"
+                  density="compact"
+                  @input="applyFilters"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="2">
+                <v-text-field v-model="entriesFilterNote" label="Note/Memo" variant="outlined" density="compact" @input="applyFilters"></v-text-field>
+              </v-col>
+              <v-col cols="12" md="2">
+                <v-text-field
+                  v-model="entriesFilterDate"
                   label="Date"
                   type="date"
                   variant="outlined"
@@ -92,11 +106,11 @@
                 ></v-text-field>
               </v-col>
               <v-col cols="12" md="2">
-                <v-text-field v-model="filterStatus" label="Status" variant="outlined" density="compact" @input="applyFilters"></v-text-field>
+                <v-text-field v-model="entriesFilterStatus" label="Status" variant="outlined" density="compact" @input="applyFilters"></v-text-field>
               </v-col>
               <v-col cols="12" md="2">
                 <v-select
-                  v-model="filterAccount"
+                  v-model="entriesFilterAccount"
                   :items="availableAccounts"
                   item-title="name"
                   item-value="id"
@@ -235,7 +249,7 @@
       :remaining-imported-transactions="remainingImportedTransactions"
       :selected-bank-transaction="selectedBankTransaction"
       :transactions="transactions"
-      :budget-id="selectedBudgetId.length > 0 ? selectedBudgetId[0] : ''"
+      :budget-id="selectedBudgetIds.length > 0 ? selectedBudgetIds[0] : ''"
       :matching="matching"
       :category-options="categoryOptions"
       :user-id="userId"
@@ -266,6 +280,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from "vue";
+import { storeToRefs } from "pinia";
 import { auth } from "../firebase";
 import { dataAccess } from "../dataAccess";
 import TransactionDialog from "../components/TransactionDialog.vue";
@@ -276,10 +291,23 @@ import { Transaction, BudgetInfo, ImportedTransaction, Account, Entity } from ".
 import { formatDateLong, toDollars, toCents, formatCurrency, toBudgetMonth, todayISO } from "../utils/helpers";
 import { useBudgetStore } from "../store/budget";
 import { useFamilyStore } from "../store/family";
+import { useUIStore } from "../store/ui";
 import { v4 as uuidv4 } from "uuid";
 
 const budgetStore = useBudgetStore();
 const familyStore = useFamilyStore();
+const uiStore = useUIStore();
+const {
+  entriesSearch,
+  entriesFilterMerchant,
+  entriesFilterAmount,
+  entriesFilterNote,
+  entriesFilterStatus,
+  entriesFilterDate,
+  entriesFilterAccount,
+  entriesFilterDuplicates,
+  selectedBudgetIds,
+} = storeToRefs(uiStore);
 
 const tab = ref("entries");
 
@@ -296,14 +324,12 @@ const newTransaction = ref<Transaction>({
   userId: "",
   isIncome: false,
   entityId: familyStore.selectedEntityId, // Initialize with selected entity
-  taxMetadata: []
+  taxMetadata: [],
 });
 const availableAccounts = ref<Account[]>([]);
 const categoryOptions = ref<string[]>(["Income"]);
-const selectedBudgetId = ref<string[]>([]);
 const loading = ref(false);
 const editMode = ref(false);
-const search = ref("");
 const snackbar = ref(false);
 const snackbarText = ref("");
 const snackbarColor = ref("success");
@@ -328,15 +354,6 @@ const remainingImportedTransactions = ref<ImportedTransaction[]>([]);
 const pendingImportedTx = ref<ImportedTransaction | null>(null);
 const targetBudgetId = ref<string>("");
 const isMobile = computed(() => window.innerWidth < 960);
-
-// Filter state
-const filterMerchant = ref<string>("");
-const filterAmount = ref<string>("");
-const filterNote = ref<string>("");
-const filterStatus = ref<string>("");
-const filterDate = ref<string>("");
-const filterAccount = ref<string>("");
-const filterDuplicates = ref<boolean>(false);
 
 const userId = computed(() => auth.currentUser?.uid || "");
 
@@ -382,37 +399,37 @@ const expenseTransactions = computed(() => {
     return dateB.getTime() - dateA.getTime();
   });
 
-  if (filterMerchant.value) {
+  if (entriesFilterMerchant.value) {
     temp = temp.filter(
       (t) =>
-        t.merchant.toLowerCase().includes(filterMerchant.value.toLowerCase()) ||
-        (t.importedMerchant && t.importedMerchant.toLowerCase().includes(filterMerchant.value.toLowerCase()))
+        t.merchant.toLowerCase().includes(entriesFilterMerchant.value.toLowerCase()) ||
+        (t.importedMerchant && t.importedMerchant.toLowerCase().includes(entriesFilterMerchant.value.toLowerCase()))
     );
   }
-  if (filterAmount.value) {
-    const amount = parseFloat(filterAmount.value);
-    temp = temp.filter((t) => t.amount.toString().includes(filterAmount.value.toString()));
+  if (entriesFilterAmount.value) {
+    const amount = parseFloat(entriesFilterAmount.value);
+    temp = temp.filter((t) => t.amount.toString().includes(entriesFilterAmount.value.toString()));
   }
-  if (filterNote.value) {
-    temp = temp.filter((t) => t.notes && t.notes.toLowerCase().includes(filterNote.value.toLowerCase()));
+  if (entriesFilterNote.value) {
+    temp = temp.filter((t) => t.notes && t.notes.toLowerCase().includes(entriesFilterNote.value.toLowerCase()));
   }
-  if (filterStatus.value) {
-    temp = temp.filter((t) => t.status && t.status.toLowerCase().includes(filterStatus.value.toLowerCase()));
+  if (entriesFilterStatus.value) {
+    temp = temp.filter((t) => t.status && t.status.toLowerCase().includes(entriesFilterStatus.value.toLowerCase()));
   }
-  if (filterDate.value) {
-    temp = temp.filter((t) => t.date === filterDate.value);
+  if (entriesFilterDate.value) {
+    temp = temp.filter((t) => t.date === entriesFilterDate.value);
   }
-  if (filterAccount.value) {
-    temp = temp.filter((t) => t.accountNumber && getAccountId(t.accountNumber) === filterAccount.value);
+  if (entriesFilterAccount.value) {
+    temp = temp.filter((t) => t.accountNumber && getAccountId(t.accountNumber) === entriesFilterAccount.value);
   }
 
-  if (search.value && search.value !== "") {
+  if (entriesSearch.value && entriesSearch.value !== "") {
     temp = temp.filter(
-      (t) => t.merchant.toLowerCase().includes(search.value.toLowerCase()) || t.amount.toString().toLowerCase().includes(search.value.toLowerCase())
+      (t) => t.merchant.toLowerCase().includes(entriesSearch.value.toLowerCase()) || t.amount.toString().toLowerCase().includes(search.value.toLowerCase())
     );
   }
 
-  if (filterDuplicates.value) {
+  if (entriesFilterDuplicates.value) {
     const dupes = potentialDuplicateIds.value;
     temp = temp.filter((t) => dupes.has(t.id));
   }
@@ -446,8 +463,8 @@ onMounted(async () => {
     await familyStore.loadFamily(user.uid);
     await loadBudgets();
     if (budgetOptions.value.length > 0) {
-      selectedBudgetId.value = [budgetOptions.value[0].budgetId];
-      targetBudgetId.value = selectedBudgetId.value[0];
+      if (!selectedBudgetIds.value || selectedBudgetIds.value.length == 0) selectedBudgetIds.value = [budgetOptions.value[0].budgetId];
+      targetBudgetId.value = selectedBudgetIds.value[0];
       await loadTransactions();
     } else {
       showSnackbar("No budgets available. Please create one in the Dashboard.", "warning");
@@ -495,7 +512,7 @@ async function loadBudgets() {
 }
 
 async function loadTransactions() {
-  if (selectedBudgetId.value.length === 0) {
+  if (selectedBudgetIds.value.length === 0) {
     transactions.value = [];
     categoryOptions.value = ["Income"];
     return;
@@ -506,7 +523,7 @@ async function loadTransactions() {
   const allCategories = new Set<string>(["Income"]);
 
   try {
-    for (const budgetId of selectedBudgetId.value) {
+    for (const budgetId of selectedBudgetIds.value) {
       const budget = budgetStore.getBudget(budgetId) || (await dataAccess.getBudget(budgetId));
       if (budget) {
         budgetStore.updateBudget(budgetId, budget);
@@ -541,7 +558,7 @@ async function saveTransaction(transaction: Transaction) {
     let targetBudgetIdToUse = targetBudgetId.value;
 
     if (editMode.value && transaction.id) {
-      targetBudgetIdToUse = transaction.budgetId || selectedBudgetId.value[0];
+      targetBudgetIdToUse = transaction.budgetId || selectedBudgetIds.value[0];
     }
 
     transaction.entityId = familyStore.selectedEntityId || transaction.entityId; // Ensure entityId is set
@@ -559,13 +576,13 @@ async function saveTransaction(transaction: Transaction) {
 function editTransaction(item: Transaction) {
   newTransaction.value = { ...item, categories: [...item.categories] };
   editMode.value = true;
-  targetBudgetId.value = item.budgetId || selectedBudgetId.value[0];
+  targetBudgetId.value = item.budgetId || selectedBudgetIds.value[0];
   familyStore.selectEntity(item.entityId || ""); // Set entity for editing
   showTransactionDialog.value = true;
 }
 
 async function deleteTransaction(id: string) {
-  if (selectedBudgetId.value.length === 0) {
+  if (selectedBudgetIds.value.length === 0) {
     showSnackbar("Please select at least one budget to delete transactions", "error");
     return;
   }
@@ -637,7 +654,7 @@ async function matchTransaction(importedTx: ImportedTransaction) {
 
     let targetBudgetIdToUse = budgetTx.budgetId;
     if (!targetBudgetIdToUse) {
-      for (const budgetId of selectedBudgetId.value) {
+      for (const budgetId of selectedBudgetIds.value) {
         const budget = budgetStore.getBudget(budgetId);
         if (budget && budget.transactions?.some((tx) => tx.id === budgetTx.originalId)) {
           targetBudgetIdToUse = budgetId;
@@ -720,7 +737,7 @@ function resetForm() {
     entityId: familyStore.selectedEntityId, // Set default entityId
   };
   editMode.value = false;
-  targetBudgetId.value = selectedBudgetId.value.length > 0 ? selectedBudgetId.value[0] : "";
+  targetBudgetId.value = selectedBudgetIds.value.length > 0 ? selectedBudgetIds.value[0] : "";
 }
 
 function getAccountId(accountNumber: string): string {
