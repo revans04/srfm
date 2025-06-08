@@ -671,6 +671,7 @@ async function matchTransaction(importedTx: ImportedTransaction) {
     selectedBudgetTransaction.value = null;
     await loadTransactions();
   } catch (error: any) {
+    console.log(error);
     showSnackbar(`Error matching transaction: ${error.message}`, "error");
   } finally {
     loading.value = false;

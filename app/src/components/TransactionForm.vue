@@ -154,6 +154,11 @@
             <v-text-field v-model="locTrnsx.status" variant="plain" density="compact" readonly></v-text-field>
           </v-col>
         </v-row>
+        <v-row class="form-row">
+          <v-col>
+            <v-btn variant="text" color="warning" :loading="loading" @click="resetMatch">Reset Match</v-btn>
+          </v-col>
+        </v-row>
       </div>
 
       <div class="text-center">
@@ -325,6 +330,51 @@ function removeSplit(index: number) {
   }
   if (locTrnsx.categories.length === 1) {
     locTrnsx.categories[0].amount = locTrnsx.amount;
+  }
+}
+
+async function resetMatch() {
+  if (!locTrnsx.id) return;
+
+  loading.value = true;
+  try {
+    // Update local transaction to reset imported fields
+    locTrnsx.status = "U";
+    locTrnsx.accountSource = "";
+    locTrnsx.accountNumber = "";
+    locTrnsx.postedDate = "";
+    locTrnsx.checkNumber = "";
+    locTrnsx.importedMerchant = "";
+
+    // Save the updated transaction
+    if (!budget.value) {
+      throw new Error(`Budget ${props.budgetId} not found`);
+    }
+
+    const [currentUserId, entityId, currentBudgetMonth] = props.budgetId.split("_");
+    const targetBudgetMonth = locTrnsx.budgetMonth;
+    const targetBudgetId = currentBudgetMonth === targetBudgetMonth ? props.budgetId : `${props.userId}_${entityId}_${targetBudgetMonth}`;
+
+    const targetBudget = budgetStore.getBudget(targetBudgetId);
+    if (targetBudget) {
+      const savedTransaction = await dataAccess.saveTransaction(targetBudget, locTrnsx, !isLastMonth.value);
+      const index = transactions.value.findIndex((t) => t.id === savedTransaction.id);
+      if (index >= 0) {
+        transactions.value[index] = savedTransaction;
+      } else {
+        transactions.value.push(savedTransaction);
+      }
+      emit("update-transactions", transactions.value);
+      emit("save", savedTransaction);
+      showSnackbar("Transaction match reset successfully", "success");
+    } else {
+      showSnackbar("Could not reset match, Budget does not exist!", "error");
+    }
+  } catch (error: any) {
+    console.error("Error resetting transaction match:", error.message);
+    showSnackbar(`Error resetting transaction match: ${error.message}`, "error");
+  } finally {
+    loading.value = false;
   }
 }
 

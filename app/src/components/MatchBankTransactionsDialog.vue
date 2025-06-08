@@ -676,6 +676,7 @@ async function matchBankTransaction(budgetTransaction: Transaction) {
     updateRemainingTransactions();
     skipBankTransaction();
   } catch (error: any) {
+    console.log(error);
     showSnackbar(`Error matching transaction: ${error.message}`, "error");
   } finally {
     emit("update:matching", false);
