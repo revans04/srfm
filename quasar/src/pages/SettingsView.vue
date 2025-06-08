@@ -8,7 +8,8 @@
 
       <!-- Email Verification Alert -->
       <q-banner v-if="userEmail && !emailVerified" class="bg-warning text-white q-mb-md">
-        Your email ({{ userEmail }}) is not verified. Please check your inbox or resend the verification email.
+        Your email ({{ userEmail }}) is not verified. Please check your inbox or resend the
+        verification email.
         <template v-slot:action>
           <q-btn flat label="Resend" :loading="resending" @click="sendVerificationEmail" />
         </template>
@@ -40,7 +41,8 @@
               <q-list>
                 <q-item v-for="member in acceptedMembers" :key="member.uid">
                   <q-item-section>
-                    {{ member.email }} ({{ member.role }}) - Last Accessed: {{ formatDate(member.lastAccessed) || 'Never' }}
+                    {{ member.email }} ({{ member.role }}) - Last Accessed:
+                    {{ formatDate(member.lastAccessed) || 'Never' }}
                   </q-item-section>
                   <q-item-section side v-if="member.uid !== user.uid">
                     <q-btn flat color="negative" label="Remove" @click="removeMember(member.uid)" />
@@ -48,7 +50,8 @@
                 </q-item>
                 <q-item v-for="invite in pendingInvites" :key="invite.token">
                   <q-item-section>
-                    {{ invite.inviteeEmail }} (Pending) - Invited: {{ formatDate(invite.createdAt) }}
+                    {{ invite.inviteeEmail }} (Pending) - Invited:
+                    {{ formatDate(invite.createdAt) }}
                   </q-item-section>
                 </q-item>
               </q-list>
@@ -75,7 +78,12 @@
               <div class="text-h6">Entities</div>
             </q-card-section>
             <q-card-section>
-              <q-btn color="primary" label="Add Entity" @click="openCreateEntityDialog" class="q-mb-md" />
+              <q-btn
+                color="primary"
+                label="Add Entity"
+                @click="openCreateEntityDialog"
+                class="q-mb-md"
+              />
               <q-list>
                 <q-item v-for="entity in entities" :key="entity.id">
                   <q-item-section>
@@ -86,7 +94,12 @@
                     </q-chip>
                   </q-item-section>
                   <q-item-section side>
-                    <q-btn flat icon="mdi-pencil" color="primary" @click="openEditEntityDialog(entity)" />
+                    <q-btn
+                      flat
+                      icon="mdi-pencil"
+                      color="primary"
+                      @click="openEditEntityDialog(entity)"
+                    />
                     <q-btn
                       flat
                       icon="mdi-trash-can-outline"
@@ -191,8 +204,10 @@
             <div class="text-h6">Delete Transaction Document</div>
           </q-card-section>
           <q-card-section class="q-pt-md">
-            Are you sure you want to delete the transaction document with ID "{{ transactionDocToDelete?.id }}"
-            containing {{ transactionDocToDelete?.importedTransactions.length }} transactions? This action cannot be undone.
+            Are you sure you want to delete the transaction document with ID "{{
+              transactionDocToDelete?.id
+            }}" containing {{ transactionDocToDelete?.importedTransactions.length }} transactions?
+            This action cannot be undone.
           </q-card-section>
           <q-card-actions align="right">
             <q-btn flat label="Cancel" color="grey" @click="showDeleteDialog = false" />
@@ -209,7 +224,8 @@
           </q-card-section>
           <q-card-section class="q-pt-md">
             Are you sure you want to delete the budget for "{{ budgetToDelete?.month }}" (ID:
-            {{ budgetToDelete?.budgetId }}) containing {{ budgetToDelete?.transactions?.length || 0 }}
+            {{ budgetToDelete?.budgetId }}) containing
+            {{ budgetToDelete?.transactions?.length || 0 }}
             transactions? This action cannot be undone.
           </q-card-section>
           <q-card-actions align="right">
@@ -226,9 +242,11 @@
             <div class="text-h6">Delete Entity</div>
           </q-card-section>
           <q-card-section class="q-pt-md">
-            Are you sure you want to delete the entity "{{ entityToDelete?.name }}" (ID: {{ entityToDelete?.id }})?
+            Are you sure you want to delete the entity "{{ entityToDelete?.name }}" (ID:
+            {{ entityToDelete?.id }})?
             <span v-if="associatedBudgets.length > 0">
-              This entity has {{ associatedBudgets.length }} associated budget(s), which must be deleted first.
+              This entity has {{ associatedBudgets.length }} associated budget(s), which must be
+              deleted first.
             </span>
             <span v-else>This action cannot be undone.</span>
           </q-card-section>
@@ -258,12 +276,7 @@
       </q-dialog>
 
       <!-- Snackbar -->
-      <q-notification
-        v-model="snackbar"
-        :color="snackbarColor"
-        position="top"
-        :timeout="3000"
-      >
+      <q-notification v-model="snackbar" :color="snackbarColor" position="top" :timeout="3000">
         {{ snackbarText }}
         <template v-slot:action>
           <q-btn flat label="Close" @click="snackbar = false" />
@@ -277,8 +290,8 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { auth } from '../firebase/index';
 import { dataAccess } from '../dataAccess';
-import { Timestamp } from 'firebase/firestore';
-import { Family, PendingInvite, Entity, Budget, ImportedTransactionDoc } from '@/types';
+import type { Timestamp } from 'firebase/firestore';
+import type { Family, PendingInvite, Entity, Budget, ImportedTransactionDoc } from '@/types';
 import { useFamilyStore } from '../store/family';
 import EntityForm from '../components/EntityForm.vue';
 import { timestampToDate } from '@/utils/helpers';
@@ -362,7 +375,7 @@ async function loadAllData() {
               email: m.email,
               role: 'Editor',
               lastAccessed: await dataAccess.getLastAccessed(m.uid),
-            }))
+            })),
         )
       ).filter((m) => m.uid !== undefined);
       pendingInvites.value = await dataAccess.getPendingInvites(user.uid);
@@ -374,8 +387,9 @@ async function loadAllData() {
     // Load budgets and imported transaction docs
     budgets.value = await dataAccess.loadAccessibleBudgets(user.uid);
     importedTransactionDocs.value = await dataAccess.getImportedTransactionDocs();
-  } catch (error: any) {
-    showSnackbar(`Error loading data: ${error.message}`, 'error');
+  } catch (error: unknown) {
+    const err = error as Error;
+    showSnackbar(`Error loading data: ${err.message}`, 'error');
   }
 }
 
@@ -394,7 +408,7 @@ function getDateRange(item: ImportedTransactionDoc): string {
   }
 
   const validTransactions = item.importedTransactions.filter(
-    (tx) => tx.postedDate && !isNaN(new Date(tx.postedDate).getTime())
+    (tx) => tx.postedDate && !isNaN(new Date(tx.postedDate).getTime()),
   );
 
   if (validTransactions.length === 0) {
@@ -443,8 +457,9 @@ async function inviteMember() {
     showSnackbar(`Invitation sent to ${normalizedEmail}`);
     inviteEmail.value = '';
     await loadAllData();
-  } catch (error: any) {
-    showSnackbar(`Error inviting user: ${error.message}`, 'error');
+  } catch (error: unknown) {
+    const err = error as Error;
+    showSnackbar(`Error inviting user: ${err.message}`, 'error');
   } finally {
     inviting.value = false;
   }
@@ -461,8 +476,9 @@ async function removeMember(uid: string) {
     await dataAccess.removeFamilyMember(family.value.id, uid);
     showSnackbar('Member removed');
     await loadAllData();
-  } catch (error: any) {
-    showSnackbar(`Error removing member: ${error.message}`, 'error');
+  } catch (error: unknown) {
+    const err = error as Error;
+    showSnackbar(`Error removing member: ${err.message}`, 'error');
   }
 }
 
@@ -477,8 +493,9 @@ async function sendVerificationEmail() {
   try {
     await dataAccess.resendVerificationEmail();
     showSnackbar('Verification email sent. Please check your inbox.', 'success');
-  } catch (error: any) {
-    showSnackbar(`Error sending verification email: ${error.message}`, 'error');
+  } catch (error: unknown) {
+    const err = error as Error;
+    showSnackbar(`Error sending verification email: ${err.message}`, 'error');
   } finally {
     resending.value = false;
   }
@@ -522,16 +539,20 @@ async function deleteEntity() {
   try {
     // Prevent deletion if there are associated budgets
     if (associatedBudgets.value.length > 0) {
-      showSnackbar('Cannot delete entity: associated budgets exist. Delete budgets first.', 'error');
+      showSnackbar(
+        'Cannot delete entity: associated budgets exist. Delete budgets first.',
+        'error',
+      );
       return;
     }
 
     await familyStore.deleteEntity(family.value.id, entityToDelete.value.id);
     showSnackbar(`Entity "${entityToDelete.value.name}" deleted successfully`, 'success');
     await loadAllData();
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error deleting entity:', error);
-    showSnackbar(`Error deleting entity: ${error.message}`, 'error');
+    const err = error as Error;
+    showSnackbar(`Error deleting entity: ${err.message}`, 'error');
   } finally {
     showDeleteEntityDialog.value = false;
     entityToDelete.value = null;
@@ -555,9 +576,10 @@ async function deleteTransactionDoc() {
     await dataAccess.deleteImportedTransactionDoc(docId);
     importedTransactionDocs.value = importedTransactionDocs.value.filter((doc) => doc.id !== docId);
     showSnackbar(`Transaction document ${docId} deleted successfully`, 'success');
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error deleting transaction document:', error);
-    showSnackbar(`Error deleting transaction document: ${error.message}`, 'error');
+    const err = error as Error;
+    showSnackbar(`Error deleting transaction document: ${err.message}`, 'error');
   } finally {
     showDeleteDialog.value = false;
     transactionDocToDelete.value = null;
@@ -585,9 +607,10 @@ async function deleteBudget() {
     await dataAccess.deleteBudget(budgetId);
     budgets.value = budgets.value.filter((budget) => budget.budgetId !== budgetId);
     showSnackbar(`Budget ${budgetId} deleted successfully`, 'success');
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error deleting budget:', error);
-    showSnackbar(`Error deleting budget: ${error.message}`, 'error');
+    const err = error as Error;
+    showSnackbar(`Error deleting budget: ${err.message}`, 'error');
   } finally {
     showDeleteBudgetDialog.value = false;
     budgetToDelete.value = null;
