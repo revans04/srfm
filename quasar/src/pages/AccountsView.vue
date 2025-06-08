@@ -515,14 +515,14 @@ async function saveAccount(account: Account, isPersonal: boolean) {
             accountName: account.name,
             type: account.type,
             value:
-              account.category === 'Liability' && account.balance > 0
-                ? -account.balance
+              account.category === 'Liability' && (account.balance || 0) > 0
+                ? -(account.balance || 0)
                 : account.balance || 0,
           },
         ],
         netWorth:
-          account.category === 'Liability' && account.balance > 0
-            ? -account.balance
+          account.category === 'Liability' && (account.balance || 0) > 0
+            ? -(account.balance || 0)
             : account.balance || 0,
         createdAt: Timestamp.now(),
       };
