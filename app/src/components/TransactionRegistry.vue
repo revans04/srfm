@@ -37,6 +37,12 @@
       <v-col cols="auto" v-if="selectedStatement">
         <v-btn color="primary" @click="startReconcile">Reconcile Statement</v-btn>
       </v-col>
+      <v-col cols="auto" v-if="selectedStatement && selectedStatement.reconciled">
+        <v-btn color="primary" @click="unreconcileStatement">Unreconcile</v-btn>
+      </v-col>
+      <v-col cols="auto" v-if="selectedStatement">
+        <v-btn color="error" @click="deleteStatement">Delete Statement</v-btn>
+      </v-col>
     </v-row>
 
     <!-- Balance Display -->
@@ -1597,6 +1603,127 @@ async function markStatementReconciled() {
   } catch (error: any) {
     console.error("Error reconciling statement:", error);
     showSnackbar(`Error reconciling statement: ${error.message}`, "error");
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function unreconcileStatement() {
+  if (!selectedStatement.value || !selectedAccount.value) return;
+  saving.value = true;
+  try {
+    const txRefs: { budgetId: string; transactionId: string }[] = [];
+
+    for (const budget of budgets.value) {
+      let updated = false;
+      for (const tx of budget.transactions) {
+        if (
+          tx.accountNumber === selectedAccount.value &&
+          tx.date >= selectedStatement.value.startDate &&
+          tx.date <= selectedStatement.value.endDate &&
+          tx.status === "R"
+        ) {
+          tx.status = "C";
+          txRefs.push({ budgetId: budget.budgetId!, transactionId: tx.id });
+          updated = true;
+        }
+      }
+      if (updated) budgetStore.updateBudget(budget.budgetId!, budget);
+    }
+
+    for (const itx of importedTransactions.value) {
+      if (
+        itx.accountNumber === selectedAccount.value &&
+        itx.postedDate >= selectedStatement.value.startDate &&
+        itx.postedDate <= selectedStatement.value.endDate &&
+        itx.status === "R"
+      ) {
+        const parts = itx.id.split("-");
+        const docId = parts.slice(0, -1).join("-");
+        const updatedTx = { ...itx, status: "C" };
+        itx.status = "C";
+        await dataAccess.updateImportedTransaction(docId, updatedTx);
+      }
+    }
+
+    await statementStore.unreconcileStatement(
+      familyId.value,
+      selectedAccount.value,
+      selectedStatement.value.id,
+      txRefs
+    );
+    statements.value = statementStore.getStatements(
+      familyId.value,
+      selectedAccount.value
+    );
+    showSnackbar("Statement unreconciled", "success");
+  } catch (error: any) {
+    console.error("Error unreconciling statement:", error);
+    showSnackbar(`Error unreconciling statement: ${error.message}`, "error");
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function deleteStatement() {
+  if (!selectedStatement.value || !selectedAccount.value) return;
+  if (!confirm("Delete this statement?")) return;
+  saving.value = true;
+  try {
+    const txRefs: { budgetId: string; transactionId: string }[] = [];
+
+    for (const budget of budgets.value) {
+      let updated = false;
+      for (const tx of budget.transactions) {
+        if (
+          tx.accountNumber === selectedAccount.value &&
+          tx.date >= selectedStatement.value.startDate &&
+          tx.date <= selectedStatement.value.endDate &&
+          tx.status === "R"
+        ) {
+          tx.status = "C";
+          txRefs.push({ budgetId: budget.budgetId!, transactionId: tx.id });
+          updated = true;
+        }
+      }
+      if (updated) budgetStore.updateBudget(budget.budgetId!, budget);
+    }
+
+    for (const itx of importedTransactions.value) {
+      if (
+        itx.accountNumber === selectedAccount.value &&
+        itx.postedDate >= selectedStatement.value.startDate &&
+        itx.postedDate <= selectedStatement.value.endDate &&
+        itx.status === "R"
+      ) {
+        const parts = itx.id.split("-");
+        const docId = parts.slice(0, -1).join("-");
+        const updatedTx = { ...itx, status: "C" };
+        itx.status = "C";
+        await dataAccess.updateImportedTransaction(docId, updatedTx);
+      }
+    }
+
+    await statementStore.deleteStatement(
+      familyId.value,
+      selectedAccount.value,
+      selectedStatement.value.id,
+      txRefs
+    );
+    await statementStore.loadStatements(familyId.value, selectedAccount.value);
+    statements.value = statementStore.getStatements(
+      familyId.value,
+      selectedAccount.value
+    );
+    if (statements.value.length > 0) {
+      selectedStatementId.value = statements.value[statements.value.length - 1].id;
+    } else {
+      selectedStatementId.value = null;
+    }
+    showSnackbar("Statement deleted", "success");
+  } catch (error: any) {
+    console.error("Error deleting statement:", error);
+    showSnackbar(`Error deleting statement: ${error.message}`, "error");
   } finally {
     saving.value = false;
   }

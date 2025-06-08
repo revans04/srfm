@@ -50,6 +50,38 @@ namespace FamilyBudgetApi.Controllers
             await _statementService.SaveStatement(familyId, accountNumber, request.Statement, txRefs, userId, userEmail);
             return Ok();
         }
+
+        [HttpDelete("statements/{statementId}")]
+        [AuthorizeFirebase]
+        public async Task<IActionResult> DeleteStatement(string familyId, string accountNumber, string statementId, [FromBody] DeleteStatementRequest request)
+        {
+            var userId = HttpContext.Items["UserId"]?.ToString() ?? string.Empty;
+            if (!await _accountService.IsFamilyMember(familyId, userId))
+                return Unauthorized("Not a member of this family");
+
+            var userEmail = (await FirebaseAuth.DefaultInstance.GetUserAsync(userId)).Email ?? string.Empty;
+
+            var txRefs = request.Transactions?.Select(t => (t.BudgetId, t.TransactionId)).ToList() ?? new List<(string, string)>();
+
+            await _statementService.DeleteStatement(familyId, accountNumber, statementId, txRefs, userId, userEmail);
+            return Ok();
+        }
+
+        [HttpPost("statements/{statementId}/unreconcile")]
+        [AuthorizeFirebase]
+        public async Task<IActionResult> UnreconcileStatement(string familyId, string accountNumber, string statementId, [FromBody] DeleteStatementRequest request)
+        {
+            var userId = HttpContext.Items["UserId"]?.ToString() ?? string.Empty;
+            if (!await _accountService.IsFamilyMember(familyId, userId))
+                return Unauthorized("Not a member of this family");
+
+            var userEmail = (await FirebaseAuth.DefaultInstance.GetUserAsync(userId)).Email ?? string.Empty;
+
+            var txRefs = request.Transactions?.Select(t => (t.BudgetId, t.TransactionId)).ToList() ?? new List<(string, string)>();
+
+            await _statementService.UnreconcileStatement(familyId, accountNumber, statementId, txRefs, userId, userEmail);
+            return Ok();
+        }
     }
 
     public class SaveStatementRequest
@@ -62,5 +94,10 @@ namespace FamilyBudgetApi.Controllers
     {
         public required string BudgetId { get; set; }
         public required string TransactionId { get; set; }
+    }
+
+    public class DeleteStatementRequest
+    {
+        public List<TransactionRef>? Transactions { get; set; }
     }
 }

@@ -737,6 +737,36 @@ export class DataAccess {
     if (!response.ok) throw new Error(`Failed to save statement: ${response.statusText}`);
   }
 
+  async deleteStatement(
+    familyId: string,
+    accountNumber: string,
+    statementId: string,
+    transactionRefs: { budgetId: string; transactionId: string }[]
+  ): Promise<void> {
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(`${this.apiBaseUrl}/families/${familyId}/accounts/${accountNumber}/statements/${statementId}`, {
+      method: "DELETE",
+      headers,
+      body: JSON.stringify({ transactions: transactionRefs }),
+    });
+    if (!response.ok) throw new Error(`Failed to delete statement: ${response.statusText}`);
+  }
+
+  async unreconcileStatement(
+    familyId: string,
+    accountNumber: string,
+    statementId: string,
+    transactionRefs: { budgetId: string; transactionId: string }[]
+  ): Promise<void> {
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(`${this.apiBaseUrl}/families/${familyId}/accounts/${accountNumber}/statements/${statementId}/unreconcile`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ transactions: transactionRefs }),
+    });
+    if (!response.ok) throw new Error(`Failed to unreconcile statement: ${response.statusText}`);
+  }
+
   // Entity Functions
   async createEntity(familyId: string, entity: Entity): Promise<{ entityId: string }> {
     const headers = await this.getAuthHeaders();

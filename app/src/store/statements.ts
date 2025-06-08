@@ -26,5 +26,25 @@ export const useStatementStore = defineStore("statements", () => {
     await loadStatements(familyId, accountNumber);
   }
 
-  return { statements, loadStatements, getStatements, saveStatement };
+  async function deleteStatement(
+    familyId: string,
+    accountNumber: string,
+    statementId: string,
+    transactionRefs: { budgetId: string; transactionId: string }[]
+  ) {
+    await dataAccess.deleteStatement(familyId, accountNumber, statementId, transactionRefs);
+    await loadStatements(familyId, accountNumber);
+  }
+
+  async function unreconcileStatement(
+    familyId: string,
+    accountNumber: string,
+    statementId: string,
+    transactionRefs: { budgetId: string; transactionId: string }[]
+  ) {
+    await dataAccess.unreconcileStatement(familyId, accountNumber, statementId, transactionRefs);
+    await loadStatements(familyId, accountNumber);
+  }
+
+  return { statements, loadStatements, getStatements, saveStatement, deleteStatement, unreconcileStatement };
 });

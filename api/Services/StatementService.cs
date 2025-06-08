@@ -58,5 +58,65 @@ namespace FamilyBudgetApi.Services
                 await _budgetService.SaveBudget(group.Key, budget, userId, userEmail);
             }
         }
+
+        public async Task DeleteStatement(string familyId, string accountNumber, string statementId, List<(string budgetId, string transactionId)> txRefs, string userId, string userEmail)
+        {
+            var docRef = _db.Collection("families").Document(familyId)
+                .Collection("accounts").Document(accountNumber)
+                .Collection("statements").Document(statementId);
+            await docRef.DeleteAsync();
+
+            if (txRefs == null || txRefs.Count == 0) return;
+
+            var grouped = txRefs.GroupBy(t => t.budgetId);
+            foreach (var group in grouped)
+            {
+                var budget = await _budgetService.GetBudget(group.Key);
+                if (budget == null) continue;
+
+                var list = budget.Transactions ?? new List<Models.Transaction>();
+                foreach (var txRef in group)
+                {
+                    var idx = list.FindIndex(t => t.Id == txRef.transactionId);
+                    if (idx >= 0)
+                    {
+                        if (list[idx].Status == "R")
+                            list[idx].Status = "C";
+                    }
+                }
+                budget.Transactions = list;
+                await _budgetService.SaveBudget(group.Key, budget, userId, userEmail);
+            }
+        }
+
+        public async Task UnreconcileStatement(string familyId, string accountNumber, string statementId, List<(string budgetId, string transactionId)> txRefs, string userId, string userEmail)
+        {
+            var docRef = _db.Collection("families").Document(familyId)
+                .Collection("accounts").Document(accountNumber)
+                .Collection("statements").Document(statementId);
+            await docRef.SetAsync(new { reconciled = false }, SetOptions.MergeAll);
+
+            if (txRefs == null || txRefs.Count == 0) return;
+
+            var grouped = txRefs.GroupBy(t => t.budgetId);
+            foreach (var group in grouped)
+            {
+                var budget = await _budgetService.GetBudget(group.Key);
+                if (budget == null) continue;
+
+                var list = budget.Transactions ?? new List<Models.Transaction>();
+                foreach (var txRef in group)
+                {
+                    var idx = list.FindIndex(t => t.Id == txRef.transactionId);
+                    if (idx >= 0)
+                    {
+                        if (list[idx].Status == "R")
+                            list[idx].Status = "C";
+                    }
+                }
+                budget.Transactions = list;
+                await _budgetService.SaveBudget(group.Key, budget, userId, userEmail);
+            }
+        }
     }
 }
