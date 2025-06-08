@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import { Statement } from "@/types";
+import type { Statement } from "@/types";
 import { dataAccess } from "@/dataAccess";
 
 export const useStatementStore = defineStore("statements", () => {
@@ -48,3 +48,4 @@ export const useStatementStore = defineStore("statements", () => {
 
   return { statements, loadStatements, getStatements, saveStatement, deleteStatement, unreconcileStatement };
 });
+

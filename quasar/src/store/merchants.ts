@@ -1,5 +1,5 @@
 // src/store/merchants.ts
-import { Transaction } from "@/types";
+import type { Transaction } from "@/types";
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 
@@ -53,3 +53,4 @@ export const useMerchantStore = defineStore("merchants", () => {
     merchantNames,
   };
 });
+

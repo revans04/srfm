@@ -2,7 +2,7 @@
 import { defineStore } from "pinia";
 import { auth } from "../firebase";
 import { ref } from "vue";
-import { User } from "firebase/auth";
+import type { User } from "firebase/auth";
 
 export const useAuthStore = defineStore("auth", () => {
   let user: User | null = null;
@@ -25,3 +25,4 @@ export const useAuthStore = defineStore("auth", () => {
 
   return { user, avatarSrc, initializeAuth, signOut };
 });
+

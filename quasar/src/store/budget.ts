@@ -1,7 +1,7 @@
 /** budget.ts */
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
-import { Budget } from "../types";
+import type { Budget } from "../types";
 import { dataAccess } from "../dataAccess";
 
 export const useBudgetStore = defineStore("budgets", () => {
@@ -19,7 +19,7 @@ export const useBudgetStore = defineStore("budgets", () => {
         }
       }
       budgets.value = newBudgets;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error loading budgets:", error);
     }
   }
@@ -58,3 +58,4 @@ export const useBudgetStore = defineStore("budgets", () => {
     availableBudgetMonths,
   };
 });
+
