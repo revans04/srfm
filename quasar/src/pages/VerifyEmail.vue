@@ -26,7 +26,7 @@ import { useRoute } from 'vue-router';
 const route = useRoute();
 const loading = ref(true);
 const error = ref('');
-const apiBaseUrl = process.env.VUE_APP_API_BASE_URL;
+const apiBaseUrl = process.env.API_BASE_URL;
 
 onMounted(async () => {
   const token = route.query.token as string;

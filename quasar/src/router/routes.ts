@@ -1,15 +1,16 @@
 // src/router/routes.ts
 import { RouteRecordRaw } from "vue-router";
-import Login from "../views/LoginView.vue";
-import Dashboard from "../views/DashboardView.vue";
-import Transactions from "../views/TransactionsView.vue";
-import SettingsView from "../views/SettingsView.vue";
-import DataView from "../views/DataView.vue";
-import AccountsView from "../views/AccountsView.vue";
-import ReportsView from "../views/ReportsView.vue";
-import VerifyEmail from "../views/VerifyEmail.vue";
-import AcceptInvite from "../views/AcceptInvite.vue";
-import SetupWizard from "../views/SetupWizard.vue";
+import Login from "../pages/LoginView.vue";
+import Dashboard from "../pages/DashboardView.vue";
+import Transactions from "../pages/TransactionsView.vue";
+import SettingsView from "../pages/SettingsView.vue";
+import DataView from "../pages/DataView.vue";
+import AccountsView from "../pages/AccountsView.vue";
+import ReportsView from "../pages/ReportsView.vue";
+import VerifyEmail from "../pages/VerifyEmail.vue";
+import AcceptInvite from "../pages/AcceptInvite.vue";
+import SetupWizard from "../pages/SetupWizard.vue";
+import ErrorNotFound from "../pages/ErrorNotFound.vue";
 
 interface RouteMeta {
   requiresAuth?: boolean;
@@ -67,6 +68,11 @@ const routes: RouteRecordRaw[] = [
     path: "/accept-invite",
     component: AcceptInvite,
     meta: { requiresAuth: true, title: "Steady Rise - Accept Invite" },
+  },
+  {
+    path: "/:catchAll(.*)*",
+    component: ErrorNotFound,
+    meta: { requiresAuth: false, title: "Steady Rise - Not Found" },
   },
 ];
 
