@@ -73,8 +73,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, defineProps, defineEmits } from "vue";
-import { Account, AccountType } from "../types";
+import { ref, watch, defineProps, defineEmits } from "vue";
+import type { Account } from "../types";
+import { AccountType } from "../types";
 import { Timestamp } from "firebase/firestore";
 
 const props = defineProps<{
