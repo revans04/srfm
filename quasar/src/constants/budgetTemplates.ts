@@ -1,5 +1,5 @@
 // src/constants/budgetTemplates.ts
-import { TemplateBudget, BudgetCategory } from "@/types";
+import type { TemplateBudget } from "@/types";
 
 interface BudgetTemplateMap {
   [key: string]: TemplateBudget;

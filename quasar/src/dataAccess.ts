@@ -1,5 +1,5 @@
 import { auth } from "./firebase";
-import {
+import type {
   Budget,
   BudgetInfo,
   Transaction,
@@ -240,11 +240,11 @@ export class DataAccess {
     }
   }
 
-  private async hasFundCategory(transaction: Transaction, budget: Budget): Promise<boolean> {
+  private hasFundCategory(transaction: Transaction, budget: Budget): boolean {
     return transaction.categories.some((cat) => budget.categories.find((bc) => bc.name === cat.category)?.isFund || false);
   }
 
-  async calculateCarryOver(budget: Budget): Promise<Record<string, number>> {
+  calculateCarryOver(budget: Budget): Record<string, number> {
     const nextCarryover: Record<string, number> = {};
     const currTrx = budget.transactions || [];
 
@@ -379,7 +379,7 @@ export class DataAccess {
   async updateImportedTransaction(docId: string, transactionOrId: ImportedTransaction | string, matched?: boolean, ignored?: boolean): Promise<void> {
     const headers = await this.getAuthHeaders();
     let transactionId: string;
-    let payload: any;
+    let payload: Record<string, unknown>;
 
     if (typeof transactionOrId === "string") {
       transactionId = transactionOrId;
@@ -660,7 +660,7 @@ export class DataAccess {
     if (!response.ok) throw new Error(`Failed to delete account: ${response.statusText}`);
   }
 
-  async importAccounts(familyId: string, entries: any[]): Promise<void> {
+  async importAccounts(familyId: string, entries: unknown[]): Promise<void> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/families/${familyId}/accounts/import`, {
       method: "POST",
