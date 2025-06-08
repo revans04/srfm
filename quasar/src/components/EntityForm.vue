@@ -222,7 +222,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
-import { TemplateBudget, BudgetCategory, TaxForm, Entity, EntityType } from '@/types';
+import type { TemplateBudget, BudgetCategory, TaxForm, Entity } from '@/types';
+import { EntityType } from '@/types';
 import CurrencyInput from './CurrencyInput.vue';
 import { useBudgetStore } from '../store/budget';
 import { useFamilyStore } from '../store/family';
@@ -344,7 +345,7 @@ onMounted(async () => {
     const entity = familyStore.family?.entities.find((e) => e.id === props.entityId);
     if (entity) {
       initialEntity.value = entity;
-      let o = entity.members.find((m) => m.uid === initialEntity.value.ownerUid);
+        const o = entity.members.find((m) => m.uid === initialEntity.value.ownerUid);
       entityName.value = initialEntity.value.name;
       entityType.value = initialEntity.value.type;
       entityEmail.value = o?.email ?? entityEmail.value;
@@ -357,7 +358,7 @@ onMounted(async () => {
   }
 });
 
-async function importCategories() {
+function importCategories() {
   importing.value = true;
   try {
     const entityBudgets = Array.from(budgetStore.budgets.values()).filter(
@@ -378,9 +379,14 @@ async function importCategories() {
       showSnackbar('No budgets or default categories found for this entity.', 'info');
     }
     showImportDialog.value = false;
-  } catch (error: any) {
-    console.error('Error importing categories:', error.message);
-    showSnackbar(`Error importing categories: ${error.message}`, 'error');
+    } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error('Error importing categories:', error.message);
+      showSnackbar(`Error importing categories: ${error.message}`, 'error');
+    } else {
+      console.error('Error importing categories:', error);
+      showSnackbar('Error importing categories', 'error');
+    }
   } finally {
     importing.value = false;
   }
@@ -447,9 +453,14 @@ async function save() {
 
     showSnackbar(`${isEditing.value ? 'Updated' : 'Created'} entity successfully`, 'success');
     emit('save');
-  } catch (error: any) {
-    console.error('Error saving entity:', error);
-    showSnackbar(`Error saving entity: ${error.message}`, 'error');
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error('Error saving entity:', error.message);
+      showSnackbar(`Error saving entity: ${error.message}`, 'error');
+    } else {
+      console.error('Error saving entity:', error);
+      showSnackbar('Error saving entity', 'error');
+    }
   } finally {
     saving.value = false;
   }
