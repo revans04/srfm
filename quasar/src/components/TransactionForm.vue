@@ -4,14 +4,14 @@
     <div>
       <q-row class="q-pa-none">
         <q-col cols="6">
-          <q-btn flat color="primary" :loading="loading" @click="save" label="Save" />
+          <q-btn flat color="primary" :loading="saving" @click="save" label="Save" />
         </q-col>
         <q-col cols="6" class="text-right">
           <q-btn
             v-if="showCancel"
             flat
             color="primary"
-            :loading="loading"
+            :loading="saving"
             @click="emit('cancel')"
             label="Cancel"
           />
@@ -200,7 +200,7 @@
             <q-btn
               flat
               color="warning"
-              :loading="loading"
+              :loading="saving"
               @click="resetMatch"
               label="Reset Match"
             />
@@ -213,7 +213,7 @@
           v-if="locTrnsx.id"
           flat
           color="negative"
-          :loading="loading"
+          :loading="saving"
           @click="deleteTransaction"
           label="Delete Transaction"
         />
@@ -231,7 +231,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, reactive } from 'vue';
+import { ref, computed, onMounted, reactive } from 'vue';
 import { dataAccess } from '../dataAccess';
 import { Budget, Transaction } from '../types';
 import { toCents, toDollars, todayISO, currentMonthISO } from '../utils/helpers';
@@ -300,7 +300,7 @@ const locTrnsx = reactive<Transaction>(
 const isInitialized = ref(false);
 const budget = ref<Budget | null>(null);
 const transactions = ref<Transaction[]>([]);
-const loading = ref(false);
+const saving = ref(false);
 const intervals = ref([
   'Daily',
   'Weekly',
@@ -319,7 +319,7 @@ const availableMonths = computed(() => {
 });
 
 const isLastMonth = computed(() => {
-  return availableMonths.value.sort((a, b) => b.localeCompare(a))[0] === locTrnsx.budgetMonth;
+  return [...availableMonths.value].sort((a, b) => b.localeCompare(a))[0] === locTrnsx.budgetMonth;
 });
 
 const remainingCategories = computed(() => {
@@ -405,7 +405,7 @@ function removeSplit(index: number) {
 async function resetMatch() {
   if (!locTrnsx.id) return;
 
-  loading.value = true;
+  saving.value = true;
   try {
     // Update local transaction to reset imported fields
     locTrnsx.status = 'U';
@@ -420,7 +420,7 @@ async function resetMatch() {
       throw new Error(`Budget ${props.budgetId} not found`);
     }
 
-    const [currentUserId, entityId, currentBudgetMonth] = props.budgetId.split('_');
+    const [, entityId, currentBudgetMonth] = props.budgetId.split('_');
     const targetBudgetMonth = locTrnsx.budgetMonth;
     const targetBudgetId =
       currentBudgetMonth === targetBudgetMonth
@@ -446,11 +446,12 @@ async function resetMatch() {
     } else {
       showSnackbar('Could not reset match, Budget does not exist!', 'error');
     }
-  } catch (error: any) {
-    console.error('Error resetting transaction match:', error.message);
-    showSnackbar(`Error resetting transaction match: ${error.message}`, 'error');
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error('Error resetting transaction match:', err.message);
+    showSnackbar(`Error resetting transaction match: ${err.message}`, 'error');
   } finally {
-    loading.value = false;
+    saving.value = false;
   }
 }
 
@@ -460,7 +461,7 @@ async function save() {
 
   const valid = await form.value.validate();
   if (valid) {
-    loading.value = true;
+    saving.value = true;
     try {
       if (locTrnsx.categories.length === 1 && locTrnsx.categories[0].amount === 0) {
         locTrnsx.categories[0].amount = locTrnsx.amount;
@@ -473,7 +474,7 @@ async function save() {
         throw new Error(`Budget ${props.budgetId} not found`);
       }
 
-      const [currentUserId, entityId, currentBudgetMonth] = props.budgetId.split('_');
+      const [, entityId, currentBudgetMonth] = props.budgetId.split('_');
       const targetBudgetMonth = locTrnsx.budgetMonth;
       const targetBudgetId =
         currentBudgetMonth === targetBudgetMonth
@@ -512,11 +513,12 @@ async function save() {
       } else {
         showSnackbar('Could not save Transaction, Budget does not exist!', 'error');
       }
-    } catch (error: any) {
-      console.error('Error saving transaction:', error.message);
-      showSnackbar(`Error saving transaction: ${error.message}`, 'error');
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error('Error saving transaction:', err.message);
+      showSnackbar(`Error saving transaction: ${err.message}`, 'error');
     } finally {
-      loading.value = false;
+      saving.value = false;
     }
   } else {
     console.log('Form validation failed');
@@ -527,7 +529,7 @@ async function save() {
 async function deleteTransaction() {
   if (!locTrnsx.id) return;
 
-  loading.value = true;
+  saving.value = true;
   try {
     if (!budget.value) {
       throw new Error(`Budget ${props.budgetId} not found`);
@@ -538,10 +540,11 @@ async function deleteTransaction() {
     emit('update-transactions', transactions.value);
 
     emit('cancel');
-  } catch (error: any) {
-    console.error('Error deleting transaction:', error.message);
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error('Error deleting transaction:', err.message);
   } finally {
-    loading.value = false;
+    saving.value = false;
   }
 }
 
