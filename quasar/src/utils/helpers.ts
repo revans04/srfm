@@ -1,6 +1,7 @@
 // src/utils/helpers.ts
 
-import { EntityType, Transaction } from "@/types";
+import { EntityType } from "@/types";
+import type { Transaction } from "@/types";
 import { v4 as uuidv4 } from "uuid";
 import { Timestamp } from "firebase/firestore";
 
@@ -29,12 +30,17 @@ export function formatDate(date: string | Date): string {
 }
 
 // Format a Timestamp to a readable string
-export function formatTimestamp(timestamp: any) {
-  if (!timestamp || typeof timestamp !== "object" || !timestamp.seconds) {
+export function formatTimestamp(timestamp: unknown) {
+  if (
+    !timestamp ||
+    typeof timestamp !== "object" ||
+    !(timestamp as { seconds?: unknown }).seconds
+  ) {
     return "Invalid timestamp";
   }
 
-  const date = new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate();
+  const ts = timestamp as { seconds: number; nanoseconds: number };
+  const date = new Timestamp(ts.seconds, ts.nanoseconds).toDate();
   
   return date.toLocaleDateString("en-US", {
     month: "2-digit",
@@ -171,7 +177,7 @@ export function formatCurrency(amount: number | string): string {
  * @param value - Value to check
  * @returns Boolean indicating if the value is a valid number
  */
-export function isValidNumber(value: any): boolean {
+export function isValidNumber(value: unknown): boolean {
   return typeof value === "number" && !isNaN(value);
 }
 
@@ -358,3 +364,4 @@ export function formatEntityType(type: EntityType): string {
       return type;
   }
 }
+

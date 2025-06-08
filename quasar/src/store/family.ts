@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import { Family, Entity, EntityType } from "../types";
+import type { Family, Entity } from "../types";
+import { EntityType } from "../types";
 import { dataAccess } from "../dataAccess";
 import { auth } from "@/firebase/index";
 
@@ -21,7 +22,7 @@ export const useFamilyStore = defineStore("family", () => {
         }
         return f;
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error loading Family", error);
     }
     return null;
@@ -33,7 +34,7 @@ export const useFamilyStore = defineStore("family", () => {
         await loadFamily();
       }
       return family.value;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error getting Family", error);
     }
     return null;
@@ -50,7 +51,7 @@ export const useFamilyStore = defineStore("family", () => {
         }
       }
       return response.entityId;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error creating entity", error);
       throw error;
     }
@@ -64,7 +65,7 @@ export const useFamilyStore = defineStore("family", () => {
           e.id === entity.id ? entity : e
         ) || [];
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error updating entity", error);
       throw error;
     }
@@ -79,7 +80,7 @@ export const useFamilyStore = defineStore("family", () => {
           selectedEntityId.value = family.value.entities[0]?.id || "";
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error deleting entity", error);
       throw error;
     }
@@ -97,7 +98,7 @@ export const useFamilyStore = defineStore("family", () => {
           }
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error adding entity member", error);
       throw error;
     }
@@ -112,7 +113,7 @@ export const useFamilyStore = defineStore("family", () => {
           entity.members = entity.members?.filter(m => m.uid !== memberUid) || [];
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error removing entity member", error);
       throw error;
     }
@@ -135,3 +136,4 @@ export const useFamilyStore = defineStore("family", () => {
     selectEntity,
   };
 });
+
