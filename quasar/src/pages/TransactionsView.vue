@@ -97,7 +97,8 @@
             <q-row v-if="budgetOptions.length === 0">
               <q-col cols="12">
                 <q-banner dense class="bg-info text-white q-mt-md">
-                  No budgets available. Create a budget in the Dashboard to start tracking transactions.
+                  No budgets available. Create a budget in the Dashboard to start tracking
+                  transactions.
                 </q-banner>
               </q-col>
             </q-row>
@@ -214,10 +215,10 @@
                       Split: {{ formatCategories(transaction.categories) }}
                     </div>
                     <div v-if="transaction.status === 'C'" class="text-caption text-grey">
-                      Imported: {{ transaction.accountSource || "N/A" }}
+                      Imported: {{ transaction.accountSource || 'N/A' }}
                       {{ getAccountName(transaction.accountNumber) }}
-                      {{ transaction.postedDate ? `@ ${transaction.postedDate}` : "" }}
-                      {{ transaction.importedMerchant ? ` ${transaction.importedMerchant}` : "" }}
+                      {{ transaction.postedDate ? `@ ${transaction.postedDate}` : '' }}
+                      {{ transaction.importedMerchant ? ` ${transaction.importedMerchant}` : '' }}
                     </div>
                     <div v-if="transaction.recurring" class="text-caption text-primary">
                       Repeats: {{ transaction.recurringInterval }}
@@ -300,9 +301,9 @@
                         Split: {{ formatCategories(transaction.categories) }}
                       </q-col>
                       <q-col cols="12" v-if="transaction.status === 'C'">
-                        Imported: {{ transaction.accountSource || "N/A" }}
+                        Imported: {{ transaction.accountSource || 'N/A' }}
                         {{ getAccountName(transaction.accountNumber) }}
-                        {{ transaction.postedDate ? `@ ${transaction.postedDate}` : "" }}
+                        {{ transaction.postedDate ? `@ ${transaction.postedDate}` : '' }}
                       </q-col>
                       <q-col cols="12" v-if="transaction.recurring" class="text-primary">
                         Repeats: {{ transaction.recurringInterval }}
@@ -371,12 +372,7 @@
     />
 
     <!-- Snackbar -->
-    <q-notification
-      v-model="snackbar"
-      :color="snackbarColor"
-      position="top"
-      :timeout="3000"
-    >
+    <q-notification v-model="snackbar" :color="snackbarColor" position="top" :timeout="3000">
       {{ snackbarText }}
       <template v-slot:actions>
         <q-btn flat label="Close" @click="snackbar = false" />
@@ -386,21 +382,28 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch } from "vue";
-import { storeToRefs } from "pinia";
-import { auth } from "../firebase";
-import { dataAccess } from "../dataAccess";
-import TransactionDialog from "../components/TransactionDialog.vue";
-import MatchBankTransactionsDialog from "../components/MatchBankTransactionsDialog.vue";
-import MatchBudgetTransactionDialog from "../components/MatchBudgetTransactionDialog.vue";
-import TransactionRegistry from "../components/TransactionRegistry.vue";
-import { Transaction, BudgetInfo, ImportedTransaction, Account, Entity } from "../types";
-import { formatDateLong, toDollars, toCents, formatCurrency, toBudgetMonth, todayISO } from "../utils/helpers";
-import { useBudgetStore } from "../store/budget";
-import { useFamilyStore } from "../store/family";
-import { useUIStore } from "../store/ui";
-import { v4 as uuidv4 } from "uuid";
-import { useQuasar } from "quasar";
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import { storeToRefs } from 'pinia';
+import { auth } from '../firebase';
+import { dataAccess } from '../dataAccess';
+import TransactionDialog from '../components/TransactionDialog.vue';
+import MatchBankTransactionsDialog from '../components/MatchBankTransactionsDialog.vue';
+import MatchBudgetTransactionDialog from '../components/MatchBudgetTransactionDialog.vue';
+import TransactionRegistry from '../components/TransactionRegistry.vue';
+import { Transaction, BudgetInfo, ImportedTransaction, Account, Entity } from '../types';
+import {
+  formatDateLong,
+  toDollars,
+  toCents,
+  formatCurrency,
+  toBudgetMonth,
+  todayISO,
+} from '../utils/helpers';
+import { useBudgetStore } from '../store/budget';
+import { useFamilyStore } from '../store/family';
+import { useUIStore } from '../store/ui';
+import { v4 as uuidv4 } from 'uuid';
+import { useQuasar } from 'quasar';
 
 const $q = useQuasar();
 const budgetStore = useBudgetStore();
@@ -418,30 +421,30 @@ const {
   selectedBudgetIds,
 } = storeToRefs(uiStore);
 
-const tab = ref("entries");
+const tab = ref('entries');
 
 const transactions = ref<Transaction[]>([]);
 const newTransaction = ref<Transaction>({
   id: uuidv4(),
   date: todayISO(),
-  merchant: "",
-  categories: [{ category: "", amount: 0 }],
+  merchant: '',
+  categories: [{ category: '', amount: 0 }],
   amount: 0,
-  notes: "",
+  notes: '',
   recurring: false,
-  recurringInterval: "Monthly",
-  userId: "",
+  recurringInterval: 'Monthly',
+  userId: '',
   isIncome: false,
   entityId: familyStore.selectedEntityId,
   taxMetadata: [],
 });
 const availableAccounts = ref<Account[]>([]);
-const categoryOptions = ref<string[]>(["Income"]);
+const categoryOptions = ref<string[]>(['Income']);
 const loading = ref(false);
 const editMode = ref(false);
 const snackbar = ref(false);
-const snackbarText = ref("");
-const snackbarColor = ref("positive");
+const snackbarText = ref('');
+const snackbarColor = ref('positive');
 const showTransactionDialog = ref(false);
 const showMatchBudgetTransactionDialog = ref(false);
 const showMatchBankTransactionsDialog = ref(false);
@@ -461,17 +464,17 @@ const selectedBankTransaction = ref<ImportedTransaction | null>(null);
 const matching = ref(false);
 const remainingImportedTransactions = ref<ImportedTransaction[]>([]);
 const pendingImportedTx = ref<ImportedTransaction | null>(null);
-const targetBudgetId = ref<string>("");
+const targetBudgetId = ref<string>('');
 const isMobile = computed(() => $q.screen.lt.md);
 
-const userId = computed(() => auth.currentUser?.uid || "");
+const userId = computed(() => auth.currentUser?.uid || '');
 
 const entityOptions = computed(() => {
   const options = (familyStore.family?.entities || []).map((entity) => ({
     id: entity.id,
     name: entity.name,
   }));
-  return [{ id: "", name: "All Entities" }, ...options];
+  return [{ id: '', name: 'All Entities' }, ...options];
 });
 
 const potentialDuplicateIds = computed(() => {
@@ -512,7 +515,8 @@ const expenseTransactions = computed(() => {
     temp = temp.filter(
       (t) =>
         t.merchant.toLowerCase().includes(entriesFilterMerchant.value.toLowerCase()) ||
-        (t.importedMerchant && t.importedMerchant.toLowerCase().includes(entriesFilterMerchant.value.toLowerCase()))
+        (t.importedMerchant &&
+          t.importedMerchant.toLowerCase().includes(entriesFilterMerchant.value.toLowerCase())),
     );
   }
   if (entriesFilterAmount.value) {
@@ -520,21 +524,29 @@ const expenseTransactions = computed(() => {
     temp = temp.filter((t) => t.amount.toString().includes(entriesFilterAmount.value.toString()));
   }
   if (entriesFilterNote.value) {
-    temp = temp.filter((t) => t.notes && t.notes.toLowerCase().includes(entriesFilterNote.value.toLowerCase()));
+    temp = temp.filter(
+      (t) => t.notes && t.notes.toLowerCase().includes(entriesFilterNote.value.toLowerCase()),
+    );
   }
   if (entriesFilterStatus.value) {
-    temp = temp.filter((t) => t.status && t.status.toLowerCase().includes(entriesFilterStatus.value.toLowerCase()));
+    temp = temp.filter(
+      (t) => t.status && t.status.toLowerCase().includes(entriesFilterStatus.value.toLowerCase()),
+    );
   }
   if (entriesFilterDate.value) {
     temp = temp.filter((t) => t.date === entriesFilterDate.value);
   }
   if (entriesFilterAccount.value) {
-    temp = temp.filter((t) => t.accountNumber && getAccountId(t.accountNumber) === entriesFilterAccount.value);
+    temp = temp.filter(
+      (t) => t.accountNumber && getAccountId(t.accountNumber) === entriesFilterAccount.value,
+    );
   }
 
-  if (entriesSearch.value && entriesSearch.value !== "") {
+  if (entriesSearch.value && entriesSearch.value !== '') {
     temp = temp.filter(
-      (t) => t.merchant.toLowerCase().includes(entriesSearch.value.toLowerCase()) || t.amount.toString().toLowerCase().includes(entriesSearch.value.toLowerCase())
+      (t) =>
+        t.merchant.toLowerCase().includes(entriesSearch.value.toLowerCase()) ||
+        t.amount.toString().toLowerCase().includes(entriesSearch.value.toLowerCase()),
     );
   }
 
@@ -563,7 +575,7 @@ const budgetOptions = computed(() => {
 onMounted(async () => {
   const user = auth.currentUser;
   if (!user) {
-    showSnackbar("Please log in to view transactions", "negative");
+    showSnackbar('Please log in to view transactions', 'negative');
     return;
   }
 
@@ -572,21 +584,24 @@ onMounted(async () => {
     await familyStore.loadFamily(user.uid);
     await loadBudgets();
     if (budgetOptions.value.length > 0) {
-      if (!selectedBudgetIds.value || selectedBudgetIds.value.length == 0) selectedBudgetIds.value = [budgetOptions.value[0].budgetId];
+      if (!selectedBudgetIds.value || selectedBudgetIds.value.length == 0)
+        selectedBudgetIds.value = [budgetOptions.value[0].budgetId];
       targetBudgetId.value = selectedBudgetIds.value[0];
       await loadTransactions();
     } else {
-      showSnackbar("No budgets available. Please create one in the Dashboard.", "warning");
+      showSnackbar('No budgets available. Please create one in the Dashboard.', 'warning');
     }
 
     importedTransactions.value = await dataAccess.getImportedTransactions();
     const family = await familyStore.getFamily();
     if (family) {
       availableAccounts.value = await dataAccess.getAccounts(family.id);
-      availableAccounts.value = availableAccounts.value.filter((account) => account.type === "Bank" || account.type === "CreditCard");
+      availableAccounts.value = availableAccounts.value.filter(
+        (account) => account.type === 'Bank' || account.type === 'CreditCard',
+      );
     }
   } catch (error: any) {
-    showSnackbar(`Error loading data: ${error.message}`, "negative");
+    showSnackbar(`Error loading data: ${error.message}`, 'negative');
   } finally {
     loading.value = false;
   }
@@ -614,7 +629,7 @@ async function loadBudgets() {
   try {
     await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
   } catch (error: any) {
-    showSnackbar(`Error loading budgets: ${error.message}`, "negative");
+    showSnackbar(`Error loading budgets: ${error.message}`, 'negative');
   } finally {
     loading.value = false;
   }
@@ -623,13 +638,13 @@ async function loadBudgets() {
 async function loadTransactions() {
   if (selectedBudgetIds.value.length === 0) {
     transactions.value = [];
-    categoryOptions.value = ["Income"];
+    categoryOptions.value = ['Income'];
     return;
   }
 
   loading.value = true;
   const allTransactions: Transaction[] = [];
-  const allCategories = new Set<string>(["Income"]);
+  const allCategories = new Set<string>(['Income']);
 
   try {
     for (const budgetId of selectedBudgetIds.value) {
@@ -651,7 +666,7 @@ async function loadTransactions() {
     transactions.value = allTransactions;
     categoryOptions.value = Array.from(allCategories).sort((a, b) => b.localeCompare(a));
   } catch (error: any) {
-    showSnackbar(`Error loading transactions: ${error.message}`, "negative");
+    showSnackbar(`Error loading transactions: ${error.message}`, 'negative');
   } finally {
     loading.value = false;
   }
@@ -671,12 +686,14 @@ async function saveTransaction(transaction: Transaction) {
     }
 
     transaction.entityId = familyStore.selectedEntityId || transaction.entityId;
-    showSnackbar(editMode.value ? "Transaction updated successfully" : "Transaction added successfully");
+    showSnackbar(
+      editMode.value ? 'Transaction updated successfully' : 'Transaction added successfully',
+    );
     resetForm();
     showTransactionDialog.value = false;
     await loadTransactions();
   } catch (error: any) {
-    showSnackbar(`Error: ${error.message}`, "negative");
+    showSnackbar(`Error: ${error.message}`, 'negative');
   } finally {
     loading.value = false;
   }
@@ -686,13 +703,13 @@ function editTransaction(item: Transaction) {
   newTransaction.value = { ...item, categories: [...item.categories] };
   editMode.value = true;
   targetBudgetId.value = item.budgetId || selectedBudgetIds.value[0];
-  familyStore.selectEntity(item.entityId || "");
+  familyStore.selectEntity(item.entityId || '');
   showTransactionDialog.value = true;
 }
 
 async function deleteTransaction(id: string) {
   if (selectedBudgetIds.value.length === 0) {
-    showSnackbar("Please select at least one budget to delete transactions", "negative");
+    showSnackbar('Please select at least one budget to delete transactions', 'negative');
     return;
   }
 
@@ -700,7 +717,7 @@ async function deleteTransaction(id: string) {
     const targetTransaction = transactions.value.find((tx) => tx.id === id);
 
     if (!targetTransaction) {
-      showSnackbar("Transaction not found in selected budgets", "negative");
+      showSnackbar('Transaction not found in selected budgets', 'negative');
       return;
     }
 
@@ -708,18 +725,18 @@ async function deleteTransaction(id: string) {
     const originalId = targetTransaction.originalId ?? targetTransaction.id;
 
     if (!targetBudgetIdToUse || !originalId) {
-      showSnackbar("Transaction not found in selected budgets", "negative");
+      showSnackbar('Transaction not found in selected budgets', 'negative');
       return;
     }
 
     const budget = budgetStore.getBudget(targetBudgetIdToUse);
-    if (!budget) throw new Error("Selected budget not found");
+    if (!budget) throw new Error('Selected budget not found');
 
     await dataAccess.deleteTransaction(budget, originalId, await !isLastMonth(targetTransaction));
-    showSnackbar("Transaction deleted successfully");
+    showSnackbar('Transaction deleted successfully');
     await loadTransactions();
   } catch (error: any) {
-    showSnackbar(`Error: ${error.message}`, "negative");
+    showSnackbar(`Error: ${error.message}`, 'negative');
   }
 }
 
@@ -730,7 +747,7 @@ function selectBudgetTransactionToMatch(transaction: Transaction) {
 
 async function matchTransaction(importedTx: ImportedTransaction) {
   if (!selectedBudgetTransaction.value) {
-    showSnackbar("No budget transaction selected to match", "negative");
+    showSnackbar('No budget transaction selected to match', 'negative');
     return;
   }
 
@@ -740,22 +757,22 @@ async function matchTransaction(importedTx: ImportedTransaction) {
 
     const updatedTransaction: Transaction = {
       ...budgetTx,
-      accountSource: importedTx.accountSource || "",
-      accountNumber: importedTx.accountNumber || "",
-      postedDate: importedTx.postedDate || "",
-      checkNumber: importedTx.checkNumber || "",
-      importedMerchant: importedTx.payee || "",
-      status: "C",
+      accountSource: importedTx.accountSource || '',
+      accountNumber: importedTx.accountNumber || '',
+      postedDate: importedTx.postedDate || '',
+      checkNumber: importedTx.checkNumber || '',
+      importedMerchant: importedTx.payee || '',
+      status: 'C',
       id: budgetTx.originalId || budgetTx.id,
       userId: budgetTx.userId || userId.value,
-      budgetMonth: budgetTx.budgetMonth || "",
-      date: budgetTx.date || "",
-      merchant: budgetTx.merchant || "",
+      budgetMonth: budgetTx.budgetMonth || '',
+      date: budgetTx.date || '',
+      merchant: budgetTx.merchant || '',
       categories: budgetTx.categories || [],
       amount: budgetTx.amount || 0,
-      notes: budgetTx.notes || "",
+      notes: budgetTx.notes || '',
       recurring: budgetTx.recurring || false,
-      recurringInterval: budgetTx.recurringInterval || "Monthly",
+      recurringInterval: budgetTx.recurringInterval || 'Monthly',
       isIncome: budgetTx.isIncome || false,
       entityId: budgetTx.entityId,
     };
@@ -772,18 +789,22 @@ async function matchTransaction(importedTx: ImportedTransaction) {
     }
 
     if (!targetBudgetIdToUse) {
-      showSnackbar("Transaction not found in selected budgets", "negative");
+      showSnackbar('Transaction not found in selected budgets', 'negative');
       return;
     }
 
     const budget = budgetStore.getBudget(targetBudgetIdToUse);
-    if (!budget) throw new Error("Selected budget not found");
+    if (!budget) throw new Error('Selected budget not found');
 
-    await dataAccess.saveTransaction(budget, updatedTransaction, await !isLastMonth(updatedTransaction));
+    await dataAccess.saveTransaction(
+      budget,
+      updatedTransaction,
+      await !isLastMonth(updatedTransaction),
+    );
 
-    const parts = importedTx.id.split("-");
+    const parts = importedTx.id.split('-');
     const txId = parts[parts.length - 1];
-    const docId = parts.slice(0, -1).join("-");
+    const docId = parts.slice(0, -1).join('-');
     await dataAccess.updateImportedTransaction(docId, { ...importedTx, matched: true });
 
     const txIndex = importedTransactions.value.findIndex((tx) => tx.id === importedTx.id);
@@ -791,13 +812,13 @@ async function matchTransaction(importedTx: ImportedTransaction) {
       importedTransactions.value[txIndex].matched = true;
     }
 
-    showSnackbar("Transaction matched successfully");
+    showSnackbar('Transaction matched successfully');
     showMatchBudgetTransactionDialog.value = false;
     selectedBudgetTransaction.value = null;
     await loadTransactions();
   } catch (error: any) {
     console.log(error);
-    showSnackbar(`Error matching transaction: ${error.message}`, "negative");
+    showSnackbar(`Error matching transaction: ${error.message}`, 'negative');
   } finally {
     loading.value = false;
   }
@@ -805,12 +826,13 @@ async function matchTransaction(importedTx: ImportedTransaction) {
 
 function openMatchBankTransactionsDialog() {
   if (unmatchedImportedTransactions.value.length === 0) {
-    showSnackbar("No unmatched bank transactions to process", "info");
+    showSnackbar('No unmatched bank transactions to process', 'info');
     return;
   }
 
   remainingImportedTransactions.value = unmatchedImportedTransactions.value.filter(
-    (importedTx) => !smartMatches.value.some((match) => match.importedTransaction.id === importedTx.id)
+    (importedTx) =>
+      !smartMatches.value.some((match) => match.importedTransaction.id === importedTx.id),
   );
 
   if (remainingImportedTransactions.value.length > 0) {
@@ -834,53 +856,55 @@ function resetForm() {
   newTransaction.value = {
     id: uuidv4(),
     date: todayISO(),
-    merchant: "",
-    categories: [{ category: "", amount: 0 }],
+    merchant: '',
+    categories: [{ category: '', amount: 0 }],
     amount: 0,
-    notes: "",
+    notes: '',
     recurring: false,
-    recurringInterval: "Monthly",
-    userId: "",
+    recurringInterval: 'Monthly',
+    userId: '',
     isIncome: false,
     entityId: familyStore.selectedEntityId,
   };
   editMode.value = false;
-  targetBudgetId.value = selectedBudgetIds.value.length > 0 ? selectedBudgetIds.value[0] : "";
+  targetBudgetId.value = selectedBudgetIds.value.length > 0 ? selectedBudgetIds.value[0] : '';
 }
 
 function getAccountId(accountNumber: string): string {
   const account = availableAccounts.value.find((a) => a.accountNumber === accountNumber);
-  return account ? account.id : "";
+  return account ? account.id : '';
 }
 
 function getAccountName(accountNumber: string): string {
   const account = availableAccounts.value.find((a) => a.accountNumber === accountNumber);
-  return account ? account.name : "Unknown Account";
+  return account ? account.name : 'Unknown Account';
 }
 
 function getEntityName(entityId: string): string {
-  if (!entityId) return "N/A";
+  if (!entityId) return 'N/A';
   const entity = familyStore.family?.entities?.find((e) => e.id === entityId);
   if (entity) return entity.name;
   const budget = budgetStore.getBudget(entityId);
   if (budget?.entityId) {
     const budgetEntity = familyStore.family?.entities?.find((e) => e.id === budget.entityId);
-    return budgetEntity ? budgetEntity.name : "N/A";
+    return budgetEntity ? budgetEntity.name : 'N/A';
   }
-  return "N/A";
+  return 'N/A';
 }
 
 function formatCategories(categories: { category: string; amount: number }[] | undefined | null) {
   if (!categories || !Array.isArray(categories)) {
-    return "No categories";
+    return 'No categories';
   }
   if (categories.length === 1) {
     return categories[0].category;
   }
-  return categories.map((c) => `${c.category} (${formatCurrency(toDollars(toCents(c.amount)))})`).join(", ");
+  return categories
+    .map((c) => `${c.category} (${formatCurrency(toDollars(toCents(c.amount)))})`)
+    .join(', ');
 }
 
-function showSnackbar(text: string, color = "positive") {
+function showSnackbar(text: string, color = 'positive') {
   snackbarText.value = text;
   snackbarColor.value = color;
   snackbar.value = true;
@@ -900,4 +924,3 @@ function applyFilters() {
   border-bottom: 1px solid #e0e0e0;
 }
 </style>
-
