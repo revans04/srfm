@@ -35,13 +35,13 @@
         <q-row class="mt-4">
           <q-col cols="12" md="6">
             <q-card>
-              <q-card-text class="text-center">
+              <q-card-section class="text-center">
                 <!-- Donut Chart -->
                 <div style="max-width: 300px; margin: 0 auto">
                   <DoughnutChart v-if="budgetGroups.length" :data="chartData" :options="chartOptions" />
                   <p v-else>No expense data available</p>
                 </div>
-              </q-card-text>
+              </q-card-section>
             </q-card>
             <!-- Table for Group, Planned, Actual -->
             <q-table class="mt-4">
@@ -79,12 +79,12 @@
           </q-col>
           <q-col cols="12" md="6">
             <q-card>
-              <q-card-text class="text-center">
+              <q-card-section class="text-center">
                 <div style="height: 300px">
                   <LineChart v-if="monthlyBudgetData?.labels?.length > 0" :data="monthlyBudgetData" :options="monthlyBudgetChartOptions" />
                   <p v-else>No budget data available</p>
                 </div>
-              </q-card-text>
+              </q-card-section>
             </q-card>
             <q-table class="mt-4">
               <thead>
@@ -111,9 +111,9 @@
         <q-row class="mt-4">
           <q-col>
             <q-card>
-              <q-card-text>
+              <q-card-section>
                 <p>Year-over-Year reporting coming soon!</p>
-              </q-card-text>
+              </q-card-section>
             </q-card>
           </q-col>
         </q-row>
@@ -125,28 +125,28 @@
           <!-- Net Worth Over Time with Trend Line -->
           <q-col cols="12">
             <q-card>
-              <q-card-title>Net Worth Over Time</q-card-title>
-              <q-card-text>
+              <q-card-section>Net Worth Over Time</q-card-section>
+              <q-card-section>
                 <div style="height: 400px">
                   <q-progress-circular v-if="isLoadingSnapshots" indeterminate color="primary" />
                   <LineChart v-else-if="netWorthData?.labels?.length > 0" :data="netWorthData" :options="netWorthChartOptions" />
                   <p v-else>No net worth data available</p>
                 </div>
-              </q-card-text>
+              </q-card-section>
             </q-card>
           </q-col>
 
           <!-- Cash, Investments, Properties, Debt Over Time -->
           <q-col cols="12">
             <q-card>
-              <q-card-title>Assets and Liabilities Over Time</q-card-title>
-              <q-card-text>
+              <q-card-section>Assets and Liabilities Over Time</q-card-section>
+              <q-card-section>
                 <div style="height: 400px">
                   <q-progress-circular v-if="isLoadingSnapshots" indeterminate color="primary" />
                   <LineChart v-else-if="assetDebtData?.labels?.length > 0" :data="assetDebtData" :options="assetDebtChartOptions" />
                   <p v-else>No asset/debt data available</p>
                 </div>
-              </q-card-text>
+              </q-card-section>
             </q-card>
           </q-col>
         </q-row>

@@ -7,11 +7,11 @@
           <q-toolbar color="primary" dark flat>
             <q-toolbar-title>Steady Rise Login</q-toolbar-title>
           </q-toolbar>
-          <q-card-text>
+          <q-card-section>
             <p class="text-center">
               Sign in with your Google account to manage your finances.
             </p>
-          </q-card-text>
+          </q-card-section>
           <q-card-actions class="justify-center pb-4">
             <!-- Replace v-btn with a div for Google button -->
             <div id="google-signin-button"></div>

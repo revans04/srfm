@@ -59,8 +59,8 @@
       </q-window-item>
       <q-window-item value="net-worth">
         <q-card>
-          <q-card-title>Net Worth Over Time</q-card-title>
-          <q-card-text>
+          <q-card-section>Net Worth Over Time</q-card-section>
+          <q-card-section>
             <q-btn color="primary" class="mb-4 mr-2" @click="openSnapshotDialog" :disabled="accounts.length === 0"> Capture Snapshot </q-btn>
             <q-btn color="error" class="mb-4" @click="confirmBatchDeleteSnapshots" :disabled="selectedSnapshots.length === 0" :loading="deleting">
               Delete Selected
@@ -87,7 +87,7 @@
             <div class="mt-4">
               <p>Net worth trend chart coming soon!</p>
             </div>
-          </q-card-text>
+          </q-card-section>
         </q-card>
       </q-window-item>
     </q-window>
@@ -95,8 +95,8 @@
     <!-- Account Dialog -->
     <q-dialog v-model="showAccountDialog" max-width="600px">
       <q-card>
-        <q-card-title>{{ editMode ? "Edit" : "Add" }} {{ accountType }} Account</q-card-title>
-        <q-card-text>
+        <q-card-section>{{ editMode ? "Edit" : "Add" }} {{ accountType }} Account</q-card-section>
+        <q-card-section>
           <AccountForm
             :account-type="accountType"
             :account="editMode ? newAccount : undefined"
@@ -104,15 +104,15 @@
             @save="saveAccount"
             @cancel="closeAccountDialog"
           />
-        </q-card-text>
+        </q-card-section>
       </q-card>
     </q-dialog>
 
     <!-- Snapshot Dialog -->
     <q-dialog v-model="showSnapshotDialog" max-width="800px">
       <q-card>
-        <q-card-title>Capture Net Worth Snapshot</q-card-title>
-        <q-card-text>
+        <q-card-section>Capture Net Worth Snapshot</q-card-section>
+        <q-card-section>
           <q-form @submit.prevent="saveSnapshot">
             <q-text-field v-model="newSnapshot.date" label="Snapshot Date" type="date" variant="outlined" density="compact" required></q-text-field>
             <q-data-table
@@ -144,19 +144,19 @@
             <q-btn type="submit" color="primary" :loading="saving" class="mt-4"> Save Snapshot </q-btn>
             <q-btn color="grey" variant="text" @click="showSnapshotDialog = false" class="ml-2"> Cancel </q-btn>
           </q-form>
-        </q-card-text>
+        </q-card-section>
       </q-card>
     </q-dialog>
 
     <!-- Delete Account Confirmation Dialog -->
     <q-dialog v-model="showDeleteAccountDialog" max-width="400">
       <q-card>
-        <q-card-title class="bg-error py-3">
+        <q-card-section class="bg-error py-3">
           <span class="text-white">Delete Account</span>
-        </q-card-title>
-        <q-card-text class="pt-4"> Are you sure you want to delete this account? </q-card-text>
+        </q-card-section>
+        <q-card-section class="pt-4"> Are you sure you want to delete this account? </q-card-section>
         <q-card-actions>
-          <q-spacer></q-spacer>
+          <q-space></q-space>
           <q-btn color="grey" variant="text" @click="showDeleteAccountDialog = false"> Cancel </q-btn>
           <q-btn color="error" variant="flat" @click="executeDeleteAccount"> Delete </q-btn>
         </q-card-actions>
@@ -166,12 +166,12 @@
     <!-- Delete Snapshot Confirmation Dialog -->
     <q-dialog v-model="showDeleteSnapshotDialog" max-width="400">
       <q-card>
-        <q-card-title class="bg-error py-3">
+        <q-card-section class="bg-error py-3">
           <span class="text-white">Delete Snapshot</span>
-        </q-card-title>
-        <q-card-text class="pt-4"> Are you sure you want to delete this snapshot? </q-card-text>
+        </q-card-section>
+        <q-card-section class="pt-4"> Are you sure you want to delete this snapshot? </q-card-section>
         <q-card-actions>
-          <q-spacer></q-spacer>
+          <q-space></q-space>
           <q-btn color="grey" variant="text" @click="showDeleteSnapshotDialog = false"> Cancel </q-btn>
           <q-btn color="error" variant="flat" @click="executeDeleteSnapshot"> Delete </q-btn>
         </q-card-actions>
@@ -181,12 +181,12 @@
     <!-- Batch Delete Snapshots Confirmation Dialog -->
     <q-dialog v-model="showBatchDeleteSnapshotDialog" max-width="400">
       <q-card>
-        <q-card-title class="bg-error py-3">
+        <q-card-section class="bg-error py-3">
           <span class="text-white">Delete Selected Snapshots</span>
-        </q-card-title>
-        <q-card-text class="pt-4"> Are you sure you want to delete {{ selectedSnapshots.length }} selected snapshot(s)? </q-card-text>
+        </q-card-section>
+        <q-card-section class="pt-4"> Are you sure you want to delete {{ selectedSnapshots.length }} selected snapshot(s)? </q-card-section>
         <q-card-actions>
-          <q-spacer></q-spacer>
+          <q-space></q-space>
           <q-btn color="grey" variant="text" @click="showBatchDeleteSnapshotDialog = false"> Cancel </q-btn>
           <q-btn color="error" variant="flat" @click="executeBatchDeleteSnapshots"> Delete </q-btn>
         </q-card-actions>
@@ -196,14 +196,14 @@
     <!-- Update Budget Transactions Confirmation Dialog -->
     <q-dialog v-model="showUpdateBudgetTransactionsDialog" max-width="500px">
       <q-card>
-        <q-card-title>Update Budget Transactions</q-card-title>
-        <q-card-text>
+        <q-card-section>Update Budget Transactions</q-card-section>
+        <q-card-section>
           The account name or number has changed. Would you like to update associated budget transactions that were matched to imported transactions? <br />
           <strong>{{ affectedImportedTransactionCount }}</strong> imported transactions will be updated. <br />
           <strong>{{ affectedBudgetTransactionCount }}</strong> budget transactions may be affected.
-        </q-card-text>
+        </q-card-section>
         <q-card-actions>
-          <q-spacer></q-spacer>
+          <q-space></q-space>
           <q-btn color="grey" variant="text" @click="showUpdateBudgetTransactionsDialog = false"> No </q-btn>
           <q-btn color="primary" @click="confirmUpdateBudgetTransactions"> Yes </q-btn>
         </q-card-actions>

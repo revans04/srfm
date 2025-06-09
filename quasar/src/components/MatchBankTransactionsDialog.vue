@@ -2,10 +2,10 @@
 <template>
   <q-dialog v-if="isReady" :model-value="props.showDialog" :fullscreen="isMobile" persistent @update:model-value="closeDialog($event)">
     <q-card>
-      <q-card-title>Match Bank Transactions</q-card-title>
-      <q-card-text>
+      <q-card-section>Match Bank Transactions</q-card-section>
+      <q-card-section>
         <div class="row">
-          <div class="col"><q-spacer></q-spacer></div>
+          <div class="col"><q-space></q-space></div>
           <div class="col-auto text-right">
             <q-btn color="error" @click="closeDialog(false)" :disabled="props.matching" variant="plain">
               <q-icon>mdi-close</q-icon>
@@ -269,11 +269,11 @@
             </q-row>
           </q-window-item>
         </q-window>
-      </q-card-text>
+      </q-card-section>
       <q-card-actions>
         <q-btn v-if="remainingImportedTransactions.length > 0" color="warning" @click="ignoreBankTransaction" :disabled="props.matching"> Ignore </q-btn>
         <q-btn v-if="remainingImportedTransactions.length > 0" color="secondary" @click="skipBankTransaction" :disabled="props.matching"> Skip </q-btn>
-        <q-spacer></q-spacer>
+        <q-space></q-space>
         <q-btn color="error" @click="closeDialog(false)" :disabled="props.matching"> Close </q-btn>
       </q-card-actions>
     </q-card>

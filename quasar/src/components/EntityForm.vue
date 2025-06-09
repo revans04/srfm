@@ -1,8 +1,8 @@
 <!-- src/components/EntityForm.vue -->
 <template>
   <q-card density="compact">
-    <q-card-title>{{ isEditing ? "Edit Entity" : "Create Entity" }}</q-card-title>
-    <q-card-text>
+    <q-card-section>{{ isEditing ? "Edit Entity" : "Create Entity" }}</q-card-section>
+    <q-card-section>
       <q-form @submit.prevent="save">
         <!-- Entity Details -->
         <q-row :dense="true">
@@ -92,7 +92,7 @@
         <div class="text-subtitle-1 font-weight-bold"></div>
         <br />
         <q-list>
-          <q-list-item v-for="(category, index) in budget.categories" :key="index">
+          <q-item v-for="(category, index) in budget.categories" :key="index">
             <q-row :dense="true">
               <q-col cols="12" sm="3" class="px-2">
                 <q-text-field v-model="budget.categories[index].name" label="Category" required density="compact"></q-text-field>
@@ -112,7 +112,7 @@
                 </q-btn>
               </q-col>
             </q-row>
-          </q-list-item>
+          </q-item>
         </q-list>
 
         <!-- Add New Category -->
@@ -136,9 +136,9 @@
           </q-row>
         </q-form>
       </q-form>
-    </q-card-text>
+    </q-card-section>
     <q-card-actions>
-      <q-spacer></q-spacer>
+      <q-space></q-space>
       <q-btn color="error" @click="handleCancel">Cancel</q-btn>
       <q-btn color="primary" @click="save" :disabled="!isFormValid" :loading="saving">Save Entity</q-btn>
     </q-card-actions>
@@ -146,10 +146,10 @@
     <!-- Confirmation Dialog for Importing Categories -->
     <q-dialog v-model="showImportDialog" max-width="400px">
       <q-card>
-        <q-card-title>Import Categories</q-card-title>
-        <q-card-text>The template has no categories. Would you like to import categories from the latest budget for this entity?</q-card-text>
+        <q-card-section>Import Categories</q-card-section>
+        <q-card-section>The template has no categories. Would you like to import categories from the latest budget for this entity?</q-card-section>
         <q-card-actions>
-          <q-spacer></q-spacer>
+          <q-space></q-space>
           <q-btn color="error" @click="showImportDialog = false">No</q-btn>
           <q-btn color="primary" @click="importCategories" :loading="importing">Yes</q-btn>
         </q-card-actions>
@@ -159,8 +159,8 @@
     <!-- Confirmation Dialog for Canceling with Unsaved Changes -->
     <q-dialog v-model="showCancelDialog" max-width="400px">
       <q-card>
-        <q-card-title>Unsaved Changes</q-card-title>
-        <q-card-text>You have unsaved changes. Are you sure you want to cancel and discard them?</q-card-text>
+        <q-card-section>Unsaved Changes</q-card-section>
+        <q-card-section>You have unsaved changes. Are you sure you want to cancel and discard them?</q-card-section>
         <q-card-actions>
           <q-btn color="primary" @click="showCancelDialog = false">No, Keep Editing</q-btn>
           <q-btn color="error" @click="confirmCancel">Yes, Discard</q-btn>

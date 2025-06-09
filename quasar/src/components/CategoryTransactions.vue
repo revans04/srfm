@@ -52,7 +52,7 @@
           <q-text-field append-inner-icon="mdi-magnify" density="compact" label="Search" variant="plain" single-line v-model="search"></q-text-field>
         </div>
         <q-list dense class="rounded-10">
-          <q-list-item
+          <q-item
             v-for="transaction in categoryTransactions"
             :key="transaction.id"
             class="transaction-item"
@@ -60,7 +60,7 @@
             @click="editTransaction(transaction)"
             style="border-bottom: 1px solid rgb(var(--v-theme-light))"
           >
-            <q-list-item-action class="d-flex align-center">
+            <q-item-section class="d-flex align-center">
               <q-row class="pa-2 align-center" no-gutters>
                 <q-col cols="2" class="pt-2 font-weight-bold text-primary" style="min-width: 60px; font-size: 10px">
                   {{ formatDate(transaction.date) }}
@@ -75,11 +75,11 @@
                   <q-icon small @click.stop="confirmDelete(transaction)" title="Move to Trash" color="error">mdi-trash-can-outline</q-icon>
                 </q-col>
               </q-row>
-            </q-list-item-action>
-          </q-list-item>
-          <q-list-item v-if="categoryTransactions.length === 0">
-            <q-list-item-title>No transactions for this category.</q-list-item-title>
-          </q-list-item>
+            </q-item-section>
+          </q-item>
+          <q-item v-if="categoryTransactions.length === 0">
+            <q-item-label>No transactions for this category.</q-item-label>
+          </q-item>
         </q-list>
       </q-col>
     </q-row>
@@ -92,12 +92,12 @@
     <!-- Edit Transaction Dialog -->
     <q-dialog v-model="showEditDialog" :max-width="!isMobile ? '600px' : ''" :fullscreen="isMobile">
       <q-card density="compact">
-        <q-card-title class="bg-primary py-5">
+        <q-card-section class="bg-primary py-5">
           <q-row>
             <q-col>Edit {{ transactionToEdit?.merchant }} Transaction</q-col>
           </q-row>
-        </q-card-title>
-        <q-card-text>
+        </q-card-section>
+        <q-card-section>
           <transaction-form
             v-if="showEditDialog && transactionToEdit"
             :initial-transaction="transactionToEdit"
@@ -109,22 +109,22 @@
             @cancel="showEditDialog = false"
             @update-transactions="updateTransactions"
           />
-        </q-card-text>
+        </q-card-section>
       </q-card>
     </q-dialog>
 
     <!-- Delete Confirmation Dialog -->
     <q-dialog v-model="showDeleteDialog" max-width="400">
       <q-card>
-        <q-card-title class="bg-error py-3">
+        <q-card-section class="bg-error py-3">
           <span class="text-white">Confirm Deletion</span>
-        </q-card-title>
-        <q-card-text class="pt-4">
+        </q-card-section>
+        <q-card-section class="pt-4">
           Are you sure you want to delete the transaction for "{{ transactionToDelete?.merchant }}" on
           {{ transactionToDelete ? formatDate(transactionToDelete.date) : "" }}?
-        </q-card-text>
+        </q-card-section>
         <q-card-actions>
-          <q-spacer></q-spacer>
+          <q-space></q-space>
           <q-btn color="grey" variant="text" @click="showDeleteDialog = false">Cancel</q-btn>
           <q-btn color="error" variant="flat" @click="executeDelete">Move to Trash</q-btn>
         </q-card-actions>

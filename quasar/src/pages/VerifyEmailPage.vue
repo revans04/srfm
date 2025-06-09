@@ -3,10 +3,10 @@
     <q-row justify="center">
       <q-col cols="12" md="6">
         <q-card>
-          <q-card-title>Email Verification</q-card-title>
-          <q-card-text v-if="loading">Verifying...</q-card-text>
-          <q-card-text v-else-if="error">{{ error }}</q-card-text>
-          <q-card-text v-else>Email verified successfully! You can now <router-link to="/login">log in</router-link>.</q-card-text>
+          <q-card-section>Email Verification</q-card-section>
+          <q-card-section v-if="loading">Verifying...</q-card-section>
+          <q-card-section v-else-if="error">{{ error }}</q-card-section>
+          <q-card-section v-else>Email verified successfully! You can now <router-link to="/login">log in</router-link>.</q-card-section>
         </q-card>
       </q-col>
     </q-row>

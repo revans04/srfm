@@ -1,6 +1,6 @@
 <template>
   <q-card>
-    <q-card-text>
+    <q-card-section>
       <p>Let’s get started by naming your Family, Group, or Organization. This name will be used when sharing access with other people.</p>
       <br>
       <q-form @submit.prevent="createFamily">
@@ -13,7 +13,7 @@
         ></q-text-field>
         <q-btn type="submit" color="primary" :loading="creating" block>Save</q-btn>
       </q-form>
-    </q-card-text>
+    </q-card-section>
   </q-card>
 </template>
 

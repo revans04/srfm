@@ -122,8 +122,8 @@
         <q-col :cols="selectedCategory ? (isMobile ? 0 : 8) : 12" :class="{ 'd-none': selectedCategory && isMobile }">
           <!-- Budget Editing Form -->
           <q-card v-if="isEditing">
-            <q-card-title>Edit Budget for {{ selectedEntity?.name || "selected entity" }}</q-card-title>
-            <q-card-text>
+            <q-card-section>Edit Budget for {{ selectedEntity?.name || "selected entity" }}</q-card-section>
+            <q-card-section>
               <q-form @submit.prevent="saveBudget">
                 <!-- Merchants Section -->
                 <q-row class="mt-4">
@@ -176,7 +176,7 @@
                 <q-btn color="success" @click="addIncomeCategory" class="mt-2 ml-2"> Add Income Category </q-btn>
                 <q-btn type="submit" color="success" class="mt-2 ml-2" :loading="saving">Save Budget</q-btn>
               </q-form>
-            </q-card-text>
+            </q-card-section>
           </q-card>
 
           <!-- Income Section -->
@@ -200,7 +200,7 @@
               </div>
               <q-row v-if="!isMobile" dense>
                 <q-col>
-                  <q-spacer></q-spacer>
+                  <q-space></q-space>
                 </q-col>
                 <q-col v-if="!isMobile" cols="auto" class="font-weight-bold"> {{ formatCurrency(toDollars(toCents(plannedIncome))) }}</q-col>
                 <q-col :cols="isMobile ? 'auto' : '2'">
@@ -219,7 +219,7 @@
                 <q-card-item>
                   <q-row class="text-info">
                     <q-col>{{ g.group || "Ungrouped" }}</q-col>
-                    <q-spacer></q-spacer>
+                    <q-space></q-space>
                     <q-col v-if="!isMobile" cols="2">Planned</q-col>
                     <q-col :cols="isMobile ? 'auto' : '2'">Remaining</q-col>
                   </q-row>
@@ -277,7 +277,7 @@
                   </div>
                   <q-row dense>
                     <q-col class="pa-2">
-                      <q-spacer></q-spacer>
+                      <q-space></q-space>
                     </q-col>
                   </q-row>
                 </q-card-item>
@@ -307,19 +307,19 @@
 
       <!-- Version Info -->
       <q-row>
-        <q-spacer></q-spacer>
+        <q-space></q-space>
         <q-col cols="auto">
-          <q-list-item-title class="text-caption text-center">
+          <q-item-label class="text-caption text-center">
             {{ `Version: ${appVersion}` }}
-          </q-list-item-title>
+          </q-item-label>
         </q-col>
       </q-row>
 
       <!-- Transaction Dialog -->
       <q-dialog v-model="showTransactionDialog" max-width="600px">
         <q-card>
-          <q-card-title>{{ isIncomeTransaction ? "Add Income" : "Add Transaction" }}</q-card-title>
-          <q-card-text>
+          <q-card-section>{{ isIncomeTransaction ? "Add Income" : "Add Transaction" }}</q-card-section>
+          <q-card-section>
             <transaction-form
               :initial-transaction="newTransaction"
               :show-cancel="true"
@@ -330,7 +330,7 @@
               @cancel="showTransactionDialog = false"
               @update-transactions="updateTransactions"
             />
-          </q-card-text>
+          </q-card-section>
         </q-card>
       </q-dialog>
 

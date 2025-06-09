@@ -1,7 +1,7 @@
 <!-- src/components/AccountList.vue -->
 <template>
   <q-card>
-    <q-card-title>
+    <q-card-section>
       <q-row class="pa-2">
         <q-col>{{ type }} Accounts</q-col>
         <q-col>
@@ -11,8 +11,8 @@
           <q-btn color="primary" variant="plain" @click="$emit('add')">Add Account</q-btn>
         </q-col>
       </q-row>
-    </q-card-title>
-    <q-card-text>
+    </q-card-section>
+    <q-card-section>
       <q-data-table
         v-if="accounts.length > 0"
         :headers="headers"
@@ -51,7 +51,7 @@
         </template>
       </q-data-table>
 
-    </q-card-text>
+    </q-card-section>
   </q-card>
 </template>
 

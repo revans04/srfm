@@ -20,8 +20,8 @@
         <q-row>
           <q-col cols="12">
             <q-card>
-              <q-card-title>Import Data</q-card-title>
-              <q-card-text>
+              <q-card-section>Import Data</q-card-section>
+              <q-card-section>
                 <q-select v-model="importType" :items="importTypes" label="Select Import Type" variant="outlined" class="mb-4"></q-select>
 
                 <!-- Entity Selection or Creation -->
@@ -233,8 +233,8 @@
                 <!-- Preview Dialog -->
                 <q-dialog v-model="showPreview" max-width="1000px">
                   <q-card>
-                    <q-card-title>Preview Data</q-card-title>
-                    <q-card-text>
+                    <q-card-section>Preview Data</q-card-section>
+                    <q-card-section>
                       <q-tabs v-model="previewTab">
                         <q-tab value="entities" v-if="previewData.entities?.length > 0">Entities</q-tab>
                         <q-tab value="categories" v-if="previewData.categories?.length > 0">Categories</q-tab>
@@ -280,9 +280,9 @@
                           </li>
                         </ul>
                       </q-alert>
-                    </q-card-text>
+                    </q-card-section>
                     <q-card-actions>
-                      <q-spacer></q-spacer>
+                      <q-space></q-space>
                       <q-btn color="error" @click="showPreview = false">Cancel</q-btn>
                       <q-btn color="primary" @click="confirmImport" :disabled="previewErrors.length > 0 || importRunning"> Import </q-btn>
                     </q-card-actions>
@@ -292,8 +292,8 @@
                 <!-- Overwrite Dialog -->
                 <q-dialog v-model="showOverwriteDialog" max-width="500px">
                   <q-card>
-                    <q-card-title>Overwrite Warning</q-card-title>
-                    <q-card-text>
+                    <q-card-section>Overwrite Warning</q-card-section>
+                    <q-card-section>
                       Budgets already exist for the following months:
                       <div class="px-8">
                         <ul>
@@ -303,15 +303,15 @@
                         </ul>
                       </div>
                       Do you want to overwrite them?
-                    </q-card-text>
+                    </q-card-section>
                     <q-card-actions>
-                      <q-spacer></q-spacer>
+                      <q-space></q-space>
                       <q-btn color="error" @click="showOverwriteDialog = false">Cancel</q-btn>
                       <q-btn color="primary" @click="proceedWithImport">Overwrite</q-btn>
                     </q-card-actions>
                   </q-card>
                 </q-dialog>
-              </q-card-text>
+              </q-card-section>
             </q-card>
           </q-col>
         </q-row>
@@ -322,10 +322,10 @@
         <q-row>
           <q-col cols="12">
             <q-card>
-              <q-card-title>Export Data</q-card-title>
-              <q-card-text>
+              <q-card-section>Export Data</q-card-section>
+              <q-card-section>
                 <q-btn color="primary" @click="exportDataToCSV" :loading="exporting">Export All Data</q-btn>
-              </q-card-text>
+              </q-card-section>
             </q-card>
           </q-col>
         </q-row>
