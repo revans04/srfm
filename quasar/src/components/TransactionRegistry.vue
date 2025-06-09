@@ -564,6 +564,7 @@ import { useBudgetStore } from '../store/budget';
 import { useFamilyStore } from '../store/family';
 import { useStatementStore } from '../store/statements';
 import { useUIStore } from '../store/ui';
+import type { QForm } from 'quasar';
 import type {
   Transaction,
   ImportedTransaction,
@@ -631,17 +632,17 @@ const transactionAction = ref('');
 const showBalanceAdjustmentDialog = ref(false);
 const adjustmentAmount = ref<number>(0);
 const adjustmentDate = ref<string>(todayISO());
-const adjustmentForm = ref<QForm | null>(null); // Quasar doesn't have a specific QForm type
+const adjustmentForm = ref<InstanceType<typeof QForm> | null>(null); // Quasar doesn't have a specific QForm type
 const selectedRows = ref<string[]>([]);
 const showBatchMatchDialog = ref(false);
-const batchMatchForm = ref<QForm | null>(null);
+const batchMatchForm = ref<InstanceType<typeof QForm> | null>(null);
 const batchMerchant = ref('');
 const batchCategory = ref('');
 const selectedEntityId = ref<string>('');
 const showBatchActionDialog = ref(false);
 const batchAction = ref<string>('');
 const showStatementDialog = ref(false);
-const statementForm = ref<QForm | null>(null);
+const statementForm = ref<InstanceType<typeof QForm> | null>(null);
 const newStatement = ref<Statement>({
   id: '',
   accountNumber: '',
@@ -690,7 +691,7 @@ const latestTransactionBalance = computed(() => {
   if (selectedAccount.value && accounts.value) {
     const aInfo = accounts.value.filter((a) => (a.accountNumber ?? '') == selectedAccount.value);
     if (aInfo && aInfo.length > 0 && (aInfo[0].type == 'CreditCard' || aInfo[0].type == 'Loan')) {
-      return Math.abs(displayTransactions.value[0].balance) || 0;
+      return Math.abs(displayTransactions.value[0].balance || 0);
     }
   }
   return displayTransactions.value[0].balance || 0;
@@ -734,7 +735,7 @@ const displayTransactions = computed((): DisplayTransaction[] => {
       date: tx.date,
       merchant: tx.importedMerchant || tx.merchant || 'N/A',
       category: tx.categories && tx.categories.length > 0 ? tx.categories[0].category : 'N/A',
-      entityId: tx.entityId || budget.entityId,
+      entityId: tx.entityId || budget.entityId || '',
       amount: tx.isIncome || false ? tx.amount : -1 * tx.amount,
       isIncome: tx.isIncome || false,
       status: tx.status || 'C',
@@ -919,7 +920,7 @@ const statementTransactions = computed((): DisplayTransaction[] => {
       date: itx.postedDate,
       merchant: itx.payee || 'N/A',
       category: '',
-      entityId: itx.entityId || '',
+      entityId: '',
       amount: itx.debitAmount && itx.debitAmount > 0 ? -itx.debitAmount : itx.creditAmount || 0,
       isIncome: (itx.creditAmount || 0) > 0,
       status: itx.status || 'U',

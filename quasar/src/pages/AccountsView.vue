@@ -312,7 +312,7 @@ import { dataAccess } from '../dataAccess';
 import { useFamilyStore } from '../store/family';
 import AccountList from '../components/AccountList.vue';
 import AccountForm from '../components/AccountForm.vue';
-import { Account, Snapshot, ImportedTransaction, Transaction } from '../types';
+import { Account, Snapshot, ImportedTransaction, Transaction, AccountType } from '../types';
 import { formatCurrency, formatTimestamp, todayISO } from '../utils/helpers';
 import { v4 as uuidv4 } from 'uuid';
 import { Timestamp } from 'firebase/firestore';
@@ -334,7 +334,7 @@ const showDeleteAccountDialog = ref(false);
 const showDeleteSnapshotDialog = ref(false);
 const showBatchDeleteSnapshotDialog = ref(false);
 const showUpdateBudgetTransactionsDialog = ref(false);
-const accountType = ref<'Bank' | 'CreditCard' | 'Investment' | 'Property' | 'Loan'>('Bank');
+const accountType = ref<AccountType>(AccountType.Bank);
 const editMode = ref(false);
 const isPersonalAccount = ref(false);
 const selectAll = ref(false);
@@ -401,10 +401,10 @@ const loanAccounts = computed(() =>
 );
 
 const snapshotHeaders = ref([
-  { name: 'select', label: '', align: 'center', sortable: false },
+  { name: 'select', label: '', field: 'select', align: 'center', sortable: false },
   { name: 'date', label: 'Date', field: 'date', align: 'left', sortable: true },
   { name: 'netWorth', label: 'Net Worth', field: 'netWorth', align: 'left', sortable: true },
-  { name: 'actions', label: 'Actions', align: 'center', sortable: false },
+  { name: 'actions', label: 'Actions', field: 'actions', align: 'center', sortable: false },
 ]);
 
 const snapshotsWithSelection = computed(() => {

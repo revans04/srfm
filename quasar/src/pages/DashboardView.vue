@@ -161,7 +161,7 @@
                     <Currency-Input v-model.number="cat.target" label="Target" class="text-right" dense required />
                   </q-col>
                   <q-col cols="12" sm="2" class="q-pa-sm">
-                    <Currency-Input v-model="cat.carryover" label="Carryover" class="text-right" dense />
+                    <Currency-Input v-model.number="cat.carryover" label="Carryover" class="text-right" dense />
                   </q-col>
                   <q-col cols="12" sm="2" class="q-pa-sm">
                     <q-checkbox v-model="cat.isFund" label="Is Fund?" dense />

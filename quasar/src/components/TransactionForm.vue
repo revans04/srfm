@@ -370,10 +370,10 @@ onMounted(async () => {
   isInitialized.value = true;
 });
 
-function scrollToNoteField(event: FocusEvent) {
+function scrollToNoteField(evt: Event) {
   if (isMobile.value) {
     setTimeout(() => {
-      (event.target as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center' });
+      (evt.target as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 300); // Delay to account for keyboard appearance
   }
 }
