@@ -1,5 +1,5 @@
 // src/constants/taxRules.ts
-import { EntityType, TaxRule } from "@/types";
+import { EntityType, TaxRule } from "../types";
 
 export const DEFAULT_TAX_RULES: TaxRule[] = [
   // Family and Other (Form 1040)

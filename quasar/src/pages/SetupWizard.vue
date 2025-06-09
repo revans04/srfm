@@ -225,7 +225,7 @@ import AccountList from '../components/AccountList.vue';
 import AccountForm from '../components/AccountForm.vue';
 import { v4 as uuidv4 } from 'uuid';
 import { Timestamp } from 'firebase/firestore';
-import { AccountType, type Family, type Account } from '@/types';
+import { AccountType, type Family, type Account } from '../types';
 
 interface WizardStep {
   value: string;

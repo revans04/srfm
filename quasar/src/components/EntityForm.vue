@@ -222,8 +222,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
-import type { TemplateBudget, BudgetCategory, TaxForm, Entity } from '@/types';
-import { EntityType } from '@/types';
+import type { TemplateBudget, BudgetCategory, TaxForm, Entity } from '../types';
+import { EntityType } from '../types';
 import CurrencyInput from './CurrencyInput.vue';
 import { useBudgetStore } from '../store/budget';
 import { useFamilyStore } from '../store/family';
@@ -231,7 +231,7 @@ import { auth } from '../firebase/index';
 import { DEFAULT_BUDGET_TEMPLATES } from '../constants/budgetTemplates';
 import { DEFAULT_TAX_FORMS } from '../constants/taxForms';
 import { v4 as uuidv4 } from 'uuid';
-import { formatCurrency, formatEntityType } from '@/utils/helpers';
+import { formatCurrency, formatEntityType } from '../utils/helpers';
 import { Timestamp } from 'firebase/firestore';
 
 const props = defineProps<{

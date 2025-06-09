@@ -229,7 +229,7 @@ import {
 } from 'chart.js';
 import { useBudgetStore } from '../store/budget';
 import 'chartjs-adapter-date-fns';
-import { timestampToDate, currentMonthISO } from '@/utils/helpers';
+import { timestampToDate, currentMonthISO } from '../utils/helpers';
 
 // Register Chart.js components
 ChartJS.register(

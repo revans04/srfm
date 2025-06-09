@@ -11,7 +11,7 @@ import ReportsView from "../views/ReportsView.vue";
 import VerifyEmail from "../views/VerifyEmail.vue";
 import AcceptInvite from "../views/AcceptInvite.vue";
 import SetupWizard from "../views/SetupWizard.vue";
-import { useFamilyStore } from "@/store/family";
+import { useFamilyStore } from "../store/family";
 
 interface RouteMeta {
   requiresAuth?: boolean;

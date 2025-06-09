@@ -2,7 +2,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 import routes from "./routes";
 import { auth } from "../firebase/index";
-import { useFamilyStore } from "@/store/family";
+import { useFamilyStore } from "../store/family";
 import type { Router } from "vue-router";
 
 interface RouteMeta {

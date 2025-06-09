@@ -1,5 +1,5 @@
 // src/constants/budgetTemplates.ts
-import type { TemplateBudget } from "@/types";
+import type { TemplateBudget } from "../types";
 
 interface BudgetTemplateMap {
   [key: string]: TemplateBudget;
@@ -8,7 +8,7 @@ interface BudgetTemplateMap {
 export const DEFAULT_BUDGET_TEMPLATES: BudgetTemplateMap = {
   Family: {
     categories: [
-      { name: "Primary Income", target: 3000, isFund: false, group: "Income" }, 
+      { name: "Primary Income", target: 3000, isFund: false, group: "Income" },
       { name: "Groceries", target: 300, isFund: false, group: "Food" },
       { name: "Housing", target: 850, isFund: false, group: "Housing" },
       { name: "Generosity", target: 300, isFund: false, group: "Giving" },
@@ -18,9 +18,9 @@ export const DEFAULT_BUDGET_TEMPLATES: BudgetTemplateMap = {
       { name: "Health", target: 125, isFund: false, group: "Health" },
       { name: "Insurance", target: 250, isFund: false, group: "Insurance" },
       { name: "Entertainment", target: 125, isFund: false, group: "Lifestyle" },
-      { name: "Personal Spending", target: 125, isFund: false, group: "Personal" }, 
+      { name: "Personal Spending", target: 125, isFund: false, group: "Personal" },
       { name: "Savings", target: 300, isFund: true, group: "Savings" },
-      { name: "Miscellaneous", target: 125, isFund: false, group: "Miscellaneous" }, 
+      { name: "Miscellaneous", target: 125, isFund: false, group: "Miscellaneous" },
     ],
   },
   Business: {

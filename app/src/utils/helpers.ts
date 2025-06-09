@@ -1,6 +1,6 @@
 // src/utils/helpers.ts
 
-import { EntityType, Transaction } from "@/types";
+import { EntityType, Transaction } from "../types";
 import { v4 as uuidv4 } from "uuid";
 import { Timestamp } from "firebase/firestore";
 

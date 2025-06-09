@@ -25,7 +25,7 @@
 import { ref, onMounted } from 'vue';
 import { auth } from '../firebase/index';
 import { dataAccess } from '../dataAccess';
-import { useFamilyStore } from '@/store/family';
+import { useFamilyStore } from '../store/family';
 
 const familyStore = useFamilyStore();
 const emit = defineEmits(['family-created']);

@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import { Statement } from "@/types";
-import { dataAccess } from "@/dataAccess";
+import { Statement } from "../types";
+import { dataAccess } from "../dataAccess";
 
 export const useStatementStore = defineStore("statements", () => {
   const statements = ref<Record<string, Statement[]>>({});

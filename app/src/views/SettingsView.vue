@@ -213,10 +213,10 @@ import { ref, onMounted, onUnmounted, computed } from "vue";
 import { auth } from "../firebase/index";
 import { dataAccess } from "../dataAccess";
 import { Timestamp } from "firebase/firestore";
-import { Family, PendingInvite, Entity, Budget, ImportedTransactionDoc } from "@/types";
+import { Family, PendingInvite, Entity, Budget, ImportedTransactionDoc } from "../types";
 import { useFamilyStore } from "../store/family";
 import EntityForm from "../components/EntityForm.vue";
-import { timestampToDate } from "@/utils/helpers";
+import { timestampToDate } from "../utils/helpers";
 
 const familyStore = useFamilyStore();
 const inviteEmail = ref("");

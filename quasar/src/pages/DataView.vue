@@ -518,7 +518,7 @@ import {
   parseAmount,
   adjustTransactionDate,
   todayISO,
-} from '@/utils/helpers';
+} from '../utils/helpers';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { Timestamp } from 'firebase/firestore';

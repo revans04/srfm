@@ -1,5 +1,5 @@
 // src/constants/taxForms.ts
-import { EntityType, TaxForm } from "@/types";
+import { EntityType, TaxForm } from "../types";
 
 export const DEFAULT_TAX_FORMS: TaxForm[] = [
   {

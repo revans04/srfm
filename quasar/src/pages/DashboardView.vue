@@ -15,9 +15,8 @@
         <q-banner dense class="bg-info text-white">
           <q-row align="center">
             <q-col class="grow">
-              No budgets found for {{ selectedEntity?.name || 'selected entity' }}. Would you like
-              to create a default budget for {{ formatMonth(currentMonth) }}? You can also import
-              budget information from the Data Page.
+              No budgets found for {{ selectedEntity?.name || 'selected entity' }}. Would you like to create a default budget for
+              {{ formatMonth(currentMonth) }}? You can also import budget information from the Data Page.
             </q-col>
             <q-col class="shrink">
               <q-btn color="primary" label="Create Default Budget" @click="createDefaultBudget" />
@@ -46,14 +45,12 @@
           />
           <div class="row items-center">
             <q-menu v-model="menuOpen" :offset="[0, 8]">
-              <template v-slot:default="{ toggle }">
-                <div class="month-selector" :class="{ 'text-white': isMobile }" @click="toggle">
-                  <h1 class="text-h4">
-                    {{ formatMonth(currentMonth) }}
-                    <q-icon name="mdi-chevron-down" size="sm" />
-                  </h1>
-                </div>
-              </template>
+              <div slot="activator" class="month-selector" :class="{ 'text-white': isMobile }" @click="menuOpen = !menuOpen">
+                <h1 class="text-h4">
+                  {{ formatMonth(currentMonth) }}
+                  <q-icon name="mdi-chevron-down" size="sm" />
+                </h1>
+              </div>
               <q-card class="month-menu">
                 <q-row no-gutters class="month-navigation items-center">
                   <q-col cols="auto">
@@ -67,12 +64,7 @@
                   </q-col>
                 </q-row>
                 <q-row no-gutters>
-                  <q-col
-                    v-for="month in displayedMonths"
-                    :key="month.value"
-                    cols="4"
-                    class="month-item"
-                  >
+                  <q-col v-for="month in displayedMonths" :key="month.value" cols="4" class="month-item">
                     <div
                       class="q-pa-xs rounded-borders cursor-pointer q-ma-xs text-center"
                       :class="month.value === currentMonth ? 'bg-primary text-white' : ''"
@@ -90,31 +82,9 @@
               </q-card>
             </q-menu>
             <div class="q-ml-sm">
-              <q-btn
-                v-if="!isMobile && !isEditing"
-                icon="mdi-pencil"
-                flat
-                dense
-                color="primary"
-                title="Edit Budget"
-                @click="isEditing = true"
-              />
-              <q-btn
-                v-if="isEditing"
-                icon="mdi-close"
-                flat
-                dense
-                title="Cancel"
-                @click="isEditing = false"
-              />
-              <q-btn
-                v-if="!isMobile && !isEditing"
-                icon="mdi-trash-can-outline"
-                flat
-                dense
-                color="negative"
-                title="Delete Budget"
-              />
+              <q-btn v-if="!isMobile && !isEditing" icon="mdi-pencil" flat dense color="primary" title="Edit Budget" @click="isEditing = true" />
+              <q-btn v-if="isEditing" icon="mdi-close" flat dense title="Cancel" @click="isEditing = false" />
+              <q-btn v-if="!isMobile && !isEditing" icon="mdi-trash-can-outline" flat dense color="negative" title="Delete Budget" />
             </div>
           </div>
           <div
@@ -135,28 +105,16 @@
             <q-input v-model="search" label="Search" dense outlined append-icon="mdi-magnify" />
           </div>
         </q-col>
-        <q-btn
-          v-if="isMobile && !selectedCategory"
-          icon="mdi-plus"
-          round
-          color="white"
-          class="fixed-top-right"
-          @click="addTransaction"
-        />
+        <q-btn v-if="isMobile && !selectedCategory" icon="mdi-plus" round color="white" class="fixed-top-right" @click="addTransaction" />
       </q-row>
 
       <q-row>
         <!-- Main Content -->
-        <q-col
-          :cols="selectedCategory ? (isMobile ? 0 : 8) : 12"
-          :class="{ 'd-none': selectedCategory && isMobile }"
-        >
+        <q-col :cols="selectedCategory ? (isMobile ? 0 : 8) : 12" :class="{ 'd-none': selectedCategory && isMobile }">
           <!-- Budget Editing Form -->
           <q-card v-if="isEditing">
             <q-card-section>
-              <div class="text-h6">
-                Edit Budget for {{ selectedEntity?.name || 'selected entity' }}
-              </div>
+              <div class="text-h6">Edit Budget for {{ selectedEntity?.name || 'selected entity' }}</div>
             </q-card-section>
             <q-card-section>
               <q-form @submit="saveBudget">
@@ -192,12 +150,7 @@
                     <h3>Categories</h3>
                   </q-col>
                 </q-row>
-                <q-row
-                  v-for="(cat, index) in budget.categories"
-                  :key="index"
-                  class="items-center"
-                  no-gutters
-                >
+                <q-row v-for="(cat, index) in budget.categories" :key="index" class="items-center" no-gutters>
                   <q-col cols="12" sm="3" class="q-pa-sm">
                     <q-input v-model="cat.name" label="Category" outlined dense required />
                   </q-col>
@@ -205,50 +158,22 @@
                     <q-input v-model="cat.group" label="Group (e.g., Utilities)" outlined dense />
                   </q-col>
                   <q-col cols="12" sm="2" class="q-pa-sm">
-                    <Currency-Input
-                      v-model.number="cat.target"
-                      label="Target"
-                      class="text-right"
-                      dense
-                      required
-                    />
+                    <Currency-Input v-model.number="cat.target" label="Target" class="text-right" dense required />
                   </q-col>
                   <q-col cols="12" sm="2" class="q-pa-sm">
-                    <Currency-Input
-                      v-model="cat.carryover"
-                      label="Carryover"
-                      class="text-right"
-                      dense
-                    />
+                    <Currency-Input v-model="cat.carryover" label="Carryover" class="text-right" dense />
                   </q-col>
                   <q-col cols="12" sm="2" class="q-pa-sm">
                     <q-checkbox v-model="cat.isFund" label="Is Fund?" dense />
                   </q-col>
                   <q-col cols="12" sm="1" class="q-pa-sm">
-                    <q-btn
-                      icon="mdi-close"
-                      color="negative"
-                      flat
-                      dense
-                      @click="removeCategory(index)"
-                    />
+                    <q-btn icon="mdi-close" color="negative" flat dense @click="removeCategory(index)" />
                   </q-col>
                 </q-row>
 
                 <q-btn color="primary" label="Add Category" class="q-mt-sm" @click="addCategory" />
-                <q-btn
-                  color="positive"
-                  label="Add Income Category"
-                  class="q-mt-sm q-ml-sm"
-                  @click="addIncomeCategory"
-                />
-                <q-btn
-                  type="submit"
-                  color="positive"
-                  label="Save Budget"
-                  class="q-mt-sm q-ml-sm"
-                  :loading="saving"
-                />
+                <q-btn color="positive" label="Add Income Category" class="q-mt-sm q-ml-sm" @click="addIncomeCategory" />
+                <q-btn type="submit" color="positive" label="Save Budget" class="q-mt-sm q-ml-sm" :loading="saving" />
               </q-form>
             </q-card-section>
           </q-card>
@@ -257,18 +182,11 @@
           <q-card v-if="!isEditing && incomeItems">
             <q-card-section>
               <q-row>
-                <q-col class="text-bold">
-                  Income for {{ selectedEntity?.name || 'selected entity' }}
-                </q-col>
+                <q-col class="text-bold"> Income for {{ selectedEntity?.name || 'selected entity' }} </q-col>
                 <q-col v-if="!isMobile" cols="auto">Planned</q-col>
                 <q-col :cols="isMobile ? 'auto' : '2'" class="text-right">Received</q-col>
               </q-row>
-              <div
-                v-for="item in incomeItems"
-                :key="item.name"
-                style="border-bottom: 1px solid var(--q-light)"
-                class="q-py-sm"
-              >
+              <div v-for="item in incomeItems" :key="item.name" style="border-bottom: 1px solid var(--q-light)" class="q-py-sm">
                 <q-row @click="onIncomeRowClick(item)" class="cursor-pointer">
                   <q-col>{{ item.name }}</q-col>
                   <q-col v-if="!isMobile" cols="auto">
@@ -289,10 +207,7 @@
                   {{ formatCurrency(toDollars(toCents(plannedIncome))) }}
                 </q-col>
                 <q-col :cols="isMobile ? 'auto' : '2'">
-                  <div
-                    class="text-bold text-right"
-                    :class="actualIncome > plannedIncome ? 'text-positive' : ''"
-                  >
+                  <div class="text-bold text-right" :class="actualIncome > plannedIncome ? 'text-positive' : ''">
                     {{ formatCurrency(toDollars(toCents(actualIncome))) }}
                   </div>
                 </q-col>
@@ -311,10 +226,7 @@
                     <q-col v-if="!isMobile" cols="2">Planned</q-col>
                     <q-col :cols="isMobile ? 'auto' : '2'">Remaining</q-col>
                   </q-row>
-                  <div
-                    v-for="(item, idx) in catTransactions.filter((c) => c.group == g.group)"
-                    :key="idx"
-                  >
+                  <div v-for="(item, idx) in catTransactions.filter((c) => c.group == g.group)" :key="idx">
                     <q-row @click="handleRowClick(item)" class="cursor-pointer">
                       <q-col
                         v-if="!(inlineEdit.item?.name === item.name && inlineEdit.field === 'name')"
@@ -322,13 +234,7 @@
                         @touchstart="startTouch(item, 'name')"
                         @touchend="endTouch"
                       >
-                        <q-icon
-                          v-if="item.isFund"
-                          name="mdi-piggy-bank-outline"
-                          size="sm"
-                          color="primary"
-                          class="q-mr-xs"
-                        />
+                        <q-icon v-if="item.isFund" name="mdi-piggy-bank-outline" size="sm" color="primary" class="q-mr-xs" />
                         {{ item.name }}
                       </q-col>
                       <q-col v-else>
@@ -343,10 +249,7 @@
                         />
                       </q-col>
                       <q-col
-                        v-if="
-                          !isMobile &&
-                          !(inlineEdit.item?.name === item.name && inlineEdit.field === 'target')
-                        "
+                        v-if="!isMobile && !(inlineEdit.item?.name === item.name && inlineEdit.field === 'target')"
                         cols="2"
                         @dblclick.stop="handleTargetDblClick(item)"
                         @touchstart="startTouch(item, 'target')"
@@ -363,21 +266,13 @@
                           @blur="saveInlineEdit"
                         />
                       </q-col>
-                      <q-col
-                        :cols="isMobile ? 'auto' : '2'"
-                        :class="item.remaining && item.remaining < 0 ? 'text-negative' : ''"
-                      >
+                      <q-col :cols="isMobile ? 'auto' : '2'" :class="item.remaining && item.remaining < 0 ? 'text-negative' : ''">
                         {{ formatCurrency(item.remaining) }}
                       </q-col>
                     </q-row>
                     <q-row no-gutters>
                       <q-col cols="12">
-                        <q-linear-progress
-                          :value="item.percentage / 100"
-                          color="primary"
-                          track-color="grey-3"
-                          class="progress-bar"
-                        />
+                        <q-linear-progress :value="item.percentage / 100" color="primary" track-color="grey-3" class="progress-bar" />
                       </q-col>
                     </q-row>
                   </div>
@@ -385,20 +280,13 @@
               </q-card>
             </q-col>
             <q-col cols="12" v-if="groups.length === 0">
-              <q-banner dense class="bg-warning text-black">
-                No categories defined for this budget.
-              </q-banner>
+              <q-banner dense class="bg-warning text-black"> No categories defined for this budget. </q-banner>
             </q-col>
           </q-row>
         </q-col>
 
         <!-- Transaction List Sidebar -->
-        <q-col
-          v-if="selectedCategory && !isEditing"
-          :cols="isMobile ? 12 : 4"
-          class="sidebar"
-          :class="{ 'sidebar-mobile': isMobile }"
-        >
+        <q-col v-if="selectedCategory && !isEditing" :cols="isMobile ? 12 : 4" class="sidebar" :class="{ 'sidebar-mobile': isMobile }">
           <category-transactions
             :category="selectedCategory"
             :transactions="budget.transactions"
@@ -469,23 +357,9 @@ import { dataAccess } from '../dataAccess';
 import CurrencyInput from '../components/CurrencyInput.vue';
 import CategoryTransactions from '../components/CategoryTransactions.vue';
 import TransactionForm from '../components/TransactionForm.vue';
-import {
-  Transaction,
-  Budget,
-  IncomeTarget,
-  BudgetCategoryTrx,
-  BudgetCategory,
-  Entity,
-} from '../types';
+import { Transaction, Budget, IncomeTarget, BudgetCategoryTrx, BudgetCategory, Entity } from '../types';
 import version from '../version';
-import {
-  toDollars,
-  toCents,
-  formatCurrency,
-  adjustTransactionDate,
-  todayISO,
-  currentMonthISO,
-} from '../utils/helpers';
+import { toDollars, toCents, formatCurrency, adjustTransactionDate, todayISO, currentMonthISO } from '../utils/helpers';
 import { useBudgetStore } from '../store/budget';
 import { useMerchantStore } from '../store/merchants';
 import { useFamilyStore } from '../store/family';
@@ -673,9 +547,7 @@ const catTransactions = computed(() => {
 
   if (debouncedSearch.value !== '') {
     const srch = debouncedSearch.value.toLowerCase();
-    return catTransactions.filter(
-      (t) => t.group.toLowerCase().includes(srch) || t.name.toLowerCase().includes(srch),
-    );
+    return catTransactions.filter((t) => t.group.toLowerCase().includes(srch) || t.name.toLowerCase().includes(srch));
   }
   return catTransactions;
 });
@@ -734,11 +606,7 @@ const plannedIncome = computed(() => {
 });
 
 function monthExists(month: string) {
-  return (
-    availableBudgets.value.filter(
-      (b) => b.month == month && b.entityId === familyStore.selectedEntityId,
-    ).length > 0
-  );
+  return availableBudgets.value.filter((b) => b.month == month && b.entityId === familyStore.selectedEntityId).length > 0;
 }
 
 function onIncomeRowClick(item: IncomeTarget) {
@@ -792,9 +660,7 @@ const updateBudgetForMonth = debounce(async () => {
     return;
   }
 
-  const defaultBudget = budgets.value.find(
-    (b) => b.month === currentMonth.value && b.entityId === familyStore.selectedEntityId,
-  );
+  const defaultBudget = budgets.value.find((b) => b.month === currentMonth.value && b.entityId === familyStore.selectedEntityId);
   if (defaultBudget) {
     const family = await familyStore.getFamily();
     if (family) {
@@ -899,12 +765,7 @@ async function loadBudgets() {
   }
 }
 
-async function createBudgetForMonth(
-  month: string,
-  familyId: string,
-  ownerUid: string,
-  entityId: string,
-): Promise<Budget> {
+async function createBudgetForMonth(month: string, familyId: string, ownerUid: string, entityId: string): Promise<Budget> {
   const budgetId = `${ownerUid}_${entityId}_${month}`;
   const existingBudget = await dataAccess.getBudget(budgetId);
   if (existingBudget) {
@@ -959,20 +820,14 @@ async function createBudgetForMonth(
     return newBudget;
   }
 
-  const availableBudgets = Array.from(budgetStore.budgets.values()).sort((a, b) =>
-    a.month.localeCompare(b.month),
-  );
+  const availableBudgets = Array.from(budgetStore.budgets.values()).sort((a, b) => a.month.localeCompare(b.month));
   let sourceBudget: Budget | undefined;
 
-  const previousBudgets = availableBudgets.filter(
-    (b) => b.month < month && b.entityId === entityId,
-  );
+  const previousBudgets = availableBudgets.filter((b) => b.month < month && b.entityId === entityId);
   if (previousBudgets.length > 0) {
     sourceBudget = previousBudgets[previousBudgets.length - 1];
   } else {
-    const futureBudgets = availableBudgets.filter(
-      (b) => b.month > month && b.entityId === entityId,
-    );
+    const futureBudgets = availableBudgets.filter((b) => b.month > month && b.entityId === entityId);
     if (futureBudgets.length > 0) {
       sourceBudget = futureBudgets[0];
     }
@@ -981,8 +836,7 @@ async function createBudgetForMonth(
   if (sourceBudget) {
     const [newYear, newMonthNum] = month.split('-').map(Number);
     const [sourceYear, sourceMonthNum] = sourceBudget.month.split('-').map(Number);
-    const isFutureMonth =
-      newYear > sourceYear || (newYear === sourceYear && newMonthNum > sourceMonthNum);
+    const isFutureMonth = newYear > sourceYear || (newYear === sourceYear && newMonthNum > sourceMonthNum);
 
     let newCarryover: Record<string, number> = {};
     if (isFutureMonth) {
@@ -1021,9 +875,7 @@ async function createBudgetForMonth(
       );
 
       Object.values(recurringGroups).forEach((group) => {
-        const firstInstance = group.sort(
-          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-        )[0];
+        const firstInstance = group.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
         if (firstInstance.recurringInterval === 'Monthly') {
           const newDate = adjustTransactionDate(firstInstance.date, month, 'Monthly');
           recurringTransactions.push({
@@ -1083,12 +935,7 @@ async function createDefaultBudget() {
       return;
     }
 
-    const budget = await createBudgetForMonth(
-      currentMonth.value,
-      family.id,
-      family.ownerUid,
-      familyStore.selectedEntityId,
-    );
+    const budget = await createBudgetForMonth(currentMonth.value, family.id, family.ownerUid, familyStore.selectedEntityId);
     await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
     showSnackbar('Budget created successfully', 'positive');
   } catch (error: any) {
@@ -1122,16 +969,12 @@ function updateMerchants() {
 async function onTransactionSaved(transaction: Transaction) {
   showTransactionDialog.value = false;
   try {
-    budget.value.transactions = budget.value.transactions
-      ? budget.value.transactions.filter((tx) => tx.id !== transaction.id)
-      : [];
+    budget.value.transactions = budget.value.transactions ? budget.value.transactions.filter((tx) => tx.id !== transaction.id) : [];
     budget.value.transactions.push(transaction);
     budgetStore.updateBudget(budgetId.value, { ...budget.value });
 
     updateMerchants();
-    showSnackbar(
-      isIncomeTransaction.value ? 'Income added successfully' : 'Transaction added successfully',
-    );
+    showSnackbar(isIncomeTransaction.value ? 'Income added successfully' : 'Transaction added successfully');
   } catch (error: any) {
     showSnackbar(`Error updating transaction: ${error.message}`, 'negative');
   }
@@ -1179,12 +1022,7 @@ async function selectMonth(month: string) {
         categoryOptions.value.push('Income');
       }
     } else {
-      const b = await createBudgetForMonth(
-        month,
-        family!.id,
-        ownerId,
-        familyStore.selectedEntityId,
-      );
+      const b = await createBudgetForMonth(month, family!.id, ownerId, familyStore.selectedEntityId);
       budget.value = { ...b, budgetId: newBudgetId };
       budgetStore.updateBudget(newBudgetId, b);
       categoryOptions.value = b.categories.map((cat) => cat.name);
@@ -1254,9 +1092,7 @@ function addMerchant() {
   const merchantName = newMerchantName.value.trim();
   if (merchantName === '') return;
 
-  const existingMerchant = budget.value.merchants.find(
-    (m) => m.name.toLowerCase() === merchantName.toLowerCase(),
-  );
+  const existingMerchant = budget.value.merchants.find((m) => m.name.toLowerCase() === merchantName.toLowerCase());
 
   if (existingMerchant) {
     showSnackbar('Merchant already exists', 'warning');
@@ -1383,12 +1219,7 @@ async function duplicateCurrentMonth(month: string) {
       return;
     }
 
-    const newBudget = await createBudgetForMonth(
-      month,
-      family.id,
-      family.ownerUid,
-      familyStore.selectedEntityId,
-    );
+    const newBudget = await createBudgetForMonth(month, family.id, family.ownerUid, familyStore.selectedEntityId);
     await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
 
     showSnackbar("Created new month's budget");
@@ -1482,10 +1313,7 @@ async function saveInlineEdit() {
       selectedCategory.value.name = newName;
     }
   } else {
-    const amount =
-      typeof inlineEdit.value.value === 'number'
-        ? inlineEdit.value.value
-        : parseFloat(String(inlineEdit.value.value));
+    const amount = typeof inlineEdit.value.value === 'number' ? inlineEdit.value.value : parseFloat(String(inlineEdit.value.value));
     budget.value.categories[idx].target = isNaN(amount) ? 0 : amount;
     item.target = isNaN(amount) ? 0 : amount;
   }

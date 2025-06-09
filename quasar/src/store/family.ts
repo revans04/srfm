@@ -3,7 +3,7 @@ import { ref } from "vue";
 import type { Family, Entity } from "../types";
 import { EntityType } from "../types";
 import { dataAccess } from "../dataAccess";
-import { auth } from "@/firebase/index";
+import { auth } from "../firebase/index";
 
 export const useFamilyStore = defineStore("family", () => {
   const family = ref<Family>();

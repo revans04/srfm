@@ -107,13 +107,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { auth } from '@/firebase/index';
+import { auth } from '../firebase/index';
 import { User } from 'firebase/auth';
 import { useRouter } from 'vue-router';
 import version from '@/version';
 import GroupNamingForm from '@/components/GroupNamingForm.vue';
-import { useAuthStore } from '@/store/auth';
-import { useFamilyStore } from '@/store/family';
+import { useAuthStore } from '../store/auth';
+import { useFamilyStore } from '../store/family';
 
 const router = useRouter();
 const authStore = useAuthStore();

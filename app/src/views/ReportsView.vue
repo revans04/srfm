@@ -165,7 +165,7 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend, LineElement, PointElemen
 import { useBudgetStore } from "../store/budget";
 import { Timestamp } from "firebase/firestore";
 import "chartjs-adapter-date-fns";
-import { timestampToDate, currentMonthISO } from "@/utils/helpers";
+import { timestampToDate, currentMonthISO } from "../utils/helpers";
 
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend, LineElement, PointElement, LinearScale, TimeScale, Filler);

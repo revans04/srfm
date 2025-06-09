@@ -1,7 +1,7 @@
 // src/utils/helpers.ts
 
-import { EntityType } from "@/types";
-import type { Transaction } from "@/types";
+import { EntityType } from "../types";
+import type { Transaction } from "../types";
 import { v4 as uuidv4 } from "uuid";
 import { Timestamp } from "firebase/firestore";
 
@@ -41,7 +41,7 @@ export function formatTimestamp(timestamp: unknown) {
 
   const ts = timestamp as { seconds: number; nanoseconds: number };
   const date = new Timestamp(ts.seconds, ts.nanoseconds).toDate();
-  
+
   return date.toLocaleDateString("en-US", {
     month: "2-digit",
     day: "2-digit",

@@ -1,5 +1,5 @@
 // src/store/merchants.ts
-import { Transaction } from "@/types";
+import { Transaction } from "../types";
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 
