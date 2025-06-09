@@ -1,235 +1,102 @@
-<!-- src/layouts/MainLayout.vue -->
 <template>
-  <q-layout view="lHr LpR lFr">
-    <!-- Desktop Navigation Drawer -->
+  <q-layout view="lHh Lpr lFf">
+    <q-header elevated>
+      <q-toolbar>
+        <q-btn
+          flat
+          dense
+          round
+          icon="menu"
+          aria-label="Menu"
+          @click="toggleLeftDrawer"
+        />
+
+        <q-toolbar-title>
+          Quasar App
+        </q-toolbar-title>
+
+        <div>Quasar v{{ $q.version }}</div>
+      </q-toolbar>
+    </q-header>
+
     <q-drawer
-      v-if="!isMobile && !isLoginRoute"
-      v-model="drawer"
+      v-model="leftDrawerOpen"
       show-if-above
-      :width="200"
-      :breakpoint="960"
-      side="left"
       bordered
     >
-      <div class="q-pa-md text-center bg-primary">
-        <img
-          alt="Steady Rise Financial Management"
-          src="@/assets/family-funds-sm.png"
-          style="width: 100px"
-        />
-      </div>
       <q-list>
-        <q-item
-          v-for="item in navItems.filter((n) => n.desktop)"
-          :key="item.title"
-          :to="item.path"
-          clickable
-          :active="router.currentRoute.value.path === item.path"
+        <q-item-label
+          header
         >
-          <q-item-section avatar>
-            <q-icon :name="item.icon" />
-          </q-item-section>
-          <q-item-section>
-            {{ item.title }}
-          </q-item-section>
-        </q-item>
+          Essential Links
+        </q-item-label>
+
+        <EssentialLink
+          v-for="link in linksList"
+          :key="link.title"
+          v-bind="link"
+        />
       </q-list>
-      <div class="absolute-bottom">
-        <q-item class="text-caption text-center">
-          {{ `Version: ${appVersion}` }}
-        </q-item>
-        <q-separator />
-        <q-item clickable @click="signOut">
-          <q-item-section avatar>
-            <q-avatar size="36px" class="q-mr-sm">
-              <img v-if="user" :src="avatarSrc" alt="User Avatar" />
-            </q-avatar>
-          </q-item-section>
-          <q-item-section>
-            {{ userEmail || '' }}
-          </q-item-section>
-          <q-item-section side>
-            <q-icon name="mdi-logout" />
-          </q-item-section>
-        </q-item>
-      </div>
     </q-drawer>
 
-    <!-- Main Content -->
     <q-page-container>
-      <q-page :class="isMobile ? 'bg-primary' : 'bg-light'">
-        <router-view />
-      </q-page>
+      <router-view />
     </q-page-container>
-
-    <!-- Mobile Bottom Navigation -->
-    <q-footer v-if="isMobile && !isLoginRoute" bordered class="bg-white">
-      <q-tabs
-        v-model="currentTab"
-        dense
-        class="text-grey"
-        active-color="primary"
-        indicator-color="primary"
-        align="justify"
-      >
-        <q-tab
-          v-for="item in navItems.filter((i) => i.mobile)"
-          :key="item.title"
-          :name="item.path"
-          :icon="item.icon"
-          :label="item.title"
-          :style="{ fontSize: '5pt' }"
-          @click="item.title === 'Logout' ? promptSignOut() : router.push(item.path)"
-        />
-      </q-tabs>
-    </q-footer>
-
-    <!-- Sign-Out Confirmation Dialog -->
-    <q-dialog v-model="showSignOutDialog" persistent>
-      <q-card>
-        <q-card-section class="bg-primary text-white">
-          <div class="text-h6">Confirm Logout</div>
-        </q-card-section>
-        <q-card-section> Are you sure you want to logout? </q-card-section>
-        <q-card-actions align="right">
-          <q-btn flat label="Cancel" color="grey" @click="showSignOutDialog = false" />
-          <q-btn flat label="Confirm" color="primary" @click="signOut" />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-
-    <!-- Onboarding Modal -->
-    <q-dialog v-model="showOnboarding" persistent>
-      <group-naming-form @family-created="completeOnboarding" />
-    </q-dialog>
   </q-layout>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { auth } from '../firebase/index';
-import { User } from 'firebase/auth';
-import { useRouter } from 'vue-router';
-import version from '@/version';
-import GroupNamingForm from '@/components/GroupNamingForm.vue';
-import { useAuthStore } from '../store/auth';
-import { useFamilyStore } from '../store/family';
+import { ref } from 'vue';
+import EssentialLink, { type EssentialLinkProps } from 'components/EssentialLink.vue';
 
-const router = useRouter();
-const authStore = useAuthStore();
-const familyStore = useFamilyStore();
-const currentTab = ref('/');
-const drawer = ref(true);
-
-// Reactive state
-const user = ref<User | null>(null);
-const avatarSrc = ref<string>('https://via.placeholder.com/36');
-const windowWidth = ref(window.innerWidth);
-const showOnboarding = ref(false);
-const showSignOutDialog = ref(false);
-
-// Computed properties
-const isLoginRoute = computed(() => router.currentRoute.value.path === '/login');
-const isMobile = computed(() => windowWidth.value < 960);
-const userEmail = computed(() => user.value?.email ?? 'Guest');
-const appVersion = version;
-
-const navItems = [
-  { title: 'Budget', path: '/', icon: 'mdi-turtle', desktop: true, mobile: true },
+const linksList: EssentialLinkProps[] = [
   {
-    title: 'Transactions',
-    path: '/transactions',
-    icon: 'mdi-format-list-bulleted',
-    desktop: true,
-    mobile: true,
-  },
-  { title: 'Accounts', path: '/accounts', icon: 'mdi-bank-outline', desktop: true, mobile: true },
-  { title: 'Reports', path: '/reports', icon: 'mdi-trending-up', desktop: true, mobile: false },
-  {
-    title: 'Data Mgmt',
-    path: '/data',
-    icon: 'mdi-database-export-outline',
-    desktop: true,
-    mobile: false,
+    title: 'Docs',
+    caption: 'quasar.dev',
+    icon: 'school',
+    link: 'https://quasar.dev'
   },
   {
-    title: 'Settings',
-    path: '/settings',
-    icon: 'mdi-account-group-outline',
-    desktop: true,
-    mobile: true,
+    title: 'Github',
+    caption: 'github.com/quasarframework',
+    icon: 'code',
+    link: 'https://github.com/quasarframework'
   },
-  { title: 'Logout', path: '', icon: 'mdi-logout', desktop: false, mobile: true },
+  {
+    title: 'Discord Chat Channel',
+    caption: 'chat.quasar.dev',
+    icon: 'chat',
+    link: 'https://chat.quasar.dev'
+  },
+  {
+    title: 'Forum',
+    caption: 'forum.quasar.dev',
+    icon: 'record_voice_over',
+    link: 'https://forum.quasar.dev'
+  },
+  {
+    title: 'Twitter',
+    caption: '@quasarframework',
+    icon: 'rss_feed',
+    link: 'https://twitter.quasar.dev'
+  },
+  {
+    title: 'Facebook',
+    caption: '@QuasarFramework',
+    icon: 'public',
+    link: 'https://facebook.quasar.dev'
+  },
+  {
+    title: 'Quasar Awesome',
+    caption: 'Community Quasar projects',
+    icon: 'favorite',
+    link: 'https://awesome.quasar.dev'
+  }
 ];
 
-// Functions
-async function signOut() {
-  try {
-    await auth.signOut();
-    router.push('/login');
-  } catch (error) {
-    console.error('Sign-out error:', error);
-  } finally {
-    showSignOutDialog.value = false;
-  }
+const leftDrawerOpen = ref(false);
+
+function toggleLeftDrawer () {
+  leftDrawerOpen.value = !leftDrawerOpen.value;
 }
-
-function promptSignOut() {
-  showSignOutDialog.value = true;
-}
-
-function handleResize() {
-  windowWidth.value = window.innerWidth;
-}
-
-function completeOnboarding(familyId: string) {
-  showOnboarding.value = false;
-}
-
-// Lifecycle hooks
-onMounted(async () => {
-  authStore.initializeAuth();
-  auth.onAuthStateChanged(async (firebaseUser) => {
-    user.value = firebaseUser;
-    if (firebaseUser) {
-      try {
-        const family = await familyStore.loadFamily(firebaseUser.uid);
-        if (!family && router.currentRoute.value.path !== '/login') {
-          showOnboarding.value = true;
-        }
-      } catch (ex: any) {
-        console.warn('Failed to load family', ex.message);
-      }
-      avatarSrc.value =
-        localStorage.getItem('userAvatar') ||
-        firebaseUser.photoURL ||
-        'https://via.placeholder.com/36';
-      if (!localStorage.getItem('userAvatar') && firebaseUser.photoURL) {
-        localStorage.setItem('userAvatar', firebaseUser.photoURL);
-      }
-    } else {
-      avatarSrc.value = 'https://via.placeholder.com/36';
-      localStorage.removeItem('userAvatar');
-      router.push('/login');
-    }
-  });
-  window.addEventListener('resize', handleResize);
-});
-
-onUnmounted(() => {
-  window.removeEventListener('resize', handleResize);
-});
-
-watch(
-  () => authStore.user,
-  (user) => {
-    if (!user) router.push('/login');
-  },
-);
 </script>
-
-<style scoped>
-.q-page {
-  min-height: 100vh;
-}
-</style>

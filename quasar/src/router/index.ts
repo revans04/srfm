@@ -1,60 +1,35 @@
-// src/router/index.ts
-import { createRouter, createWebHistory } from "vue-router";
-import routes from "./routes";
-import { auth } from "../firebase/index";
-import { useFamilyStore } from "../store/family";
-import type { Router } from "vue-router";
+import { defineRouter } from '#q-app/wrappers';
+import {
+  createMemoryHistory,
+  createRouter,
+  createWebHashHistory,
+  createWebHistory,
+} from 'vue-router';
+import routes from './routes';
 
-interface RouteMeta {
-  requiresAuth?: boolean;
-  title?: string;
-}
+/*
+ * If not building with SSR mode, you can
+ * directly export the Router instantiation;
+ *
+ * The function below can be async too; either use
+ * async/await or return a Promise which resolves
+ * with the Router instance.
+ */
 
-// Create the router instance
-const router: Router = createRouter({
-  history: createWebHistory(),
-  routes,
-});
+export default defineRouter(function (/* { store, ssrContext } */) {
+  const createHistory = process.env.SERVER
+    ? createMemoryHistory
+    : (process.env.VUE_ROUTER_MODE === 'history' ? createWebHistory : createWebHashHistory);
 
-// Promise to wait for Firebase auth state to initialize
-let isAuthInitialized = false;
+  const Router = createRouter({
+    scrollBehavior: () => ({ left: 0, top: 0 }),
+    routes,
 
-const authInitialized = new Promise<void>((resolve) => {
-  const unsubscribe = auth.onAuthStateChanged((user) => {
-    if (!isAuthInitialized) {
-      isAuthInitialized = true;
-      unsubscribe(); // Unsubscribe after first call
-      resolve();
-    }
+    // Leave this as is and make changes in quasar.conf.js instead!
+    // quasar.conf.js -> build -> vueRouterMode
+    // quasar.conf.js -> build -> publicPath
+    history: createHistory(process.env.VUE_ROUTER_BASE),
   });
+
+  return Router;
 });
-
-// Navigation guard
-router.beforeEach(async (to, from, next) => {
-  await authInitialized;
-  const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
-  const user = auth.currentUser;
-  console.log(to.path);
-
-  if (requiresAuth && !user) {
-    next("/login");
-  } else if (user && to.path === "/login") {
-    next("/");
-  } else if (user && to.path === "/setup") {
-    next();
-  } else {
-    const family = await useFamilyStore().getFamily();
-    console.log(family);
-    if (!family || !family.entities || family.entities.length === 0) {
-      console.log(family);
-      next("/setup");
-      return;
-    }
-    // Set document.title based on route meta
-    const meta = to.meta as RouteMeta;
-    document.title = meta.title ?? "Steady Rise";
-    next();
-  }
-});
-
-export default router;
