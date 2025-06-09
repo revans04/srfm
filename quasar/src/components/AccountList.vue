@@ -93,14 +93,20 @@ const headers = computed(() => [
     ? [{ name: 'accountNumber', label: 'Account Number', field: 'accountNumber' }]
     : []),
   ...(props.type === 'Property'
-    ? [{ name: 'address', label: 'Address', field: (row: Account) => row.details.address }]
+    ? [
+        {
+          name: 'address',
+          label: 'Address',
+          field: (row: Account) => row.details?.address ?? '',
+        },
+      ]
     : []),
   ...(props.type === 'Loan' || props.type === 'CreditCard'
     ? [
         {
           name: 'interestRate',
           label: 'Interest Rate',
-          field: (row: Account) => row.details.interestRate,
+          field: (row: Account) => row.details?.interestRate ?? 0,
         },
       ]
     : []),

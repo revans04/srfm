@@ -307,7 +307,6 @@ const hasUnsavedChanges = computed(() => {
   const currentEntity: Partial<Entity> = {
     name: entityName.value,
     type: entityType.value,
-    email: entityEmail.value,
     taxFormIds: entityTaxFormIds.value,
     templateBudget: { categories: budget.value.categories },
   };
@@ -322,11 +321,11 @@ const hasUnsavedChanges = computed(() => {
   }
 
   return (
-    currentEntity.name !== initialEntity.value.name ||
-    currentEntity.type !== initialEntity.value.type ||
-    JSON.stringify(currentEntity.taxFormIds) !== JSON.stringify(initialEntity.value.taxFormIds) ||
+    currentEntity.name !== initialEntity.value?.name ||
+    currentEntity.type !== initialEntity.value?.type ||
+    JSON.stringify(currentEntity.taxFormIds) !== JSON.stringify(initialEntity.value?.taxFormIds) ||
     JSON.stringify(currentEntity.templateBudget?.categories) !==
-      JSON.stringify(initialEntity.value.templateBudget?.categories)
+      JSON.stringify(initialEntity.value?.templateBudget?.categories)
   );
 });
 
@@ -345,12 +344,12 @@ onMounted(async () => {
     const entity = familyStore.family?.entities.find((e) => e.id === props.entityId);
     if (entity) {
       initialEntity.value = entity;
-        const o = entity.members.find((m) => m.uid === initialEntity.value.ownerUid);
-      entityName.value = initialEntity.value.name;
-      entityType.value = initialEntity.value.type;
+      const o = entity.members.find((m) => m.uid === initialEntity.value?.ownerUid);
+      entityName.value = initialEntity.value?.name || entityName.value;
+      entityType.value = initialEntity.value?.type || entityType.value;
       entityEmail.value = o?.email ?? entityEmail.value;
-      entityTaxFormIds.value = initialEntity.value.taxFormIds ?? [];
-      budget.value.categories = initialEntity.value.templateBudget?.categories ?? [];
+      entityTaxFormIds.value = initialEntity.value?.taxFormIds ?? [];
+      budget.value.categories = initialEntity.value?.templateBudget?.categories ?? [];
     }
   }
   if (isEditing.value && budget.value.categories.length === 0) {
@@ -430,15 +429,14 @@ async function save() {
                 role: 'Admin',
               },
             ],
-      createdAt:
-        isEditing.value && initialEntity.value
-          ? initialEntity.value.createdAt
-          : Timestamp.fromDate(new Date()),
-      updatedAt: Timestamp.fromDate(new Date()),
-      email: entityEmail.value,
-      templateBudget: { categories: budget.value.categories },
-      taxFormIds: entityTaxFormIds.value,
-    };
+    createdAt:
+      isEditing.value && initialEntity.value
+        ? initialEntity.value.createdAt
+        : Timestamp.fromDate(new Date()),
+    updatedAt: Timestamp.fromDate(new Date()),
+    templateBudget: { categories: budget.value.categories },
+    taxFormIds: entityTaxFormIds.value,
+  };
 
     if (!entity.id) {
       entity.id = uuidv4();
