@@ -1,4 +1,4 @@
-import { PiniaPluginContext } from 'pinia';
+import type { PiniaPluginContext } from 'pinia';
 
 function replacer(_key: string, value: any) {
   if (value instanceof Map) {
