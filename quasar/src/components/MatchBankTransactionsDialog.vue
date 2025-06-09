@@ -811,7 +811,7 @@ async function matchBankTransaction(budgetTransaction: Transaction) {
         updatedTransaction.budgetMonth!,
         familyStore.family?.id || '',
         user.uid,
-        updatedTransaction.entityId,
+        updatedTransaction.entityId || '',
       );
     }
 
@@ -995,7 +995,7 @@ async function handleTransactionAdded(savedTransaction: Transaction) {
         savedTransaction.budgetMonth || "",
         family.id,
         user.uid,
-        savedTransaction.entityId,
+        savedTransaction.entityId || '',
       );
     }
 
@@ -1086,6 +1086,7 @@ async function addNewTransaction() {
     checkNumber: selectedBankTransaction.value.checkNumber,
     status: 'C',
     entityId: familyStore.selectedEntityId,
+    taxMetadata: [],
   };
   newTransactionBudgetId.value = `${props.userId}_${familyStore.selectedEntityId}_${budgetMonth}`;
   showTransactionDialog.value = true;
