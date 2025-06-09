@@ -38,8 +38,6 @@ export default defineConfigWithVueTs(
   {
     files: ['**/*.ts', '**/*.vue'],
     rules: {
-      '@typescript-eslint/no-explicit-any': 'off',
-      'max-len': ['warn', { code: 160 }],
       '@typescript-eslint/consistent-type-imports': [
         'error',
         { prefer: 'type-imports' }
@@ -69,6 +67,8 @@ export default defineConfigWithVueTs(
     // add your custom rules here
     rules: {
       'prefer-promise-reject-errors': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+      'max-len': ['warn', { code: 160 }],
 
       // allow debugger during development only
       'no-debugger': process.env.NODE_ENV === 'production' ? 'error' : 'off'
