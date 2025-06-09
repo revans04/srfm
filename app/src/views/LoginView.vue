@@ -34,7 +34,7 @@ const loading = ref(false);
 const error = ref("");
 const googleLoaded = ref(false);
 const router = useRouter();
-const apiBaseUrl = process.env.VUE_APP_API_BASE_URL;
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 
 // Check if Google script is loaded and render button
 onMounted(() => {

@@ -3,7 +3,7 @@ import { auth } from "./index";
 import { onAuthStateChanged, User } from "firebase/auth";
 
 
-const apiBaseUrl = process.env.VUE_APP_API_BASE_URL;
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 
 export async function getIdToken(): Promise<string | null> {
   const user = auth.currentUser;
