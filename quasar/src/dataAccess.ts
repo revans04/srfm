@@ -1,5 +1,5 @@
-import { auth } from "./firebase";
-import {
+import { useAuthStore } from './store/auth';
+import type {
   Budget,
   BudgetInfo,
   Transaction,
@@ -13,25 +13,26 @@ import {
   Snapshot,
   Entity,
   Statement,
-} from "./types";
-import { useBudgetStore } from "./store/budget";
-import { Timestamp } from "firebase/firestore";
+} from './types';
+import { useBudgetStore } from './store/budget';
+import { Timestamp } from 'firebase/firestore';
 
 export class DataAccess {
-  private apiBaseUrl = process.env.VUE_APP_API_BASE_URL || "http://localhost:8080/api";
+  private apiBaseUrl = process.env.VUE_APP_API_BASE_URL || 'http://localhost:8080/api';
+  private auth = useAuthStore();
 
   private async getAuthHeaders(): Promise<HeadersInit> {
-    const token = await auth.currentUser?.getIdToken();
-    if (!token) throw new Error("User not authenticated");
+    const token = await this.auth.user?.getIdToken();
+    if (!token) throw new Error('User not authenticated');
     return {
       Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
+      'Content-Type': 'application/json',
     };
   }
 
   // Budget Functions
   async loadAccessibleBudgets(userId: string, entityId?: string): Promise<BudgetInfo[]> {
-    if (!userId) throw new Error("User ID is required to load budgets");
+    if (!userId) throw new Error('User ID is required to load budgets');
 
     const headers = await this.getAuthHeaders();
     const url = entityId ? `${this.apiBaseUrl}/budget/accessible?entityId=${entityId}` : `${this.apiBaseUrl}/budget/accessible`;
@@ -53,7 +54,7 @@ export class DataAccess {
   async saveBudget(budgetId: string, budget: Budget): Promise<void> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/budget/${budgetId}`, {
-      method: "POST",
+      method: 'POST',
       headers,
       body: JSON.stringify(budget),
     });
@@ -63,7 +64,7 @@ export class DataAccess {
   async deleteBudget(budgetId: string): Promise<void> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/budget/${budgetId}`, {
-      method: "DELETE",
+      method: 'DELETE',
       headers,
     });
     if (!response.ok) {
@@ -90,7 +91,7 @@ export class DataAccess {
   async addTransaction(budgetId: string, transaction: Transaction): Promise<string> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/budget/${budgetId}/transactions`, {
-      method: "POST",
+      method: 'POST',
       headers,
       body: JSON.stringify(transaction),
     });
@@ -105,7 +106,7 @@ export class DataAccess {
     let retValue = null;
     if (!transaction.id) {
       const response = await fetch(`${this.apiBaseUrl}/budget/${budget.budgetId}/transactions`, {
-        method: "POST",
+        method: 'POST',
         headers,
         body: JSON.stringify(transaction),
       });
@@ -114,7 +115,7 @@ export class DataAccess {
       retValue = { ...transaction, id: transactionId };
     } else {
       const response = await fetch(`${this.apiBaseUrl}/budget/${budget.budgetId}/transactions/${transaction.id}`, {
-        method: "PUT",
+        method: 'PUT',
         headers,
         body: JSON.stringify(transaction),
       });
@@ -131,8 +132,8 @@ export class DataAccess {
       }
       budgetStore.updateBudget(budget.budgetId, { ...budget });
 
-      if (budget && futureBudgetsExist && (await this.hasFundCategory(transaction, budget))) {
-        const [uid, entityId, budgetMonth] = budget.budgetId.split("_"); // Updated to parse new ID format
+      if (budget && futureBudgetsExist && (this.hasFundCategory(transaction, budget))) {
+        const [uid, entityId, budgetMonth] = budget.budgetId.split('_'); // Updated to parse new ID format
         await this.recalculateCarryoverForFutureBudgets(uid, entityId, budgetMonth, transaction.categories);
       }
     }
@@ -144,7 +145,7 @@ export class DataAccess {
     const budgetStore = useBudgetStore();
 
     const response = await fetch(`${this.apiBaseUrl}/budget/${budgetId}/transactions/batch`, {
-      method: "POST",
+      method: 'POST',
       headers,
       body: JSON.stringify(transactions),
     });
@@ -155,8 +156,8 @@ export class DataAccess {
       budgetStore.updateBudget(budget.budgetId, budget);
 
       for (const transaction of transactions) {
-        if (await this.hasFundCategory(transaction, budget)) {
-          const [uid, entityId, budgetMonth] = budget.budgetId.split("_"); // Updated to parse new ID format
+        if (this.hasFundCategory(transaction, budget)) {
+          const [uid, entityId, budgetMonth] = budget.budgetId.split('_'); // Updated to parse new ID format
           await this.recalculateCarryoverForFutureBudgets(uid, entityId, budgetMonth, transaction.categories);
         }
       }
@@ -172,7 +173,7 @@ export class DataAccess {
 
     const updatedTransaction = { ...transactionToDelete, deleted: true };
     const response = await fetch(`${this.apiBaseUrl}/budget/${budget.budgetId}/transactions/${transactionId}`, {
-      method: "PUT",
+      method: 'PUT',
       headers,
       body: JSON.stringify(updatedTransaction),
     });
@@ -182,8 +183,8 @@ export class DataAccess {
       budget.transactions = budget.transactions.map((t) => (t.id === transactionId ? updatedTransaction : t));
       budgetStore.updateBudget(budget.budgetId, budget);
 
-      if (futureBudgetsExist && (await this.hasFundCategory(transactionToDelete, budget))) {
-        const [uid, entityId, budgetMonth] = budget.budgetId.split("_"); // Updated to parse new ID format
+      if (futureBudgetsExist && (this.hasFundCategory(transactionToDelete, budget))) {
+        const [uid, entityId, budgetMonth] = budget.budgetId.split('_'); // Updated to parse new ID format
         await this.recalculateCarryoverForFutureBudgets(uid, entityId, budgetMonth, transactionToDelete.categories);
       }
     }
@@ -199,7 +200,7 @@ export class DataAccess {
 
     const updatedTransaction = { ...transactionToRestore, deleted: false };
     const response = await fetch(`${this.apiBaseUrl}/budget/${budget.budgetId}/transactions/${transactionId}`, {
-      method: "PUT",
+      method: 'PUT',
       headers,
       body: JSON.stringify(updatedTransaction),
     });
@@ -209,8 +210,8 @@ export class DataAccess {
       budget.transactions = budget.transactions.map((t) => (t.id === transactionId ? updatedTransaction : t));
       budgetStore.updateBudget(budget.budgetId, budget);
 
-      if (futureBudgetsExist && (await this.hasFundCategory(transactionToRestore, budget))) {
-        const [uid, entityId, budgetMonth] = budget.budgetId.split("_"); // Updated to parse new ID format
+      if (futureBudgetsExist && (this.hasFundCategory(transactionToRestore, budget))) {
+        const [uid, entityId, budgetMonth] = budget.budgetId.split('_'); // Updated to parse new ID format
         await this.recalculateCarryoverForFutureBudgets(uid, entityId, budgetMonth, transactionToRestore.categories);
       }
     }
@@ -224,7 +225,7 @@ export class DataAccess {
     if (!transactionToDelete) throw new Error(`Transaction ${transactionId} not found in budget ${budget.budgetId}`);
 
     const response = await fetch(`${this.apiBaseUrl}/budget/${budget.budgetId}/transactions/${transactionId}`, {
-      method: "DELETE",
+      method: 'DELETE',
       headers,
     });
     if (!response.ok) throw new Error(`Failed to permanently delete transaction: ${response.statusText}`);
@@ -233,14 +234,14 @@ export class DataAccess {
       budget.transactions = budget.transactions.filter((t) => t.id !== transactionId);
       budgetStore.updateBudget(budget.budgetId, budget);
 
-      if (futureBudgetsExist && (await this.hasFundCategory(transactionToDelete, budget))) {
-        const [uid, entityId, budgetMonth] = budget.budgetId.split("_"); // Updated to parse new ID format
+      if (futureBudgetsExist && (this.hasFundCategory(transactionToDelete, budget))) {
+        const [uid, entityId, budgetMonth] = budget.budgetId.split('_'); // Updated to parse new ID format
         await this.recalculateCarryoverForFutureBudgets(uid, entityId, budgetMonth, transactionToDelete.categories);
       }
     }
   }
 
-  private async hasFundCategory(transaction: Transaction, budget: Budget): Promise<boolean> {
+  private hasFundCategory(transaction: Transaction, budget: Budget): boolean {
     return transaction.categories.some((cat) => budget.categories.find((bc) => bc.name === cat.category)?.isFund || false);
   }
 
@@ -250,21 +251,27 @@ export class DataAccess {
 
     const curSpend = currTrx
       .filter((t) => !t.deleted && !t.isIncome)
-      .reduce((acc, t) => {
-        t.categories.forEach((split) => {
-          acc[split.category] = (acc[split.category] || 0) + split.amount;
-        });
-        return acc;
-      }, {} as Record<string, number>);
+      .reduce(
+        (acc, t) => {
+          t.categories.forEach((split) => {
+            acc[split.category] = (acc[split.category] || 0) + split.amount;
+          });
+          return acc;
+        },
+        {} as Record<string, number>,
+      );
 
     const curIncome = currTrx
       .filter((t) => !t.deleted && t.isIncome)
-      .reduce((acc, t) => {
-        t.categories.forEach((split) => {
-          acc[split.category] = (acc[split.category] || 0) + split.amount;
-        });
-        return acc;
-      }, {} as Record<string, number>);
+      .reduce(
+        (acc, t) => {
+          t.categories.forEach((split) => {
+            acc[split.category] = (acc[split.category] || 0) + split.amount;
+          });
+          return acc;
+        },
+        {} as Record<string, number>,
+      );
 
     budget.categories.forEach((cat) => {
       if (cat.isFund) {
@@ -283,17 +290,17 @@ export class DataAccess {
     userId: string,
     entityId: string,
     startBudgetMonth: string,
-    affectedCategories: { category: string }[]
+    affectedCategories: { category: string }[],
   ): Promise<void> {
     const budgetStore = useBudgetStore();
     const budgets = Array.from(budgetStore.budgets.values());
 
-    const [startYear, startMonth] = startBudgetMonth.split("-").map(Number);
+    const [startYear, startMonth] = startBudgetMonth.split('-').map(Number);
     const affectedCategoryNames = affectedCategories.map((c) => c.category);
 
     const futureBudgets = budgets
       .filter((b) => {
-        const [year, month] = b.month.split("-").map(Number);
+        const [year, month] = b.month.split('-').map(Number);
         return year > startYear || (year === startYear && month > startMonth);
       })
       .sort((a, b) => a.month.localeCompare(b.month));
@@ -338,7 +345,7 @@ export class DataAccess {
   async saveImportedTransactions(doc: ImportedTransactionDoc): Promise<string> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/budget/imported-transactions`, {
-      method: "POST",
+      method: 'POST',
       headers,
       body: JSON.stringify(doc),
     });
@@ -358,7 +365,7 @@ export class DataAccess {
     console.log(`Deleting imported transactions:`, id);
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/budget/imported-transactions/${id}`, {
-      method: "DELETE",
+      method: 'DELETE',
       headers,
     });
     if (!response.ok) {
@@ -381,7 +388,7 @@ export class DataAccess {
     let transactionId: string;
     let payload: any;
 
-    if (typeof transactionOrId === "string") {
+    if (typeof transactionOrId === 'string') {
       transactionId = transactionOrId;
       payload = { matched, ignored };
     } else {
@@ -390,7 +397,7 @@ export class DataAccess {
     }
 
     const response = await fetch(`${this.apiBaseUrl}/budget/imported-transactions/${docId}/${transactionId}`, {
-      method: "PUT",
+      method: 'PUT',
       headers,
       body: JSON.stringify(payload),
     });
@@ -400,7 +407,7 @@ export class DataAccess {
   async deleteImportedTransaction(docId: string, transactionId: string): Promise<void> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/budget/imported-transactions/${docId}/${transactionId}`, {
-      method: "PUT",
+      method: 'PUT',
       headers,
       body: JSON.stringify({ deleted: true }),
     });
@@ -415,7 +422,7 @@ export class DataAccess {
       payee: string;
       debitAmount: number;
       creditAmount: number;
-    }
+    },
   ): boolean {
     return existingDocs.some((doc) =>
       doc.importedTransactions.some(
@@ -424,8 +431,8 @@ export class DataAccess {
           tx.postedDate === key.postedDate &&
           tx.payee === key.payee &&
           (tx.debitAmount ?? 0) === key.debitAmount &&
-          (tx.creditAmount ?? 0) === key.creditAmount
-      )
+          (tx.creditAmount ?? 0) === key.creditAmount,
+      ),
     );
   }
 
@@ -446,7 +453,7 @@ export class DataAccess {
     console.log(`Updating imported transactions:`, transactions);
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/budget/imported-transactions/batch-update`, {
-      method: "POST",
+      method: 'POST',
       headers,
       body: JSON.stringify(transactions),
     });
@@ -474,7 +481,7 @@ export class DataAccess {
     console.log(`Updating budget transactions:`, transactions);
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/budget/transactions/batch-update`, {
-      method: "POST",
+      method: 'POST',
       headers,
       body: JSON.stringify(transactions),
     });
@@ -489,7 +496,7 @@ export class DataAccess {
   async getUserFamily(uid: string): Promise<Family | null> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/family/${uid}`, { headers });
-    if (!response.ok || response.statusText == "No Content") return null;
+    if (!response.ok || response.statusText == 'No Content') return null;
     const data = await response.json();
     return data;
   }
@@ -497,7 +504,7 @@ export class DataAccess {
   async createFamily(uid: string, name: string, email: string): Promise<{ familyId: string }> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/family/create`, {
-      method: "POST",
+      method: 'POST',
       headers,
       body: JSON.stringify({ name, email }),
     });
@@ -509,7 +516,7 @@ export class DataAccess {
   async addFamilyMember(familyId: string, memberUid: string, memberEmail: string): Promise<void> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/family/${familyId}/members`, {
-      method: "POST",
+      method: 'POST',
       headers,
       body: JSON.stringify({ uid: memberUid, email: memberEmail }),
     });
@@ -519,7 +526,7 @@ export class DataAccess {
   async removeFamilyMember(familyId: string, memberUid: string): Promise<void> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/family/${familyId}/members/${memberUid}`, {
-      method: "DELETE",
+      method: 'DELETE',
       headers,
     });
     if (!response.ok) throw new Error(`Failed to remove family member: ${response.statusText}`);
@@ -528,7 +535,7 @@ export class DataAccess {
   async renameFamily(familyId: string, newName: string): Promise<void> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/family/${familyId}/rename`, {
-      method: "PUT",
+      method: 'PUT',
       headers,
       body: JSON.stringify({ name: newName }),
     });
@@ -538,7 +545,7 @@ export class DataAccess {
   async inviteUser(invite: { inviterUid: string; inviterEmail: string; inviteeEmail: string }): Promise<void> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/family/invite`, {
-      method: "POST",
+      method: 'POST',
       headers,
       body: JSON.stringify(invite),
     });
@@ -548,7 +555,7 @@ export class DataAccess {
   async acceptInvite(token: string): Promise<void> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/family/accept-invite`, {
-      method: "POST",
+      method: 'POST',
       headers,
       body: JSON.stringify({ token }),
     });
@@ -587,7 +594,7 @@ export class DataAccess {
   async saveUser(userId: string, userData: UserData): Promise<void> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/user/${userId}`, {
-      method: "POST",
+      method: 'POST',
       headers,
       body: JSON.stringify(userData),
     });
@@ -597,7 +604,7 @@ export class DataAccess {
   async resendVerificationEmail(): Promise<void> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/auth/resend-verification-email`, {
-      method: "POST",
+      method: 'POST',
       headers,
     });
     if (!response.ok) throw new Error(`Failed to resend verification email: ${response.statusText}`);
@@ -606,11 +613,14 @@ export class DataAccess {
   async batchReconcileTransactions(
     budgetId: string,
     budget: Budget,
-    reconcileData: { budgetId: string; reconciliations: Array<{ budgetTransactionId: string; importedTransactionId: string; match: boolean; ignore: boolean }> }
+    reconcileData: {
+      budgetId: string;
+      reconciliations: Array<{ budgetTransactionId: string; importedTransactionId: string; match: boolean; ignore: boolean }>;
+    },
   ): Promise<void> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/budget/${budgetId}/batch-reconcile`, {
-      method: "POST",
+      method: 'POST',
       headers,
       body: JSON.stringify(reconcileData),
     });
@@ -644,7 +654,7 @@ export class DataAccess {
   async saveAccount(familyId: string, account: Account): Promise<void> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/families/${familyId}/accounts/${account.id}`, {
-      method: "PUT",
+      method: 'PUT',
       headers,
       body: JSON.stringify(account),
     });
@@ -654,7 +664,7 @@ export class DataAccess {
   async deleteAccount(familyId: string, accountId: string): Promise<void> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/families/${familyId}/accounts/${accountId}`, {
-      method: "DELETE",
+      method: 'DELETE',
       headers,
     });
     if (!response.ok) throw new Error(`Failed to delete account: ${response.statusText}`);
@@ -663,7 +673,7 @@ export class DataAccess {
   async importAccounts(familyId: string, entries: any[]): Promise<void> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/families/${familyId}/accounts/import`, {
-      method: "POST",
+      method: 'POST',
       headers,
       body: JSON.stringify(entries),
     });
@@ -674,13 +684,13 @@ export class DataAccess {
     try {
       const headers = await this.getAuthHeaders();
       const response = await fetch(`${this.apiBaseUrl}/families/${familyId}/snapshots`, {
-        method: "GET",
+        method: 'GET',
         headers,
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       return await response.json();
     } catch (error) {
-      console.error("Error fetching snapshots:", error);
+      console.error('Error fetching snapshots:', error);
       return [];
     }
   }
@@ -688,7 +698,7 @@ export class DataAccess {
   async saveSnapshot(familyId: string, snapshot: Snapshot): Promise<void> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/families/${familyId}/snapshots/${snapshot.id}`, {
-      method: "PUT",
+      method: 'PUT',
       headers,
       body: JSON.stringify(snapshot),
     });
@@ -698,7 +708,7 @@ export class DataAccess {
   async deleteSnapshot(familyId: string, snapshotId: string): Promise<void> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/families/${familyId}/snapshots/${snapshotId}`, {
-      method: "DELETE",
+      method: 'DELETE',
       headers,
     });
     if (!response.ok) throw new Error(`Failed to delete snapshot: ${response.statusText}`);
@@ -707,7 +717,7 @@ export class DataAccess {
   async batchDeleteSnapshots(familyId: string, snapshotIds: string[]): Promise<void> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/families/${familyId}/snapshots/batch-delete`, {
-      method: "POST",
+      method: 'POST',
       headers,
       body: JSON.stringify(snapshotIds),
     });
@@ -726,11 +736,11 @@ export class DataAccess {
     familyId: string,
     accountNumber: string,
     statement: Statement,
-    transactionRefs: { budgetId: string; transactionId: string }[]
+    transactionRefs: { budgetId: string; transactionId: string }[],
   ): Promise<void> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/families/${familyId}/accounts/${accountNumber}/statements/${statement.id}`, {
-      method: "PUT",
+      method: 'PUT',
       headers,
       body: JSON.stringify({ statement, transactions: transactionRefs }),
     });
@@ -741,11 +751,11 @@ export class DataAccess {
     familyId: string,
     accountNumber: string,
     statementId: string,
-    transactionRefs: { budgetId: string; transactionId: string }[]
+    transactionRefs: { budgetId: string; transactionId: string }[],
   ): Promise<void> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/families/${familyId}/accounts/${accountNumber}/statements/${statementId}`, {
-      method: "DELETE",
+      method: 'DELETE',
       headers,
       body: JSON.stringify({ transactions: transactionRefs }),
     });
@@ -756,11 +766,11 @@ export class DataAccess {
     familyId: string,
     accountNumber: string,
     statementId: string,
-    transactionRefs: { budgetId: string; transactionId: string }[]
+    transactionRefs: { budgetId: string; transactionId: string }[],
   ): Promise<void> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/families/${familyId}/accounts/${accountNumber}/statements/${statementId}/unreconcile`, {
-      method: "POST",
+      method: 'POST',
       headers,
       body: JSON.stringify({ transactions: transactionRefs }),
     });
@@ -771,7 +781,7 @@ export class DataAccess {
   async createEntity(familyId: string, entity: Entity): Promise<{ entityId: string }> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/family/${familyId}/entities`, {
-      method: "POST",
+      method: 'POST',
       headers,
       body: JSON.stringify(entity),
     });
@@ -782,7 +792,7 @@ export class DataAccess {
   async updateEntity(familyId: string, entity: Entity): Promise<void> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/family/${familyId}/entities/${entity.id}`, {
-      method: "PUT",
+      method: 'PUT',
       headers,
       body: JSON.stringify(entity),
     });
@@ -792,7 +802,7 @@ export class DataAccess {
   async deleteEntity(familyId: string, entityId: string): Promise<void> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/family/${familyId}/entities/${entityId}`, {
-      method: "DELETE",
+      method: 'DELETE',
       headers,
     });
     if (!response.ok) throw new Error(`Failed to delete entity: ${response.statusText}`);
@@ -801,7 +811,7 @@ export class DataAccess {
   async addEntityMember(familyId: string, entityId: string, member: { uid: string; email: string; role: string }): Promise<void> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/family/${familyId}/entities/${entityId}/members`, {
-      method: "POST",
+      method: 'POST',
       headers,
       body: JSON.stringify(member),
     });
@@ -811,7 +821,7 @@ export class DataAccess {
   async removeEntityMember(familyId: string, entityId: string, memberUid: string): Promise<void> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/family/${familyId}/entities/${entityId}/members/${memberUid}`, {
-      method: "DELETE",
+      method: 'DELETE',
       headers,
     });
     if (!response.ok) throw new Error(`Failed to remove entity member: ${response.statusText}`);

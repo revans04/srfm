@@ -95,20 +95,19 @@
           <q-item v-for="(category, index) in budget.categories" :key="index">
             <q-row :dense="true">
               <q-col cols="12" sm="3" class="px-2">
-                <q-text-field v-model="budget.categories[index].name" label="Category" required density="compact"></q-text-field>
+                <q-text-field v-model="budget.categories[index]!.name" label="Category" required density="compact"></q-text-field>
               </q-col>
               <q-col cols="12" sm="3" class="px-2">
-                <q-text-field v-model="budget.categories[index].group" label="Group" required density="compact"></q-text-field>
+                <q-text-field v-model="budget.categories[index]!.group" label="Group" required density="compact"></q-text-field>
               </q-col>
               <q-col cols="12" sm="3" class="px-2">
-                <Currency-Input v-model.number="budget.categories[index].target" label="Target" class="text-right" density="compact" required></Currency-Input>
+                <Currency-Input v-model.number="budget.categories[index]!.target" label="Target" class="text-right" density="compact" required></Currency-Input>
               </q-col>
               <q-col cols="12" sm="2" class="px-2">
-                <q-checkbox v-model="budget.categories[index].isFund" label="Is Fund?" density="compact"></q-checkbox>
+                <q-checkbox v-model="budget.categories[index]!.isFund" label="Is Fund?" density="compact"></q-checkbox>
               </q-col>
               <q-col cols="12" sm="1" class="px-2">
-                <q-btn icon variant="plain" @click="removeCategory(index)" color="error">
-                  <q-icon>mdi-delete</q-icon>
+                <q-btn icon="delete" variant="plain" @click="removeCategory(index)" color="error">
                 </q-btn>
               </q-col>
             </q-row>
@@ -180,7 +179,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from "vue";
-import { TemplateBudget, BudgetCategory, TaxForm, Entity, EntityType } from "../types";
+import type { TemplateBudget, BudgetCategory, TaxForm, Entity} from "../types";
+import { EntityType } from "../types";
 import CurrencyInput from "./CurrencyInput.vue";
 import { useBudgetStore } from "../store/budget";
 import { useFamilyStore } from "../store/family";
@@ -276,10 +276,10 @@ const hasUnsavedChanges = computed(() => {
   }
 
   return (
-    currentEntity.name !== initialEntity.value.name ||
-    currentEntity.type !== initialEntity.value.type ||
-    JSON.stringify(currentEntity.taxFormIds) !== JSON.stringify(initialEntity.value.taxFormIds) ||
-    JSON.stringify(currentEntity.templateBudget?.categories) !== JSON.stringify(initialEntity.value.templateBudget?.categories)
+    currentEntity.name !== initialEntity.value!.name ||
+    currentEntity.type !== initialEntity.value!.type ||
+    JSON.stringify(currentEntity.taxFormIds) !== JSON.stringify(initialEntity.value!.taxFormIds) ||
+    JSON.stringify(currentEntity.templateBudget?.categories) !== JSON.stringify(initialEntity.value!.templateBudget?.categories)
   );
 });
 
@@ -298,7 +298,7 @@ onMounted(async () => {
     const entity = familyStore.family?.entities.find((e) => e.id === props.entityId);
     if (entity) {
       initialEntity.value = entity;
-      let o = entity.members.find((m) => m.uid === initialEntity.value.ownerUid);
+      let o = entity.members.find((m) => m.uid === initialEntity.value!.ownerUid);
       entityName.value = initialEntity.value.name;
       entityType.value = initialEntity.value.type;
       entityEmail.value = o?.email ?? entityEmail.value;
@@ -311,7 +311,7 @@ onMounted(async () => {
   }
 });
 
-async function importCategories() {
+function importCategories() {
   importing.value = true;
   try {
     const entityBudgets = Array.from(budgetStore.budgets.values()).filter((b) => b.entityId === props.entityId);
@@ -321,7 +321,7 @@ async function importCategories() {
       showSnackbar("Categories imported successfully.", "success");
     } else if (DEFAULT_BUDGET_TEMPLATES[entityType.value]) {
       const predefinedTemplate = DEFAULT_BUDGET_TEMPLATES[entityType.value];
-      budget.value.categories = predefinedTemplate.categories.map((cat) => ({
+      budget.value.categories = predefinedTemplate!.categories.map((cat) => ({
         ...cat,
         carryover: cat.isFund ? 0 : 0,
       }));

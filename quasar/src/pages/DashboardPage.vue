@@ -354,14 +354,15 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick, onUnmounted } from "vue";
-import { auth } from "../firebase";
 import { dataAccess } from "../dataAccess";
 import CurrencyInput from "../components/CurrencyInput.vue";
 import CategoryTransactions from "../components/CategoryTransactions.vue";
 import TransactionForm from "../components/TransactionForm.vue";
-import { Transaction, Budget, IncomeTarget, BudgetCategoryTrx, BudgetCategory, Entity } from "../types";
+import type { Transaction, Budget, IncomeTarget, BudgetCategoryTrx, BudgetCategory} from "../types";
+import { Entity } from "../types";
 import version from "../version";
 import { toDollars, toCents, formatCurrency, adjustTransactionDate, todayISO, currentMonthISO } from "../utils/helpers";
+import { useAuthStore } from "../store/auth";
 import { useBudgetStore } from "../store/budget";
 import { useMerchantStore } from "../store/merchants";
 import { useFamilyStore } from "../store/family";
@@ -372,12 +373,12 @@ import { DEFAULT_BUDGET_TEMPLATES } from "../constants/budgetTemplates";
 const budgetStore = useBudgetStore();
 const merchantStore = useMerchantStore();
 const familyStore = useFamilyStore();
+const auth = useAuthStore();
 const budgets = ref<Budget[]>([]);
 
 const appVersion = version;
 
 const currentMonth = ref(currentMonthISO());
-const initialMonth = ref(currentMonth.value);
 const isInitialLoad = ref(true);
 const availableBudgets = ref<Budget[]>([]);
 const budget = ref<Budget>({
@@ -409,6 +410,7 @@ const newTransaction = ref<Transaction>({
   recurringInterval: "Monthly",
   userId: "",
   isIncome: false,
+  taxMetadata: []
 });
 const snackbar = ref(false);
 const snackbarText = ref("");
@@ -421,7 +423,7 @@ const budgetId = computed(() => {
   if (!ownerUid.value || !familyStore.selectedEntityId) return "";
   return `${ownerUid.value}_${familyStore.selectedEntityId}_${currentMonth.value}`;
 });
-const userId = computed(() => auth.currentUser?.uid || "");
+const userId = computed(() => auth.user?.uid || "");
 const selectedCategory = ref<BudgetCategory | null>(null);
 const newMerchantName = ref("");
 const search = ref("");
@@ -512,16 +514,16 @@ const catTransactions = computed(() => {
   }
 
   for (let i = 0; i < catTransactions.length; i++) {
-    const carryover = catTransactions[i].carryover || 0;
-    const target = catTransactions[i].target || 0;
-    const totalTarget = target + (catTransactions[i].isFund ? carryover : 0);
+    const carryover = catTransactions[i]!.carryover || 0;
+    const target = catTransactions[i]!.target || 0;
+    const totalTarget = target + (catTransactions[i]!.isFund ? carryover : 0);
     budget.value.transactions.forEach((t) => {
       if (!t.deleted) {
         t.categories.forEach((tc) => {
-          if (tc.category == catTransactions[i].name) {
-            if (!catTransactions[i].transactions) catTransactions[i].transactions = [];
+          if (tc.category == catTransactions[i]!.name) {
+            if (!catTransactions[i]!.transactions) catTransactions[i]!.transactions = [];
 
-            catTransactions[i].transactions?.push({
+            catTransactions[i]!.transactions?.push({
               id: t.id,
               date: t.date,
               merchant: t.merchant,
@@ -531,18 +533,18 @@ const catTransactions = computed(() => {
               isIncome: t.isIncome,
             });
             if (t.isIncome) {
-              catTransactions[i].spent -= tc.amount;
-              catTransactions[i].remaining += tc.amount;
+              catTransactions[i]!.spent -= tc.amount;
+              catTransactions[i]!.remaining += tc.amount;
             } else {
-              catTransactions[i].spent += tc.amount;
-              catTransactions[i].remaining -= tc.amount;
+              catTransactions[i]!.spent += tc.amount;
+              catTransactions[i]!.remaining -= tc.amount;
             }
           }
         });
       }
     });
-    const rawPercentage = totalTarget > 0 ? (catTransactions[i].spent / totalTarget) * 100 : 0;
-    catTransactions[i].percentage = Math.min(Math.max(rawPercentage, 0), 100);
+    const rawPercentage = totalTarget > 0 ? (catTransactions[i]!.spent / totalTarget) * 100 : 0;
+    catTransactions[i]!.percentage = Math.min(Math.max(rawPercentage, 0), 100);
   }
 
   if (debouncedSearch.value !== "") {
@@ -587,8 +589,8 @@ const incomeItems = computed(() => {
     budget.value.transactions.forEach((t) => {
       if (!t.deleted && t.categories && t.categories.length > 0) {
         t.categories.forEach((c) => {
-          if (incTrx[i].name == c.category) {
-            incTrx[i].received += c.amount;
+          if (incTrx[i]!.name == c.category) {
+            incTrx[i]!.received += c.amount;
           }
         });
       }
@@ -632,7 +634,7 @@ watch(search, (newValue) => {
 
 watch(selectedCategory, (newVal) => {
   if (newVal && isMobile.value) {
-    nextTick(() => {
+    void nextTick(() => {
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
   }
@@ -721,7 +723,7 @@ watch(currentMonth, () => {
 });
 
 onMounted(async () => {
-  const user = auth.currentUser;
+  const user = auth.user;
   if (!user) {
     showSnackbar("Please log in to view the dashboard", "error");
     loading.value = false;
@@ -752,7 +754,7 @@ onUnmounted(() => {
 });
 
 async function loadBudgets() {
-  const user = auth.currentUser;
+  const user = auth.user;
   if (!user) return;
 
   loading.value = true;
@@ -806,7 +808,7 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
       entityId: entityId,
       month: month,
       incomeTarget: 0,
-      categories: predefinedTemplate.categories.map((cat) => ({
+      categories: predefinedTemplate!.categories.map((cat) => ({
         ...cat,
         carryover: cat.isFund ? 0 : 0,
       })),
@@ -877,8 +879,8 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
 
       Object.values(recurringGroups).forEach((group) => {
         const firstInstance = group.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
-        if (firstInstance.recurringInterval === "Monthly") {
-          const newDate = adjustTransactionDate(firstInstance.date, month, "Monthly");
+        if (firstInstance!.recurringInterval === "Monthly") {
+          const newDate = adjustTransactionDate(firstInstance!.date, month, "Monthly");
           recurringTransactions.push({
             ...firstInstance,
             id: uuidv4(),
@@ -918,7 +920,7 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
 }
 
 async function createDefaultBudget() {
-  const user = auth.currentUser;
+  const user = auth.user;
   if (!user) {
     showSnackbar("Please log in to create a budget", "error");
     return;
@@ -937,7 +939,7 @@ async function createDefaultBudget() {
       return;
     }
 
-    const budget = await createBudgetForMonth(currentMonth.value, family.id, family.ownerUid, familyStore.selectedEntityId);
+    await createBudgetForMonth(currentMonth.value, family.id, family.ownerUid, familyStore.selectedEntityId);
     await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
     showSnackbar("Budget created successfully", "success");
   } catch (error: any) {
@@ -968,7 +970,7 @@ function updateMerchants() {
   merchantStore.updateMerchants(budget.value.transactions);
 }
 
-async function onTransactionSaved(transaction: Transaction) {
+function onTransactionSaved(transaction: Transaction) {
   showTransactionDialog.value = false;
   try {
     budget.value.transactions = budget.value.transactions ? budget.value.transactions.filter((tx) => tx.id !== transaction.id) : [];
@@ -982,7 +984,7 @@ async function onTransactionSaved(transaction: Transaction) {
   }
 }
 
-async function updateTransactions(newTransactions: Transaction[]) {
+function updateTransactions(newTransactions: Transaction[]) {
   try {
     budget.value.transactions = newTransactions;
     budgetStore.updateBudget(budgetId.value, { ...budget.value });
@@ -1040,7 +1042,7 @@ async function selectMonth(month: string) {
 }
 
 async function saveBudget() {
-  const user = auth.currentUser;
+  const user = auth.user;
   if (!user) {
     showSnackbar("You don’t have permission to save budgets", "error");
     return;
@@ -1186,13 +1188,14 @@ function addIncome() {
     userId: userId.value,
     isIncome: true,
     entityId: familyStore.selectedEntityId,
+    taxMetadata: [],
   };
   isIncomeTransaction.value = true;
   showTransactionDialog.value = true;
 }
 
 async function duplicateCurrentMonth(month: string) {
-  const user = auth.currentUser;
+  const user = auth.user;
   if (!user) {
     showSnackbar("Please log in to duplicate a budget", "error");
     return;

@@ -56,10 +56,10 @@
     <!-- Sign-Out Confirmation Dialog -->
     <q-dialog v-model="showSignOutDialog" max-width="400">
       <q-card>
-        <q-card-title class="bg-primary py-3">
+        <q-card-section class="bg-primary py-3">
           <span class="text-white">Confirm Logout</span>
-        </q-card-title>
-        <q-card-text class="pt-4"> Are you sure you want to logout? </q-card-text>
+        </q-card-section>
+        <q-card-section class="pt-4"> Are you sure you want to logout? </q-card-section>
         <q-card-actions>
           <q-space />
           <q-btn color="grey" variant="text" @click="showSignOutDialog = false">Cancel</q-btn>
@@ -77,7 +77,6 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { auth } from '../firebase/index';
 import type { User } from 'firebase/auth';
 import { useRouter } from 'vue-router';
 import version from '../version';
@@ -86,7 +85,7 @@ import { useAuthStore } from '../store/auth';
 import { useFamilyStore } from '../store/family';
 
 const router = useRouter();
-const authStore = useAuthStore();
+const auth = useAuthStore();
 const familyStore = useFamilyStore();
 const currentTab = ref('/');
 
@@ -116,7 +115,7 @@ const navItems = [
 // Functions
 async function signOut() {
   try {
-    await auth.signOut();
+    await auth.logout();
     void router.push('/login');
   } catch (error) {
     console.error('Sign-out error:', error);
@@ -139,29 +138,27 @@ function completeOnboarding(_familyId: string) {
 
 // Lifecycle hooks
 onMounted(async () => {
-  authStore.initializeAuth();
-  auth.onAuthStateChanged(async (firebaseUser) => {
-    user.value = firebaseUser;
-    if (firebaseUser) {
-      // Check if user has a family
-      try {
-        const family = await familyStore.loadFamily(firebaseUser.uid);
-        if (!family && router.currentRoute.value.path !== '/login') {
-          showOnboarding.value = true; // Show modal if no family
-        }
-      } catch (ex: any) {
-        console.warn('Failed to load family', ex.message);
+  auth.initializeAuth();
+  if (auth.user) {
+    try {
+      const family = await familyStore.loadFamily(auth.user.uid);
+      if (!family && router.currentRoute.value.path !== '/login') {
+        showOnboarding.value = true; // Show modal if no family
       }
-      avatarSrc.value = localStorage.getItem('userAvatar') || firebaseUser.photoURL || 'https://via.placeholder.com/36';
-      if (!localStorage.getItem('userAvatar') && firebaseUser.photoURL) {
-        localStorage.setItem('userAvatar', firebaseUser.photoURL);
+
+      avatarSrc.value = localStorage.getItem('userAvatar') || auth.user.photoURL || 'https://via.placeholder.com/36';
+      if (!localStorage.getItem('userAvatar') && auth.user.photoURL) {
+        localStorage.setItem('userAvatar', auth.user.photoURL);
       }
-    } else {
-      avatarSrc.value = 'https://via.placeholder.com/36';
-      localStorage.removeItem('userAvatar');
-      void router.push('/login'); // Redirect to login if no user
+    } catch (ex: any) {
+      console.warn('Failed to load family', ex.message);
     }
-  });
+  } else {
+    avatarSrc.value = 'https://via.placeholder.com/36';
+    localStorage.removeItem('userAvatar');
+    void router.push('/login'); // Redirect to login if no user
+  }
+
   window.addEventListener('resize', handleResize);
 });
 
@@ -170,7 +167,7 @@ onUnmounted(() => {
 });
 
 watch(
-  () => authStore.user,
+  () => auth.user,
   (user) => {
     if (!user) void router.push('/login');
   },

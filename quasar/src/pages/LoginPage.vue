@@ -13,7 +13,6 @@
             </p>
           </q-card-section>
           <q-card-actions class="justify-center pb-4">
-            <!-- Replace v-btn with a div for Google button -->
             <div id="google-signin-button"></div>
           </q-card-actions>
           <q-banner v-if="error" type="error" dense>{{ error }}</q-banner>
@@ -27,13 +26,14 @@
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { signInWithCustomToken } from "firebase/auth";
-import { auth } from "../firebase/index";
+import { useAuthStore } from '../store/auth';
 
 // Reactive state
 const loading = ref(false);
 const error = ref("");
 const googleLoaded = ref(false);
 const router = useRouter();
+const auth = useAuthStore();
 const apiBaseUrl = process.env.VUE_APP_API_BASE_URL;
 
 // Check if Google script is loaded and render button

@@ -13,8 +13,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
-import { VTextField } from "vuetify/components";
+import { ref, computed } from "vue";
+import QTextField from "quasar";
 
 // Define props with TypeScript types
 const props = defineProps<{
@@ -27,7 +27,7 @@ const emit = defineEmits<{
 }>();
 
 // Reactive reference to the text field component
-const textField = ref<InstanceType<typeof VTextField> | null>(null);
+const textField = ref<InstanceType<typeof QTextField> | null>(null);
 
 // Computed property for displaying the value with two decimal places
 const displayValue = computed(() => {

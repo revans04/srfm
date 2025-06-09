@@ -19,20 +19,18 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { auth } from "../firebase/index";
 import { dataAccess } from "../dataAccess";
-import { useRouter } from "vue-router";
 import { useFamilyStore } from "../store/family";
+import { useAuthStore } from "../store/auth";
 
-const router = useRouter();
 const familyStore = useFamilyStore();
+const auth = useAuthStore();
 const emit = defineEmits(["family-created"]);
 const groupName = ref("");
 const creating = ref(false);
-const showNextSteps = ref(false);
 
 onMounted(async () => {
-  const user = auth.currentUser;
+  const user = auth.user;
   const family = await familyStore.getFamily();
   if (family && family.name) groupName.value = family.name;
   if (user && user.displayName && groupName.value == "")
@@ -40,17 +38,17 @@ onMounted(async () => {
 });
 
 async function createFamily() {
-  const user = auth.currentUser;
+  const user = auth.user;
   if (!user || !groupName.value) return;
   let family = await familyStore.getFamily();
 
   creating.value = true;
   try {
     if (family) {
-      family.name == groupName.value
+      family.name = groupName.value
       await dataAccess.renameFamily(family.id, family.name);
     } else {
-      const response = await dataAccess.createFamily(user.uid, groupName.value, user.email ?? "");
+      await dataAccess.createFamily(user.uid, groupName.value, user.email ?? "");
       family = await familyStore.loadFamily();
     }
     emit("family-created", family?.id);

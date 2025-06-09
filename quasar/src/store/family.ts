@@ -1,23 +1,25 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import { Family, Entity, EntityType } from "../types";
+import type { Family, Entity} from "../types";
+import { EntityType } from "../types";
 import { dataAccess } from "../dataAccess";
-import { auth } from "../firebase";
+import { useAuthStore } from "./auth";
 
 export const useFamilyStore = defineStore("family", () => {
+  const auth = useAuthStore();
   const family = ref<Family>();
   const selectedEntityId = ref<string>(""); // Track selected entity for filtering
 
   async function loadFamily(userId: string = "") {
     try {
-      if (!userId) userId = auth.currentUser ? auth.currentUser.uid : "";
+      if (!userId) userId = auth.user ? auth.user.uid : "";
       const f = await dataAccess.getUserFamily(userId);
       if (f) {
         family.value = f;
         // Set default entity (e.g., first "Family" type entity)
         if (f.entities?.length) {
           const defaultEntity = f.entities.find(e => e.type === EntityType.Family) || f.entities[0];
-          selectedEntityId.value = defaultEntity.id;
+          selectedEntityId.value = defaultEntity!.id;
         }
         return f;
       }
