@@ -1,12 +1,16 @@
-// src/version.js
-let version = "0.0.0";
+// src/version.ts
+import pkg from '../package.json';
+
+let version = '0.0.0';
+
 try {
   version =
-    process.env.VUE_APP_VERSION ||
-    require("../package.json").version ||
-    "0.0.0";
+    import.meta.env.VITE_APP_VERSION ||
+    (pkg as { version?: string }).version ||
+    '0.0.0';
 } catch (error) {
-  console.error("Error loading package.json version:", error);
-  version = process.env.VUE_APP_VERSION || "0.0.0";
+  console.error('Error loading package.json version:', error);
+  version = import.meta.env.VITE_APP_VERSION || '0.0.0';
 }
+
 export default version;
