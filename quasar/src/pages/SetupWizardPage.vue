@@ -22,20 +22,20 @@
           <q-stepper-window-item :value="step.value" class="wizard-step-content-wrapper">
             <template v-if="step.value === 'family'">
               <q-card flat class="wizard-step-card">
-                <q-card-title class="text-h5">{{ step.title }}</q-card-title>
-                <q-card-text>
+                <q-card-section class="text-h5">{{ step.title }}</q-card-section>
+                <q-card-section>
                   <group-naming-form @family-created="handleFamilyCreated" />
-                </q-card-text>
+                </q-card-section>
                 <q-card-actions class="pa-4">
-                  <q-spacer />
+                  <q-space />
                 </q-card-actions>
               </q-card>
             </template>
 
             <template v-else-if="step.value === 'entities'">
               <q-card flat class="wizard-step-card">
-                <q-card-title class="text-h5">{{ step.title }}</q-card-title>
-                <q-card-text>
+                <q-card-section class="text-h5">{{ step.title }}</q-card-section>
+                <q-card-section>
                   An entity could be a family budget, rental property, or some kind of business. The reason you would want to add an entity would be to track
                   budgets and expenses related to that entity. You will also be able to run reports that are isolated to entities. Each entity will have monthly
                   budgets with expense categories. Each entity should also have some income source.<br /><br />
@@ -46,7 +46,7 @@
                         <q-btn density="compact" variant="plain" icon="mdi-plus" color="success" @click="initNewEntity" aria-label="Add New Entity"></q-btn>
                       </q-col>
                     </q-row>
-                    <q-list-item
+                    <q-item
                       v-for="entity in savedEntities"
                       :key="entity.id"
                       @click="selectEntity(entity.id)"
@@ -54,7 +54,7 @@
                       class="entity-list-item"
                     >
                       <div>{{ entity.name }} ({{ entity.type }})</div>
-                    </q-list-item>
+                    </q-item>
                   </q-list>
                   <q-btn v-else color="primary" @click="initNewEntity" class="mb-4" aria-label="Add New Entity"> Add New Entity </q-btn>
                   <entity-form
@@ -66,10 +66,10 @@
                     @save="onEntitySaved"
                     @update:unsaved="updateUnsavedChanges"
                   />
-                </q-card-text>
+                </q-card-section>
                 <q-card-actions class="pa-4">
                   <q-btn color="secondary" variant="text" @click="navigateStep('back')"> Back </q-btn>
-                  <q-spacer />
+                  <q-space />
                   <q-btn color="primary" @click="navigateStep('next')" class="ml-2"> Next </q-btn>
                 </q-card-actions>
               </q-card>
@@ -77,10 +77,10 @@
 
             <template v-else-if="step.accountType">
               <q-card flat class="wizard-step-card">
-                <q-card-title class="text-h5 d-flex justify-space-between align-center">
+                <q-card-section class="text-h5 d-flex justify-space-between align-center">
                   <span>{{ step.title }}</span>
-                </q-card-title>
-                <q-card-text>
+                </q-card-section>
+                <q-card-section>
                   <p v-if="step.accountType == AccountType.Bank" class="mb-4">
                     Add your bank accounts (savings or checking) here. Adding accounts here will allow you to track their value over time (via account
                     snapshots) and you'll be able to track transactions for those accounts for reconciliation purposes. If you would rather, you can also add
@@ -107,10 +107,10 @@
                     @edit="editWizardAccount"
                     @delete="removeWizardAccount"
                   />
-                </q-card-text>
+                </q-card-section>
                 <q-card-actions class="pa-4">
                   <q-btn color="secondary" variant="text" @click="navigateStep('back')"> Back </q-btn>
-                  <q-spacer />
+                  <q-space />
                   <q-btn v-if="!isLastStep && step.accountType" color="secondary" variant="text" @click="navigateStep('next')" class="ml-2"> Skip </q-btn>
                   <q-btn v-if="!isLastStep" color="primary" @click="navigateStep('next')" class="ml-2"> Next </q-btn>
                   <q-btn v-else color="primary" @click="finishSetup" :loading="finishingSetup" class="ml-2"> Finish </q-btn>
@@ -128,8 +128,8 @@
     <!-- Account Dialog -->
     <q-dialog v-model="showWizardAccountDialog" max-width="600px" persistent>
       <q-card>
-        <q-card-title> {{ editMode ? "Edit" : "Add" }} {{ newWizardAccount.type }} Account </q-card-title>
-        <q-card-text>
+        <q-card-section> {{ editMode ? "Edit" : "Add" }} {{ newWizardAccount.type }} Account </q-card-section>
+        <q-card-section>
           <AccountForm
             :account-type="newWizardAccount.type as AccountType"
             :account="editMode ? newWizardAccount : undefined"
@@ -137,7 +137,7 @@
             @save="saveWizardAccount"
             @cancel="closeWizardAccountDialog"
           />
-        </q-card-text>
+        </q-card-section>
       </q-card>
     </q-dialog>
 

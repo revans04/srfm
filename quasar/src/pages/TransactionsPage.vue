@@ -22,15 +22,15 @@
         <q-btn color="primary" variant="plain" class="mb-4 mr-2" @click="openMatchBankTransactionsDialog"> Match Bank Transactions </q-btn>
 
         <q-card class="mb-4">
-          <q-card-title>
+          <q-card-section>
             <q-row class="mt-2">
               <q-col cols="auto">Filters</q-col>
               <q-col>
                 <q-checkbox v-model="entriesFilterDuplicates" label="Look for Duplicates" density="compact" hide-details @update:modelValue="applyFilters" />
               </q-col>
             </q-row>
-          </q-card-title>
-          <q-card-text>
+          </q-card-section>
+          <q-card-section>
             <q-row>
               <q-col cols="12" md="4">
                 <q-select
@@ -122,13 +122,13 @@
                 ></q-select>
               </q-col>
             </q-row>
-          </q-card-text>
+          </q-card-section>
         </q-card>
 
         <q-card density="compact">
-          <q-card-title>Budget Entries</q-card-title>
+          <q-card-section>Budget Entries</q-card-section>
           <q-list dense>
-            <q-list-item v-for="transaction in expenseTransactions" :key="transaction.id" class="transaction-item" @click="editTransaction(transaction)">
+            <q-item v-for="transaction in expenseTransactions" :key="transaction.id" class="transaction-item" @click="editTransaction(transaction)">
               <!-- Desktop Layout -->
               <template v-if="!isMobile">
                 <q-row class="pa-2 align-center">
@@ -212,10 +212,10 @@
                   </q-card-item>
                 </q-card>
               </template>
-            </q-list-item>
-            <q-list-item v-if="expenseTransactions.length === 0">
-              <q-list-item-title>No transactions found.</q-list-item-title>
-            </q-list-item>
+            </q-item>
+            <q-item v-if="expenseTransactions.length === 0">
+              <q-item-label>No transactions found.</q-item-label>
+            </q-item>
           </q-list>
         </q-card>
       </q-window-item>

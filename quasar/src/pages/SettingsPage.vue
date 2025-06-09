@@ -21,33 +21,33 @@
       <!-- Group Management Tab -->
       <q-window-item value="group">
         <q-card class="mt-4">
-          <q-card-title>Family/Group Information</q-card-title>
-          <q-card-text>
+          <q-card-section>Family/Group Information</q-card-section>
+          <q-card-section>
             <q-list>
-              <q-list-item v-for="member in acceptedMembers" :key="member.uid">
+              <q-item v-for="member in acceptedMembers" :key="member.uid">
                 {{ member.email }} ({{ member.role }}) - Last Accessed: {{ formatDate(member.lastAccessed) || "Never" }}
                 <q-btn v-if="member.uid !== user.uid" @click="removeMember(member.uid)">Remove</q-btn>
-              </q-list-item>
-              <q-list-item v-for="invite in pendingInvites" :key="invite.token">
+              </q-item>
+              <q-item v-for="invite in pendingInvites" :key="invite.token">
                 {{ invite.inviteeEmail }} (Pending) - Invited: {{ formatDate(invite.createdAt) }}
-              </q-list-item>
+              </q-item>
             </q-list>
             <q-form @submit.prevent="inviteMember">
               <q-text-field v-model="inviteEmail" label="Invite Email" type="email" required></q-text-field>
               <q-btn type="submit" :loading="inviting">Invite</q-btn>
             </q-form>
-          </q-card-text>
+          </q-card-section>
         </q-card>
       </q-window-item>
 
       <!-- Entity Management Tab -->
       <q-window-item value="entity">
         <q-card class="mt-4">
-          <q-card-title>Entities</q-card-title>
-          <q-card-text>
+          <q-card-section>Entities</q-card-section>
+          <q-card-section>
             <q-btn color="primary" @click="openCreateEntityDialog" class="mb-4">Add Entity</q-btn>
             <q-list>
-              <q-list-item v-for="entity in entities" :key="entity.id">
+              <q-item v-for="entity in entities" :key="entity.id">
                 <q-row :dense="true">
                   <q-col>
                     {{ entity.name }} ({{ entity.type }}) - Owner: {{ entity.members.find((m) => m.role === "Admin")?.email || "N/A" }}
@@ -64,10 +64,10 @@
                     </q-btn>
                   </q-col>
                 </q-row>
-              </q-list-item>
-              <q-list-item v-if="!entities.length"> No entities found. Create an entity to start managing budgets. </q-list-item>
+              </q-item>
+              <q-item v-if="!entities.length"> No entities found. Create an entity to start managing budgets. </q-item>
             </q-list>
-          </q-card-text>
+          </q-card-section>
         </q-card>
       </q-window-item>
 
@@ -76,8 +76,8 @@
         <q-row>
           <q-col cols="12">
             <q-card>
-              <q-card-title>Imported Transaction</q-card-title>
-              <q-card-text>
+              <q-card-section>Imported Transaction</q-card-section>
+              <q-card-section>
                 <q-data-table :headers="transactionDocHeaders" :items="importedTransactionDocs" :items-per-page="10" class="elevation-1">
                   <template v-slot:item.createdAt="{ item }">
                     {{ getDateRange(item) }}
@@ -98,7 +98,7 @@
                     </q-btn>
                   </template>
                 </q-data-table>
-              </q-card-text>
+              </q-card-section>
             </q-card>
           </q-col>
         </q-row>
@@ -109,8 +109,8 @@
         <q-row>
           <q-col cols="12">
             <q-card>
-              <q-card-title>Monthly Budgets</q-card-title>
-              <q-card-text>
+              <q-card-section>Monthly Budgets</q-card-section>
+              <q-card-section>
                 <q-data-table :headers="budgetHeaders" :items="budgets" :items-per-page="10" class="elevation-1">
                   <template v-slot:item.entityName="{ item }">
                     {{ getEntityName(item.entityId) }}
@@ -124,7 +124,7 @@
                     </q-btn>
                   </template>
                 </q-data-table>
-              </q-card-text>
+              </q-card-section>
             </q-card>
           </q-col>
         </q-row>
@@ -134,15 +134,15 @@
     <!-- Delete Transaction Doc Confirmation Dialog -->
     <q-dialog v-model="showDeleteDialog" max-width="400" @keyup.enter="deleteTransactionDoc">
       <q-card>
-        <q-card-title class="bg-error py-3">
+        <q-card-section class="bg-error py-3">
           <span class="text-white">Delete Transaction Document</span>
-        </q-card-title>
-        <q-card-text class="pt-4">
+        </q-card-section>
+        <q-card-section class="pt-4">
           Are you sure you want to delete the transaction document with ID "{{ transactionDocToDelete?.id }}" containing
           {{ transactionDocToDelete?.importedTransactions.length }} transactions? This action cannot be undone.
-        </q-card-text>
+        </q-card-section>
         <q-card-actions>
-          <q-spacer></q-spacer>
+          <q-space></q-space>
           <q-btn color="grey" variant="text" @click="showDeleteDialog = false">Cancel</q-btn>
           <q-btn color="error" variant="flat" @click="deleteTransactionDoc">Delete</q-btn>
         </q-card-actions>
@@ -152,15 +152,15 @@
     <!-- Delete Budget Confirmation Dialog -->
     <q-dialog v-model="showDeleteBudgetDialog" max-width="400" @keyup.enter="deleteBudget">
       <q-card>
-        <q-card-title class="bg-error py-3">
+        <q-card-section class="bg-error py-3">
           <span class="text-white">Delete Budget</span>
-        </q-card-title>
-        <q-card-text class="pt-4">
+        </q-card-section>
+        <q-card-section class="pt-4">
           Are you sure you want to delete the budget for "{{ budgetToDelete?.month }}" (ID: {{ budgetToDelete?.budgetId }}) containing
           {{ budgetToDelete?.transactions?.length || 0 }} transactions? This action cannot be undone.
-        </q-card-text>
+        </q-card-section>
         <q-card-actions>
-          <q-spacer></q-spacer>
+          <q-space></q-space>
           <q-btn color="grey" variant="text" @click="showDeleteBudgetDialog = false">Cancel</q-btn>
           <q-btn color="error" variant="flat" @click="deleteBudget">Delete</q-btn>
         </q-card-actions>
@@ -170,16 +170,16 @@
     <!-- Delete Entity Confirmation Dialog -->
     <q-dialog v-model="showDeleteEntityDialog" max-width="400" @keyup.enter="deleteEntity">
       <q-card>
-        <q-card-title class="bg-error py-3">
+        <q-card-section class="bg-error py-3">
           <span class="text-white">Delete Entity</span>
-        </q-card-title>
-        <q-card-text class="pt-4">
+        </q-card-section>
+        <q-card-section class="pt-4">
           Are you sure you want to delete the entity "{{ entityToDelete?.name }}" (ID: {{ entityToDelete?.id }})?
           <span v-if="associatedBudgets.length > 0"> This entity has {{ associatedBudgets.length }} associated budget(s), which must be deleted first. </span>
           <span v-else>This action cannot be undone.</span>
-        </q-card-text>
+        </q-card-section>
         <q-card-actions>
-          <q-spacer></q-spacer>
+          <q-space></q-space>
           <q-btn color="grey" variant="text" @click="showDeleteEntityDialog = false">Cancel</q-btn>
           <q-btn color="error" variant="flat" @click="deleteEntity" :disabled="associatedBudgets.length > 0">Delete</q-btn>
         </q-card-actions>

@@ -1,18 +1,18 @@
+  
         <q-separator />
-        <q-separator />
-  <q-app>
-    <!-- Desktop Navigation Drawer -->
-    <q-navigation-drawer app permanent v-if="!isMobile && !isLoginRoute">
-      <div class="text-center bg-primary">
-        <img alt="Steady Rise Financial Management" src="./assets/family-funds-sm.png" width="100" />
-      </div>
-      <q-list>
-        <q-divider></q-divider>
-        <q-list-item
-          v-for="item in navItems.filter((n) => n.desktop)"
-          :key="item.title"
-          :to="item.path"
-          :title="item.title"
+        <q-item
+        ></q-item>
+        <q-item disabled class="version-item">
+          <q-item-label class="text-caption text-center">
+          </q-item-label>
+        </q-item>
+        <q-item :title="userEmail ? userEmail : ''" subtitle="Logout" @click="signOut">
+        </q-item>
+        <q-card-section class="bg-primary py-3">
+        </q-card-section>
+        <q-card-section class="pt-4"> Are you sure you want to logout? </q-card-section>
+          <q-space></q-space>
+  
           :prepend-icon="item.icon"
           :active="router.currentRoute.value.path === item.path"
         ></q-list-item>

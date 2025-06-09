@@ -2,8 +2,8 @@
 <template>
   <q-dialog v-model="localShowDialog" :fullscreen="isMobile" @update:modelValue="handleDialogClose">
     <q-card>
-      <q-card-title>Match Budget Transaction</q-card-title>
-      <q-card-text>
+      <q-card-section>Match Budget Transaction</q-card-section>
+      <q-card-section>
         <q-row>
           <q-col>
             <h3>Selected Budget Transaction</h3>
@@ -64,9 +64,9 @@
             </q-data-table>
           </q-col>
         </q-row>
-      </q-card-text>
+      </q-card-section>
       <q-card-actions>
-        <q-spacer></q-spacer>
+        <q-space></q-space>
         <q-btn color="error" @click="localShowDialog = false">Cancel</q-btn>
         <q-btn color="primary" @click="matchTransaction" :disabled="!selectedImportedTransaction.length"> Match </q-btn>
       </q-card-actions>

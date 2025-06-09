@@ -47,8 +47,8 @@
 
     <!-- Balance Display -->
     <q-card class="mb-4" v-if="selectedAccount">
-      <q-card-title>Account Balance</q-card-title>
-      <q-card-text>
+      <q-card-section>Account Balance</q-card-section>
+      <q-card-section>
         <q-row>
           <q-col>
             <span class="text-h6">Balance from Accounts: </span>
@@ -69,15 +69,15 @@
             <q-btn color="primary" @click="openBalanceAdjustmentDialog">Adjust Balance</q-btn>
           </q-col>
         </q-row>
-      </q-card-text>
+      </q-card-section>
     </q-card>
 
     <q-card class="mb-4" v-if="selectedStatement">
-      <q-card-title>Statement Totals</q-card-title>
-      <q-card-text>
+      <q-card-section>Statement Totals</q-card-section>
+      <q-card-section>
         <p>Start Balance: {{ formatCurrency(selectedStatement.startingBalance) }}</p>
         <p>End Balance: {{ formatCurrency(selectedStatement.endingBalance) }}</p>
-      </q-card-text>
+      </q-card-section>
     </q-card>
 
     <!-- Loading Overlay -->
@@ -86,8 +86,8 @@
     </q-overlay>
 
     <q-card class="mb-4">
-      <q-card-title>Filters</q-card-title>
-      <q-card-text>
+      <q-card-section>Filters</q-card-section>
+      <q-card-section>
         <q-row>
           <q-col cols="6" md="6">
             <q-text-field
@@ -141,11 +141,11 @@
             </q-row>
           </q-col>
         </q-row>
-      </q-card-text>
+      </q-card-section>
     </q-card>
 
     <q-card v-if="!loading">
-      <q-card-title>
+      <q-card-section>
         <q-row :dense="true">
           <q-col>Transaction Registry</q-col>
           <q-col cols="auto">
@@ -155,8 +155,8 @@
             </q-btn>
           </q-col>
         </q-row>
-      </q-card-title>
-      <q-card-text>
+      </q-card-section>
+      <q-card-section>
         <q-btn
           v-if="selectedRows.length > 0"
           color="primary"
@@ -193,7 +193,7 @@
         >
           Delete {{ selectedRows.length }}
         </q-btn>
-      </q-card-text>
+      </q-card-section>
       <q-data-table
         v-model="selectedRows"
         :headers="headers"
@@ -261,18 +261,18 @@
     <!-- Action Confirmation Dialog -->
     <q-dialog v-model="showActionDialog" max-width="400" @keyup.enter="executeAction">
       <q-card>
-        <q-card-title class="bg-warning py-3">
+        <q-card-section class="bg-warning py-3">
           <span class="text-white">{{ transactionAction }} Transaction</span>
-        </q-card-title>
-        <q-card-text v-if="transactionAction == 'Disconnect'" class="pt-4">
+        </q-card-section>
+        <q-card-section v-if="transactionAction == 'Disconnect'" class="pt-4">
           Are you sure you want to disconnect the transaction for "{{ transactionToAction?.merchant }}" on {{ transactionToAction?.date }} from its imported
           transaction?
-        </q-card-text>
-        <q-card-text v-else class="pt-4">
+        </q-card-section>
+        <q-card-section v-else class="pt-4">
           Are you sure you want to {{ transactionAction }} the transaction for "{{ transactionToAction?.merchant }}" on {{ transactionToAction?.date }}?
-        </q-card-text>
+        </q-card-section>
         <q-card-actions>
-          <q-spacer></q-spacer>
+          <q-space></q-space>
           <q-btn color="grey" variant="text" @click="showActionDialog = false">Cancel</q-btn>
           <q-btn color="warning" variant="flat" @click="executeAction">{{ transactionAction }}</q-btn>
         </q-card-actions>
@@ -282,10 +282,10 @@
     <!-- Batch Match Dialog -->
     <q-dialog v-model="showBatchMatchDialog" max-width="500" @keyup.enter="executeBatchMatch">
       <q-card>
-        <q-card-title class="bg-primary py-3">
+        <q-card-section class="bg-primary py-3">
           <span class="text-white">Batch Match Transactions</span>
-        </q-card-title>
-        <q-card-text class="pt-4">
+        </q-card-section>
+        <q-card-section class="pt-4">
           <q-form ref="batchMatchForm">
             <p>Assign an entity, merchant, and category for {{ selectedRows.length }} unmatched transaction{{ selectedRows.length > 1 ? "s" : "" }}.</p>
             <q-row>
@@ -320,9 +320,9 @@
               </q-col>
             </q-row>
           </q-form>
-        </q-card-text>
+        </q-card-section>
         <q-card-actions>
-          <q-spacer></q-spacer>
+          <q-space></q-space>
           <q-btn color="grey" variant="text" @click="showBatchMatchDialog = false">Cancel</q-btn>
           <q-btn color="primary" variant="flat" @click="executeBatchMatch" :loading="saving">Match</q-btn>
         </q-card-actions>
@@ -332,10 +332,10 @@
     <!-- Add Statement Dialog -->
     <q-dialog v-model="showStatementDialog" max-width="500">
       <q-card>
-        <q-card-title class="bg-primary py-3">
+        <q-card-section class="bg-primary py-3">
           <span class="text-white">Add Statement</span>
-        </q-card-title>
-        <q-card-text>
+        </q-card-section>
+        <q-card-section>
           <q-form ref="statementForm">
             <q-row>
               <q-col>
@@ -382,9 +382,9 @@
               </q-col>
             </q-row>
           </q-form>
-        </q-card-text>
+        </q-card-section>
         <q-card-actions>
-          <q-spacer></q-spacer>
+          <q-space></q-space>
           <q-btn color="grey" variant="text" @click="closeStatementDialog">Cancel</q-btn>
           <q-btn color="primary" variant="flat" @click="saveStatement" :loading="saving">Save</q-btn>
         </q-card-actions>
@@ -394,14 +394,14 @@
     <!-- Batch Action Dialog -->
     <q-dialog v-model="showBatchActionDialog" max-width="400" @keyup.enter="executeBatchAction">
       <q-card>
-        <q-card-title class="bg-warning py-3">
+        <q-card-section class="bg-warning py-3">
           <span class="text-white">{{ batchAction }} Selected Transactions</span>
-        </q-card-title>
-        <q-card-text class="pt-4">
+        </q-card-section>
+        <q-card-section class="pt-4">
           Are you sure you want to {{ batchAction.toLowerCase() }} {{ selectedRows.length }} transaction{{ selectedRows.length > 1 ? "s" : "" }}?
-        </q-card-text>
+        </q-card-section>
         <q-card-actions>
-          <q-spacer></q-spacer>
+          <q-space></q-space>
           <q-btn color="grey" variant="text" @click="showBatchActionDialog = false">Cancel</q-btn>
           <q-btn color="warning" variant="flat" @click="executeBatchAction" :loading="saving">{{ batchAction }}</q-btn>
         </q-card-actions>
@@ -411,10 +411,10 @@
     <!-- Balance Adjustment Dialog -->
     <q-dialog v-model="showBalanceAdjustmentDialog" max-width="500">
       <q-card>
-        <q-card-title class="bg-primary py-3">
+        <q-card-section class="bg-primary py-3">
           <span class="text-white">Adjust Initial Balance</span>
-        </q-card-title>
-        <q-card-text>
+        </q-card-section>
+        <q-card-section>
           <q-form ref="adjustmentForm" @submit.prevent="saveBalanceAdjustment">
             <q-row>
               <q-col>
@@ -455,16 +455,16 @@
             <q-btn type="submit" color="primary" :loading="saving">Save Adjustment</q-btn>
             <q-btn color="grey" variant="text" @click="closeBalanceAdjustmentDialog" class="ml-2">Cancel</q-btn>
           </q-form>
-        </q-card-text>
+        </q-card-section>
       </q-card>
     </q-dialog>
 
     <!-- Reconcile Summary -->
     <q-card class="mt-4" v-if="reconciling && selectedStatement">
-      <q-card-title class="bg-primary py-3">
+      <q-card-section class="bg-primary py-3">
         <span class="text-white">Reconcile Statement</span>
-      </q-card-title>
-      <q-card-text>
+      </q-card-section>
+      <q-card-section>
         <p>
           Select transactions to reconcile for
           {{ selectedStatement.startDate }} - {{ selectedStatement.endDate }}
@@ -478,9 +478,9 @@
             Calculated ending balance does not match statement ending balance.
           </q-alert>
         </div>
-      </q-card-text>
+      </q-card-section>
       <q-card-actions>
-        <q-spacer></q-spacer>
+        <q-space></q-space>
         <q-btn color="grey" variant="text" @click="cancelReconcile">Cancel</q-btn>
         <q-btn color="primary" variant="flat" @click="markStatementReconciled" :loading="saving">Reconcile</q-btn>
       </q-card-actions>

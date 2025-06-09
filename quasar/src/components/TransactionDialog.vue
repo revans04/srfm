@@ -7,10 +7,10 @@
     @update:modelValue="handleDialogClose"
   >
     <q-card>
-      <q-card-title>
+      <q-card-section>
         {{ editMode ? "Edit Transaction" : "Add Transaction" }}
-      </q-card-title>
-      <q-card-text>
+      </q-card-section>
+      <q-card-section>
         <TransactionForm
           :initial-transaction="transaction"
           :loading="loading"
@@ -21,7 +21,7 @@
           @save="handleSave"
           @cancel="handleCancel"
         />
-      </q-card-text>
+      </q-card-section>
     </q-card>
   </q-dialog>
 </template>
