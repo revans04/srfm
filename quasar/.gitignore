@@ -28,7 +28,6 @@ yarn-error.log*
 *.ntvs*
 *.njsproj
 *.sln
-src/firebase/*.*
 
 # local .env files
 .env.*
