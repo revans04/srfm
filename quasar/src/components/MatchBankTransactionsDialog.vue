@@ -566,7 +566,8 @@ const sortedSmartMatches = computed(() => {
   const direction = smartMatchesSortDirection.value;
 
   return items.sort((a, b) => {
-    let valueA, valueB;
+    let valueA: number | string = 0;
+    let valueB: number | string = 0;
 
     if (field === 'postedDate') {
       valueA = new Date(a.importedTransaction.postedDate).getTime();
@@ -591,7 +592,8 @@ const sortedPotentialMatches = computed(() => {
   const direction = potentialMatchesSortDirection.value;
 
   return items.sort((a, b) => {
-    let valueA, valueB;
+    let valueA: number | string = 0;
+    let valueB: number | string = 0;
 
     if (field === 'date') {
       valueA = new Date(a.date).getTime();
@@ -806,8 +808,8 @@ async function matchBankTransaction(budgetTransaction: Transaction) {
     let budget = budgetStore.getBudget(targetBudgetIdToUse);
     if (!budget) {
       budget = await createBudgetForMonth(
-        updatedTransaction.budgetMonth,
-        familyStore.getFamily()?.id || '',
+        updatedTransaction.budgetMonth!,
+        familyStore.family?.id || '',
         user.uid,
         updatedTransaction.entityId,
       );
@@ -847,7 +849,7 @@ async function ignoreBankTransaction() {
     const parts = importedTx.id.split('-');
     const txId = parts[parts.length - 1];
     const docId = parts.slice(0, -1).join('-');
-    await dataAccess.updateImportedTransaction(docId, importedTx.id, null, true);
+    await dataAccess.updateImportedTransaction(docId, importedTx.id, undefined, true);
 
     showSnackbar('Bank transaction ignored');
     updateRemainingTransactions();
