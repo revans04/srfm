@@ -78,7 +78,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
-import { auth } from "firebase/index";
+import { auth } from "./firebase/index"
 import type { User } from "firebase/auth";
 import { useRouter } from "vue-router";
 import version from "./version";
