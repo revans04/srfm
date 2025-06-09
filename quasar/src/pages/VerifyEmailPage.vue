@@ -1,5 +1,5 @@
 <template>
-  <q-container>
+  <q-page-container>
     <q-row justify="center">
       <q-col cols="12" md="6">
         <q-card>
@@ -10,7 +10,7 @@
         </q-card>
       </q-col>
     </q-row>
-  </q-container>
+  </q-page-container>
 </template>
 
 <script setup lang="ts">

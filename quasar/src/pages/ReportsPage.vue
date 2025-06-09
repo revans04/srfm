@@ -1,6 +1,6 @@
 <!-- ReportsView.vue -->
 <template>
-  <q-container fluid>
+  <q-page-container fluid>
     <h1>Budget Reporting</h1>
 
     <!-- Tabs -->
@@ -152,7 +152,7 @@
         </q-row>
       </q-window-item>
     </q-window>
-  </q-container>
+  </q-page-container>
 </template>
 
 <script setup lang="ts">

@@ -1,6 +1,6 @@
 <!-- src/views/DataView.vue -->
 <template>
-  <q-container fluid>
+  <q-page-container fluid>
     <h1>Data Management</h1>
 
     <!-- Loading Overlay -->
@@ -343,7 +343,7 @@
       <entity-form :initial-entity="null" @save="handleEntitySave" @cancel="showEntityForm = false" />
     </q-dialog>
 
-  </q-container>
+  </q-page-container>
 </template>
 
 <script setup lang="ts">

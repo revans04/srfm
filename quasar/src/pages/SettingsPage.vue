@@ -1,6 +1,6 @@
 <!-- src/views/SettingsView.vue -->
 <template>
-  <q-container>
+  <q-page-container>
     <h1>Settings</h1>
 
     <q-alert v-if="userEmail && !emailVerified" type="warning" class="mb-4">
@@ -205,7 +205,7 @@
         <q-btn variant="text" @click="snackbar = false">Close</q-btn>
       </template>
     </q-snackbar>
-  </q-container>
+  </q-page-container>
 </template>
 
 <script setup lang="ts">

@@ -1,5 +1,5 @@
 <template>
-  <q-container>
+  <q-page-container>
     <h1>Accept Invite</h1>
     <q-progress-circular v-if="loading" indeterminate></q-progress-circular>
     <q-alert v-else-if="error" type="error">{{ error }}</q-alert>
@@ -11,7 +11,7 @@
       <q-btn @click="login">Log In</q-btn>
       <q-btn @click="signup">Sign Up</q-btn>
     </div>
-  </q-container>
+  </q-page-container>
 </template>
 
 <script setup lang="ts">

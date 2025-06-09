@@ -1,6 +1,6 @@
 <!-- src/views/AccountsView.vue -->
 <template>
-  <q-container fluid>
+  <q-page-container fluid>
     <h1>Accounts</h1>
 
     <!-- Loading Overlay -->
@@ -216,7 +216,7 @@
         <q-btn variant="text" @click="snackbar = false">Close</q-btn>
       </template>
     </q-snackbar>
-  </q-container>
+  </q-page-container>
 </template>
 
 <script setup lang="ts">

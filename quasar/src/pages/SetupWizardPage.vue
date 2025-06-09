@@ -1,6 +1,6 @@
 <!-- src/views/SetupWizard.vue -->
 <template>
-  <q-container fluid>
+  <q-page-container fluid>
     <h1>Setup Wizard</h1>
     <div class="text-subtitle-1 mb-2">Step {{ currentStepIndex + 1 }} of {{ wizardSteps.length }}</div>
     <q-stepper v-model="currentStepValue" class="mt-4 wizard-stepper" hide-actions aria-label="Setup Wizard Steps">
@@ -142,7 +142,7 @@
     </q-dialog>
 
     <q-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="3000" location="top right"></q-snackbar>
-  </q-container>
+  </q-page-container>
 </template>
 
 <script setup lang="ts">

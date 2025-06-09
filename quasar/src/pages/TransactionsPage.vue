@@ -1,6 +1,6 @@
 <!-- src/views/TransactionsView.vue -->
 <template>
-  <q-container :class="isMobile ? 'ps-0' : ''">
+  <q-page-container :class="isMobile ? 'ps-0' : ''">
     <h1>Transaction and Registry</h1>
 
     <!-- Loading Overlay -->
@@ -275,7 +275,7 @@
         <q-btn variant="text" @click="snackbar = false">Close</q-btn>
       </template>
     </q-snackbar>
-  </q-container>
+  </q-page-container>
 </template>
 
 <script setup lang="ts">

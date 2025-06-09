@@ -1,6 +1,6 @@
 <!-- DashboardView.vue -->
 <template>
-  <q-container fluid :class="isMobile ? 'pt-0 px-0' : ''">
+  <q-page-container fluid :class="isMobile ? 'pt-0 px-0' : ''">
     <!-- Loading Animation -->
     <q-row v-if="loading" justify="center" class="mt-4">
       <q-progress-circular indeterminate color="primary" size="50"></q-progress-circular>
@@ -349,7 +349,7 @@
         <span class="ml-4">Duplicating budget...</span>
       </q-overlay>
     </div>
-  </q-container>
+  </q-page-container>
 </template>
 
 <script setup lang="ts">

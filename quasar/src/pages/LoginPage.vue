@@ -1,6 +1,6 @@
 <!-- LoginView.vue -->
 <template>
-  <q-container class="fill-height" fluid>
+  <q-page-container class="fill-height" fluid>
     <q-row align="center" justify="center">
       <q-col cols="12" sm="8" md="4">
         <q-card class="elevation-12">
@@ -20,7 +20,7 @@
         </q-card>
       </q-col>
     </q-row>
-  </q-container>
+  </q-page-container>
 </template>
 
 <script setup lang="ts">

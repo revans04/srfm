@@ -1,6 +1,6 @@
 <!-- src/components/TransactionRegistry.vue -->
 <template>
-  <q-container fluid>
+  <q-page-container fluid>
     <q-row>
       <q-col cols="12" md="4">
         <q-select
@@ -492,7 +492,7 @@
         <q-btn variant="text" @click="snackbar = false">Close</q-btn>
       </template>
     </q-snackbar>
-  </q-container>
+  </q-page-container>
 </template>
 
 <script setup lang="ts">
