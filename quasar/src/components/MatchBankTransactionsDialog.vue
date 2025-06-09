@@ -406,7 +406,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, nextTick } from 'vue';
-import { Transaction, ImportedTransaction, Budget } from '../types';
+import type { Transaction, ImportedTransaction, Budget } from '../types';
 import {
   toDollars,
   toCents,

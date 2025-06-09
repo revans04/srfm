@@ -94,7 +94,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
-import { Transaction, ImportedTransaction, Account } from '../types';
+import type { Transaction, ImportedTransaction, Account } from '../types';
 import { toDollars, toCents } from '../utils/helpers';
 
 const props = defineProps<{

@@ -29,7 +29,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import TransactionForm from './TransactionForm.vue';
-import { Transaction } from '../types';
+import type { Transaction } from '../types';
 
 const props = defineProps<{
   showDialog: boolean;
