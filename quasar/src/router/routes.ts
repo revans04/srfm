@@ -16,7 +16,13 @@ const routes: RouteRecordRaw[] = [
       { path: 'accept-invite', component: () => import('pages/AcceptInvitePage.vue') },
     ],
   },
-  { path: '/login', component: () => import('pages/LoginPage.vue') },
+  {
+    path: '/login',
+    component: () => import('layouts/AuthLayout.vue'),
+    children: [
+      { path: '', component: () => import('pages/LoginPage.vue') },
+    ],
+  },
   { path: '/:catchAll(.*)*', component: () => import('pages/ErrorNotFound.vue') },
 ];
 
