@@ -1,8 +1,8 @@
 // src/utils/helpers.ts
-
-import { EntityType, Transaction } from "../types";
-import { v4 as uuidv4 } from "uuid";
-import { Timestamp } from "firebase/firestore";
+import type { Transaction } from '../types';
+import { EntityType } from '../types';
+import { v4 as uuidv4 } from 'uuid';
+import { Timestamp } from 'firebase/firestore';
 
 export function todayISO(date: Date = new Date()): string {
   const tzOffset = date.getTimezoneOffset() * 60000;
@@ -20,33 +20,33 @@ export function currentMonthISO(date: Date = new Date()): string {
  * @returns Formatted date string (e.g., "March 2025")
  */
 export function formatDate(date: string | Date): string {
-  const d = typeof date === "string" ? new Date(date) : date;
-  return d.toLocaleDateString("en-US", {
-    month: "2-digit",
-    day: "2-digit",
-    year: "numeric",
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toLocaleDateString('en-US', {
+    month: '2-digit',
+    day: '2-digit',
+    year: 'numeric',
   });
 }
 
 // Format a Timestamp to a readable string
 export function formatTimestamp(timestamp: any) {
-  if (!timestamp || typeof timestamp !== "object" || !timestamp.seconds) {
-    return "Invalid timestamp";
+  if (!timestamp || typeof timestamp !== 'object' || !timestamp.seconds) {
+    return 'Invalid timestamp';
   }
 
   const date = new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate();
-  
-  return date.toLocaleDateString("en-US", {
-    month: "2-digit",
-    day: "2-digit",
-    year: "numeric",
+
+  return date.toLocaleDateString('en-US', {
+    month: '2-digit',
+    day: '2-digit',
+    year: 'numeric',
   });
 }
 
 export function timestampToDate(t: Timestamp): Date {
   if (!t) return new Date();
   const milliseconds = t.seconds * 1000 + t.nanoseconds / 1e6;
-  return new Date(milliseconds)
+  return new Date(milliseconds);
 }
 
 export function stringToFirestoreTimestamp(dateString: string): Timestamp {
@@ -68,15 +68,14 @@ export function stringToFirestoreTimestamp(dateString: string): Timestamp {
   return Timestamp.fromDate(date);
 }
 
-
 /**
  * Formats a date string (YYYY-MM) or Date object to a localized string.
  * @param date - Date string (e.g., "2025-03") or Date object
  * @returns Formatted date string (e.g., "March 2025")
  */
 export function formatDateMonthYYYY(date: string | Date): string {
-  const d = typeof date === "string" ? new Date(date) : date;
-  return d.toLocaleString("en-US", { month: "long", year: "numeric" });
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
 }
 
 /**
@@ -85,9 +84,9 @@ export function formatDateMonthYYYY(date: string | Date): string {
  * @returns Formatted date string (e.g., "3/9/2025")
  */
 export function formatDateShort(date: string | Date): string {
-  const d = typeof date === "string" ? new Date(date) : date;
+  const d = typeof date === 'string' ? new Date(date) : date;
   if (isNaN(d.getTime())) {
-    throw new Error("Invalid date provided");
+    throw new Error('Invalid date provided');
   }
 
   const month = d.getMonth() + 1; // getMonth() is 0-based, so add 1
@@ -105,14 +104,14 @@ export function formatDateShort(date: string | Date): string {
  */
 export function formatDateLong(dateStr: string): string {
   // Split the YYYY-MM-DD string
-  const [year, month, day] = dateStr.split("-").map(Number);
+  const [year, month, day] = dateStr.split('-').map(Number);
   // Create a Date object in the local time zone (month is 0-based in JavaScript)
   const date = new Date(year, month - 1, day);
   // Format the date as MM/DD/YYYY
-  return date.toLocaleDateString("en-US", {
-    month: "2-digit",
-    day: "2-digit",
-    year: "numeric",
+  return date.toLocaleDateString('en-US', {
+    month: '2-digit',
+    day: '2-digit',
+    year: 'numeric',
   });
 }
 
@@ -126,27 +125,27 @@ export function toBudgetMonth(dateInput: Date | string | number): string {
   let date: Date;
 
   // Handle different input types
-  if (typeof dateInput === "string") {
+  if (typeof dateInput === 'string') {
     // Parse string dates (e.g., "2025-03-27", "03/27/2025")
     date = new Date(dateInput);
-  } else if (typeof dateInput === "number") {
+  } else if (typeof dateInput === 'number') {
     // Handle timestamp (milliseconds since epoch)
     date = new Date(dateInput);
   } else if (dateInput instanceof Date) {
     // Already a Date object
     date = dateInput;
   } else {
-    throw new Error("Invalid date input: must be a Date object, string, or timestamp");
+    throw new Error('Invalid date input: must be a Date object, string, or timestamp');
   }
 
   // Check if the date is valid
   if (isNaN(date.getTime())) {
-    throw new Error("Invalid date: could not parse the input date");
+    throw new Error('Invalid date: could not parse the input date');
   }
 
   // Extract year and month
   const year = date.getFullYear();
-  const month = (date.getMonth() + 1).toString().padStart(2, "0"); // Months are 0-based, so add 1
+  const month = (date.getMonth() + 1).toString().padStart(2, '0'); // Months are 0-based, so add 1
 
   return `${year}-${month}`;
 }
@@ -158,11 +157,11 @@ export function toBudgetMonth(dateInput: Date | string | number): string {
  */
 export function formatCurrency(amount: number | string): string {
   // Convert string to number, defaulting to 0 if invalid
-  const numericAmount = typeof amount === "string" ? parseFloat(amount) || 0 : amount;
+  const numericAmount = typeof amount === 'string' ? parseFloat(amount) || 0 : amount;
 
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
   }).format(numericAmount);
 }
 
@@ -172,7 +171,7 @@ export function formatCurrency(amount: number | string): string {
  * @returns Boolean indicating if the value is a valid number
  */
 export function isValidNumber(value: any): boolean {
-  return typeof value === "number" && !isNaN(value);
+  return typeof value === 'number' && !isNaN(value);
 }
 
 /**
@@ -182,7 +181,7 @@ export function isValidNumber(value: any): boolean {
  * @returns Padded string
  */
 export function padNumber(num: number, length: number): string {
-  return num.toString().padStart(length, "0");
+  return num.toString().padStart(length, '0');
 }
 
 /**
@@ -209,13 +208,13 @@ export function toDollars(cents: number): string {
  * @returns positive or negative number
  */
 export function parseAmount(value: string | null | undefined): number {
-  if (!value || value.trim() === "") return 0;
+  if (!value || value.trim() === '') return 0;
 
   // Remove extra spaces, dollar signs, and commas
-  let cleaned = value.trim().replace(/[\s,$]/g, "");
+  let cleaned = value.trim().replace(/[\s,$]/g, '');
 
   // Handle parentheses for negative numbers (e.g., "($19.47)" -> "-19.47")
-  const isNegative = cleaned.startsWith("(") && cleaned.endsWith(")");
+  const isNegative = cleaned.startsWith('(') && cleaned.endsWith(')');
   if (isNegative) {
     cleaned = cleaned.slice(1, -1); // Remove parentheses
   }
@@ -227,16 +226,16 @@ export function parseAmount(value: string | null | undefined): number {
 }
 
 /** Recurring transaction helpers */
-export function adjustTransactionDate(originalDate: string, newMonth: string, interval: Transaction["recurringInterval"]): string {
+export function adjustTransactionDate(originalDate: string, newMonth: string, interval: Transaction['recurringInterval']): string {
   const original = new Date(originalDate);
-  const [newYear, newMonthNum] = newMonth.split("-").map(Number);
+  const [newYear, newMonthNum] = newMonth.split('-').map(Number);
   const newDate = new Date(newYear, newMonthNum - 1, 1); // Start of the new month
 
-  if (interval === "Daily") {
+  if (interval === 'Daily') {
     // For daily, we’ll need to create a transaction for each day in the new month
     // For simplicity, return the same day for now; we'll handle daily recurrence separately
     newDate.setDate(original.getDate());
-  } else if (interval === "Weekly") {
+  } else if (interval === 'Weekly') {
     // Find the first occurrence of the same day of the week in the new month
     const originalDayOfWeek = original.getDay(); // 0 (Sunday) to 6 (Saturday)
     newDate.setDate(1); // Start at the 1st of the new month
@@ -253,7 +252,7 @@ export function adjustTransactionDate(originalDate: string, newMonth: string, in
 }
 
 export function generateDailyTransactions(transaction: Transaction, newMonth: string): Transaction[] {
-  const [newYear, newMonthNum] = newMonth.split("-").map(Number);
+  const [newYear, newMonthNum] = newMonth.split('-').map(Number);
   const daysInMonth = new Date(newYear, newMonthNum, 0).getDate();
   const transactions: Transaction[] = [];
 
@@ -277,7 +276,17 @@ export function generateDailyTransactions(transaction: Transaction, newMonth: st
 }
 
 export function generateBiWeeklyTransactions(transaction: Transaction, newMonth: string): Transaction[] {
-  const [newYear, newMonthNum] = newMonth.split("-").map(Number);
+  // Validate newMonth format (e.g., "2025-06")
+  const parts = newMonth.split('-');
+  if (parts.length !== 2) {
+    throw new Error(`Invalid newMonth format: ${newMonth}. Expected YYYY-MM`);
+  }
+  const newYear = Number(parts[0]);
+  const newMonthNum = Number(parts[1]);
+  if (isNaN(newYear) || isNaN(newMonthNum)) {
+    throw new Error(`Invalid year or month in newMonth: ${newMonth}`);
+  }
+
   const transactions: Transaction[] = [];
 
   const originalDate = new Date(transaction.date);
@@ -289,19 +298,30 @@ export function generateBiWeeklyTransactions(transaction: Transaction, newMonth:
   const daysToAdd = (originalDayOfWeek - firstDayOfWeek + 7) % 7;
   newDate.setDate(1 + daysToAdd);
 
-  // Add a transaction for each week in the month
+  // Add a transaction for every two weeks in the month
   while (newDate.getMonth() === newMonthNum - 1) {
-    const { ...newTransaction } = transaction;
-    newTransaction.id = uuidv4();
     transactions.push({
-      ...newTransaction,
+      id: uuidv4(),
       date: newDate.toISOString().slice(0, 10),
-      accountNumber: undefined,
-      accountSource: undefined,
+      merchant: transaction.merchant,
+      categories: transaction.categories,
+      amount: transaction.amount,
+      notes: transaction.notes,
+      recurring: transaction.recurring,
+      recurringInterval: transaction.recurringInterval,
+      userId: transaction.userId,
+      isIncome: transaction.isIncome,
+      budgetMonth: newMonth,
+      accountNumber: transaction.accountNumber,
+      accountSource: transaction.accountSource,
       postedDate: undefined,
       importedMerchant: undefined,
       status: undefined,
-      budgetMonth: newMonth,
+      checkNumber: transaction.checkNumber,
+      deleted: transaction.deleted,
+      entityId: transaction.entityId,
+      taxMetadata: transaction.taxMetadata,
+      receiptUrl: transaction.receiptUrl,
     });
     newDate.setDate(newDate.getDate() + 14); // Two weeks
   }
@@ -310,7 +330,7 @@ export function generateBiWeeklyTransactions(transaction: Transaction, newMonth:
 }
 
 export function generateWeeklyTransactions(transaction: Transaction, newMonth: string): Transaction[] {
-  const [newYear, newMonthNum] = newMonth.split("-").map(Number);
+  const [newYear, newMonthNum] = newMonth.split('-').map(Number);
   const transactions: Transaction[] = [];
 
   const originalDate = new Date(transaction.date);
@@ -342,18 +362,16 @@ export function generateWeeklyTransactions(transaction: Transaction, newMonth: s
   return transactions;
 }
 
-
-
 export function formatEntityType(type: EntityType): string {
   switch (type) {
     case EntityType.Family:
-      return "Family";
+      return 'Family';
     case EntityType.Business:
-      return "Business";
+      return 'Business';
     case EntityType.RentalProperty:
-      return "Rental Property";
+      return 'Rental Property';
     case EntityType.Other:
-      return "Other";
+      return 'Other';
     default:
       return type;
   }
