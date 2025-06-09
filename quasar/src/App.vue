@@ -1,5 +1,5 @@
-<!-- eslint-disable @typescript-eslint/no-misused-promises -->
-<template>
+        <q-separator />
+        <q-separator />
   <q-app>
     <!-- Desktop Navigation Drawer -->
     <q-navigation-drawer app permanent v-if="!isMobile && !isLoginRoute">
