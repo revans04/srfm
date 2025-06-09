@@ -1,5 +1,5 @@
-        <q-separator />
-        <q-separator />
+<!-- eslint-disable @typescript-eslint/no-misused-promises -->
+<template>
   <q-app>
     <!-- Desktop Navigation Drawer -->
     <q-navigation-drawer app permanent v-if="!isMobile && !isLoginRoute">
@@ -118,7 +118,7 @@ const navItems = [
 async function signOut() {
   try {
     await auth.signOut();
-    router.push("/login");
+    void router.push("/login");
   } catch (error) {
     console.error("Sign-out error:", error);
   } finally {
@@ -134,7 +134,7 @@ function handleResize() {
   windowWidth.value = window.innerWidth;
 }
 
-function completeOnboarding(familyId: string) {
+function completeOnboarding(_familyId: string) {
   showOnboarding.value = false;
 }
 
