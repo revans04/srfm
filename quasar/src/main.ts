@@ -42,6 +42,7 @@ app.use(Quasar, {
 });
 
 setupAuthListener();
-app.use(router);
+// Install Pinia before the router so navigation guards can access stores
 app.use(pinia);
+app.use(router);
 app.mount("#app");
