@@ -6,7 +6,7 @@
         <img alt="Steady Rise Financial Management" src="./assets/family-funds-sm.png" width="100" />
       </div>
       <v-list>
-        <v-divider></v-divider>
+        <q-separator />
         <v-list-item
           v-for="item in navItems.filter((n) => n.desktop)"
           :key="item.title"
@@ -22,7 +22,7 @@
             {{ `Version: ${appVersion}` }}
           </v-list-item-title>
         </v-list-item>
-        <v-divider></v-divider>
+        <q-separator />
         <v-list-item :title="userEmail ? userEmail : ''" subtitle="Logout" @click="signOut">
           <template v-slot:prepend>
             <v-avatar size="36" class="mr-2">
