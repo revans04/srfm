@@ -1,10 +1,9 @@
 <template>
   <q-layout view="lHh Lpr lFf">
-    <q-app>
     <!-- Desktop Navigation Drawer -->
     <q-drawer app permanent v-if="!isMobile && !isLoginRoute">
       <div class="text-center bg-primary">
-        <img alt="Steady Rise Financial Management" src="./assets/family-funds-sm.png" width="100" />
+        <img alt="Steady Rise Financial Management" src="../assets/family-funds-sm.png" width="100" />
       </div>
       <q-list>
         <q-separator />
@@ -35,11 +34,9 @@
     </q-drawer>
 
     <!-- Main Content -->
-    <q-main>
-      <q-page-container fluid :class="isMobile ? 'bg-primary' : 'bg-light'">
-        <router-view />
-      </q-page-container>
-    </q-main>
+    <q-page-container :class="isMobile ? 'bg-primary' : 'bg-light'">
+      <router-view />
+    </q-page-container>
 
     <!-- Mobile Bottom Navigation -->
     <q-footer v-if="isMobile && !isLoginRoute">
@@ -75,7 +72,6 @@
     <q-dialog v-model="showOnboarding" persistent max-width="500">
       <group-naming-form @family-created="completeOnboarding" />
     </q-dialog>
-  </q-app>
   </q-layout>
 </template>
 
@@ -85,7 +81,7 @@ import { auth } from '../firebase/index';
 import type { User } from 'firebase/auth';
 import { useRouter } from 'vue-router';
 import version from '../version';
-import GroupNamingForm from './components/GroupNamingForm.vue';
+import GroupNamingForm from '../components/GroupNamingForm.vue';
 import { useAuthStore } from '../store/auth';
 import { useFamilyStore } from '../store/family';
 

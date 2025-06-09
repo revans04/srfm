@@ -1,6 +1,6 @@
 <!-- src/components/TransactionRegistry.vue -->
 <template>
-  <q-page-container fluid>
+  <q-page fluid>
     <q-row>
       <q-col cols="12" md="4">
         <q-select
@@ -474,9 +474,9 @@
           <p>Selected Total: {{ formatCurrency(selectedTransactionsTotal) }}</p>
           <p>Calculated Ending Balance: {{ formatCurrency(calculatedEndingBalance) }}</p>
           <p :class="{ 'text-error': !reconcileMatches }">Statement Ending Balance: {{ formatCurrency(selectedStatement.endingBalance) }}</p>
-          <q-alert type="warning" v-if="!reconcileMatches" class="mt-2" dense>
+          <q-banner type="warning" v-if="!reconcileMatches" class="mt-2" dense>
             Calculated ending balance does not match statement ending balance.
-          </q-alert>
+          </q-banner>
         </div>
       </q-card-section>
       <q-card-actions>
@@ -492,7 +492,7 @@
         <q-btn variant="text" @click="snackbar = false">Close</q-btn>
       </template>
     </q-snackbar>
-  </q-page-container>
+  </q-page>
 </template>
 
 <script setup lang="ts">

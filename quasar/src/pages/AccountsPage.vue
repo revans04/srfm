@@ -1,6 +1,6 @@
 <!-- src/views/AccountsView.vue -->
 <template>
-  <q-page-container fluid>
+  <q-page fluid>
     <h1>Accounts</h1>
 
     <!-- Loading Overlay -->
@@ -9,7 +9,7 @@
     </q-overlay>
 
     <!-- Family Prompt -->
-    <q-alert v-if="!familyId" type="warning" class="mb-4"> Please create or join a family to manage accounts. </q-alert>
+    <q-banner v-if="!familyId" type="warning" class="mb-4"> Please create or join a family to manage accounts. </q-banner>
 
     <!-- Tabs -->
     <q-tabs v-model="tab" color="primary" :disabled="!familyId">
@@ -216,7 +216,7 @@
         <q-btn variant="text" @click="snackbar = false">Close</q-btn>
       </template>
     </q-snackbar>
-  </q-page-container>
+  </q-page>
 </template>
 
 <script setup lang="ts">

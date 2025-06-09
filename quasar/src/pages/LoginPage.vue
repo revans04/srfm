@@ -1,8 +1,8 @@
 <!-- LoginView.vue -->
 <template>
-  <q-page-container class="fill-height" fluid>
-    <q-row align="center" justify="center">
-      <q-col cols="12" sm="8" md="4">
+  <q-page class="fill-height">
+    <div class="row justify-center">
+      <div class="col-xs-12 col-sm-8 col-md-4" cols="12" sm="8" md="4">
         <q-card class="elevation-12">
           <q-toolbar color="primary" dark flat>
             <q-toolbar-title>Steady Rise Login</q-toolbar-title>
@@ -16,11 +16,11 @@
             <!-- Replace v-btn with a div for Google button -->
             <div id="google-signin-button"></div>
           </q-card-actions>
-          <q-alert v-if="error" type="error" dense>{{ error }}</q-alert>
+          <q-banner v-if="error" type="error" dense>{{ error }}</q-banner>
         </q-card>
-      </q-col>
-    </q-row>
-  </q-page-container>
+      </div>
+    </div>
+  </q-page>
 </template>
 
 <script setup lang="ts">

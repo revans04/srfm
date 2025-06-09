@@ -96,7 +96,7 @@
             </q-row>
             <q-row v-else class="mt-4">
               <q-col>
-                <q-alert type="info"> No smart matches found. Check Remaining Transactions for potential conflicts. </q-alert>
+                <q-banner type="info"> No smart matches found. Check Remaining Transactions for potential conflicts. </q-banner>
               </q-col>
             </q-row>
           </q-window-item>
@@ -200,10 +200,10 @@
                       <q-btn color="error" icon="mdi-close" @click="removeSplit(index)" variant="plain"></q-btn>
                     </q-col>
                   </q-row>
-                  <q-alert v-if="remainingSplitAmount !== 0" :type="remainingSplitAmount < 0 ? 'error' : 'warning'" class="mb-4">
+                  <q-banner v-if="remainingSplitAmount !== 0" :type="remainingSplitAmount < 0 ? 'error' : 'warning'" class="mb-4">
                     <div v-if="remainingSplitAmount > 0">Remaining ${{ toDollars(toCents(remainingSplitAmount)) }}</div>
                     <div v-else>Over allocated ${{ toDollars(toCents(Math.abs(remainingSplitAmount))) }}</div>
-                  </q-alert>
+                  </q-banner>
                   <q-btn color="primary" @click="addSplitTransaction">Add Split</q-btn>
                   <q-btn color="success" type="submit" :disabled="remainingSplitAmount !== 0 || props.matching" :loading="props.matching" class="ml-2">
                     Save Splits
@@ -257,14 +257,14 @@
                   </template>
                 </q-data-table>
                 <div v-else-if="!showSplitForm" class="mt-4">
-                  <q-alert type="info" class="mb-4"> No potential matches found. Adjust the search criteria or add a new transaction. </q-alert>
+                  <q-banner type="info" class="mb-4"> No potential matches found. Adjust the search criteria or add a new transaction. </q-banner>
                   <q-btn color="primary" @click="addNewTransaction" :disabled="props.matching"> Add New Transaction </q-btn>
                 </div>
               </q-col>
             </q-row>
             <q-row v-else class="mt-4">
               <q-col>
-                <q-alert type="success"> All bank transactions have been matched or ignored. </q-alert>
+                <q-banner type="success"> All bank transactions have been matched or ignored. </q-banner>
               </q-col>
             </q-row>
           </q-window-item>

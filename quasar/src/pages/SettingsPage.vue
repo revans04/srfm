@@ -1,14 +1,14 @@
 <!-- src/views/SettingsView.vue -->
 <template>
-  <q-page-container>
+  <q-page>
     <h1>Settings</h1>
 
-    <q-alert v-if="userEmail && !emailVerified" type="warning" class="mb-4">
+    <q-banner v-if="userEmail && !emailVerified" type="warning" class="mb-4">
       Your email ({{ userEmail }}) is not verified. Please check your inbox or resend the verification email.
       <template v-slot:actions>
         <q-btn variant="plain" @click="sendVerificationEmail" :loading="resending">Resend</q-btn>
       </template>
-    </q-alert>
+    </q-banner>
 
     <q-tabs v-model="activeTab" color="primary" class="mt-4">
       <q-tab value="group">Manage Family/Group</q-tab>
@@ -205,7 +205,7 @@
         <q-btn variant="text" @click="snackbar = false">Close</q-btn>
       </template>
     </q-snackbar>
-  </q-page-container>
+  </q-page>
 </template>
 
 <script setup lang="ts">

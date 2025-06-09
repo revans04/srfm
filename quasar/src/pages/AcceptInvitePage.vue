@@ -1,17 +1,17 @@
 <template>
-  <q-page-container>
+  <q-page>
     <h1>Accept Invite</h1>
     <q-progress-circular v-if="loading" indeterminate></q-progress-circular>
-    <q-alert v-else-if="error" type="error">{{ error }}</q-alert>
+    <q-banner v-else-if="error" type="error">{{ error }}</q-banner>
     <div v-else-if="accepted">
-      <q-alert type="success">You’ve joined the family! Redirecting to dashboard...</q-alert>
+      <q-banner type="success">You’ve joined the family! Redirecting to dashboard...</q-banner>
     </div>
     <div v-else-if="!user">
       <p>Please log in or sign up to accept this invite.</p>
       <q-btn @click="login">Log In</q-btn>
       <q-btn @click="signup">Sign Up</q-btn>
     </div>
-  </q-page-container>
+  </q-page>
 </template>
 
 <script setup lang="ts">

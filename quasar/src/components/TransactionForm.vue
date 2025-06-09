@@ -71,10 +71,10 @@
           </q-row>
         </div>
         <div v-if="locTrnsx.categories.length > 1 && remainingSplit !== 0">
-          <q-alert v-if="remainingSplit !== 0" :type="remainingSplit < 0 ? 'error' : 'warning'" class="mb-4">
+          <q-banner v-if="remainingSplit !== 0" :type="remainingSplit < 0 ? 'error' : 'warning'" class="mb-4">
             <div v-if="remainingSplit > 0">Remaining ${{ toDollars(toCents(Math.abs(remainingSplit))) }}</div>
             <div v-else>Over allocated ${{ toDollars(toCents(Math.abs(remainingSplit))) }} ({{ toDollars(toCents(locTrnsx.amount + remainingSplit)) }})</div>
-          </q-alert>
+          </q-banner>
         </div>
         <div>
           <q-btn variant="plain" color="primary" @click="addSplit()">Add Split</q-btn>
@@ -109,7 +109,7 @@
 
       <q-row v-if="availableMonths.length === 0" class="mt-2">
         <q-col>
-          <q-alert type="warning">No budgets available. Please create a budget in the Dashboard.</q-alert>
+          <q-banner type="warning">No budgets available. Please create a budget in the Dashboard.</q-banner>
         </q-col>
       </q-row>
 

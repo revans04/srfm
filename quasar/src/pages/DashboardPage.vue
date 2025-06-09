@@ -1,6 +1,6 @@
 <!-- DashboardView.vue -->
 <template>
-  <q-page-container fluid :class="isMobile ? 'pt-0 px-0' : ''">
+  <q-page fluid :class="isMobile ? 'pt-0 px-0' : ''">
     <!-- Loading Animation -->
     <q-row v-if="loading" justify="center" class="mt-4">
       <q-progress-circular indeterminate color="primary" size="50"></q-progress-circular>
@@ -12,7 +12,7 @@
     <!-- No Budgets Found -->
     <q-row v-else-if="!loading && budgets.length === 0" justify="center" class="mt-4">
       <q-col cols="12" class="text-center">
-        <q-alert type="info" prominent>
+        <q-banner type="info" prominent>
           <q-row align="center">
             <q-col class="grow">
               No budgets found for {{ selectedEntity?.name || "selected entity" }}. Would you like to create a default budget for
@@ -22,7 +22,7 @@
               <q-btn color="primary" @click="createDefaultBudget"> Create Default Budget </q-btn>
             </q-col>
           </q-row>
-        </q-alert>
+        </q-banner>
       </q-col>
     </q-row>
 
@@ -284,7 +284,7 @@
               </q-card>
             </q-col>
             <q-col cols="12" v-if="groups.length === 0">
-              <q-alert type="warning">No categories defined for this budget.</q-alert>
+              <q-banner type="warning">No categories defined for this budget.</q-banner>
             </q-col>
           </q-row>
         </q-col>
@@ -349,7 +349,7 @@
         <span class="ml-4">Duplicating budget...</span>
       </q-overlay>
     </div>
-  </q-page-container>
+  </q-page>
 </template>
 
 <script setup lang="ts">

@@ -1,6 +1,6 @@
 <!-- src/views/DataView.vue -->
 <template>
-  <q-page-container fluid>
+  <q-page fluid>
     <h1>Data Management</h1>
 
     <!-- Loading Overlay -->
@@ -46,9 +46,9 @@
                 </q-row>
                 <q-row v-else-if="importType !== 'bankTransactions' && importType !== 'accountsAndSnapshots'">
                   <q-col cols="12">
-                    <q-alert type="info" class="mb-4">
+                    <q-banner type="info" class="mb-4">
                       No entities found. Please create a new entity or import entities before importing budgets or transactions.
-                    </q-alert>
+                    </q-banner>
                     <q-btn color="primary" @click="openCreateEntityDialog" class="mr-4">Create Entity</q-btn>
                     <q-btn color="secondary" @click="importType = 'entities'">Import Entities</q-btn>
                   </q-col>
@@ -70,9 +70,9 @@
                         :disabled="importing || availableAccounts.length === 0"
                         class="mb-4"
                       ></q-select>
-                      <q-alert v-if="availableAccounts.length === 0" type="warning" class="mb-4">
+                      <q-banner v-if="availableAccounts.length === 0" type="warning" class="mb-4">
                         No bank or credit card accounts found. Please create an account in the Accounts section before importing transactions.
-                      </q-alert>
+                      </q-banner>
                     </q-col>
                   </q-row>
                   <q-row>
@@ -273,13 +273,13 @@
                           ></q-data-table>
                         </q-window-item>
                       </q-window>
-                      <q-alert v-if="previewErrors.length > 0" type="error" class="mt-4">
+                      <q-banner v-if="previewErrors.length > 0" type="error" class="mt-4">
                         <ul>
                           <li v-for="(error, index) in previewErrors" :key="index">
                             {{ error }}
                           </li>
                         </ul>
-                      </q-alert>
+                      </q-banner>
                     </q-card-section>
                     <q-card-actions>
                       <q-space></q-space>
@@ -343,7 +343,7 @@
       <entity-form :initial-entity="null" @save="handleEntitySave" @cancel="showEntityForm = false" />
     </q-dialog>
 
-  </q-page-container>
+  </q-page>
 </template>
 
 <script setup lang="ts">

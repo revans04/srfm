@@ -1,6 +1,6 @@
 <!-- src/views/TransactionsView.vue -->
 <template>
-  <q-page-container :class="isMobile ? 'ps-0' : ''">
+  <q-page :class="isMobile ? 'ps-0' : ''">
     <h1>Transaction and Registry</h1>
 
     <!-- Loading Overlay -->
@@ -73,7 +73,7 @@
             </q-row>
             <q-row v-if="budgetOptions.length === 0">
               <q-col cols="12">
-                <q-alert type="info" class="mt-4"> No budgets available. Create a budget in the Dashboard to start tracking transactions. </q-alert>
+                <q-banner type="info" class="mt-4"> No budgets available. Create a budget in the Dashboard to start tracking transactions. </q-banner>
               </q-col>
             </q-row>
 
@@ -275,7 +275,7 @@
         <q-btn variant="text" @click="snackbar = false">Close</q-btn>
       </template>
     </q-snackbar>
-  </q-page-container>
+  </q-page>
 </template>
 
 <script setup lang="ts">

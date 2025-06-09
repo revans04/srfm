@@ -1,6 +1,6 @@
 <!-- CategoryTransactions.vue -->
 <template>
-  <q-page-container fluid class="category-transactions text-black">
+  <q-page fluid class="category-transactions text-black">
     <!-- Loading Overlay -->
     <q-overlay :model-value="loading" class="align-center justify-center" scrim="#00000080">
       <q-progress-circular indeterminate color="primary" size="50" />
@@ -130,7 +130,7 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
-  </q-page-container>
+  </q-page>
 </template>
 
 <script setup lang="ts">
