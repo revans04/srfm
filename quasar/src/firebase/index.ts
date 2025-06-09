@@ -3,13 +3,14 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: process.env.VUE_APP_FIREBASE_API_KEY,
-  authDomain: process.env.VUE_APP_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.VUE_APP_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.VUE_APP_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.VUE_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.VUE_APP_FIREBASE_APP_ID,
-  measurementId: process.env.VUE_APP_FIREBASE_MEASUREMENT_ID,
+  // Your Firebase config object from Firebase Console
+  apiKey: "AIzaSyAiTx36M_FElpCZT0kwGS_w63GWMo9Fxlg",
+  authDomain: "budget-buddy-a6b6c.firebaseapp.com",
+  projectId: "budget-buddy-a6b6c",
+  storageBucket: "budget-buddy-a6b6c.firebasestorage.app",
+  messagingSenderId: "583821970715",
+  appId: "1:583821970715:web:5d797fe8e71a9048ac17be",
+  measurementId: "G-Z1TPM1S847",
 };
 
 const app = initializeApp(firebaseConfig);

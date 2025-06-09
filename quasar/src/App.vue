@@ -1,3 +1,4 @@
+<!-- eslint-disable @typescript-eslint/no-misused-promises -->
 <template>
   <q-app>
     <!-- Desktop Navigation Drawer -->
@@ -77,8 +78,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
-import { auth } from "./firebase/index";
-import { User } from "firebase/auth";
+import { auth } from "firebase/index";
+import type { User } from "firebase/auth";
 import { useRouter } from "vue-router";
 import version from "./version";
 import GroupNamingForm from "./components/GroupNamingForm.vue";
@@ -159,7 +160,7 @@ onMounted(async () => {
     } else {
       avatarSrc.value = "https://via.placeholder.com/36";
       localStorage.removeItem("userAvatar");
-      router.push("/login"); // Redirect to login if no user
+      void router.push("/login"); // Redirect to login if no user
     }
   });
   window.addEventListener("resize", handleResize);
@@ -172,7 +173,7 @@ onUnmounted(() => {
 watch(
   () => authStore.user,
   (user) => {
-    if (!user) router.push("/login");
+    if (!user) void router.push("/login");
   }
 );
 </script>
