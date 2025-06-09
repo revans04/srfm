@@ -244,7 +244,6 @@
         row-key="id"
         :pagination="{ rowsPerPage: 0 }"
         selection="multiple"
-        :selected-rows-label="(item) => item.status === 'U'"
         :style="{ height: '600px' }"
         :class="getRowClass"
       >
@@ -565,7 +564,7 @@ import { useBudgetStore } from '../store/budget';
 import { useFamilyStore } from '../store/family';
 import { useStatementStore } from '../store/statements';
 import { useUIStore } from '../store/ui';
-import {
+import type {
   Transaction,
   ImportedTransaction,
   Budget,
@@ -573,7 +572,7 @@ import {
   ImportedTransactionDoc,
   Statement,
 } from '../types';
-import { formatCurrency, toBudgetMonth, adjustTransactionDate, todayISO } from '../utils/helpers';
+import { formatCurrency, adjustTransactionDate, todayISO } from '../utils/helpers';
 import { v4 as uuidv4 } from 'uuid';
 import { DEFAULT_BUDGET_TEMPLATES } from '../constants/budgetTemplates';
 
@@ -627,22 +626,22 @@ const snackbar = ref(false);
 const snackbarText = ref('');
 const snackbarColor = ref('success');
 const showActionDialog = ref(false);
-const transactionToAction = ref<any | null>(null);
+const transactionToAction = ref<DisplayTransaction | null>(null);
 const transactionAction = ref('');
 const showBalanceAdjustmentDialog = ref(false);
 const adjustmentAmount = ref<number>(0);
 const adjustmentDate = ref<string>(todayISO());
-const adjustmentForm = ref<any | null>(null); // Quasar doesn't have a specific QForm type
+const adjustmentForm = ref<QForm | null>(null); // Quasar doesn't have a specific QForm type
 const selectedRows = ref<string[]>([]);
 const showBatchMatchDialog = ref(false);
-const batchMatchForm = ref<any | null>(null);
+const batchMatchForm = ref<QForm | null>(null);
 const batchMerchant = ref('');
 const batchCategory = ref('');
 const selectedEntityId = ref<string>('');
 const showBatchActionDialog = ref(false);
 const batchAction = ref<string>('');
 const showStatementDialog = ref(false);
-const statementForm = ref<any | null>(null);
+const statementForm = ref<QForm | null>(null);
 const newStatement = ref<Statement>({
   id: '',
   accountNumber: '',
@@ -673,7 +672,7 @@ const entityOptions = computed(() => {
 });
 
 // Validation rules
-const requiredField = [(value: any) => !!value || 'This field is required'];
+const requiredField = [(value: unknown) => !!value || 'This field is required'];
 const adjustmentRules = [
   (value: number) => value !== undefined || 'Amount is required',
   (value: number) => !isNaN(value) || 'Amount must be a number',
@@ -709,12 +708,6 @@ const headers = [
   { name: 'actions', label: 'Actions', field: 'actions' },
 ];
 
-const reconcileHeaders = [
-  { name: 'date', label: 'Date', field: 'date' },
-  { name: 'merchant', label: 'Merchant', field: 'merchant' },
-  { name: 'amount', label: 'Amount', field: 'amount' },
-  { name: 'status', label: 'Status', field: 'status' },
-];
 
 // Combined transactions for display
 const displayTransactions = computed((): DisplayTransaction[] => {
@@ -1064,7 +1057,7 @@ function getRowClass(row: DisplayTransaction) {
   return '';
 }
 
-function confirmAction(transaction: any, action: string) {
+function confirmAction(transaction: DisplayTransaction, action: string) {
   transactionToAction.value = transaction;
   transactionAction.value = action;
   showActionDialog.value = true;

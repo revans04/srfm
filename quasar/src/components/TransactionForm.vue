@@ -233,7 +233,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, reactive } from 'vue';
 import { dataAccess } from '../dataAccess';
-import { Budget, Transaction } from '../types';
+import type { Budget, Transaction } from '../types';
 import { toCents, toDollars, todayISO, currentMonthISO } from '../utils/helpers';
 import CurrencyInput from './CurrencyInput.vue';
 import ToggleButton from './ToggleButton.vue';
