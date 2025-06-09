@@ -1,5 +1,5 @@
 <template>
-  <q-text-field
+  <q-input
     ref="textField"
     :value="displayValue"
     :modelValue="displayValue"
@@ -14,7 +14,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import QTextField from "quasar";
+  import { QInput } from "quasar";
 
 // Define props with TypeScript types
 const props = defineProps<{
@@ -27,7 +27,7 @@ const emit = defineEmits<{
 }>();
 
 // Reactive reference to the text field component
-const textField = ref<InstanceType<typeof QTextField> | null>(null);
+const textField = ref<InstanceType<typeof QInput> | null>(null);
 
 // Computed property for displaying the value with two decimal places
 const displayValue = computed(() => {
