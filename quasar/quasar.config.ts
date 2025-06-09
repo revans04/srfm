@@ -107,17 +107,21 @@ export default defineConfig((/* ctx */) => {
     animations: [],
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#sourcefiles
-    // sourceFiles: {
-    //   rootComponent: 'src/App.vue',
-    //   router: 'src/router/index',
-    //   store: 'src/store/index',
-    //   pwaRegisterServiceWorker: 'src-pwa/register-service-worker',
-    //   pwaServiceWorker: 'src-pwa/custom-service-worker',
-    //   pwaManifestFile: 'src-pwa/manifest.json',
-    //   electronMain: 'src-electron/electron-main',
-    //   electronPreload: 'src-electron/electron-preload'
-    //   bexManifestFile: 'src-bex/manifest.json
-    // },
+    sourceFiles: {
+      // Pinia stores live under src/store rather than Quasar's default
+      // location. Inform Quasar of this so it installs Pinia before boot
+      // files run, otherwise useAuthStore() fails with `getActivePinia`.
+      store: 'src/store/index',
+      // Other entries rely on Quasar defaults and are omitted.
+      // rootComponent: 'src/App.vue',
+      // router: 'src/router/index',
+      // pwaRegisterServiceWorker: 'src-pwa/register-service-worker',
+      // pwaServiceWorker: 'src-pwa/custom-service-worker',
+      // pwaManifestFile: 'src-pwa/manifest.json',
+      // electronMain: 'src-electron/electron-main',
+      // electronPreload: 'src-electron/electron-preload'
+      // bexManifestFile: 'src-bex/manifest.json'
+    },
 
     // https://v2.quasar.dev/quasar-cli-vite/developing-ssr/configuring-ssr
     ssr: {
