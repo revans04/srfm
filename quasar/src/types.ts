@@ -67,8 +67,8 @@ export interface Transaction {
   checkNumber?: string;
   deleted?: boolean;
   entityId?: string;
-  taxMetadata: TaxMetadata[]; // Array to support multiple forms/entities
-  receiptUrl?: string; // Firebase Storage link for receipts
+  taxMetadata: TaxMetadata[];
+  receiptUrl?: string;
 }
 
 export interface ImportedTransaction {

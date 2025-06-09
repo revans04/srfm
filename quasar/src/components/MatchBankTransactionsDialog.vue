@@ -925,6 +925,7 @@ async function saveSplitTransaction() {
         checkNumber: importedTx.checkNumber,
         status: 'C',
         entityId: split.entityId,
+        taxMetadata: [],
       };
 
       if (!transactionsByBudget[budgetId]) transactionsByBudget[budgetId] = [];
@@ -991,7 +992,7 @@ async function handleTransactionAdded(savedTransaction: Transaction) {
     let budget = budgetStore.getBudget(targetBudgetId);
     if (!budget) {
       budget = await createBudgetForMonth(
-        savedTransaction.budgetMonth,
+        savedTransaction.budgetMonth || "",
         family.id,
         user.uid,
         savedTransaction.entityId,

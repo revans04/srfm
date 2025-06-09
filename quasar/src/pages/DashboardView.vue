@@ -336,7 +336,7 @@
       <q-notification v-model="snackbar" :color="snackbarColor" position="top" :timeout="timeout">
         {{ snackbarText }}
         <template v-slot:actions>
-          <q-btn v-if="showRetry" flat label="Retry" @click="retryAction" />
+          <q-btn v-if="showRetry && retryAction" flat label="Retry" @click="retryAction" />
           <q-btn flat label="Close" @click="snackbar = false" />
         </template>
       </q-notification>
@@ -357,7 +357,7 @@ import { dataAccess } from '../dataAccess';
 import CurrencyInput from '../components/CurrencyInput.vue';
 import CategoryTransactions from '../components/CategoryTransactions.vue';
 import TransactionForm from '../components/TransactionForm.vue';
-import { Transaction, Budget, IncomeTarget, BudgetCategoryTrx, BudgetCategory, Entity } from '../types';
+import type { Transaction, Budget, IncomeTarget, BudgetCategoryTrx, BudgetCategory } from '../types';
 import version from '../version';
 import { toDollars, toCents, formatCurrency, adjustTransactionDate, todayISO, currentMonthISO } from '../utils/helpers';
 import { useBudgetStore } from '../store/budget';
@@ -367,6 +367,7 @@ import { debounce } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import { DEFAULT_BUDGET_TEMPLATES } from '../constants/budgetTemplates';
 import { useQuasar } from 'quasar';
+import type { QMenu } from 'quasar';
 
 const $q = useQuasar();
 const budgetStore = useBudgetStore();
@@ -377,7 +378,6 @@ const budgets = ref<Budget[]>([]);
 const appVersion = version;
 
 const currentMonth = ref(currentMonthISO());
-const initialMonth = ref(currentMonth.value);
 const isInitialLoad = ref(true);
 const availableBudgets = ref<Budget[]>([]);
 const budget = ref<Budget>({
@@ -415,7 +415,7 @@ const snackbar = ref(false);
 const snackbarText = ref('');
 const snackbarColor = ref('positive');
 const showRetry = ref(false);
-const retryAction = ref<(() => void) | null>(null);
+const retryAction = ref<((evt: Event) => void) | null>(null);
 const timeout = ref(-1);
 const ownerUid = ref<string | null>(null);
 const budgetId = computed(() => {
@@ -434,10 +434,14 @@ const menuOpen = ref(false);
 let clickTimeout: ReturnType<typeof setTimeout> | null = null;
 let touchTimeout: ReturnType<typeof setTimeout> | null = null;
 
-const inlineEdit = ref({
-  item: null as BudgetCategoryTrx | null,
-  field: null as 'name' | 'target' | null,
-  value: '' as string | number,
+const inlineEdit = ref<{
+  item: BudgetCategoryTrx | null;
+  field: 'name' | 'target' | null;
+  value: string | number;
+}>({
+  item: null,
+  field: null,
+  value: '',
 });
 
 const isMobile = computed(() => $q.screen.lt.md);
@@ -630,9 +634,9 @@ watch(search, (newValue) => {
   updateSearch(newValue);
 });
 
-watch(selectedCategory, (newVal) => {
+watch(selectedCategory, async (newVal) => {
   if (newVal && isMobile.value) {
-    nextTick(() => {
+    await nextTick(() => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
   }
@@ -736,8 +740,8 @@ onMounted(async () => {
 
     await familyStore.loadFamily(user.uid);
     await loadBudgets();
-  } catch (error: any) {
-    showSnackbar(`Error loading data: ${error.message}`, 'negative');
+  } catch (error: unknown) {
+    showSnackbar(`Error loading data: ${(error as Error).message}`, 'negative');
   } finally {
     if (loadingTimeout) clearTimeout(loadingTimeout);
     showLoadingMessage.value = false;
@@ -758,8 +762,8 @@ async function loadBudgets() {
   loading.value = true;
   try {
     await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
-  } catch (error: any) {
-    showSnackbar(`Error loading budgets: ${error.message}`, 'negative');
+  } catch (error: unknown) {
+    showSnackbar(`Error loading budgets: ${(error as Error).message}`, 'negative');
   } finally {
     loading.value = false;
   }
@@ -840,7 +844,7 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
 
     let newCarryover: Record<string, number> = {};
     if (isFutureMonth) {
-      newCarryover = await dataAccess.calculateCarryOver(sourceBudget);
+      newCarryover = dataAccess.calculateCarryOver(sourceBudget);
     }
 
     const newBudget: Budget = {
@@ -935,30 +939,14 @@ async function createDefaultBudget() {
       return;
     }
 
-    const budget = await createBudgetForMonth(currentMonth.value, family.id, family.ownerUid, familyStore.selectedEntityId);
+    await createBudgetForMonth(currentMonth.value, family.id, family.ownerUid, familyStore.selectedEntityId);
     await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
     showSnackbar('Budget created successfully', 'positive');
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error creating budget:', error);
-    showSnackbar(`Failed to create budget: ${error.message}`, 'negative');
+    showSnackbar(`Failed to create budget: ${(error as Error).message}`, 'negative');
   } finally {
     loading.value = false;
-  }
-}
-
-async function refreshBudget() {
-  try {
-    const freshBudget = await dataAccess.getBudget(budgetId.value);
-    if (freshBudget) {
-      budget.value = { ...freshBudget, budgetId: budgetId.value };
-      budgetStore.updateBudget(budgetId.value, freshBudget);
-      categoryOptions.value = freshBudget.categories.map((cat) => cat.name);
-      if (!categoryOptions.value.includes('Income')) {
-        categoryOptions.value.push('Income');
-      }
-    }
-  } catch (error: any) {
-    showSnackbar(`Error refreshing budget: ${error.message}`, 'negative');
   }
 }
 
@@ -975,8 +963,8 @@ async function onTransactionSaved(transaction: Transaction) {
 
     updateMerchants();
     showSnackbar(isIncomeTransaction.value ? 'Income added successfully' : 'Transaction added successfully');
-  } catch (error: any) {
-    showSnackbar(`Error updating transaction: ${error.message}`, 'negative');
+  } catch (error: unknown) {
+    showSnackbar(`Error updating transaction: ${(error as Error).message}`, 'negative');
   }
 }
 
@@ -985,8 +973,8 @@ async function updateTransactions(newTransactions: Transaction[]) {
     budget.value.transactions = newTransactions;
     budgetStore.updateBudget(budgetId.value, { ...budget.value });
     updateMerchants();
-  } catch (error: any) {
-    showSnackbar(`Error updating transactions: ${error.message}`, 'negative');
+  } catch (error: unknown) {
+    showSnackbar(`Error updating transactions: ${(error as Error).message}`, 'negative');
   }
 }
 
@@ -1030,8 +1018,8 @@ async function selectMonth(month: string) {
         categoryOptions.value.push('Income');
       }
     }
-  } catch (error: any) {
-    showSnackbar(`Error loading budget: ${error.message}`, 'negative');
+  } catch (error: unknown) {
+    showSnackbar(`Error loading budget: ${(error as Error).message}`, 'negative');
   } finally {
     loading.value = false;
   }
@@ -1056,9 +1044,9 @@ async function saveBudget() {
     await dataAccess.saveBudget(budgetId.value, budget.value);
     showSnackbar('Budget saved successfully');
     isEditing.value = false;
-  } catch (error: any) {
-    showSnackbar(`Error saving budget: ${error.message}`, 'negative', async () => {
-      await saveBudget();
+  } catch (error: unknown) {
+    showSnackbar(`Error saving budget: ${(error as Error).message}`, 'negative', () => {
+      saveBudget();
     });
   } finally {
     saving.value = false;
@@ -1167,31 +1155,6 @@ function addTransactionForCategory(category: string) {
   }
 }
 
-function addIncome() {
-  if (!familyStore.selectedEntityId) {
-    showSnackbar('Please select an entity before adding income', 'negative');
-    return;
-  }
-
-  newTransaction.value = {
-    id: uuidv4(),
-    date: todayISO(),
-    budgetMonth: currentMonth.value,
-    merchant: '',
-    categories: [{ category: 'Income', amount: 0 }],
-    amount: 0,
-    notes: '',
-    recurring: false,
-    recurringInterval: 'Monthly',
-    userId: userId.value,
-    isIncome: true,
-    taxMetadata: [],
-    entityId: familyStore.selectedEntityId,
-  };
-  isIncomeTransaction.value = true;
-  showTransactionDialog.value = true;
-}
-
 async function duplicateCurrentMonth(month: string) {
   const user = auth.currentUser;
   if (!user) {
@@ -1219,13 +1182,13 @@ async function duplicateCurrentMonth(month: string) {
       return;
     }
 
-    const newBudget = await createBudgetForMonth(month, family.id, family.ownerUid, familyStore.selectedEntityId);
+    await createBudgetForMonth(month, family.id, family.ownerUid, familyStore.selectedEntityId);
     await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
 
     showSnackbar("Created new month's budget");
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error duplicating budget:', error);
-    showSnackbar(`Failed to duplicate budget: ${error.message}`, 'negative');
+    showSnackbar(`Failed to duplicate budget: ${(error as Error).message}`, 'negative');
   } finally {
     duplicating.value = false;
   }
@@ -1276,7 +1239,6 @@ function startInlineEdit(item: BudgetCategoryTrx, field: 'name' | 'target') {
   inlineEdit.value.item = item;
   inlineEdit.value.field = field;
   inlineEdit.value.value = field === 'name' ? item.name : item.target;
-  console.log(inlineEdit.value);
 }
 
 async function saveInlineEdit() {
@@ -1323,8 +1285,8 @@ async function saveInlineEdit() {
     await dataAccess.saveBudget(budgetId.value, budget.value);
     budgetStore.updateBudget(budgetId.value, { ...budget.value });
     showSnackbar('Budget updated');
-  } catch (error: any) {
-    showSnackbar(`Error saving budget: ${error.message}`, 'negative');
+  } catch (error: unknown) {
+    showSnackbar(`Error saving budget: ${(error as Error).message}`, 'negative');
   }
 
   cancelInlineEdit();
@@ -1339,7 +1301,7 @@ function showSnackbar(text: string, color = 'positive', retry?: () => void) {
   snackbarText.value = text;
   snackbarColor.value = color;
   showRetry.value = !!retry;
-  retryAction.value = retry || null;
+  retryAction.value = retry ? (evt: Event) => retry() : null;
   timeout.value = retry ? -1 : 3000;
   snackbar.value = true;
 }
