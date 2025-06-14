@@ -81,7 +81,7 @@ const handleCredentialResponse = async (response: any) => {
     }
     const { token } = await apiResponse.json();
 
-    const userCredential = await signInWithCustomToken(auth, token);
+    const userCredential = await signInWithCustomToken(auth.auth, token);
     await userCredential.user.reload(); // Force refresh
     router.push("/");
   } catch (err: any) {

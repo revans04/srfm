@@ -32,5 +32,5 @@ export const useAuthStore = defineStore('auth', () => {
     return user ? await user.getIdToken(true) : null; // Force refresh
   }
 
-  return { user, avatarSrc, initializeAuth, logout, login, getIdToken };
+  return { user, avatarSrc, initializeAuth, logout, login, getIdToken, auth };
 });
