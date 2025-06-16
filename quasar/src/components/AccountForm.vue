@@ -6,7 +6,7 @@
       label="Account Name"
       variant="outlined"
       density="compact"
-      :rules="[(v) => !!v || 'Account name is required']"
+      :rules="[(v: string | null) => !!v || 'Account name is required']"
       required
       aria-required="true"
     ></q-text-field>
@@ -58,7 +58,7 @@
       variant="outlined"
       density="compact"
       hint="Enter the current balance or value as of today"
-      :rules="[(v) => v !== null || 'Balance is required']"
+      :rules="[(v: number | null) => v !== null || 'Balance is required']"
     ></q-text-field>
     <div class="mt-4">
       <q-btn type="submit" color="primary" :loading="saving" :disabled="!validForm"> Save </q-btn>
@@ -68,7 +68,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, defineProps, defineEmits } from "vue";
+import { ref, watch, defineProps, defineEmits } from "vue";
 import { Account, AccountType } from "../types";
 import { Timestamp } from "firebase/firestore";
 
@@ -87,26 +87,26 @@ const validForm = ref(false);
 const saving = ref(false);
 const isPersonalAccount = ref(false);
 
-const localAccount = ref<Account>({
+type AccountWithDetails = Account & { details: NonNullable<Account["details"]> };
+
+const localAccount = ref<AccountWithDetails>({
   id: "",
   name: "",
   type: props.accountType,
   category: props.accountType === AccountType.CreditCard || props.accountType === AccountType.Loan ? "Liability" : "Asset",
   createdAt: Timestamp.now(),
   updatedAt: Timestamp.now(),
-  details: {
-    interestRate: undefined,
-    appraisedValue: undefined,
-    address: undefined,
-    maturityDate: undefined,
-  },
+  details: {},
 });
 
 watch(
   () => props.account,
   (newAccount) => {
     if (newAccount) {
-      localAccount.value = { ...newAccount, details: { ...newAccount.details } };
+      localAccount.value = {
+        ...newAccount,
+        details: { ...(newAccount.details || {}) },
+      };
       isPersonalAccount.value = !!newAccount.userId;
     }
   },
