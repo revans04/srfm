@@ -149,7 +149,7 @@
         <q-row :dense="true">
           <q-col>Transaction Registry</q-col>
           <q-col cols="auto">
-            <q-btn icon variant="plain" @click="downloadCsv" :disabled="displayTransactions.length === 0">
+            <q-btn variant="plain" @click="downloadCsv" :disabled="displayTransactions.length === 0">
               <q-icon>mdi-download</q-icon>
               <q-tooltip activator="parent" location="top">Download CSV</q-tooltip>
             </q-btn>
@@ -202,7 +202,7 @@
         items-per-page="0"
         :hide-default-footer="true"
         show-select
-        :item-selectable="(item) => item.status === 'U'"
+        :item-selectable="(item: DisplayTransaction) => item.status === 'U'"
         item-value="id"
         fixed-header
         fixed-footer
@@ -223,7 +223,6 @@
         <template v-slot:item.actions="{ item }">
           <q-btn
             v-if="item.status === 'C'"
-            icon
             density="compact"
             variant="plain"
             color="warning"
@@ -234,7 +233,6 @@
           </q-btn>
           <q-btn
             v-if="item.status != 'C' && item.id"
-            icon
             density="compact"
             variant="plain"
             color="error"
@@ -245,7 +243,6 @@
           </q-btn>
           <q-btn
             v-if="item.status != 'C' && item.id"
-            icon
             density="compact"
             variant="plain"
             color="error"
@@ -508,7 +505,7 @@ import { useStatementStore } from "../store/statements";
 import { useUIStore } from "../store/ui";
 import { Transaction, ImportedTransaction, Budget, Account, ImportedTransactionDoc, Statement } from "../types";
 import { formatCurrency, toBudgetMonth, adjustTransactionDate, todayISO } from "../utils/helpers";
-import { VForm } from "vuetify/components";
+import { QForm } from "quasar";
 import { v4 as uuidv4 } from "uuid";
 import { DEFAULT_BUDGET_TEMPLATES } from "../constants/budgetTemplates";
 
@@ -517,12 +514,12 @@ interface DisplayTransaction {
   id: string;
   date: string;
   merchant: string;
-  category: string;
-  entityId: string;
+  category?: string;
+  entityId?: string;
   amount: number;
-  isIncome: boolean;
-  status: string;
-  notes: string;
+  isIncome?: boolean;
+  status: "C" | "U" | "R";
+  notes?: string;
   balance?: number;
   order?: number;
   budgetId?: string;
@@ -567,17 +564,17 @@ const transactionAction = ref("");
 const showBalanceAdjustmentDialog = ref(false);
 const adjustmentAmount = ref<number>(0);
 const adjustmentDate = ref<string>(todayISO());
-const adjustmentForm = ref<InstanceType<typeof VForm> | null>(null);
+const adjustmentForm = ref<InstanceType<typeof QForm> | null>(null);
 const selectedRows = ref<string[]>([]);
 const showBatchMatchDialog = ref(false);
-const batchMatchForm = ref<InstanceType<typeof VForm> | null>(null);
+const batchMatchForm = ref<InstanceType<typeof QForm> | null>(null);
 const batchMerchant = ref("");
 const batchCategory = ref("");
 const selectedEntityId = ref<string>("");
 const showBatchActionDialog = ref(false);
 const batchAction = ref<string>("");
 const showStatementDialog = ref(false);
-const statementForm = ref<InstanceType<typeof VForm> | null>(null);
+const statementForm = ref<InstanceType<typeof QForm> | null>(null);
 const newStatement = ref<Statement>({
   id: "",
   accountNumber: "",
@@ -621,10 +618,10 @@ const latestTransactionBalance = computed(() => {
   if (selectedAccount.value && accounts.value) {
     const aInfo = accounts.value.filter((a) => (a.accountNumber ?? "") == selectedAccount.value);
     if (aInfo && aInfo.length > 0 && (aInfo[0].type == "CreditCard" || aInfo[0].type == "Loan")) {
-      return Math.abs(displayTransactions.value[0].balance) || 0;
+      return Math.abs(displayTransactions.value[0]?.balance ?? 0);
     }
   }
-  return displayTransactions.value[0].balance || 0;
+  return displayTransactions.value[0]?.balance ?? 0;
 });
 
 const headers = [
@@ -668,7 +665,7 @@ const displayTransactions = computed((): DisplayTransaction[] => {
       id: tx.id,
       date: tx.date,
       merchant: tx.importedMerchant || tx.merchant || "N/A",
-      category: tx.categories && tx.categories.length > 0 ? tx.categories[0].category : "N/A",
+      category: tx.categories?.[0]?.category ?? "N/A",
       entityId: tx.entityId || budget.entityId,
       amount: tx.isIncome || false ? tx.amount : -1 * tx.amount,
       isIncome: tx.isIncome || false,
@@ -692,8 +689,8 @@ const displayTransactions = computed((): DisplayTransaction[] => {
       merchant: tx.payee || "N/A",
       category: "",
       entityId: "",
-      amount: tx.debitAmount > 0 ? -tx.debitAmount : tx.creditAmount,
-      isIncome: tx.creditAmount > 0,
+      amount: tx.debitAmount && tx.debitAmount > 0 ? -tx.debitAmount : tx.creditAmount ?? 0,
+      isIncome: (tx.creditAmount ?? 0) > 0,
       status: tx.status || "U",
       notes: "",
     }));
@@ -815,7 +812,7 @@ const statementTransactions = computed((): DisplayTransaction[] => {
       id: itx.id,
       date: itx.postedDate,
       merchant: itx.payee || "N/A",
-      amount: itx.debitAmount > 0 ? -itx.debitAmount : itx.creditAmount,
+      amount: itx.debitAmount && itx.debitAmount > 0 ? -itx.debitAmount : itx.creditAmount ?? 0,
       status: itx.status || "U",
     }));
 
@@ -877,9 +874,11 @@ async function loadData() {
       .filter((tx) => !tx.deleted && tx.accountNumber)
       .map((tx) => tx.accountNumber!);
 
-    const importedAccounts = importedTransactions.value.filter((tx) => tx.accountNumber).map((tx) => tx.accountNumber);
+    const importedAccounts = importedTransactions.value
+      .filter((tx): tx is ImportedTransaction & { accountNumber: string } => !!tx.accountNumber)
+      .map((tx) => tx.accountNumber);
 
-    const uniqueAccountNumbers = [...new Set([...budgetAccounts, ...importedAccounts])];
+    const uniqueAccountNumbers = [...new Set([...budgetAccounts, ...importedAccounts])].filter(Boolean) as string[];
 
     // Create account options with name and number
     accountOptions.value = uniqueAccountNumbers
@@ -894,7 +893,7 @@ async function loadData() {
 
     // Default to first account if available
     if (accountOptions.value.length > 0) {
-      selectedAccount.value = accountOptions.value[0].value;
+      selectedAccount.value = accountOptions.value[0]!.value;
       await loadTransactions();
     }
   } catch (error: any) {
@@ -915,7 +914,7 @@ async function loadTransactions() {
     await statementStore.loadStatements(familyId.value, selectedAccount.value);
     statements.value = statementStore.getStatements(familyId.value, selectedAccount.value);
     if (statements.value.length > 0) {
-      selectedStatementId.value = statements.value[statements.value.length - 1].id;
+      selectedStatementId.value = statements.value[statements.value.length - 1]!.id;
     } else {
       selectedStatementId.value = null;
     }
@@ -927,7 +926,7 @@ async function loadTransactions() {
   }
 }
 
-function getEntityName(entityId: string): string {
+function getEntityName(entityId?: string): string {
   if (!entityId) return "N/A";
   const entity = familyStore.family?.entities?.find((e) => e.id === entityId);
   if (entity) return entity.name;
@@ -1007,14 +1006,15 @@ async function executeAction() {
         importedMerchant: undefined,
         checkNumber: undefined,
         status: "U",
+        taxMetadata: budgetTx.taxMetadata || [],
       };
 
       await dataAccess.saveTransaction(budget, updatedBudgetTx, false);
 
       const budgetIndex = budgets.value.findIndex((b) => b.budgetId === budgetId);
       if (budgetIndex !== -1) {
-        budgets.value[budgetIndex].transactions = budgets.value[budgetIndex].transactions.map((tx) => (tx.id === id ? updatedBudgetTx : tx));
-        budgetStore.updateBudget(budgetId, budgets.value[budgetIndex]);
+        budgets.value[budgetIndex]!.transactions = budgets.value[budgetIndex]!.transactions.map((tx) => (tx.id === id ? updatedBudgetTx : tx));
+        budgetStore.updateBudget(budgetId, budgets.value[budgetIndex]!);
       }
 
       if (importedTxIndex !== -1) {
@@ -1158,6 +1158,7 @@ async function executeBatchMatch() {
         importedMerchant: importedTx.payee || "",
         status: "C",
         entityId: selectedEntityId.value,
+        taxMetadata: [],
       };
 
       // Save budget transaction
@@ -1299,7 +1300,7 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
       entityId: entityId,
       month: month,
       incomeTarget: 0,
-      categories: predefinedTemplate.categories.map((cat) => ({
+      categories: predefinedTemplate?.categories.map((cat) => ({
         ...cat,
         carryover: cat.isFund ? 0 : 0, // Initialize carryover as 0
       })),
@@ -1351,9 +1352,11 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
   }
 
   // Copy source budget
-  const [newYear, newMonthNum] = month.split("-").map(Number);
-  const [sourceYear, sourceMonthNum] = sourceBudget.month.split("-").map(Number);
-  const isFutureMonth = newYear > sourceYear || (newYear === sourceYear && newMonthNum > sourceMonthNum);
+  const [newYear, newMonthNum] = month.split("-").map((v) => Number(v));
+  const [sourceYear, sourceMonthNum] = sourceBudget.month.split("-").map((v) => Number(v));
+  const isFutureMonth =
+    (newYear ?? 0) > (sourceYear ?? 0) ||
+    ((newYear ?? 0) === (sourceYear ?? 0) && (newMonthNum ?? 0) > (sourceMonthNum ?? 0));
 
   let newCarryover: Record<string, number> = {};
   if (isFutureMonth) {
@@ -1391,7 +1394,7 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
 
     Object.values(recurringGroups).forEach((group) => {
       const firstInstance = group.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
-      if (firstInstance.recurringInterval === "Monthly") {
+      if (firstInstance && firstInstance.recurringInterval === "Monthly") {
         const newDate = adjustTransactionDate(firstInstance.date, month, "Monthly");
         recurringTransactions.push({
           ...firstInstance,
@@ -1516,7 +1519,7 @@ async function refreshData() {
 function openStatementDialog() {
   showStatementDialog.value = true;
   if (statements.value.length > 0) {
-    newStatement.value.startDate = statements.value[statements.value.length - 1].endDate;
+    newStatement.value.startDate = statements.value[statements.value.length - 1]!.endDate;
   }
 }
 
@@ -1588,7 +1591,7 @@ async function markStatementReconciled() {
       if (idx !== -1) {
         const parts = id.split("-");
         const docId = parts.slice(0, -1).join("-");
-        const updatedTx = { ...importedTransactions.value[idx], status: "R" };
+        const updatedTx: ImportedTransaction = { ...importedTransactions.value[idx], status: "R" };
         importedTransactions.value[idx].status = "R";
         await dataAccess.updateImportedTransaction(docId, updatedTx);
       }
@@ -1640,7 +1643,7 @@ async function unreconcileStatement() {
       ) {
         const parts = itx.id.split("-");
         const docId = parts.slice(0, -1).join("-");
-        const updatedTx = { ...itx, status: "C" };
+        const updatedTx: ImportedTransaction = { ...itx, status: "C" };
         itx.status = "C";
         await dataAccess.updateImportedTransaction(docId, updatedTx);
       }
@@ -1698,7 +1701,7 @@ async function deleteStatement() {
       ) {
         const parts = itx.id.split("-");
         const docId = parts.slice(0, -1).join("-");
-        const updatedTx = { ...itx, status: "C" };
+        const updatedTx: ImportedTransaction = { ...itx, status: "C" };
         itx.status = "C";
         await dataAccess.updateImportedTransaction(docId, updatedTx);
       }
@@ -1735,7 +1738,7 @@ function downloadCsv() {
     date: tx.date,
     merchant: tx.merchant,
     category: tx.category,
-    entity: getEntityName(tx.entityId || tx.budgetId),
+    entity: getEntityName(tx.entityId || tx.budgetId || ""),
     amount: tx.amount,
     isIncome: tx.isIncome ? "true" : "false",
     status: tx.status,

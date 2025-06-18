@@ -183,7 +183,7 @@ import { Budget, Transaction } from "../types";
 import { toCents, toDollars, todayISO, currentMonthISO } from "../utils/helpers";
 import CurrencyInput from "./CurrencyInput.vue";
 import ToggleButton from "./ToggleButton.vue";
-import { VForm } from "vuetify/components";
+import { QForm } from "quasar";
 import { useMerchantStore } from "../store/merchants";
 import { useBudgetStore } from "../store/budget";
 
@@ -211,7 +211,7 @@ const snackbarColor = ref("success");
 
 const requiredField = [(value: string | null) => !!value || "This field is required", (value: string | null) => value !== "" || "This field is required"];
 
-const form = ref<InstanceType<typeof VForm> | null>(null);
+const form = ref<InstanceType<typeof QForm> | null>(null);
 
 const defaultTransaction: Transaction = {
   id: "",
@@ -285,7 +285,7 @@ onMounted(async () => {
     showSnackbar("No budgets available. Please create a budget in the Dashboard.", "warning");
   } else {
     if (!locTrnsx.budgetMonth || !availableMonths.value.includes(locTrnsx.budgetMonth)) {
-      locTrnsx.budgetMonth = availableMonths.value[0];
+      locTrnsx.budgetMonth = availableMonths.value[0] || "";
     }
   }
 
@@ -329,7 +329,7 @@ function removeSplit(index: number) {
     locTrnsx.categories.splice(index, 1);
   }
   if (locTrnsx.categories.length === 1) {
-    locTrnsx.categories[0].amount = locTrnsx.amount;
+    locTrnsx.categories[0]!.amount = locTrnsx.amount;
   }
 }
 
@@ -386,8 +386,8 @@ async function save() {
   if (valid) {
     loading.value = true;
     try {
-      if (locTrnsx.categories.length === 1 && locTrnsx.categories[0].amount === 0) {
-        locTrnsx.categories[0].amount = locTrnsx.amount;
+      if (locTrnsx.categories.length === 1 && locTrnsx.categories[0]?.amount === 0) {
+        locTrnsx.categories[0]!.amount = locTrnsx.amount;
       }
       locTrnsx.userId = props.userId;
       if (!locTrnsx.status) {
