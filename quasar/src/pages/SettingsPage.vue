@@ -210,7 +210,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from "vue";
-import { auth } from "../firebase/index";
+import { auth } from "../firebase/init";
 import { dataAccess } from "../dataAccess";
 import { Timestamp } from "firebase/firestore";
 import { Family, PendingInvite, Entity, Budget, ImportedTransactionDoc } from "../types";

@@ -184,7 +184,7 @@ import { EntityType } from "../types";
 import CurrencyInput from "./CurrencyInput.vue";
 import { useBudgetStore } from "../store/budget";
 import { useFamilyStore } from "../store/family";
-import { auth } from "../firebase/index";
+import { auth } from "../firebase/init";
 import { DEFAULT_BUDGET_TEMPLATES } from "../constants/budgetTemplates";
 import { DEFAULT_TAX_FORMS } from "../constants/taxForms";
 import { v4 as uuidv4 } from "uuid";

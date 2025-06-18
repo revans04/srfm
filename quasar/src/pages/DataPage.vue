@@ -348,7 +348,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
-import { auth } from "../firebase/index";
+import { auth } from "../firebase/init";
 import { dataAccess } from "../dataAccess";
 import Papa from "papaparse";
 import { Budget, Transaction, Account, Entity, ImportedTransaction, ImportedTransactionDoc, Snapshot } from "../types";
