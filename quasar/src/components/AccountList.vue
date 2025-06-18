@@ -29,7 +29,6 @@
         </template>
         <template v-slot:item.actions="{ item }">
           <q-btn
-            icon
             density="compact"
             variant="plain"
             color="primary"
@@ -39,7 +38,6 @@
             <q-icon>mdi-pencil</q-icon>
           </q-btn>
           <q-btn
-            icon
             density="compact"
             variant="plain"
             color="error"
@@ -59,7 +57,7 @@
 import { computed, defineProps, defineEmits } from "vue";
 import { Account, ImportedTransaction } from "../types";
 import { formatCurrency } from "../utils/helpers";
-import { auth } from "../firebase";
+import { auth } from "../firebase/init";
 
 const props = defineProps<{
   accounts: Account[];

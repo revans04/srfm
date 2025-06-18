@@ -310,7 +310,7 @@ import { toDollars, toCents, toBudgetMonth, adjustTransactionDate, todayISO } fr
 import { dataAccess } from "../dataAccess";
 import { useBudgetStore } from "../store/budget";
 import { useFamilyStore } from "../store/family";
-import { auth } from "../firebase/index";
+import { auth } from "../firebase/init";
 import TransactionDialog from "./TransactionDialog.vue";
 import { VForm } from "vuetify/components";
 import { v4 as uuidv4 } from "uuid";

@@ -17,7 +17,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { auth } from "../firebase/index";
+import { auth } from "../firebase/init";
 import { dataAccess } from "../dataAccess";
 
 const router = useRouter();

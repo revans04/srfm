@@ -281,7 +281,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from "vue";
 import { storeToRefs } from "pinia";
-import { auth } from "../firebase";
+import { auth } from "../firebase/init";
 import { dataAccess } from "../dataAccess";
 import TransactionDialog from "../components/TransactionDialog.vue";
 import MatchBankTransactionsDialog from "../components/MatchBankTransactionsDialog.vue";

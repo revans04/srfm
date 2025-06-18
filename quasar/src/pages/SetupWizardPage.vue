@@ -148,7 +148,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from "vue";
 import { useRouter } from "vue-router";
-import { auth } from "../firebase/index";
+import { auth } from "../firebase/init";
 import { dataAccess } from "../dataAccess";
 import { useFamilyStore } from "../store/family";
 import EntityForm from "../components/EntityForm.vue";

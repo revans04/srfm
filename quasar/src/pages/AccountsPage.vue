@@ -221,7 +221,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
-import { auth } from "../firebase";
+import { auth } from "../firebase/init";
 import { dataAccess } from "../dataAccess";
 import { useFamilyStore } from "../store/family";
 import AccountList from "../components/AccountList.vue";

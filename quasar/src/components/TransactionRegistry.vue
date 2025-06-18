@@ -498,7 +498,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
 import { storeToRefs } from "pinia";
-import { auth } from "../firebase/index";
+import { auth } from "../firebase/init";
 import { dataAccess } from "../dataAccess";
 import Papa from "papaparse";
 import { saveAs } from "file-saver";
