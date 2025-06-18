@@ -106,7 +106,7 @@
             <q-row v-if="remainingImportedTransactions.length > 0" class="mt-4">
               <q-col>
                 <h3>Remaining Transactions ({{ currentBankTransactionIndex + 1 }} of {{ remainingImportedTransactions.length }})</h3>
-                <q-table>
+                <q-markup-table>
                   <thead>
                     <tr>
                       <th>Posted Date</th>
@@ -131,7 +131,7 @@
                       <td>{{ selectedBankTransaction?.checkNumber || "N/A" }}</td>
                     </tr>
                   </tbody>
-                </q-table>
+                </q-markup-table>
 
                 <!-- Search Filters -->
                 <q-row class="mt-4">
@@ -173,7 +173,7 @@
                         label="Entity"
                         variant="outlined"
                         density="compact"
-                        :rules="[(v) => !!v || 'Entity is required']"
+                        :rules="[(v: string) => !!v || 'Entity is required']"
                       ></q-select>
                     </q-col>
                     <q-col cols="12" md="3">
@@ -183,7 +183,7 @@
                         label="Category"
                         variant="outlined"
                         density="compact"
-                        :rules="[(v) => !!v || 'Category is required']"
+                        :rules="[(v: string) => !!v || 'Category is required']"
                       ></q-combobox>
                     </q-col>
                     <q-col cols="12" md="2">
@@ -193,7 +193,7 @@
                         type="number"
                         variant="outlined"
                         density="compact"
-                        :rules="[(v) => v > 0 || 'Amount must be greater than 0']"
+                        :rules="[(v: number) => v > 0 || 'Amount must be greater than 0']"
                       ></q-text-field>
                     </q-col>
                     <q-col cols="12" md="1">
@@ -310,9 +310,9 @@ import { toDollars, toCents, toBudgetMonth, adjustTransactionDate, todayISO } fr
 import { dataAccess } from "../dataAccess";
 import { useBudgetStore } from "../store/budget";
 import { useFamilyStore } from "../store/family";
-import { auth } from "../firebase/index";
+import { auth } from "../firebase/init";
 import TransactionDialog from "./TransactionDialog.vue";
-import { VForm } from "vuetify/components";
+import { QForm } from "quasar";
 import { v4 as uuidv4 } from "uuid";
 
 const budgetStore = useBudgetStore();
@@ -386,7 +386,7 @@ const potentialMatchesSortFields = [
 // Split transaction state
 const showSplitForm = ref(false);
 const transactionSplits = ref<Array<{ entityId: string; category: string; amount: number }>>([{ entityId: "", category: "", amount: 0 }]);
-const splitForm = ref<InstanceType<typeof VForm> | null>(null);
+const splitForm = ref<InstanceType<typeof QForm> | null>(null);
 
 const showTransactionDialog = ref(false);
 const newTransaction = ref<Transaction>({
@@ -401,6 +401,7 @@ const newTransaction = ref<Transaction>({
   recurringInterval: "Monthly",
   userId: "",
   isIncome: false,
+  taxMetadata: [],
 } as Transaction);
 const newTransactionBudgetId = ref<string>(""); // Track budgetId for TransactionDialog
 
@@ -448,7 +449,8 @@ const sortedSmartMatches = computed(() => {
   const direction = smartMatchesSortDirection.value;
 
   return items.sort((a, b) => {
-    let valueA, valueB;
+    let valueA: number | string = 0;
+    let valueB: number | string = 0;
 
     if (field === "postedDate") {
       valueA = new Date(a.importedTransaction.postedDate).getTime();
@@ -473,7 +475,8 @@ const sortedPotentialMatches = computed(() => {
   const direction = potentialMatchesSortDirection.value;
 
   return items.sort((a, b) => {
-    let valueA, valueB;
+    let valueA: number | string = 0;
+    let valueB: number | string = 0;
 
     if (field === "date") {
       valueA = new Date(a.date).getTime();
@@ -549,7 +552,7 @@ watch(
       currentBankTransactionIndex.value = Math.min(currentBankTransactionIndex.value, newVal.length - 1);
       if (!selectedBankTransaction.value || !newVal.some((tx) => tx.id === selectedBankTransaction.value?.id)) {
         currentBankTransactionIndex.value = 0;
-        selectedBankTransaction.value = newVal[0];
+        selectedBankTransaction.value = newVal[0] ?? null;
         searchBudgetTransactions();
       }
     } else {
@@ -605,7 +608,15 @@ async function confirmSmartMatches() {
 
       const reconcileData = {
         budgetId,
-        reconciliations: matchesByBudget[budgetId],
+        reconciliations: matchesByBudget[budgetId]!,
+      } as {
+        budgetId: string;
+        reconciliations: {
+          budgetTransactionId: string;
+          importedTransactionId: string;
+          match: boolean;
+          ignore: boolean;
+        }[];
       };
 
       await dataAccess.batchReconcileTransactions(budgetId, budget, reconcileData);
@@ -656,12 +667,19 @@ async function matchBankTransaction(budgetTransaction: Transaction) {
       recurringInterval: budgetTransaction.recurringInterval || "Monthly",
       isIncome: budgetTransaction.isIncome || !!importedTx.creditAmount,
       entityId: budgetTransaction.entityId || familyStore.selectedEntityId || "",
+      taxMetadata: budgetTransaction.taxMetadata || [],
     };
 
-    const targetBudgetIdToUse = budgetTransaction.budgetId || `${user.uid}_${updatedTransaction.entityId}_${updatedTransaction.budgetMonth}`;
+    const targetBudgetIdToUse = (budgetTransaction as any).budgetId || `${user.uid}_${updatedTransaction.entityId}_${updatedTransaction.budgetMonth}`;
     let budget = budgetStore.getBudget(targetBudgetIdToUse);
     if (!budget) {
-      budget = await createBudgetForMonth(updatedTransaction.budgetMonth, familyStore.getFamily()?.id || "", user.uid, updatedTransaction.entityId);
+      const fam = await familyStore.getFamily();
+      budget = await createBudgetForMonth(
+        updatedTransaction.budgetMonth!,
+        fam?.id ?? "",
+        user.uid,
+        updatedTransaction.entityId
+      );
     }
 
     await dataAccess.saveTransaction(budget, updatedTransaction, false);
@@ -698,7 +716,7 @@ async function ignoreBankTransaction() {
     const parts = importedTx.id.split("-");
     const txId = parts[parts.length - 1];
     const docId = parts.slice(0, -1).join("-");
-    await dataAccess.updateImportedTransaction(docId, importedTx.id, null, true);
+    await dataAccess.updateImportedTransaction(docId, importedTx.id, undefined, true);
 
     showSnackbar("Bank transaction ignored");
     updateRemainingTransactions();
@@ -713,7 +731,8 @@ async function ignoreBankTransaction() {
 function skipBankTransaction() {
   if (currentBankTransactionIndex.value + 1 < remainingImportedTransactions.value.length) {
     currentBankTransactionIndex.value++;
-    selectedBankTransaction.value = remainingImportedTransactions.value[currentBankTransactionIndex.value];
+    selectedBankTransaction.value =
+      remainingImportedTransactions.value[currentBankTransactionIndex.value] ?? null;
     searchBudgetTransactions();
   } else {
     if (smartMatches.value.length === 0) {
@@ -771,9 +790,10 @@ async function saveSplitTransaction() {
         accountSource: importedTx.accountSource,
         accountNumber: importedTx.accountNumber,
         checkNumber: importedTx.checkNumber,
-        status: "C",
-        entityId: split.entityId,
-      };
+      status: "C",
+      entityId: split.entityId,
+      taxMetadata: [],
+    };
 
       if (!transactionsByBudget[budgetId]) transactionsByBudget[budgetId] = [];
       transactionsByBudget[budgetId].push(transaction);
@@ -784,10 +804,10 @@ async function saveSplitTransaction() {
       let budget = budgetStore.getBudget(budgetId);
       if (!budget) {
         const [, entityId, budgetMonth] = budgetId.split("_");
-        budget = await createBudgetForMonth(budgetMonth, family.id, user.uid, entityId);
+        budget = await createBudgetForMonth(budgetMonth!, family.id, user.uid, entityId);
       }
 
-      await dataAccess.batchSaveTransactions(budgetId, budget, transactionsByBudget[budgetId]);
+      await dataAccess.batchSaveTransactions(budgetId, budget, transactionsByBudget[budgetId]!);
       const updatedBudget = await dataAccess.getBudget(budgetId);
       if (updatedBudget) budgetStore.updateBudget(budgetId, updatedBudget);
     }
@@ -800,7 +820,8 @@ async function saveSplitTransaction() {
     remainingImportedTransactions.value = remainingImportedTransactions.value.filter((tx) => tx.id !== importedTx.id);
     if (remainingImportedTransactions.value.length > 0) {
       currentBankTransactionIndex.value = Math.min(currentBankTransactionIndex.value, remainingImportedTransactions.value.length - 1);
-      selectedBankTransaction.value = remainingImportedTransactions.value[currentBankTransactionIndex.value];
+      selectedBankTransaction.value =
+        remainingImportedTransactions.value[currentBankTransactionIndex.value] ?? null;
       searchBudgetTransactions();
     } else {
       currentBankTransactionIndex.value = -1;
@@ -832,7 +853,7 @@ async function handleTransactionAdded(savedTransaction: Transaction) {
     const targetBudgetId = `${user.uid}_${savedTransaction.entityId}_${savedTransaction.budgetMonth}`;
     let budget = budgetStore.getBudget(targetBudgetId);
     if (!budget) {
-      budget = await createBudgetForMonth(savedTransaction.budgetMonth, family.id, user.uid, savedTransaction.entityId);
+      budget = await createBudgetForMonth(savedTransaction.budgetMonth!, family.id, user.uid, savedTransaction.entityId);
     }
 
     budgetStore.updateBudget(targetBudgetId, {
@@ -848,7 +869,8 @@ async function handleTransactionAdded(savedTransaction: Transaction) {
     remainingImportedTransactions.value = remainingImportedTransactions.value.filter((tx) => tx.id !== importedTx.id);
     if (remainingImportedTransactions.value.length > 0) {
       currentBankTransactionIndex.value = Math.min(currentBankTransactionIndex.value, remainingImportedTransactions.value.length - 1);
-      selectedBankTransaction.value = remainingImportedTransactions.value[currentBankTransactionIndex.value];
+      selectedBankTransaction.value =
+        remainingImportedTransactions.value[currentBankTransactionIndex.value] ?? null;
       searchBudgetTransactions();
     } else {
       currentBankTransactionIndex.value = -1;
@@ -908,6 +930,7 @@ async function addNewTransaction() {
     checkNumber: selectedBankTransaction.value.checkNumber,
     status: "C",
     entityId: familyStore.selectedEntityId,
+    taxMetadata: [],
   };
   newTransactionBudgetId.value = `${props.userId}_${familyStore.selectedEntityId}_${budgetMonth}`;
   showTransactionDialog.value = true;
@@ -1009,7 +1032,7 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
     const bankAmount = importedTx.debitAmount || importedTx.creditAmount || 0;
     const bankDate = new Date(importedTx.postedDate);
     const bankDateStr = bankDate.toISOString().split("T")[0];
-    const normalizedBankDate = new Date(bankDateStr);
+    const normalizedBankDate = new Date(bankDateStr as string);
 
     const startDate = new Date(normalizedBankDate);
     startDate.setDate(normalizedBankDate.getDate() - dateRangeDays);
@@ -1019,7 +1042,7 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
     props.transactions.forEach((tx) => {
       const txDate = new Date(tx.date);
       const txDateStr = txDate.toISOString().split("T")[0];
-      const normalizedTxDate = new Date(txDateStr);
+      const normalizedTxDate = new Date(txDateStr as string);
       const txAmount = tx.amount;
       const typeMatch = tx.isIncome === !!importedTx.creditAmount;
       if (
@@ -1033,7 +1056,7 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
         potentialMatches.push({
           importedTx,
           budgetTx: tx,
-          budgetId: tx.budgetId || `${props.userId}_${tx.entityId}_${toBudgetMonth(importedTx.postedDate)}`,
+          budgetId: (tx as any).budgetId || `${props.userId}_${tx.entityId}_${toBudgetMonth(importedTx.postedDate)}`,
           bankAmount,
           bankType: importedTx.debitAmount ? "Debit" : "Credit",
           merchantMatch: !!importedTx.payee && importedTx.payee.toLowerCase().includes(tx.merchant.toLowerCase()),
@@ -1050,7 +1073,7 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
   const matchesByBank: Record<string, typeof potentialMatches> = {};
   potentialMatches.forEach((m) => {
     if (!matchesByBank[m.importedTx.id]) matchesByBank[m.importedTx.id] = [];
-    matchesByBank[m.importedTx.id].push(m);
+    matchesByBank[m.importedTx.id]!.push(m);
   });
 
   Object.values(matchesByBank).forEach((cands) => {
@@ -1059,15 +1082,15 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
     let chosen: (typeof cands)[0] | null = null;
 
     if (available.length === 1) {
-      chosen = available[0];
+      chosen = available[0]!;
     } else {
       const merchantMatches = available.filter((c) => c.merchantMatch);
       if (merchantMatches.length === 1) {
-        chosen = merchantMatches[0];
+        chosen = merchantMatches[0]!;
       } else {
         const dateMatches = available.filter((c) => c.dateExact);
         if (dateMatches.length === 1) {
-          chosen = dateMatches[0];
+          chosen = dateMatches[0]!;
         }
       }
     }
@@ -1104,7 +1127,8 @@ function updateRemainingTransactions() {
 
   if (remainingImportedTransactions.value.length > 0) {
     currentBankTransactionIndex.value = Math.min(currentBankTransactionIndex.value, remainingImportedTransactions.value.length - 1);
-    selectedBankTransaction.value = remainingImportedTransactions.value[currentBankTransactionIndex.value];
+    selectedBankTransaction.value =
+      remainingImportedTransactions.value[currentBankTransactionIndex.value] ?? null;
     selectedBudgetTransactionForMatch.value = [];
     searchBudgetTransactions();
   } else {
@@ -1176,8 +1200,9 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
   }
 
   // Copy source budget
-  const [newYear, newMonthNum] = month.split("-").map(Number);
-  const [sourceYear, sourceMonthNum] = sourceBudget.month.split("-").map(Number);
+  const [newYear, newMonthNum] = month.split("-").map(Number) as [number, number];
+  const [sourceYear, sourceMonthNum] =
+    sourceBudget.month.split("-").map(Number) as [number, number];
   const isFutureMonth = newYear > sourceYear || (newYear === sourceYear && newMonthNum > sourceMonthNum);
 
   let newCarryover: Record<string, number> = {};
@@ -1216,7 +1241,7 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
 
     Object.values(recurringGroups).forEach((group) => {
       const firstInstance = group.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
-      if (firstInstance.recurringInterval === "Monthly") {
+      if (firstInstance && firstInstance.recurringInterval === "Monthly") {
         const newDate = adjustTransactionDate(firstInstance.date, month, "Monthly");
         recurringTransactions.push({
           ...firstInstance,
@@ -1224,6 +1249,7 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
           date: newDate,
           budgetMonth: month,
           entityId: entityId,
+          taxMetadata: firstInstance.taxMetadata || [],
         });
       }
       // Add support for other intervals (Daily, Weekly, etc.) if needed

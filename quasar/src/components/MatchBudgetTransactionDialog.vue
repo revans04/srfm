@@ -7,7 +7,7 @@
         <q-row>
           <q-col>
             <h3>Selected Budget Transaction</h3>
-            <q-table>
+            <q-markup-table>
               <thead>
                 <tr>
                   <th>Date</th>
@@ -26,7 +26,7 @@
                   </td>
                 </tr>
               </tbody>
-            </q-table>
+            </q-markup-table>
           </q-col>
         </q-row>
         <q-row class="mt-4">
@@ -192,7 +192,7 @@ function formatCategories(categories: { category: string; amount: number }[] | u
     return "No categories";
   }
   if (categories.length === 1) {
-    return categories[0].category;
+    return categories[0]?.category ?? "";
   }
   return categories.map((c) => `${c.category} ($${c.amount.toFixed(2)})`).join(",\n");
 }
