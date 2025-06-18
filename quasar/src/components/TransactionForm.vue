@@ -178,6 +178,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, reactive } from "vue";
+import { useQuasar } from 'quasar';
 import { dataAccess } from "../dataAccess";
 import { Budget, Transaction } from "../types";
 import { toCents, toDollars, todayISO, currentMonthISO } from "../utils/helpers";
@@ -189,6 +190,7 @@ import { useBudgetStore } from "../store/budget";
 
 const merchantStore = useMerchantStore();
 const budgetStore = useBudgetStore();
+const $q = useQuasar();
 
 const props = defineProps<{
   initialTransaction: Transaction;
@@ -243,7 +245,7 @@ const budget = ref<Budget | null>(null);
 const transactions = ref<Transaction[]>([]);
 const loading = ref(false);
 const intervals = ref(["Daily", "Weekly", "Bi-Weekly", "Monthly", "Quarterly", "Bi-Annually", "Yearly"]);
-const isMobile = computed(() => window.innerWidth < 960);
+const isMobile = computed(() => $q.screen.lt.md);
 
 const merchantNames = computed(() => merchantStore.merchantNames);
 

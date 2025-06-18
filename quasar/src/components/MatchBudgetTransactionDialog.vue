@@ -76,6 +76,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from "vue";
+import { useQuasar } from 'quasar';
 import { Transaction, ImportedTransaction, Account } from "../types";
 import { toDollars, toCents } from "../utils/helpers";
 
@@ -97,8 +98,9 @@ const selectedImportedTransaction = ref<string[]>([]);
 const searchAmount = ref<string>("");
 const searchMerchant = ref<string>("");
 const searchDateRange = ref<number>(4);
+const $q = useQuasar();
 
-const isMobile = computed(() => window.innerWidth < 960);
+const isMobile = computed(() => $q.screen.lt.md);
 
 const filteredImportedTransactions = computed(() => {
   let results = [...props.unmatchedImportedTransactions];

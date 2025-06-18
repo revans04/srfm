@@ -76,7 +76,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
+import { useQuasar } from 'quasar';
 import type { User } from 'firebase/auth';
 import { useRouter } from 'vue-router';
 import version from '../version';
@@ -87,18 +88,18 @@ import { useFamilyStore } from '../store/family';
 const router = useRouter();
 const auth = useAuthStore();
 const familyStore = useFamilyStore();
+const $q = useQuasar();
 const currentTab = ref('/');
 
 // Reactive state
 const user = ref<User | null>(null);
 const avatarSrc = ref<string>('https://via.placeholder.com/36');
-const windowWidth = ref(window.innerWidth);
 const showOnboarding = ref(false);
 const showSignOutDialog = ref(false); // New dialog state
 
 // Computed properties
 const isLoginRoute = computed(() => router.currentRoute.value.path === '/login');
-const isMobile = computed(() => windowWidth.value < 960);
+const isMobile = computed(() => $q.screen.lt.md);
 const userEmail = computed(() => user.value?.email ?? 'Guest');
 const appVersion = version;
 
@@ -128,10 +129,6 @@ function promptSignOut() {
   showSignOutDialog.value = true; // Show confirmation dialog
 }
 
-function handleResize() {
-  windowWidth.value = window.innerWidth;
-}
-
 function completeOnboarding(_familyId: string) {
   showOnboarding.value = false;
 }
@@ -159,12 +156,8 @@ onMounted(async () => {
     void router.push('/login'); // Redirect to login if no user
   }
 
-  window.addEventListener('resize', handleResize);
 });
 
-onUnmounted(() => {
-  window.removeEventListener('resize', handleResize);
-});
 
 watch(
   () => auth.user,

@@ -306,6 +306,7 @@
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, nextTick } from "vue";
 import { Transaction, ImportedTransaction, Budget } from "../types";
+import { useQuasar } from 'quasar';
 import { toDollars, toCents, toBudgetMonth, adjustTransactionDate, todayISO } from "../utils/helpers";
 import { dataAccess } from "../dataAccess";
 import { useBudgetStore } from "../store/budget";
@@ -317,6 +318,7 @@ import { v4 as uuidv4 } from "uuid";
 
 const budgetStore = useBudgetStore();
 const familyStore = useFamilyStore();
+const $q = useQuasar();
 
 const props = defineProps<{
   showDialog: boolean;
@@ -405,7 +407,7 @@ const newTransaction = ref<Transaction>({
 } as Transaction);
 const newTransactionBudgetId = ref<string>(""); // Track budgetId for TransactionDialog
 
-const isMobile = computed(() => window.innerWidth < 960);
+const isMobile = computed(() => $q.screen.lt.md);
 
 const entityOptions = computed(() => {
   return (familyStore.family?.entities || []).map((entity) => ({

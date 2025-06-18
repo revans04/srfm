@@ -28,8 +28,10 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from "vue";
+import { useQuasar } from 'quasar';
 import TransactionForm from "./TransactionForm.vue";
 import { Transaction } from "../types";
+const $q = useQuasar();
 
 const props = defineProps<{
   showDialog: boolean;
@@ -68,7 +70,7 @@ watch(
 );
 
 // Computed prop for mobile check
-const isMobile = computed(() => window.innerWidth < 960);
+const isMobile = computed(() => $q.screen.lt.md);
 
 function handleDialogClose(value: boolean) {
   emit("update:showDialog", value);
