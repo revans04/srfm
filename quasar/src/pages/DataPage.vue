@@ -17,16 +17,16 @@
     <q-window v-model="activeTab">
       <!-- Import Tab -->
       <q-window-item value="import">
-        <q-row>
-          <q-col cols="12">
+        <div class="row">
+          <div class="col col-12">
             <q-card>
               <q-card-section>Import Data</q-card-section>
               <q-card-section>
                 <q-select v-model="importType" :items="importTypes" label="Select Import Type" variant="outlined" class="mb-4"></q-select>
 
                 <!-- Entity Selection or Creation -->
-                <q-row v-if="entityOptions.length > 0 && importType !== 'bankTransactions' && importType !== 'accountsAndSnapshots'">
-                  <q-col cols="12" md="6">
+                <div class="row" v-if="entityOptions.length > 0 && importType !== 'bankTransactions' && importType !== 'accountsAndSnapshots'">
+                  <div class="col col-12 col-md-6">
                     <q-select
                       v-model="selectedEntityId"
                       :items="entityOptions"
@@ -39,26 +39,26 @@
                       :rules="importType !== 'entities' ? [(v) => !!v || 'Entity selection is required'] : []"
                       class="mb-4"
                     ></q-select>
-                  </q-col>
-                  <q-col cols="12" md="6">
+                  </div>
+                  <div class="col col-12 col-md-6">
                     <q-btn color="primary" @click="openCreateEntityDialog" class="mt-2">Create New Entity</q-btn>
-                  </q-col>
-                </q-row>
-                <q-row v-else-if="importType !== 'bankTransactions' && importType !== 'accountsAndSnapshots'">
-                  <q-col cols="12">
+                  </div>
+                </div>
+                <div class="row" v-else-if="importType !== 'bankTransactions' && importType !== 'accountsAndSnapshots'">
+                  <div class="col col-12">
                     <q-banner type="info" class="mb-4">
                       No entities found. Please create a new entity or import entities before importing budgets or transactions.
                     </q-banner>
                     <q-btn color="primary" @click="openCreateEntityDialog" class="mr-4">Create Entity</q-btn>
                     <q-btn color="secondary" @click="importType = 'entities'">Import Entities</q-btn>
-                  </q-col>
-                </q-row>
+                  </div>
+                </div>
 
                 <!-- File Input for Imports -->
                 <div v-if="importType === 'bankTransactions'">
                   <!-- Bank transaction import UI -->
-                  <q-row>
-                    <q-col cols="12" md="6">
+                  <div class="row">
+                    <div class="col col-12 col-md-6">
                       <q-select
                         v-model="selectedAccountId"
                         :items="formattedAccounts"
@@ -73,22 +73,22 @@
                       <q-banner v-if="availableAccounts.length === 0" type="warning" class="mb-4">
                         No bank or credit card accounts found. Please create an account in the Accounts section before importing transactions.
                       </q-banner>
-                    </q-col>
-                  </q-row>
-                  <q-row>
-                    <q-col cols="12" md="6">
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col col-12 col-md-6">
                       <q-file-input
                         label="Upload Bank/Card Transactions CSV"
                         accept=".csv"
                         @change="handleBankTransactionsFileUpload"
                         :disabled="importing || !selectedAccountId"
                       ></q-file-input>
-                    </q-col>
-                  </q-row>
+                    </div>
+                  </div>
                   <!-- Field Mapping -->
                   <div v-if="csvHeaders.length > 0">
-                    <q-row>
-                      <q-col cols="12">
+                    <div class="row">
+                      <div class="col col-12">
                         <h3>Map CSV Columns to Fields</h3>
                         <q-select
                           v-model="amountFormat"
@@ -99,8 +99,8 @@
                         ></q-select>
 
                         <!-- Common Fields -->
-                        <q-row v-for="(field, index) in commonBankTransactionFields" :key="index">
-                          <q-col cols="12" md="6">
+                        <div class="row" v-for="(field, index) in commonBankTransactionFields" :key="index">
+                          <div class="col col-12 col-md-6">
                             <q-combobox
                               v-model="fieldMapping[field.key]"
                               :items="csvHeaders"
@@ -109,13 +109,13 @@
                               clearable
                               placeholder="Select a column or type a value"
                             ></q-combobox>
-                          </q-col>
-                        </q-row>
+                          </div>
+                        </div>
 
                         <!-- Amount Fields Based on Format -->
                         <div v-if="amountFormat === 'separate'">
-                          <q-row>
-                            <q-col cols="12" md="6">
+                          <div class="row">
+                            <div class="col col-12 col-md-6">
                               <q-combobox
                                 v-model="fieldMapping.creditAmount"
                                 :items="csvHeaders"
@@ -124,10 +124,10 @@
                                 clearable
                                 placeholder="Select a column or type a value"
                               ></q-combobox>
-                            </q-col>
-                          </q-row>
-                          <q-row>
-                            <q-col cols="12" md="6">
+                            </div>
+                          </div>
+                          <div class="row">
+                            <div class="col col-12 col-md-6">
                               <q-combobox
                                 v-model="fieldMapping.debitAmount"
                                 :items="csvHeaders"
@@ -136,12 +136,12 @@
                                 clearable
                                 placeholder="Select a column or type a value"
                               ></q-combobox>
-                            </q-col>
-                          </q-row>
+                            </div>
+                          </div>
                         </div>
                         <div v-else-if="amountFormat === 'type'">
-                          <q-row>
-                            <q-col cols="12" md="6">
+                          <div class="row">
+                            <div class="col col-12 col-md-6">
                               <q-combobox
                                 v-model="fieldMapping.transactionType"
                                 :items="csvHeaders"
@@ -150,30 +150,30 @@
                                 clearable
                                 placeholder="Select a column or type a value"
                               ></q-combobox>
-                            </q-col>
-                          </q-row>
-                          <q-row>
-                            <q-col cols="12" md="6">
+                            </div>
+                          </div>
+                          <div class="row">
+                            <div class="col col-12 col-md-6">
                               <q-text-field
                                 v-model="creditTypeValue"
                                 label="Value for Credit"
                                 variant="outlined"
                                 placeholder="e.g., 'Credit' or 'CR'"
                               ></q-text-field>
-                            </q-col>
-                          </q-row>
-                          <q-row>
-                            <q-col cols="12" md="6">
+                            </div>
+                          </div>
+                          <div class="row">
+                            <div class="col col-12 col-md-6">
                               <q-text-field
                                 v-model="debitTypeValue"
                                 label="Value for Debit"
                                 variant="outlined"
                                 placeholder="e.g., 'Debit' or 'DR'"
                               ></q-text-field>
-                            </q-col>
-                          </q-row>
-                          <q-row>
-                            <q-col cols="12" md="6">
+                            </div>
+                          </div>
+                          <div class="row">
+                            <div class="col col-12 col-md-6">
                               <q-combobox
                                 v-model="fieldMapping.amount"
                                 :items="csvHeaders"
@@ -182,12 +182,12 @@
                                 clearable
                                 placeholder="Select a column or type a value"
                               ></q-combobox>
-                            </q-col>
-                          </q-row>
+                            </div>
+                          </div>
                         </div>
                         <div v-else-if="amountFormat === 'single'">
-                          <q-row>
-                            <q-col cols="12" md="6">
+                          <div class="row">
+                            <div class="col col-12 col-md-6">
                               <q-combobox
                                 v-model="fieldMapping.amount"
                                 :items="csvHeaders"
@@ -196,17 +196,17 @@
                                 clearable
                                 placeholder="Select a column or type a value"
                               ></q-combobox>
-                            </q-col>
-                          </q-row>
+                            </div>
+                          </div>
                         </div>
-                      </q-col>
-                    </q-row>
+                      </div>
+                    </div>
 
-                    <q-row>
-                      <q-col>
+                    <div class="row">
+                      <div class="col">
                         <q-btn color="primary" @click="previewBankTransactionsData" :disabled="importing || !isFieldMappingValid"> Preview Data </q-btn>
-                      </q-col>
-                    </q-row>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <div v-else-if="importType === 'entities'">
@@ -313,22 +313,22 @@
                 </q-dialog>
               </q-card-section>
             </q-card>
-          </q-col>
-        </q-row>
+          </div>
+        </div>
       </q-window-item>
 
       <!-- Export Tab -->
       <q-window-item value="export">
-        <q-row>
-          <q-col cols="12">
+        <div class="row">
+          <div class="col col-12">
             <q-card>
               <q-card-section>Export Data</q-card-section>
               <q-card-section>
                 <q-btn color="primary" @click="exportDataToCSV" :loading="exporting">Export All Data</q-btn>
               </q-card-section>
             </q-card>
-          </q-col>
-        </q-row>
+          </div>
+        </div>
       </q-window-item>
     </q-window>
 

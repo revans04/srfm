@@ -2,15 +2,15 @@
 <template>
   <q-card>
     <q-card-section>
-      <q-row class="pa-2">
-        <q-col>{{ type }} Accounts</q-col>
-        <q-col>
+      <div class="row pa-2" >
+        <div class="col">{{ type }} Accounts</div>
+        <div class="col">
           {{ formatCurrency(accountValue) }}
-        </q-col>
-        <q-col cols="auto">
+        </div>
+        <div class="col col-auto">
           <q-btn color="primary" variant="plain" @click="$emit('add')">Add Account</q-btn>
-        </q-col>
-      </q-row>
+        </div>
+      </div>
     </q-card-section>
     <q-card-section>
       <q-data-table

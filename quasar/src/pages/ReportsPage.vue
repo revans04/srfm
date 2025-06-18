@@ -15,8 +15,8 @@
       <!-- Monthly Overview -->
       <q-window-item value="monthly">
         <!-- Budget Selection -->
-        <q-row class="mt-4">
-          <q-col cols="12" md="6">
+        <div class="row mt-4" >
+          <div class="col col-12 col-md-6">
             <q-select
               v-model="selectedBudgets"
               :items="budgetOptions"
@@ -29,11 +29,11 @@
               closable-chips
               @update:modelValue="updateReportData"
             ></q-select>
-          </q-col>
-        </q-row>
+          </div>
+        </div>
 
-        <q-row class="mt-4">
-          <q-col cols="12" md="6">
+        <div class="row mt-4" >
+          <div class="col col-12 col-md-6">
             <q-card>
               <q-card-section class="text-center">
                 <!-- Donut Chart -->
@@ -76,8 +76,8 @@
                 </tr>
               </tbody>
             </q-table>
-          </q-col>
-          <q-col cols="12" md="6">
+          </div>
+          <div class="col col-12 col-md-6">
             <q-card>
               <q-card-section class="text-center">
                 <div style="height: 300px">
@@ -102,28 +102,28 @@
                 </tr>
               </tbody>
             </q-table>
-          </q-col>
-        </q-row>
+          </div>
+        </div>
       </q-window-item>
 
       <!-- Year-over-Year -->
       <q-window-item value="year-over-year">
-        <q-row class="mt-4">
-          <q-col>
+        <div class="row mt-4" >
+          <div class="col">
             <q-card>
               <q-card-section>
                 <p>Year-over-Year reporting coming soon!</p>
               </q-card-section>
             </q-card>
-          </q-col>
-        </q-row>
+          </div>
+        </div>
       </q-window-item>
 
       <!-- Net Worth -->
       <q-window-item value="net-worth">
-        <q-row class="mt-4">
+        <div class="row mt-4" >
           <!-- Net Worth Over Time with Trend Line -->
-          <q-col cols="12">
+          <div class="col col-12">
             <q-card>
               <q-card-section>Net Worth Over Time</q-card-section>
               <q-card-section>
@@ -134,10 +134,10 @@
                 </div>
               </q-card-section>
             </q-card>
-          </q-col>
+          </div>
 
           <!-- Cash, Investments, Properties, Debt Over Time -->
-          <q-col cols="12">
+          <div class="col col-12">
             <q-card>
               <q-card-section>Assets and Liabilities Over Time</q-card-section>
               <q-card-section>
@@ -148,8 +148,8 @@
                 </div>
               </q-card-section>
             </q-card>
-          </q-col>
-        </q-row>
+          </div>
+        </div>
       </q-window-item>
     </q-window>
   </q-page>

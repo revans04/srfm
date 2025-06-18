@@ -7,11 +7,11 @@
     </q-overlay>
 
     <!-- Header -->
-    <q-row class="header">
-      <q-col>
+    <div class="row header" >
+      <div class="col">
         <h2 class="category-title">{{ category.name }}</h2>
-      </q-col>
-      <q-col cols="auto">
+      </div>
+      <div class="col col-auto">
         <q-fab
           :class="isMobile ? 'mr-2' : 'mr-2 mt-2'"
           icon="close"
@@ -20,12 +20,12 @@
           location="top"
           @click="$emit('close')"
         />
-      </q-col>
-    </q-row>
+      </div>
+    </div>
 
     <!-- Progress Bar and Remaining -->
-    <q-row class="mt-2">
-      <q-col>
+    <div class="row mt-2" >
+      <div class="col">
         <div class="progress-section">
           <div class="progress-label">
             <span :class="!isIncome && spent > category.target ? 'text-error' : ''">{{ formatCurrency(toDollars(toCents(spent))) }}</span>
@@ -46,12 +46,12 @@
             {{ formatCurrency(toDollars(toCents(available))) }}
           </span>
         </div>
-      </q-col>
-    </q-row>
+      </div>
+    </div>
 
     <!-- Transactions List -->
-    <q-row class="flex-grow-1 mt-4 pl-0 pr-0">
-      <q-col class="transaction-list pl-0 pr-0">
+    <div class="row flex-grow-1 mt-4 pl-0 pr-0" >
+      <div class="col transaction-list pl-0 pr-0" >
         <h3 class="section-title pb-2">Transactions ({{ categoryTransactions.length }})</h3>
         <div class="my-2 bg-white rounded-10 pt-2 pr-3 pl-3 mb-4">
           <q-text-field append-inner-icon="search" density="compact" label="Search" variant="plain" single-line v-model="search"></q-text-field>
@@ -66,28 +66,28 @@
             style="border-bottom: 1px solid rgb(var(--v-theme-light))"
           >
             <q-item-section class="d-flex align-center">
-              <q-row class="pa-2 align-center" no-gutters>
-                <q-col cols="2" class="pt-2 font-weight-bold text-primary" style="min-width: 60px; font-size: 10px">
+              <div class="row pa-2 align-center no-gutters"  >
+                <div class="col pt-2 font-weight-bold text-primary col-2"  style="min-width: 60px; font-size: 10px">
                   {{ formatDate(transaction.date) }}
-                </q-col>
-                <q-col class="text-truncate" style="flex: 1; min-width: 0">
+                </div>
+                <div class="col text-truncate"  style="flex: 1; min-width: 0">
                   {{ transaction.merchant }}
-                </q-col>
-                <q-col cols="auto" class="text-right no-wrap" :class="transaction.isIncome ? 'green--text' : ''" style="min-width: 60px">
+                </div>
+                <div class="col text-right no-wrap col-auto"  :class="transaction.isIncome ? 'green--text' : ''" style="min-width: 60px">
                   ${{ Math.abs(getCategoryAmount(transaction)).toFixed(2) }}
-                </q-col>
-                <q-col cols="auto" class="text-right" style="min-width: 40px">
+                </div>
+                <div class="col text-right col-auto"  style="min-width: 40px">
                   <q-icon small @click.stop="confirmDelete(transaction)" title="Move to Trash" color="error">trash</q-icon>
-                </q-col>
-              </q-row>
+                </div>
+              </div>
             </q-item-section>
           </q-item>
           <q-item v-if="categoryTransactions.length === 0">
             <q-item-label>No transactions for this category.</q-item-label>
           </q-item>
         </q-list>
-      </q-col>
-    </q-row>
+      </div>
+    </div>
 
     <!-- Floating Action Button -->
     <q-fab
@@ -104,9 +104,9 @@
     <q-dialog v-model="showEditDialog" :max-width="!isMobile ? '600px' : ''" :fullscreen="isMobile">
       <q-card density="compact">
         <q-card-section class="bg-primary py-5">
-          <q-row>
-            <q-col>Edit {{ transactionToEdit?.merchant }} Transaction</q-col>
-          </q-row>
+          <div class="row">
+            <div class="col">Edit {{ transactionToEdit?.merchant }} Transaction</div>
+          </div>
         </q-card-section>
         <q-card-section>
           <transaction-form

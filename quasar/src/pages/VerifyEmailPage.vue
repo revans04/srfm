@@ -1,15 +1,15 @@
 <template>
   <q-page>
-    <q-row justify="center">
-      <q-col cols="12" md="6">
+    <div class="row justify-center">
+      <div class="col col-12 col-md-6">
         <q-card>
           <q-card-section>Email Verification</q-card-section>
           <q-card-section v-if="loading">Verifying...</q-card-section>
           <q-card-section v-else-if="error">{{ error }}</q-card-section>
           <q-card-section v-else>Email verified successfully! You can now <router-link to="/login">log in</router-link>.</q-card-section>
         </q-card>
-      </q-col>
-    </q-row>
+      </div>
+    </div>
   </q-page>
 </template>
 

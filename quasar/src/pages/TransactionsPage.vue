@@ -23,16 +23,16 @@
 
         <q-card class="mb-4">
           <q-card-section>
-            <q-row class="mt-2">
-              <q-col cols="auto">Filters</q-col>
-              <q-col>
+            <div class="row mt-2" >
+              <div class="col col-auto">Filters</div>
+              <div class="col">
                 <q-checkbox v-model="entriesFilterDuplicates" label="Look for Duplicates" density="compact" hide-details @update:modelValue="applyFilters" />
-              </q-col>
-            </q-row>
+              </div>
+            </div>
           </q-card-section>
           <q-card-section>
-            <q-row>
-              <q-col cols="12" md="4">
+            <div class="row">
+              <div class="col col-12 col-md-4">
                 <q-select
                   v-model="familyStore.selectedEntityId"
                   :items="entityOptions"
@@ -44,8 +44,8 @@
                   clearable
                   @update:modelValue="loadBudgets"
                 ></q-select>
-              </q-col>
-              <q-col cols="12" md="4">
+              </div>
+              <div class="col col-12 col-md-4">
                 <q-text-field
                   append-inner-icon="search"
                   density="compact"
@@ -54,8 +54,8 @@
                   single-line
                   v-model="entriesSearch"
                 ></q-text-field>
-              </q-col>
-              <q-col cols="12" md="4">
+              </div>
+              <div class="col col-12 col-md-4">
                 <q-select
                   v-model="selectedBudgetIds"
                   :items="budgetOptions"
@@ -69,19 +69,19 @@
                   :disabled="budgetOptions.length === 0"
                   @update:modelValue="loadTransactions"
                 ></q-select>
-              </q-col>
-            </q-row>
-            <q-row v-if="budgetOptions.length === 0">
-              <q-col cols="12">
+              </div>
+            </div>
+            <div class="row" v-if="budgetOptions.length === 0">
+              <div class="col col-12">
                 <q-banner type="info" class="mt-4"> No budgets available. Create a budget in the Dashboard to start tracking transactions. </q-banner>
-              </q-col>
-            </q-row>
+              </div>
+            </div>
 
-            <q-row>
-              <q-col cols="12" md="2">
+            <div class="row">
+              <div class="col col-12 col-md-2">
                 <q-text-field v-model="entriesFilterMerchant" label="Merchant" variant="outlined" density="compact" @input="applyFilters"></q-text-field>
-              </q-col>
-              <q-col cols="12" md="2">
+              </div>
+              <div class="col col-12 col-md-2">
                 <q-text-field
                   v-model="entriesFilterAmount"
                   label="Amount"
@@ -90,11 +90,11 @@
                   density="compact"
                   @input="applyFilters"
                 ></q-text-field>
-              </q-col>
-              <q-col cols="12" md="2">
+              </div>
+              <div class="col col-12 col-md-2">
                 <q-text-field v-model="entriesFilterNote" label="Note/Memo" variant="outlined" density="compact" @input="applyFilters"></q-text-field>
-              </q-col>
-              <q-col cols="12" md="2">
+              </div>
+              <div class="col col-12 col-md-2">
                 <q-text-field
                   v-model="entriesFilterDate"
                   label="Date"
@@ -104,11 +104,11 @@
                   :clearable="true"
                   @input="applyFilters"
                 ></q-text-field>
-              </q-col>
-              <q-col cols="12" md="2">
+              </div>
+              <div class="col col-12 col-md-2">
                 <q-text-field v-model="entriesFilterStatus" label="Status" variant="outlined" density="compact" @input="applyFilters"></q-text-field>
-              </q-col>
-              <q-col cols="12" md="2">
+              </div>
+              <div class="col col-12 col-md-2">
                 <q-select
                   v-model="entriesFilterAccount"
                   :items="availableAccounts"
@@ -120,8 +120,8 @@
                   clearable
                   @update:modelValue="applyFilters"
                 ></q-select>
-              </q-col>
-            </q-row>
+              </div>
+            </div>
           </q-card-section>
         </q-card>
 
@@ -131,23 +131,23 @@
             <q-item v-for="transaction in expenseTransactions" :key="transaction.id" class="transaction-item" @click="editTransaction(transaction)">
               <!-- Desktop Layout -->
               <template v-if="!isMobile">
-                <q-row class="pa-2 align-center">
-                  <q-col cols="2" class="text-center">
+                <div class="row pa-2 align-center" >
+                  <div class="col text-center col-2" >
                     {{ formatDateLong(transaction.date) }}
-                  </q-col>
-                  <q-col cols="2">
+                  </div>
+                  <div class="col col-2">
                     <div class="merchant">{{ transaction.merchant }}</div>
-                  </q-col>
-                  <q-col cols="2">
+                  </div>
+                  <div class="col col-2">
                     <div>{{ getEntityName(transaction.entityId || transaction.budgetId) }}</div>
-                  </q-col>
-                  <q-col cols="2" class="text-right">
+                  </div>
+                  <div class="col text-right col-2" >
                     <div class="total" :class="transaction.isIncome ? 'text-success' : ''">${{ toDollars(toCents(transaction.amount)) }}</div>
-                  </q-col>
-                  <q-col cols="1" class="text-center">
+                  </div>
+                  <div class="col text-center col-1" >
                     <span v-if="transaction.status === 'C'" class="text-success font-weight-bold" title="Cleared"> C </span>
-                  </q-col>
-                  <q-col cols="2">
+                  </div>
+                  <div class="col col-2">
                     <div v-if="transaction.notes" class="text-caption text-grey">Notes: {{ transaction.notes }}</div>
                     <div v-if="transaction.categories.length > 1" class="text-caption text-grey">Split: {{ formatCategories(transaction.categories) }}</div>
                     <div v-if="transaction.status === 'C'" class="text-caption text-grey">
@@ -157,8 +157,8 @@
                       {{ transaction.importedMerchant ? ` ${transaction.importedMerchant}` : "" }}
                     </div>
                     <div v-if="transaction.recurring" class="text-caption text-primary">Repeats: {{ transaction.recurringInterval }}</div>
-                  </q-col>
-                  <q-col cols="1" class="text-right">
+                  </div>
+                  <div class="col text-right col-1" >
                     <q-icon
                       v-if="transaction.status !== 'C'"
                       color="primary"
@@ -168,47 +168,47 @@
                       >link</q-icon
                     >
                     <q-icon small @click.stop="deleteTransaction(transaction.id)" title="Delete Entry" color="error" class="ml-2">delete_outline</q-icon>
-                  </q-col>
-                </q-row>
+                  </div>
+                </div>
               </template>
 
               <!-- Mobile Layout -->
               <template v-else>
                 <q-card>
                   <q-card-item>
-                    <q-row no-gutters class="align-center">
-                      <q-col cols="3" class="text-caption">
+                    <div class="row align-center no-gutters"  >
+                      <div class="col text-caption col-3" >
                         {{ formatDateLong(transaction.date) }}
-                      </q-col>
-                      <q-col class="font-weight-bold">
+                      </div>
+                      <div class="col font-weight-bold" >
                         {{ transaction.merchant }}
-                      </q-col>
-                      <q-col cols="auto" class="text-right">
+                      </div>
+                      <div class="col text-right col-auto" >
                         <div :class="transaction.isIncome ? 'text-success' : ''">
                           {{ formatCurrency(toDollars(toCents(transaction.amount))) }}
                           <span v-if="transaction.status === 'C'" class="text-success font-weight-bold" title="Cleared">
                             {{ transaction.status }}
                           </span>
                         </div>
-                      </q-col>
-                      <q-col cols="1" class="text-right">
+                      </div>
+                      <div class="col text-right col-1" >
                         <q-btn v-if="transaction.status !== 'C'" icon small @click.stop="selectBudgetTransactionToMatch(transaction)" title="Match Transaction">
                           <q-icon color="primary">link</q-icon>
                         </q-btn>
                         <q-icon small @click.stop="deleteTransaction(transaction.id)" title="Delete Entry" color="error">delete_outline</q-icon>
-                      </q-col>
-                    </q-row>
-                    <q-row no-gutters class="mt-1 text-caption text-grey">
-                      <q-col cols="12">Entity: {{ getEntityName(transaction.entityId || transaction.budgetId) }}</q-col>
-                      <q-col cols="12" v-if="transaction.notes"> Notes: {{ transaction.notes }} </q-col>
-                      <q-col cols="12" v-if="transaction.categories.length > 1"> Split: {{ formatCategories(transaction.categories) }} </q-col>
-                      <q-col cols="12" v-if="transaction.status === 'C'">
+                      </div>
+                    </div>
+                    <div class="row mt-1 text-caption text-grey no-gutters"  >
+                      <div class="col col-12">Entity: {{ getEntityName(transaction.entityId || transaction.budgetId) }}</div>
+                      <div class="col col-12" v-if="transaction.notes"> Notes: {{ transaction.notes }} </div>
+                      <div class="col col-12" v-if="transaction.categories.length > 1"> Split: {{ formatCategories(transaction.categories) }} </div>
+                      <div class="col col-12" v-if="transaction.status === 'C'">
                         Imported: {{ transaction.accountSource || "N/A" }}
                         {{ getAccountName(transaction.accountNumber) }}
                         {{ transaction.postedDate ? `@ ${transaction.postedDate}` : "" }}
-                      </q-col>
-                      <q-col cols="12" v-if="transaction.recurring" class="text-primary"> Repeats: {{ transaction.recurringInterval }} </q-col>
-                    </q-row>
+                      </div>
+                      <div class="col text-primary col-12" v-if="transaction.recurring" > Repeats: {{ transaction.recurringInterval }} </div>
+                    </div>
                   </q-card-item>
                 </q-card>
               </template>

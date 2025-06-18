@@ -48,22 +48,22 @@
             <q-btn color="primary" @click="openCreateEntityDialog" class="mb-4">Add Entity</q-btn>
             <q-list>
               <q-item v-for="entity in entities" :key="entity.id">
-                <q-row :dense="true">
-                  <q-col>
+                <div class="row dense">
+                  <div class="col">
                     {{ entity.name }} ({{ entity.type }}) - Owner: {{ entity.members.find((m) => m.role === "Admin")?.email || "N/A" }}
                     <q-chip v-if="entity.templateBudget" color="success" size="small" class="ml-2">Has Template</q-chip>
-                  </q-col>
-                  <q-col cols="auto">
+                  </div>
+                  <div class="col col-auto">
                     <q-btn variant="plain" color="primary" icon @click="openEditEntityDialog(entity)">
                       <q-icon>edit</q-icon>
                     </q-btn>
-                  </q-col>
-                  <q-col cols="auto">
+                  </div>
+                  <div class="col col-auto">
                     <q-btn variant="plain" icon @click="confirmDeleteEntity(entity)" color="error">
                       <q-icon>delete_outline</q-icon>
                     </q-btn>
-                  </q-col>
-                </q-row>
+                  </div>
+                </div>
               </q-item>
               <q-item v-if="!entities.length"> No entities found. Create an entity to start managing budgets. </q-item>
             </q-list>
@@ -73,8 +73,8 @@
 
       <!-- Manage Imported Transactions Tab -->
       <q-window-item value="manageTransactions">
-        <q-row>
-          <q-col cols="12">
+        <div class="row">
+          <div class="col col-12">
             <q-card>
               <q-card-section>Imported Transaction</q-card-section>
               <q-card-section>
@@ -100,14 +100,14 @@
                 </q-data-table>
               </q-card-section>
             </q-card>
-          </q-col>
-        </q-row>
+          </div>
+        </div>
       </q-window-item>
 
       <!-- Manage Budgets Tab -->
       <q-window-item value="manageBudgets">
-        <q-row>
-          <q-col cols="12">
+        <div class="row">
+          <div class="col col-12">
             <q-card>
               <q-card-section>Monthly Budgets</q-card-section>
               <q-card-section>
@@ -126,8 +126,8 @@
                 </q-data-table>
               </q-card-section>
             </q-card>
-          </q-col>
-        </q-row>
+          </div>
+        </div>
       </q-window-item>
     </q-window>
 
