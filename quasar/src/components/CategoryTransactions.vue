@@ -14,7 +14,7 @@
       <q-col cols="auto">
         <q-fab
           :class="isMobile ? 'mr-2' : 'mr-2 mt-2'"
-          icon="mdi-close"
+          icon="close"
           variant="plain"
           :absolute="true"
           location="top"
@@ -54,7 +54,7 @@
       <q-col class="transaction-list pl-0 pr-0">
         <h3 class="section-title pb-2">Transactions ({{ categoryTransactions.length }})</h3>
         <div class="my-2 bg-white rounded-10 pt-2 pr-3 pl-3 mb-4">
-          <q-text-field append-inner-icon="mdi-magnify" density="compact" label="Search" variant="plain" single-line v-model="search"></q-text-field>
+          <q-text-field append-inner-icon="search" density="compact" label="Search" variant="plain" single-line v-model="search"></q-text-field>
         </div>
         <q-list dense class="rounded-10">
           <q-item
@@ -77,7 +77,7 @@
                   ${{ Math.abs(getCategoryAmount(transaction)).toFixed(2) }}
                 </q-col>
                 <q-col cols="auto" class="text-right" style="min-width: 40px">
-                  <q-icon small @click.stop="confirmDelete(transaction)" title="Move to Trash" color="error">mdi-trash-can-outline</q-icon>
+                  <q-icon small @click.stop="confirmDelete(transaction)" title="Move to Trash" color="error">trash</q-icon>
                 </q-col>
               </q-row>
             </q-item-section>

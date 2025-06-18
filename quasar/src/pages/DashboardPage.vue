@@ -86,7 +86,7 @@
             </q-menu>
             <div class="ml-2">
               <q-btn v-if="!isMobile && !isEditing" icon class="mr-1" @click="isEditing = true" title="Edit Budget" variant="plain">
-                <q-icon color="primary">mdi-pencil</q-icon>
+                <q-icon color="primary">edit</q-icon>
               </q-btn>
               <q-btn v-if="isEditing" icon class="mr-1" @click="isEditing = false" title="Cancel" variant="plain">
                 <q-icon>mdi-close</q-icon>
@@ -354,6 +354,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick, onUnmounted } from "vue";
+import { useQuasar } from 'quasar';
 import { dataAccess } from "../dataAccess";
 import CurrencyInput from "../components/CurrencyInput.vue";
 import CategoryTransactions from "../components/CategoryTransactions.vue";
@@ -370,6 +371,7 @@ import { debounce } from "lodash";
 import { v4 as uuidv4 } from "uuid";
 import { DEFAULT_BUDGET_TEMPLATES } from "../constants/budgetTemplates";
 
+const $q = useQuasar();
 const budgetStore = useBudgetStore();
 const merchantStore = useMerchantStore();
 const familyStore = useFamilyStore();
@@ -441,7 +443,7 @@ const inlineEdit = ref({
   value: "" as string | number,
 });
 
-const isMobile = computed(() => window.innerWidth < 960);
+const isMobile =  computed(() => $q.screen.lt.md);
 
 // Entity-related computed properties
 const entityOptions = computed(() => {

@@ -35,7 +35,7 @@
             @click="$emit('edit', item)"
             :disabled="item.userId && item.userId !== userId"
           >
-            <q-icon>mdi-pencil</q-icon>
+            <q-icon>edit</q-icon>
           </q-btn>
           <q-btn
             density="compact"
@@ -44,7 +44,7 @@
             @click="$emit('delete', item.id)"
             :disabled="item.userId && item.userId !== userId"
           >
-            <q-icon>mdi-trash-can-outline</q-icon>
+            <q-icon>delete</q-icon>
           </q-btn>
         </template>
       </q-data-table>

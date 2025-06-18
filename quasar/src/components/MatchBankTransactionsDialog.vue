@@ -197,7 +197,7 @@
                       ></q-text-field>
                     </q-col>
                     <q-col cols="12" md="1">
-                      <q-btn color="error" icon="mdi-close" @click="removeSplit(index)" variant="plain"></q-btn>
+                      <q-btn color="error" icon="close" @click="removeSplit(index)" variant="plain"></q-btn>
                     </q-col>
                   </q-row>
                   <q-banner v-if="remainingSplitAmount !== 0" :type="remainingSplitAmount < 0 ? 'error' : 'warning'" class="mb-4">

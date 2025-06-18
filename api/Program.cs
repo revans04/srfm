@@ -70,6 +70,7 @@ builder.Services.AddCors(options =>
         policy.WithOrigins("http://localhost:8080",
             "http://localhost",
             "http://localhost:8081",
+            "http://localhost:9000",
             "http://localhost:9001",
             "http://family-budget.local:8081",
             "https://budget-buddy-a6b6c.web.app",
