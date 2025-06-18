@@ -146,6 +146,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
+import { useQuasar } from 'quasar';
 import { dataAccess } from "../dataAccess";
 import TransactionForm from "./TransactionForm.vue";
 import { BudgetCategory, Transaction, Budget } from "../types";
@@ -168,6 +169,7 @@ const emit = defineEmits<{
 
 const search = ref("");
 const budgetStore = useBudgetStore();
+const $q = useQuasar();
 const loading = ref(false);
 const showEditDialog = ref(false);
 const transactionToEdit = ref<Transaction | null>(null);
@@ -229,7 +231,7 @@ const progressPercentage = computed(() => {
   return Math.min(Math.max(rawPercentage, 0), 100);
 });
 
-const isMobile = computed(() => window.innerWidth < 960);
+const isMobile = computed(() => $q.screen.lt.md);
 
 const isIncome = computed(() => {
   return props.category.group === "Income";

@@ -280,6 +280,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from "vue";
+import { useQuasar } from 'quasar';
 import { storeToRefs } from "pinia";
 import { auth } from "../firebase/init";
 import { dataAccess } from "../dataAccess";
@@ -293,6 +294,7 @@ import { useBudgetStore } from "../store/budget";
 import { useFamilyStore } from "../store/family";
 import { useUIStore } from "../store/ui";
 import { v4 as uuidv4 } from "uuid";
+const $q = useQuasar();
 
 const budgetStore = useBudgetStore();
 const familyStore = useFamilyStore();
@@ -353,7 +355,7 @@ const matching = ref(false);
 const remainingImportedTransactions = ref<ImportedTransaction[]>([]);
 const pendingImportedTx = ref<ImportedTransaction | null>(null);
 const targetBudgetId = ref<string>("");
-const isMobile = computed(() => window.innerWidth < 960);
+const isMobile = computed(() => $q.screen.lt.md);
 
 const userId = computed(() => auth.currentUser?.uid || "");
 
