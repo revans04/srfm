@@ -47,7 +47,7 @@
               </q-col>
               <q-col cols="12" md="4">
                 <q-text-field
-                  append-inner-icon="mdi-magnify"
+                  append-inner-icon="search"
                   density="compact"
                   label="Search"
                   variant="outlined"
@@ -165,9 +165,9 @@
                       small
                       @click.stop="selectBudgetTransactionToMatch(transaction)"
                       title="Match Transaction"
-                      >mdi-link</q-icon
+                      >link</q-icon
                     >
-                    <q-icon small @click.stop="deleteTransaction(transaction.id)" title="Delete Entry" color="error" class="ml-2">mdi-trash-can-outline</q-icon>
+                    <q-icon small @click.stop="deleteTransaction(transaction.id)" title="Delete Entry" color="error" class="ml-2">delete_outline</q-icon>
                   </q-col>
                 </q-row>
               </template>
@@ -193,9 +193,9 @@
                       </q-col>
                       <q-col cols="1" class="text-right">
                         <q-btn v-if="transaction.status !== 'C'" icon small @click.stop="selectBudgetTransactionToMatch(transaction)" title="Match Transaction">
-                          <q-icon color="primary">mdi-link</q-icon>
+                          <q-icon color="primary">link</q-icon>
                         </q-btn>
-                        <q-icon small @click.stop="deleteTransaction(transaction.id)" title="Delete Entry" color="error">mdi-trash-can-outline</q-icon>
+                        <q-icon small @click.stop="deleteTransaction(transaction.id)" title="Delete Entry" color="error">delete_outline</q-icon>
                       </q-col>
                     </q-row>
                     <q-row no-gutters class="mt-1 text-caption text-grey">

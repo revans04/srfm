@@ -91,7 +91,7 @@
 
     <!-- Floating Action Button -->
     <q-fab
-      icon="mdi-plus"
+      icon="add"
       :app="true"
       color="primary"
       @click="$emit('add-transaction')"

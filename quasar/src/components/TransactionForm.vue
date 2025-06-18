@@ -50,7 +50,7 @@
         <div v-for="(split, index) in locTrnsx.categories" :key="index">
           <q-row no-gutters>
             <q-col no-gutters cols="auto" class="form-col-label pr-2" :class="locTrnsx.categories.length > 1 ? '' : 'pb-5'">
-              <q-icon color="error" @click="removeSplit(index)">mdi-close</q-icon>
+              <q-icon color="error" @click="removeSplit(index)">close</q-icon>
             </q-col>
             <q-col>
               <q-combobox

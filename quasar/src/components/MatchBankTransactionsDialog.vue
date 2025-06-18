@@ -8,7 +8,7 @@
           <div class="col"><q-space></q-space></div>
           <div class="col-auto text-right">
             <q-btn color="error" @click="closeDialog(false)" :disabled="props.matching" variant="plain">
-              <q-icon>mdi-close</q-icon>
+              <q-icon>close</q-icon>
             </q-btn>
           </div>
         </div>
@@ -85,7 +85,7 @@
                       color="warning"
                       title="This budget transaction matches multiple bank transactions"
                     >
-                      mdi-alert
+                      warning
                     </q-icon>
                   </template>
                 </q-data-table>
