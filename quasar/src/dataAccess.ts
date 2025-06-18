@@ -132,8 +132,8 @@ export class DataAccess {
       }
       budgetStore.updateBudget(budget.budgetId, { ...budget });
 
-      if (budget && futureBudgetsExist && (this.hasFundCategory(transaction, budget))) {
-        const [uid, entityId, budgetMonth] = budget.budgetId.split('_'); // Updated to parse new ID format
+      if (budget && budget.budgetId && futureBudgetsExist && this.hasFundCategory(transaction, budget)) {
+        const [uid, entityId, budgetMonth] = budget.budgetId.split('_');
         await this.recalculateCarryoverForFutureBudgets(uid, entityId, budgetMonth, transaction.categories);
       }
     }
@@ -156,8 +156,8 @@ export class DataAccess {
       budgetStore.updateBudget(budget.budgetId, budget);
 
       for (const transaction of transactions) {
-        if (this.hasFundCategory(transaction, budget)) {
-          const [uid, entityId, budgetMonth] = budget.budgetId.split('_'); // Updated to parse new ID format
+        if (this.hasFundCategory(transaction, budget) && budget.budgetId) {
+          const [uid, entityId, budgetMonth] = budget.budgetId.split('_');
           await this.recalculateCarryoverForFutureBudgets(uid, entityId, budgetMonth, transaction.categories);
         }
       }
@@ -183,8 +183,8 @@ export class DataAccess {
       budget.transactions = budget.transactions.map((t) => (t.id === transactionId ? updatedTransaction : t));
       budgetStore.updateBudget(budget.budgetId, budget);
 
-      if (futureBudgetsExist && (this.hasFundCategory(transactionToDelete, budget))) {
-        const [uid, entityId, budgetMonth] = budget.budgetId.split('_'); // Updated to parse new ID format
+      if (futureBudgetsExist && this.hasFundCategory(transactionToDelete, budget) && budget.budgetId) {
+        const [uid, entityId, budgetMonth] = budget.budgetId.split('_');
         await this.recalculateCarryoverForFutureBudgets(uid, entityId, budgetMonth, transactionToDelete.categories);
       }
     }
@@ -210,8 +210,8 @@ export class DataAccess {
       budget.transactions = budget.transactions.map((t) => (t.id === transactionId ? updatedTransaction : t));
       budgetStore.updateBudget(budget.budgetId, budget);
 
-      if (futureBudgetsExist && (this.hasFundCategory(transactionToRestore, budget))) {
-        const [uid, entityId, budgetMonth] = budget.budgetId.split('_'); // Updated to parse new ID format
+      if (futureBudgetsExist && this.hasFundCategory(transactionToRestore, budget) && budget.budgetId) {
+        const [uid, entityId, budgetMonth] = budget.budgetId.split('_');
         await this.recalculateCarryoverForFutureBudgets(uid, entityId, budgetMonth, transactionToRestore.categories);
       }
     }
@@ -234,8 +234,8 @@ export class DataAccess {
       budget.transactions = budget.transactions.filter((t) => t.id !== transactionId);
       budgetStore.updateBudget(budget.budgetId, budget);
 
-      if (futureBudgetsExist && (this.hasFundCategory(transactionToDelete, budget))) {
-        const [uid, entityId, budgetMonth] = budget.budgetId.split('_'); // Updated to parse new ID format
+      if (futureBudgetsExist && this.hasFundCategory(transactionToDelete, budget) && budget.budgetId) {
+        const [uid, entityId, budgetMonth] = budget.budgetId.split('_');
         await this.recalculateCarryoverForFutureBudgets(uid, entityId, budgetMonth, transactionToDelete.categories);
       }
     }
@@ -295,12 +295,12 @@ export class DataAccess {
     const budgetStore = useBudgetStore();
     const budgets = Array.from(budgetStore.budgets.values());
 
-    const [startYear, startMonth] = startBudgetMonth.split('-').map(Number);
+    const [startYear, startMonth] = startBudgetMonth.split('-').map(Number) as [number, number];
     const affectedCategoryNames = affectedCategories.map((c) => c.category);
 
     const futureBudgets = budgets
       .filter((b) => {
-        const [year, month] = b.month.split('-').map(Number);
+        const [year, month] = b.month.split('-').map(Number) as [number, number];
         return year > startYear || (year === startYear && month > startMonth);
       })
       .sort((a, b) => a.month.localeCompare(b.month));
@@ -324,7 +324,7 @@ export class DataAccess {
       let cumulativeCarryover = startCarryover[categoryName] || 0;
 
       for (let i = 0; i < budgetList.length; i++) {
-        const budget = budgetList[i];
+        const budget = budgetList[i]!;
         const isFirstFutureBudget = i === 0;
 
         const updatedCategories = budget.categories.map((cat) => {
