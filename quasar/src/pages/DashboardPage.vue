@@ -1,35 +1,35 @@
 <!-- DashboardView.vue -->
-<template>
+ <template>
   <q-page fluid :class="isMobile ? 'pt-0 px-0' : ''">
     <!-- Loading Animation -->
-    <q-row v-if="loading" justify="center" class="mt-4">
-      <q-progress-circular indeterminate color="primary" size="50"></q-progress-circular>
-      <q-col v-if="showLoadingMessage" cols="12" class="text-center mt-2">
+    <div v-if="loading" class="row justify-center mt-4">
+      <q-circular-progress indeterminate color="primary" size="50"></q-circular-progress>
+      <div v-if="showLoadingMessage" class="col-12 text-center mt-2">
         <span>Still loading budgets, please wait...</span>
-      </q-col>
-    </q-row>
+      </div>
+    </div>
 
     <!-- No Budgets Found -->
-    <q-row v-else-if="!loading && budgets.length === 0" justify="center" class="mt-4">
-      <q-col cols="12" class="text-center">
+    <div v-else-if="!loading && budgets.length === 0" class="row justify-center mt-4">
+      <div class="col-12 text-center">
         <q-banner type="info" prominent>
-          <q-row align="center">
-            <q-col class="grow">
-              No budgets found for {{ selectedEntity?.name || "selected entity" }}. Would you like to create a default budget for
+          <div class="row align-center">
+            <div class="col-grow">
+              No budgets found for {{ selectedEntity?.name || 'selected entity' }}. Would you like to create a default budget for
               {{ formatMonth(currentMonth) }}? You can also import budget information from the Data Page.
-            </q-col>
-            <q-col class="shrink">
+            </div>
+            <div class="col-shrink">
               <q-btn color="primary" @click="createDefaultBudget"> Create Default Budget </q-btn>
-            </q-col>
-          </q-row>
+            </div>
+          </div>
         </q-banner>
-      </q-col>
-    </q-row>
+      </div>
+    </div>
 
     <!-- Main Content (hidden during loading) -->
     <div v-else>
-      <q-row :class="isMobile ? 'pa-2' : 'pe-16'">
-        <q-col cols="12">
+      <div class="row" :class="isMobile ? 'pa-2' : 'pe-16'">
+        <div class="col-12">
           <!-- Entity Dropdown -->
           <q-select
             v-model="familyStore.selectedEntityId"
@@ -54,23 +54,23 @@
                 </div>
               </template>
               <q-card class="month-menu">
-                <q-row no-gutters class="month-navigation">
-                  <q-col cols="auto">
+                <div class="row no-gutters month-navigation">
+                  <div class="col-auto">
                     <q-btn icon small @click.stop="shiftMonths(-6)">
                       <q-icon>chevron_left</q-icon>
                     </q-btn>
-                  </q-col>
-                  <q-col class="text-center">
+                  </div>
+                  <div class="col text-center">
                     <span>{{ displayYear }}</span>
-                  </q-col>
-                  <q-col cols="auto">
+                  </div>
+                  <div class="col-auto">
                     <q-btn icon small @click.stop="shiftMonths(6)">
                       <q-icon>chevron_right</q-icon>
                     </q-btn>
-                  </q-col>
-                </q-row>
-                <q-row no-gutters>
-                  <q-col v-for="month in displayedMonths" :key="month.value" cols="4" class="month-item">
+                  </div>
+                </div>
+                <div class="row no-gutters">
+                  <div v-for="month in displayedMonths" :key="month.value" class="col-4 month-item">
                     <div
                       class="pa-1 rounded-5 cursor-pointer ma-1 text-center"
                       :class="month.value === currentMonth ? 'bg-primary text-white' : ''"
@@ -80,15 +80,15 @@
                     >
                       {{ month.label }}
                     </div>
-                  </q-col>
-                </q-row>
+                  </div>
+                </div>
               </q-card>
             </q-menu>
             <div class="ml-2">
-              <q-btn v-if="!isMobile && !isEditing" icon class="mr-1" @click="isEditing = true" title="Edit Budget" variant="plain">
+              <q-btn v-if="!isMobile && !isEditing" icon class="q-mr-xs" @click="isEditing = true" title="Edit Budget" variant="plain">
                 <q-icon color="primary">edit</q-icon>
               </q-btn>
-              <q-btn v-if="isEditing" icon class="mr-1" @click="isEditing = false" title="Cancel" variant="plain">
+              <q-btn v-if="isEditing" icon class="q-mr-xs" @click="isEditing = false" title="Cancel" variant="plain">
                 <q-icon>close</q-icon>
               </q-btn>
               <q-btn v-if="!isMobile && !isEditing" icon title="Delete Budget" variant="plain">
@@ -106,71 +106,71 @@
             }"
           >
             {{ formatCurrency(toDollars(toCents(Math.abs(remainingToBudget)))) }}
-            {{ remainingToBudget >= 0 ? "left to budget" : "over budget" }}
+            {{ remainingToBudget >= 0 ? 'left to budget' : 'over budget' }}
           </div>
-        </q-col>
-        <q-col v-if="!isMobile || selectedCategory == null" cols="12" sm="6">
+        </div>
+        <div v-if="!isMobile || selectedCategory == null" class="col-12 sm:col-6">
           <div class="my-2 bg-white rounded-10 pt-2 pr-3 pl-3 mb-4">
-            <q-text-field append-inner-icon="search" density="compact" label="Search" variant="plain" single-line v-model="search"></q-text-field>
+            <q-input append-inner-icon="search" dense label="Search" variant="plain" single-line v-model="search"></q-input>
           </div>
-        </q-col>
+        </div>
         <q-fab v-if="isMobile && !selectedCategory" icon="add" variant="plain" color="white" app location="top right" @click="addTransaction"></q-fab>
-      </q-row>
+      </div>
 
-      <q-row>
+      <div class="row">
         <!-- Main Content -->
-        <q-col :cols="selectedCategory ? (isMobile ? 0 : 8) : 12" :class="{ 'd-none': selectedCategory && isMobile }">
+        <div :class="selectedCategory ? (isMobile ? 'col-0' : 'col-8') : 'col-12' + selectedCategory && isMobile ? 'd-none' : ''">
           <!-- Budget Editing Form -->
           <q-card v-if="isEditing">
-            <q-card-section>Edit Budget for {{ selectedEntity?.name || "selected entity" }}</q-card-section>
+            <q-card-section>Edit Budget for {{ selectedEntity?.name || 'selected entity' }}</q-card-section>
             <q-card-section>
               <q-form @submit.prevent="saveBudget">
                 <!-- Merchants Section -->
-                <q-row class="mt-4">
-                  <q-col cols="12">
+                <div class="row mt-4">
+                  <div class="col-12">
                     <h3>Merchants</h3>
                     <q-chip-group column>
                       <q-chip v-for="(merchant, index) in budget.merchants" :key="merchant.name" closable @click:close="removeMerchant(index)" class="ma-1">
                         {{ merchant.name }} ({{ merchant.usageCount }})
                       </q-chip>
                     </q-chip-group>
-                    <q-text-field
+                    <q-input
                       v-model="newMerchantName"
                       label="Add Merchant"
-                      density="compact"
+                      dense
                       class="mt-2"
                       @keyup.enter="addMerchant"
-                      append-inner-icon="add"
+                      :append-inner-icon="'add'"
                       @click:append-inner="addMerchant"
-                    ></q-text-field>
-                  </q-col>
-                </q-row>
+                    ></q-input>
+                  </div>
+                </div>
 
-                <q-row class="mt-4">
-                  <q-col cols="12">
+                <div class="row mt-4">
+                  <div class="col-12">
                     <h3>Categories</h3>
-                  </q-col>
-                </q-row>
-                <q-row v-for="(cat, index) in budget.categories" :key="index" class="align-center" no-gutters>
-                  <q-col cols="12" sm="3" class="pa-2">
-                    <q-text-field v-model="cat.name" label="Category" required density="compact"></q-text-field>
-                  </q-col>
-                  <q-col cols="12" sm="2" class="pa-2">
-                    <q-text-field v-model="cat.group" label="Group (e.g., Utilities)" density="compact"></q-text-field>
-                  </q-col>
-                  <q-col cols="12" sm="2" class="pa-2">
-                    <Currency-Input v-model.number="cat.target" label="Target" class="text-right" density="compact" required></Currency-Input>
-                  </q-col>
-                  <q-col cols="12" sm="2" class="pa-2">
-                    <Currency-Input v-model="cat.carryover" label="Carryover" class="text-right" density="compact"></Currency-Input>
-                  </q-col>
-                  <q-col cols="12" sm="2" class="pa-2">
-                    <q-checkbox v-model="cat.isFund" label="Is Fund?" density="compact"></q-checkbox>
-                  </q-col>
-                  <q-col cols="12" sm="1" class="pa-2">
+                  </div>
+                </div>
+                <div v-for="(cat, index) in budget.categories" :key="index" class="row align-center" no-gutters>
+                  <div class="col-12 sm:col-3 pa-2">
+                    <q-input v-model="cat.name" label="Category" required dense></q-input>
+                  </div>
+                  <div class="col-12 sm:col-2 pa-2">
+                    <q-input v-model="cat.group" label="Group (e.g., Utilities)" dense></q-input>
+                  </div>
+                  <div class="col-12 sm:col-2 pa-2">
+                    <Currency-Input v-model.number="cat.target" label="Target" class="text-right" dense required></Currency-Input>
+                  </div>
+                  <div class="col-12 sm:col-2 pa-2">
+                    <Currency-Input v-model="cat.carryover" label="Carryover" class="text-right" dense></Currency-Input>
+                  </div>
+                  <div class="col-12 sm:col-2 pa-2">
+                    <q-checkbox v-model="cat.isFund" label="Is Fund?" dense></q-checkbox>
+                  </div>
+                  <div class="col-12 sm:col-1 pa-2">
                     <q-btn color="error" icon="close" @click="removeCategory(index)" variant="plain"></q-btn>
-                  </q-col>
-                </q-row>
+                  </div>
+                </div>
 
                 <q-btn color="primary" @click="addCategory" class="mt-2">Add Category</q-btn>
                 <q-btn color="success" @click="addIncomeCategory" class="mt-2 ml-2"> Add Income Category </q-btn>
@@ -182,115 +182,115 @@
           <!-- Income Section -->
           <q-card v-if="!isEditing && incomeItems">
             <q-card-item>
-              <q-row>
-                <q-col class="font-weight-bold">Income for {{ selectedEntity?.name || "selected entity" }}</q-col>
-                <q-col v-if="!isMobile" cols="auto">Planned</q-col>
-                <q-col :cols="isMobile ? 'auto' : '2'" class="text-right">Received</q-col>
-              </q-row>
+              <div class="row">
+                <div class="col font-weight-bold">Income for {{ selectedEntity?.name || 'selected entity' }}</div>
+                <div v-if="!isMobile" class="col-auto">Planned</div>
+                <div :class="isMobile ? 'col-auto' : 'col-2'" class="text-right">Received</div>
+              </div>
               <div v-for="item in incomeItems" :key="item.name" style="border-bottom: solid 1px rgb(var(--v-theme-light))" class="py-2">
-                <q-row @click="onIncomeRowClick(item)" class="cursor-pointer">
-                  <q-col>{{ item.name }}</q-col>
-                  <q-col v-if="!isMobile" cols="auto">{{ formatCurrency(toDollars(toCents(item.planned))) }}</q-col>
-                  <q-col :cols="isMobile ? 'auto' : '2'" class="text-right">
+                <div class="row cursor-pointer" @click="onIncomeRowClick(item)">
+                  <div class="col">{{ item.name }}</div>
+                  <div v-if="!isMobile" class="col-auto">{{ formatCurrency(toDollars(toCents(item.planned))) }}</div>
+                  <div :class="isMobile ? 'col-auto' : 'col-2'" class="text-right">
                     <div :class="item.received > item.planned ? 'text-success' : ''">
                       {{ formatCurrency(toDollars(toCents(item.received))) }}
                     </div>
-                  </q-col>
-                </q-row>
+                  </div>
+                </div>
               </div>
-              <q-row v-if="!isMobile" dense>
-                <q-col>
+              <div v-if="!isMobile" class="row dense">
+                <div class="col">
                   <q-space></q-space>
-                </q-col>
-                <q-col v-if="!isMobile" cols="auto" class="font-weight-bold"> {{ formatCurrency(toDollars(toCents(plannedIncome))) }}</q-col>
-                <q-col :cols="isMobile ? 'auto' : '2'">
+                </div>
+                <div v-if="!isMobile" class="col-auto font-weight-bold">{{ formatCurrency(toDollars(toCents(plannedIncome))) }}</div>
+                <div :class="isMobile ? 'col-auto' : 'col-2'">
                   <div class="font-weight-bold text-right" :class="actualIncome > plannedIncome ? 'text-success' : ''">
                     {{ formatCurrency(toDollars(toCents(actualIncome))) }}
                   </div>
-                </q-col>
-              </q-row>
+                </div>
+              </div>
             </q-card-item>
           </q-card>
 
           <!-- Category Tables -->
-          <q-row v-if="!isEditing && catTransactions" class="mt-4">
-            <q-col cols="12" v-for="(g, gIdx) in groups" :key="gIdx">
+          <div v-if="!isEditing && catTransactions" class="row mt-4">
+            <div class="col-12" v-for="(g, gIdx) in groups" :key="gIdx">
               <q-card>
                 <q-card-item>
-                  <q-row class="text-info">
-                    <q-col>{{ g.group || "Ungrouped" }}</q-col>
-                    <q-space></q-space>
-                    <q-col v-if="!isMobile" cols="2">Planned</q-col>
-                    <q-col :cols="isMobile ? 'auto' : '2'">Remaining</q-col>
-                  </q-row>
+                  <div class="row text-info">
+                    <div class="col">{{ g.group || 'Ungrouped' }}</div>
+                    <div class="col-auto"><q-space></q-space></div>
+                    <div v-if="!isMobile" class="col-2">Planned</div>
+                    <div :class="isMobile ? 'col-auto' : 'col-2'">Remaining</div>
+                  </div>
                   <div v-for="(item, idx) in catTransactions.filter((c) => c.group == g.group)" :key="idx">
-                    <q-row @click="handleRowClick(item)" class="cursor-pointer">
-                      <q-col
+                    <div class="row cursor-pointer" @click="handleRowClick(item)">
+                      <div
                         v-if="!(inlineEdit.item?.name === item.name && inlineEdit.field === 'name')"
                         @dblclick.stop="handleNameDblClick(item)"
                         @touchstart="startTouch(item, 'name')"
                         @touchend="endTouch"
                       >
-                        <q-icon v-if="item.isFund" small class="mr-1" color="primary">savings</q-icon>
+                        <q-icon v-if="item.isFund" small class="q-mr-xs" color="primary" name="o_savings"></q-icon>
                         {{ item.name }}
-                      </q-col>
-                      <q-col v-else>
-                        <q-text-field
+                      </div>
+                      <div v-else>
+                        <q-input
                           v-model="inlineEdit.value"
-                          density="compact"
+                          dense
                           hide-details
                           variant="solo"
                           autofocus
                           @keydown.enter="saveInlineEdit"
                           @keydown.esc="cancelInlineEdit"
                           @blur="saveInlineEdit"
-                        ></q-text-field>
-                      </q-col>
-                      <q-col
+                        ></q-input>
+                      </div>
+                      <div
                         v-if="!isMobile && !(inlineEdit.item?.name === item.name && inlineEdit.field === 'target')"
-                        cols="2"
+                        class="col-2"
                         @dblclick.stop="handleTargetDblClick(item)"
                         @touchstart="startTouch(item, 'target')"
                         @touchend="endTouch"
                       >
                         {{ formatCurrency(item.target) }}
-                      </q-col>
-                      <q-col v-else-if="!isMobile" cols="2">
+                      </div>
+                      <div v-else-if="!isMobile" class="col-2">
                         <Currency-Input
                           v-model.number="inlineEdit.value"
-                          density="compact"
+                          dense
                           hide-details
                           @keydown.enter="saveInlineEdit"
                           @keydown.esc="cancelInlineEdit"
                           @blur="saveInlineEdit"
                         ></Currency-Input>
-                      </q-col>
-                      <q-col :cols="isMobile ? 'auto' : '2'" :class="item.remaining && item.remaining < 0 ? 'text-error' : ''">{{
-                        formatCurrency(item.remaining)
-                      }}</q-col>
-                    </q-row>
-                    <q-row dense>
-                      <q-col cols="12" dense>
-                        <q-progress-linear v-model="item.percentage" color="primary" background-color="#e0e0e0" class="progress-bar"></q-progress-linear>
-                      </q-col>
-                    </q-row>
+                      </div>
+                      <div :class="isMobile ? 'col-auto' : 'col-2' + item.remaining && item.remaining < 0 ? 'text-error' : ''">
+                        {{ formatCurrency(item.remaining) }}
+                      </div>
+                    </div>
+                    <div class="row dense">
+                      <div class="col-12 dense">
+                        <q-linear-progress v-model="item.percentage" color="primary" background-color="#e0e0e0" class="progress-bar"></q-linear-progress>
+                      </div>
+                    </div>
                   </div>
-                  <q-row dense>
-                    <q-col class="pa-2">
+                  <div class="row dense">
+                    <div class="col pa-2">
                       <q-space></q-space>
-                    </q-col>
-                  </q-row>
+                    </div>
+                  </div>
                 </q-card-item>
               </q-card>
-            </q-col>
-            <q-col cols="12" v-if="groups.length === 0">
+            </div>
+            <div class="col-12" v-if="groups.length === 0">
               <q-banner type="warning">No categories defined for this budget.</q-banner>
-            </q-col>
-          </q-row>
-        </q-col>
+            </div>
+          </div>
+        </div>
 
         <!-- Transaction List Sidebar -->
-        <q-col v-if="selectedCategory && !isEditing" :cols="isMobile ? 12 : 4" class="sidebar" :class="{ 'sidebar-mobile': isMobile }">
+        <div v-if="selectedCategory && !isEditing" :class="isMobile ? 'col-12 sidebar-mobile' : 'col-4'" class="sidebar">
           <category-transactions
             :category="selectedCategory"
             :transactions="budget.transactions"
@@ -302,23 +302,22 @@
             @add-transaction="addTransactionForCategory(selectedCategory.name)"
             @update-transactions="updateTransactions"
           />
-        </q-col>
-      </q-row>
+        </div>
+      </div>
 
       <!-- Version Info -->
-      <q-row>
-        <q-space></q-space>
-        <q-col cols="auto">
+      <div class="row">
+        <div class="col-auto">
           <q-item-label class="text-caption text-center">
             {{ `Version: ${appVersion}` }}
           </q-item-label>
-        </q-col>
-      </q-row>
+        </div>
+      </div>
 
       <!-- Transaction Dialog -->
       <q-dialog v-model="showTransactionDialog" max-width="600px">
         <q-card>
-          <q-card-section>{{ isIncomeTransaction ? "Add Income" : "Add Transaction" }}</q-card-section>
+          <q-card-section>{{ isIncomeTransaction ? 'Add Income' : 'Add Transaction' }}</q-card-section>
           <q-card-section>
             <transaction-form
               :initial-transaction="newTransaction"
@@ -345,7 +344,7 @@
 
       <!-- Duplicating Overlay -->
       <q-overlay v-model="duplicating" class="align-center justify-center">
-        <q-progress-circular indeterminate color="primary" size="50" />
+        <q-circular-progress indeterminate color="primary" size="50" />
         <span class="ml-4">Duplicating budget...</span>
       </q-overlay>
     </div>
@@ -353,23 +352,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick, onUnmounted } from "vue";
+import { ref, computed, onMounted, watch, nextTick, onUnmounted } from 'vue';
 import { useQuasar } from 'quasar';
-import { dataAccess } from "../dataAccess";
-import CurrencyInput from "../components/CurrencyInput.vue";
-import CategoryTransactions from "../components/CategoryTransactions.vue";
-import TransactionForm from "../components/TransactionForm.vue";
-import type { Transaction, Budget, IncomeTarget, BudgetCategoryTrx, BudgetCategory} from "../types";
-import { Entity } from "../types";
-import version from "../version";
-import { toDollars, toCents, formatCurrency, adjustTransactionDate, todayISO, currentMonthISO } from "../utils/helpers";
-import { useAuthStore } from "../store/auth";
-import { useBudgetStore } from "../store/budget";
-import { useMerchantStore } from "../store/merchants";
-import { useFamilyStore } from "../store/family";
-import { debounce } from "lodash";
-import { v4 as uuidv4 } from "uuid";
-import { DEFAULT_BUDGET_TEMPLATES } from "../constants/budgetTemplates";
+import { dataAccess } from '../dataAccess';
+import CurrencyInput from '../components/CurrencyInput.vue';
+import CategoryTransactions from '../components/CategoryTransactions.vue';
+import TransactionForm from '../components/TransactionForm.vue';
+import type { Transaction, Budget, IncomeTarget, BudgetCategoryTrx, BudgetCategory } from '../types';
+import { Entity } from '../types';
+import version from '../version';
+import { toDollars, toCents, formatCurrency, adjustTransactionDate, todayISO, currentMonthISO } from '../utils/helpers';
+import { useAuthStore } from '../store/auth';
+import { useBudgetStore } from '../store/budget';
+import { useMerchantStore } from '../store/merchants';
+import { useFamilyStore } from '../store/family';
+import { debounce } from 'lodash';
+import { v4 as uuidv4 } from 'uuid';
+import { DEFAULT_BUDGET_TEMPLATES } from '../constants/budgetTemplates';
 
 const $q = useQuasar();
 const budgetStore = useBudgetStore();
@@ -384,15 +383,15 @@ const currentMonth = ref(currentMonthISO());
 const isInitialLoad = ref(true);
 const availableBudgets = ref<Budget[]>([]);
 const budget = ref<Budget>({
-  familyId: "",
+  familyId: '',
   month: currentMonthISO(),
   incomeTarget: 0,
   categories: [],
   transactions: [],
-  label: "",
+  label: '',
   merchants: [],
 });
-const categoryOptions = ref<string[]>(["Income"]);
+const categoryOptions = ref<string[]>(['Income']);
 const saving = ref(false);
 const isEditing = ref(false);
 const showTransactionDialog = ref(false);
@@ -401,35 +400,35 @@ const loading = ref(true);
 const showLoadingMessage = ref(false);
 let loadingTimeout: ReturnType<typeof setTimeout> | null = null;
 const newTransaction = ref<Transaction>({
-  id: "",
+  id: '',
   date: todayISO(),
   budgetMonth: currentMonthISO(),
-  merchant: "",
-  categories: [{ category: "", amount: 0 }],
+  merchant: '',
+  categories: [{ category: '', amount: 0 }],
   amount: 0,
-  notes: "",
+  notes: '',
   recurring: false,
-  recurringInterval: "Monthly",
-  userId: "",
+  recurringInterval: 'Monthly',
+  userId: '',
   isIncome: false,
-  taxMetadata: []
+  taxMetadata: [],
 });
 const snackbar = ref(false);
-const snackbarText = ref("");
-const snackbarColor = ref("success");
+const snackbarText = ref('');
+const snackbarColor = ref('success');
 const showRetry = ref(false);
 const retryAction = ref<(() => void) | null>(null);
 const timeout = ref(-1);
 const ownerUid = ref<string | null>(null);
 const budgetId = computed(() => {
-  if (!ownerUid.value || !familyStore.selectedEntityId) return "";
+  if (!ownerUid.value || !familyStore.selectedEntityId) return '';
   return `${ownerUid.value}_${familyStore.selectedEntityId}_${currentMonth.value}`;
 });
-const userId = computed(() => auth.user?.uid || "");
+const userId = computed(() => auth.user?.uid || '');
 const selectedCategory = ref<BudgetCategory | null>(null);
-const newMerchantName = ref("");
-const search = ref("");
-const debouncedSearch = ref("");
+const newMerchantName = ref('');
+const search = ref('');
+const debouncedSearch = ref('');
 const monthOffset = ref(0);
 const duplicating = ref(false);
 const menuOpen = ref(false);
@@ -439,11 +438,11 @@ let touchTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const inlineEdit = ref({
   item: null as BudgetCategoryTrx | null,
-  field: null as "name" | "target" | null,
-  value: "" as string | number,
+  field: null as 'name' | 'target' | null,
+  value: '' as string | number,
 });
 
-const isMobile =  computed(() => $q.screen.lt.md);
+const isMobile = computed(() => $q.screen.lt.md);
 
 // Entity-related computed properties
 const entityOptions = computed(() => {
@@ -451,7 +450,7 @@ const entityOptions = computed(() => {
     id: entity.id,
     name: entity.name,
   }));
-  return [{ id: "", name: "All Entities" }, ...options];
+  return [{ id: '', name: 'All Entities' }, ...options];
 });
 
 const selectedEntity = computed(() => {
@@ -460,7 +459,7 @@ const selectedEntity = computed(() => {
 
 const budgetedExpenses = computed(() => {
   const totalPlanned = budget.value.categories
-    .filter((cat) => cat.name !== "Income" && cat.group !== "Income")
+    .filter((cat) => cat.name !== 'Income' && cat.group !== 'Income')
     .reduce((sum, cat) => sum + (cat.target || 0), 0);
   return totalPlanned;
 });
@@ -470,9 +469,9 @@ const remainingToBudget = computed(() => {
 });
 
 const formatMonth = (month: string) => {
-  const [year, monthNum] = month.split("-");
+  const [year, monthNum] = month.split('-');
   const date = new Date(parseInt(year), parseInt(monthNum) - 1);
-  return date.toLocaleString("en-US", { month: "long", year: "numeric" });
+  return date.toLocaleString('en-US', { month: 'long', year: 'numeric' });
 };
 
 const displayedMonths = computed(() => {
@@ -484,11 +483,11 @@ const displayedMonths = computed(() => {
     const date = new Date(startDate.getFullYear(), startDate.getMonth() + i, 1);
     const year = date.getFullYear();
     const monthNum = date.getMonth();
-    const label = date.toLocaleString("en-US", {
-      month: "short",
-      year: "numeric",
+    const label = date.toLocaleString('en-US', {
+      month: 'short',
+      year: 'numeric',
     });
-    const value = `${year}-${(monthNum + 1).toString().padStart(2, "0")}`;
+    const value = `${year}-${(monthNum + 1).toString().padStart(2, '0')}`;
     months.push({ label, value });
   }
   return months;
@@ -504,7 +503,7 @@ const catTransactions = computed(() => {
   const catTransactions: BudgetCategoryTrx[] = [];
   if (budget.value && budget.value.categories) {
     budget.value.categories.forEach((c) => {
-      if (c.group !== "Income") {
+      if (c.group !== 'Income') {
         catTransactions.push({
           ...c,
           spent: 0,
@@ -549,7 +548,7 @@ const catTransactions = computed(() => {
     catTransactions[i]!.percentage = Math.min(Math.max(rawPercentage, 0), 100);
   }
 
-  if (debouncedSearch.value !== "") {
+  if (debouncedSearch.value !== '') {
     const srch = debouncedSearch.value.toLowerCase();
     return catTransactions.filter((t) => t.group.toLowerCase().includes(srch) || t.name.toLowerCase().includes(srch));
   }
@@ -576,7 +575,7 @@ const incomeItems = computed(() => {
   const incTrx: IncomeTarget[] = [];
   if (budget.value && budget.value.categories) {
     budget.value.categories.forEach((c) => {
-      if (c.group.toLowerCase() == "income") {
+      if (c.group.toLowerCase() == 'income') {
         incTrx.push({
           name: c.name,
           group: c.group,
@@ -637,7 +636,7 @@ watch(search, (newValue) => {
 watch(selectedCategory, (newVal) => {
   if (newVal && isMobile.value) {
     void nextTick(() => {
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     });
   }
 });
@@ -646,19 +645,19 @@ watch(
   () => familyStore.selectedEntityId,
   async () => {
     await loadBudgets();
-  }
+  },
 );
 
 const updateBudgetForMonth = debounce(async () => {
   if (!familyStore.selectedEntityId) {
     budget.value = {
-      familyId: "",
-      entityId: "",
+      familyId: '',
+      entityId: '',
       month: currentMonth.value,
       incomeTarget: 0,
       categories: [],
       transactions: [],
-      label: "",
+      label: '',
       merchants: [],
     };
     return;
@@ -670,14 +669,14 @@ const updateBudgetForMonth = debounce(async () => {
     if (family) {
       ownerUid.value = family.ownerUid;
     } else {
-      console.error("No family found for user");
+      console.error('No family found for user');
       ownerUid.value = userId.value;
     }
 
     budget.value = { ...defaultBudget, budgetId: budgetId.value };
     categoryOptions.value = defaultBudget.categories.map((cat) => cat.name);
-    if (!categoryOptions.value.includes("Income")) {
-      categoryOptions.value.push("Income");
+    if (!categoryOptions.value.includes('Income')) {
+      categoryOptions.value.push('Income');
     }
   } else if (isInitialLoad.value && budgets.value.length > 0) {
     const sortedBudgets = budgets.value
@@ -696,13 +695,13 @@ const updateBudgetForMonth = debounce(async () => {
       if (family) {
         ownerUid.value = family.ownerUid;
       } else {
-        console.error("No family found for user");
+        console.error('No family found for user');
         ownerUid.value = userId.value;
       }
 
       categoryOptions.value = mostRecentBudget.categories.map((cat) => cat.name);
-      if (!categoryOptions.value.includes("Income")) {
-        categoryOptions.value.push("Income");
+      if (!categoryOptions.value.includes('Income')) {
+        categoryOptions.value.push('Income');
       }
     }
   }
@@ -717,7 +716,7 @@ watch(
       updateBudgetForMonth();
     }
   },
-  { deep: true }
+  { deep: true },
 );
 
 watch(currentMonth, () => {
@@ -727,7 +726,7 @@ watch(currentMonth, () => {
 onMounted(async () => {
   const user = auth.user;
   if (!user) {
-    showSnackbar("Please log in to view the dashboard", "error");
+    showSnackbar('Please log in to view the dashboard', 'error');
     loading.value = false;
     return;
   }
@@ -735,13 +734,13 @@ onMounted(async () => {
   try {
     loadingTimeout = setTimeout(() => {
       showLoadingMessage.value = true;
-      console.log("Loading timeout triggered");
+      console.log('Loading timeout triggered');
     }, 5000);
 
     await familyStore.loadFamily(user.uid); // Load family to get entities
     await loadBudgets();
   } catch (error: any) {
-    showSnackbar(`Error loading data: ${error.message}`, "error");
+    showSnackbar(`Error loading data: ${error.message}`, 'error');
   } finally {
     if (loadingTimeout) clearTimeout(loadingTimeout);
     showLoadingMessage.value = false;
@@ -763,7 +762,7 @@ async function loadBudgets() {
   try {
     await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
   } catch (error: any) {
-    showSnackbar(`Error loading budgets: ${error.message}`, "error");
+    showSnackbar(`Error loading budgets: ${error.message}`, 'error');
   } finally {
     loading.value = false;
   }
@@ -841,8 +840,8 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
   }
 
   if (sourceBudget) {
-    const [newYear, newMonthNum] = month.split("-").map(Number);
-    const [sourceYear, sourceMonthNum] = sourceBudget.month.split("-").map(Number);
+    const [newYear, newMonthNum] = month.split('-').map(Number);
+    const [sourceYear, sourceMonthNum] = sourceBudget.month.split('-').map(Number);
     const isFutureMonth = newYear > sourceYear || (newYear === sourceYear && newMonthNum > sourceMonthNum);
 
     let newCarryover: Record<string, number> = {};
@@ -868,21 +867,24 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
     // Copy recurring transactions
     const recurringTransactions: Transaction[] = [];
     if (sourceBudget.transactions) {
-      const recurringGroups = sourceBudget.transactions.reduce((groups, trx) => {
-        if (!trx.deleted && trx.recurring) {
-          const key = `${trx.merchant}-${trx.amount}-${trx.recurringInterval}-${trx.userId}-${trx.isIncome}`;
-          if (!groups[key]) {
-            groups[key] = [];
+      const recurringGroups = sourceBudget.transactions.reduce(
+        (groups, trx) => {
+          if (!trx.deleted && trx.recurring) {
+            const key = `${trx.merchant}-${trx.amount}-${trx.recurringInterval}-${trx.userId}-${trx.isIncome}`;
+            if (!groups[key]) {
+              groups[key] = [];
+            }
+            groups[key].push(trx);
           }
-          groups[key].push(trx);
-        }
-        return groups;
-      }, {} as Record<string, Transaction[]>);
+          return groups;
+        },
+        {} as Record<string, Transaction[]>,
+      );
 
       Object.values(recurringGroups).forEach((group) => {
         const firstInstance = group.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
-        if (firstInstance!.recurringInterval === "Monthly") {
-          const newDate = adjustTransactionDate(firstInstance!.date, month, "Monthly");
+        if (firstInstance!.recurringInterval === 'Monthly') {
+          const newDate = adjustTransactionDate(firstInstance!.date, month, 'Monthly');
           recurringTransactions.push({
             ...firstInstance,
             id: uuidv4(),
@@ -908,8 +910,8 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
     month: month,
     incomeTarget: 0,
     categories: [
-      { name: "Income", target: 0, isFund: false, group: "Income" },
-      { name: "Miscellaneous", target: 0, isFund: false, group: "Expenses" },
+      { name: 'Income', target: 0, isFund: false, group: 'Income' },
+      { name: 'Miscellaneous', target: 0, isFund: false, group: 'Expenses' },
     ],
     transactions: [],
     label: `Default Budget for ${month}`,
@@ -924,12 +926,12 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
 async function createDefaultBudget() {
   const user = auth.user;
   if (!user) {
-    showSnackbar("Please log in to create a budget", "error");
+    showSnackbar('Please log in to create a budget', 'error');
     return;
   }
 
   if (!familyStore.selectedEntityId) {
-    showSnackbar("Please select an entity before creating a budget", "error");
+    showSnackbar('Please select an entity before creating a budget', 'error');
     return;
   }
 
@@ -937,16 +939,16 @@ async function createDefaultBudget() {
   try {
     const family = await familyStore.getFamily();
     if (!family) {
-      showSnackbar("No family found for user", "error");
+      showSnackbar('No family found for user', 'error');
       return;
     }
 
     await createBudgetForMonth(currentMonth.value, family.id, family.ownerUid, familyStore.selectedEntityId);
     await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
-    showSnackbar("Budget created successfully", "success");
+    showSnackbar('Budget created successfully', 'success');
   } catch (error: any) {
-    console.error("Error creating budget:", error);
-    showSnackbar(`Failed to create budget: ${error.message}`, "error");
+    console.error('Error creating budget:', error);
+    showSnackbar(`Failed to create budget: ${error.message}`, 'error');
   } finally {
     loading.value = false;
   }
@@ -959,12 +961,12 @@ async function refreshBudget() {
       budget.value = { ...freshBudget, budgetId: budgetId.value };
       budgetStore.updateBudget(budgetId.value, freshBudget);
       categoryOptions.value = freshBudget.categories.map((cat) => cat.name);
-      if (!categoryOptions.value.includes("Income")) {
-        categoryOptions.value.push("Income");
+      if (!categoryOptions.value.includes('Income')) {
+        categoryOptions.value.push('Income');
       }
     }
   } catch (error: any) {
-    showSnackbar(`Error refreshing budget: ${error.message}`, "error");
+    showSnackbar(`Error refreshing budget: ${error.message}`, 'error');
   }
 }
 
@@ -980,9 +982,9 @@ function onTransactionSaved(transaction: Transaction) {
     budgetStore.updateBudget(budgetId.value, { ...budget.value });
 
     updateMerchants();
-    showSnackbar(isIncomeTransaction.value ? "Income added successfully" : "Transaction added successfully");
+    showSnackbar(isIncomeTransaction.value ? 'Income added successfully' : 'Transaction added successfully');
   } catch (error: any) {
-    showSnackbar(`Error updating transaction: ${error.message}`, "error");
+    showSnackbar(`Error updating transaction: ${error.message}`, 'error');
   }
 }
 
@@ -992,7 +994,7 @@ function updateTransactions(newTransactions: Transaction[]) {
     budgetStore.updateBudget(budgetId.value, { ...budget.value });
     updateMerchants();
   } catch (error: any) {
-    showSnackbar(`Error updating transactions: ${error.message}`, "error");
+    showSnackbar(`Error updating transactions: ${error.message}`, 'error');
   }
 }
 
@@ -1002,7 +1004,7 @@ function shiftMonths(offset: number) {
 
 async function selectMonth(month: string) {
   if (!familyStore.selectedEntityId) {
-    showSnackbar("Please select an entity before selecting a month", "error");
+    showSnackbar('Please select an entity before selecting a month', 'error');
     return;
   }
 
@@ -1024,20 +1026,20 @@ async function selectMonth(month: string) {
       budget.value = { ...freshBudget, budgetId: newBudgetId };
       budgetStore.updateBudget(newBudgetId, freshBudget);
       categoryOptions.value = freshBudget.categories.map((cat) => cat.name);
-      if (!categoryOptions.value.includes("Income")) {
-        categoryOptions.value.push("Income");
+      if (!categoryOptions.value.includes('Income')) {
+        categoryOptions.value.push('Income');
       }
     } else {
       const b = await createBudgetForMonth(month, family!.id, ownerId, familyStore.selectedEntityId);
       budget.value = { ...b, budgetId: newBudgetId };
       budgetStore.updateBudget(newBudgetId, b);
       categoryOptions.value = b.categories.map((cat) => cat.name);
-      if (!categoryOptions.value.includes("Income")) {
-        categoryOptions.value.push("Income");
+      if (!categoryOptions.value.includes('Income')) {
+        categoryOptions.value.push('Income');
       }
     }
   } catch (error: any) {
-    showSnackbar(`Error loading budget: ${error.message}`, "error");
+    showSnackbar(`Error loading budget: ${error.message}`, 'error');
   } finally {
     loading.value = false;
   }
@@ -1046,12 +1048,12 @@ async function selectMonth(month: string) {
 async function saveBudget() {
   const user = auth.user;
   if (!user) {
-    showSnackbar("You don’t have permission to save budgets", "error");
+    showSnackbar('You don’t have permission to save budgets', 'error');
     return;
   }
 
   if (!familyStore.selectedEntityId) {
-    showSnackbar("Please select an entity before saving the budget", "error");
+    showSnackbar('Please select an entity before saving the budget', 'error');
     return;
   }
 
@@ -1060,10 +1062,10 @@ async function saveBudget() {
     budget.value.entityId = familyStore.selectedEntityId;
     budget.value.budgetId = budgetId.value;
     await dataAccess.saveBudget(budgetId.value, budget.value);
-    showSnackbar("Budget saved successfully");
+    showSnackbar('Budget saved successfully');
     isEditing.value = false;
   } catch (error: any) {
-    showSnackbar(`Error saving budget: ${error.message}`, "error", async () => {
+    showSnackbar(`Error saving budget: ${error.message}`, 'error', async () => {
       await saveBudget();
     });
   } finally {
@@ -1073,21 +1075,21 @@ async function saveBudget() {
 
 function addCategory() {
   budget.value.categories.push({
-    name: "",
+    name: '',
     target: 0,
     isFund: false,
-    group: "",
+    group: '',
   });
 }
 
 function addIncomeCategory() {
   budget.value.categories.push({
-    name: "Income",
+    name: 'Income',
     target: 0,
     isFund: false,
-    group: "Income",
+    group: 'Income',
   });
-  showSnackbar("Added new income category");
+  showSnackbar('Added new income category');
 }
 
 function removeCategory(index: number) {
@@ -1096,12 +1098,12 @@ function removeCategory(index: number) {
 
 function addMerchant() {
   const merchantName = newMerchantName.value.trim();
-  if (merchantName === "") return;
+  if (merchantName === '') return;
 
   const existingMerchant = budget.value.merchants.find((m) => m.name.toLowerCase() === merchantName.toLowerCase());
 
   if (existingMerchant) {
-    showSnackbar("Merchant already exists", "warning");
+    showSnackbar('Merchant already exists', 'warning');
   } else {
     budget.value.merchants.push({
       name: merchantName,
@@ -1110,7 +1112,7 @@ function addMerchant() {
     showSnackbar(`Added merchant: ${merchantName}`);
   }
 
-  newMerchantName.value = "";
+  newMerchantName.value = '';
 }
 
 function removeMerchant(index: number) {
@@ -1121,7 +1123,7 @@ function removeMerchant(index: number) {
 
 function addTransaction() {
   if (!familyStore.selectedEntityId) {
-    showSnackbar("Please select an entity before adding a transaction", "error");
+    showSnackbar('Please select an entity before adding a transaction', 'error');
     return;
   }
 
@@ -1130,12 +1132,12 @@ function addTransaction() {
       id: uuidv4(),
       date: todayISO(),
       budgetMonth: currentMonth.value,
-      merchant: "",
-      categories: [{ category: "", amount: 0 }],
+      merchant: '',
+      categories: [{ category: '', amount: 0 }],
       amount: 0,
-      notes: "",
+      notes: '',
       recurring: false,
-      recurringInterval: "Monthly",
+      recurringInterval: 'Monthly',
       userId: userId.value,
       isIncome: false,
       entityId: familyStore.selectedEntityId,
@@ -1147,7 +1149,7 @@ function addTransaction() {
 
 function addTransactionForCategory(category: string) {
   if (!familyStore.selectedEntityId) {
-    showSnackbar("Please select an entity before adding a transaction", "error");
+    showSnackbar('Please select an entity before adding a transaction', 'error');
     return;
   }
 
@@ -1156,12 +1158,12 @@ function addTransactionForCategory(category: string) {
       id: uuidv4(),
       date: todayISO(),
       budgetMonth: currentMonth.value,
-      merchant: "",
+      merchant: '',
       categories: [{ category: category, amount: 0 }],
       amount: 0,
-      notes: "",
+      notes: '',
       recurring: false,
-      recurringInterval: "Monthly",
+      recurringInterval: 'Monthly',
       userId: userId.value,
       isIncome: false,
       entityId: familyStore.selectedEntityId,
@@ -1173,7 +1175,7 @@ function addTransactionForCategory(category: string) {
 
 function addIncome() {
   if (!familyStore.selectedEntityId) {
-    showSnackbar("Please select an entity before adding income", "error");
+    showSnackbar('Please select an entity before adding income', 'error');
     return;
   }
 
@@ -1181,12 +1183,12 @@ function addIncome() {
     id: uuidv4(),
     date: todayISO(),
     budgetMonth: currentMonth.value,
-    merchant: "",
-    categories: [{ category: "Income", amount: 0 }],
+    merchant: '',
+    categories: [{ category: 'Income', amount: 0 }],
     amount: 0,
-    notes: "",
+    notes: '',
     recurring: false,
-    recurringInterval: "Monthly",
+    recurringInterval: 'Monthly',
     userId: userId.value,
     isIncome: true,
     entityId: familyStore.selectedEntityId,
@@ -1199,12 +1201,12 @@ function addIncome() {
 async function duplicateCurrentMonth(month: string) {
   const user = auth.user;
   if (!user) {
-    showSnackbar("Please log in to duplicate a budget", "error");
+    showSnackbar('Please log in to duplicate a budget', 'error');
     return;
   }
 
   if (!familyStore.selectedEntityId) {
-    showSnackbar("Please select an entity before duplicating a budget", "error");
+    showSnackbar('Please select an entity before duplicating a budget', 'error');
     return;
   }
 
@@ -1212,14 +1214,14 @@ async function duplicateCurrentMonth(month: string) {
   try {
     const family = await familyStore.getFamily();
     if (!family) {
-      showSnackbar("No family found for user", "error");
+      showSnackbar('No family found for user', 'error');
       return;
     }
 
     const newBudgetId = `${family.ownerUid}_${familyStore.selectedEntityId}_${month}`;
     const existingBudget = await dataAccess.getBudget(newBudgetId);
     if (existingBudget) {
-      showSnackbar("A budget already exists for this month", "warning");
+      showSnackbar('A budget already exists for this month', 'warning');
       return;
     }
 
@@ -1228,8 +1230,8 @@ async function duplicateCurrentMonth(month: string) {
 
     showSnackbar("Created new month's budget");
   } catch (error: any) {
-    console.error("Error duplicating budget:", error);
-    showSnackbar(`Failed to duplicate budget: ${error.message}`, "error");
+    console.error('Error duplicating budget:', error);
+    showSnackbar(`Failed to duplicate budget: ${error.message}`, 'error');
   } finally {
     duplicating.value = false;
   }
@@ -1248,7 +1250,7 @@ function handleNameDblClick(item: BudgetCategoryTrx) {
     clearTimeout(clickTimeout);
     clickTimeout = null;
   }
-  startInlineEdit(item, "name");
+  startInlineEdit(item, 'name');
 }
 
 function handleTargetDblClick(item: BudgetCategoryTrx) {
@@ -1256,10 +1258,10 @@ function handleTargetDblClick(item: BudgetCategoryTrx) {
     clearTimeout(clickTimeout);
     clickTimeout = null;
   }
-  startInlineEdit(item, "target");
+  startInlineEdit(item, 'target');
 }
 
-function startTouch(item: BudgetCategoryTrx, field: "name" | "target") {
+function startTouch(item: BudgetCategoryTrx, field: 'name' | 'target') {
   touchTimeout = setTimeout(() => {
     if (clickTimeout) {
       clearTimeout(clickTimeout);
@@ -1276,10 +1278,10 @@ function endTouch() {
   }
 }
 
-function startInlineEdit(item: BudgetCategoryTrx, field: "name" | "target") {
+function startInlineEdit(item: BudgetCategoryTrx, field: 'name' | 'target') {
   inlineEdit.value.item = item;
   inlineEdit.value.field = field;
-  inlineEdit.value.value = field === "name" ? item.name : item.target;
+  inlineEdit.value.value = field === 'name' ? item.name : item.target;
   console.log(inlineEdit.value);
 }
 
@@ -1297,10 +1299,10 @@ async function saveInlineEdit() {
     return;
   }
 
-  if (field === "name") {
+  if (field === 'name') {
     const oldName = budget.value.categories[idx].name;
     const newName = String(inlineEdit.value.value).trim();
-    if (newName === "" || newName === oldName) {
+    if (newName === '' || newName === oldName) {
       cancelInlineEdit();
       return;
     }
@@ -1317,7 +1319,7 @@ async function saveInlineEdit() {
       selectedCategory.value.name = newName;
     }
   } else {
-    const amount = typeof inlineEdit.value.value === "number" ? inlineEdit.value.value : parseFloat(String(inlineEdit.value.value));
+    const amount = typeof inlineEdit.value.value === 'number' ? inlineEdit.value.value : parseFloat(String(inlineEdit.value.value));
     budget.value.categories[idx].target = isNaN(amount) ? 0 : amount;
     item.target = isNaN(amount) ? 0 : amount;
   }
@@ -1326,9 +1328,9 @@ async function saveInlineEdit() {
     budget.value.budgetId = budgetId.value;
     await dataAccess.saveBudget(budgetId.value, budget.value);
     budgetStore.updateBudget(budgetId.value, { ...budget.value });
-    showSnackbar("Budget updated");
+    showSnackbar('Budget updated');
   } catch (error: any) {
-    showSnackbar(`Error saving budget: ${error.message}`, "error");
+    showSnackbar(`Error saving budget: ${error.message}`, 'error');
   }
 
   cancelInlineEdit();
@@ -1339,7 +1341,7 @@ function cancelInlineEdit() {
   inlineEdit.value.field = null;
 }
 
-function showSnackbar(text: string, color = "success", retry?: () => void) {
+function showSnackbar(text: string, color = 'success', retry?: () => void) {
   snackbarText.value = text;
   snackbarColor.value = color;
   showRetry.value = !!retry;
