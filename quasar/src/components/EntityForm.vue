@@ -12,7 +12,7 @@
               label="Entity Name"
               required
               density="compact"
-              :rules="[(v) => !!v || 'Entity Name is required']"
+              :rules="[(v: string) => !!v || 'Entity Name is required']"
             ></q-text-field>
           </q-col>
           <q-col cols="12" sm="6">
@@ -22,7 +22,7 @@
               :items="entityTypeOptions"
               required
               density="compact"
-              :rules="[(v) => !!v || 'Entity Type is required']"
+              :rules="[(v: string) => !!v || 'Entity Type is required']"
             ></q-select>
           </q-col>
           <q-col cols="12">
@@ -261,7 +261,6 @@ const hasUnsavedChanges = computed(() => {
   const currentEntity: Partial<Entity> = {
     name: entityName.value,
     type: entityType.value,
-    email: entityEmail.value,
     taxFormIds: entityTaxFormIds.value,
     templateBudget: { categories: budget.value.categories },
   };
@@ -371,7 +370,6 @@ async function save() {
         : [{ uid: auth.currentUser?.uid || "", email: auth.currentUser?.email || "", role: "Admin" }],
       createdAt: isEditing.value && initialEntity.value ? initialEntity.value.createdAt : Timestamp.fromDate(new Date()),
       updatedAt: Timestamp.fromDate(new Date()),
-      email: entityEmail.value,
       templateBudget: { categories: budget.value.categories },
       taxFormIds: entityTaxFormIds.value,
     };

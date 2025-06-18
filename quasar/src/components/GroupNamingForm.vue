@@ -8,7 +8,7 @@
           v-model="groupName"
           label="Family/Group/Org Name"
           required
-          :rules="[v => !!v || 'Name is required']"
+          :rules="[(v: string) => !!v || 'Name is required']"
           autofocus
         ></q-text-field>
         <q-btn type="submit" color="primary" :loading="creating" block>Save</q-btn>
