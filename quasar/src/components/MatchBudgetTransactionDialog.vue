@@ -4,8 +4,8 @@
     <q-card>
       <q-card-section>Match Budget Transaction</q-card-section>
       <q-card-section>
-        <q-row>
-          <q-col>
+        <div class="row">
+          <div class="col">
             <h3>Selected Budget Transaction</h3>
             <q-markup-table>
               <thead>
@@ -27,22 +27,22 @@
                 </tr>
               </tbody>
             </q-markup-table>
-          </q-col>
-        </q-row>
-        <q-row class="mt-4">
-          <q-col>
+          </div>
+        </div>
+        <div class="row mt-4" >
+          <div class="col">
             <h3>Select Bank Transaction to Match</h3>
-            <q-row class="mb-2">
-              <q-col cols="12" md="4">
+            <div class="row mb-2" >
+              <div class="col col-12 col-md-4">
                 <q-text-field v-model="searchAmount" label="Amount" type="number" variant="outlined"></q-text-field>
-              </q-col>
-              <q-col cols="12" md="4">
+              </div>
+              <div class="col col-12 col-md-4">
                 <q-text-field v-model="searchMerchant" label="Merchant" variant="outlined"></q-text-field>
-              </q-col>
-              <q-col cols="12" md="4">
+              </div>
+              <div class="col col-12 col-md-4">
                 <q-text-field v-model="searchDateRange" label="Date Range (days)" type="number" variant="outlined"></q-text-field>
-              </q-col>
-            </q-row>
+              </div>
+            </div>
             <q-data-table
               :headers="importedTransactionHeaders"
               :items="filteredImportedTransactions"
@@ -62,8 +62,8 @@
                 {{ getAccountName(item.accountId) }}
               </template>
             </q-data-table>
-          </q-col>
-        </q-row>
+          </div>
+        </div>
       </q-card-section>
       <q-card-actions>
         <q-space></q-space>

@@ -40,12 +40,12 @@
                   budgets and expenses related to that entity. You will also be able to run reports that are isolated to entities. Each entity will have monthly
                   budgets with expense categories. Each entity should also have some income source.<br /><br />
                   <q-list v-if="savedEntities.length > 0" class="mb-4 full-width">
-                    <q-row class="full-width align-center">
-                      <q-col class="text-h6">Saved Entities</q-col>
-                      <q-col cols="auto" class="text-right">
+                    <div class="row full-width align-center" >
+                      <div class="col text-h6" >Saved Entities</div>
+                      <div class="col text-right col-auto" >
                         <q-btn density="compact" variant="plain" icon="add" color="success" @click="initNewEntity" aria-label="Add New Entity"></q-btn>
-                      </q-col>
-                    </q-row>
+                      </div>
+                    </div>
                     <q-item
                       v-for="entity in savedEntities"
                       :key="entity.id"

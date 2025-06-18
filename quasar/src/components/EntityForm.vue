@@ -5,8 +5,8 @@
     <q-card-section>
       <q-form @submit.prevent="save">
         <!-- Entity Details -->
-        <q-row :dense="true">
-          <q-col cols="12" sm="6">
+        <div class="row dense">
+          <div class="col col-12 col-sm-6">
             <q-text-field
               v-model="entityName"
               label="Entity Name"
@@ -14,8 +14,8 @@
               density="compact"
               :rules="[(v: string) => !!v || 'Entity Name is required']"
             ></q-text-field>
-          </q-col>
-          <q-col cols="12" sm="6">
+          </div>
+          <div class="col col-12 col-sm-6">
             <q-select
               v-model="entityType"
               label="Entity Type"
@@ -24,11 +24,11 @@
               density="compact"
               :rules="[(v: string) => !!v || 'Entity Type is required']"
             ></q-select>
-          </q-col>
-          <q-col cols="12">
+          </div>
+          <div class="col col-12">
             <q-text-field v-model="entityEmail" label="Owner Email" density="compact" disabled></q-text-field>
-          </q-col>
-          <q-col cols="12">
+          </div>
+          <div class="col col-12">
             <q-select
               v-model="entityTaxFormIds"
               label="Applicable Tax Forms"
@@ -42,18 +42,18 @@
               hint="Select tax forms applicable to this entity (federal and state)"
               persistent-hint
             ></q-select>
-          </q-col>
-        </q-row>
+          </div>
+        </div>
         <br />
-        <q-row>
-          <q-col cols="8" class="text-subtitle-1 font-weight-bold">
+        <div class="row">
+          <div class="col text-subtitle-1 font-weight-bold col-8" >
             Budget Template
             <div v-if="isFormValid">{{ getBudgetInfo }}</div>
-          </q-col>
-          <q-col cols="4" class="text-right">
+          </div>
+          <div class="col text-right col-4" >
             <q-btn color="primary" @click="importCategories">Add from Type</q-btn>
-          </q-col>
-          <q-col cols="12">
+          </div>
+          <div class="col col-12">
             <!-- Help Section -->
             <q-expansion-panels class="mb-4">
               <q-expansion-panel title="Need help with creating a budget template?">
@@ -86,53 +86,53 @@
                 </q-expansion-panel-text>
               </q-expansion-panel>
             </q-expansion-panels>
-          </q-col>
-        </q-row>
+          </div>
+        </div>
         <!-- Budget Template Categories -->
         <div class="text-subtitle-1 font-weight-bold"></div>
         <br />
         <q-list>
           <q-item v-for="(category, index) in budget.categories" :key="index">
-            <q-row :dense="true">
-              <q-col cols="12" sm="3" class="px-2">
+            <div class="row dense">
+              <div class="col px-2 col-12 col-sm-3" >
                 <q-text-field v-model="budget.categories[index]!.name" label="Category" required density="compact"></q-text-field>
-              </q-col>
-              <q-col cols="12" sm="3" class="px-2">
+              </div>
+              <div class="col px-2 col-12 col-sm-3" >
                 <q-text-field v-model="budget.categories[index]!.group" label="Group" required density="compact"></q-text-field>
-              </q-col>
-              <q-col cols="12" sm="3" class="px-2">
+              </div>
+              <div class="col px-2 col-12 col-sm-3" >
                 <Currency-Input v-model.number="budget.categories[index]!.target" label="Target" class="text-right" density="compact" required></Currency-Input>
-              </q-col>
-              <q-col cols="12" sm="2" class="px-2">
+              </div>
+              <div class="col px-2 col-12 col-sm-2" >
                 <q-checkbox v-model="budget.categories[index]!.isFund" label="Is Fund?" density="compact"></q-checkbox>
-              </q-col>
-              <q-col cols="12" sm="1" class="px-2">
+              </div>
+              <div class="col px-2 col-12 col-sm-1" >
                 <q-btn icon="delete" variant="plain" @click="removeCategory(index)" color="error">
                 </q-btn>
-              </q-col>
-            </q-row>
+              </div>
+            </div>
           </q-item>
         </q-list>
 
         <!-- Add New Category -->
         <q-form @submit.prevent="addCategory">
-          <q-row :dense="true">
-            <q-col cols="12" sm="3" class="px-2">
+          <div class="row dense">
+            <div class="col px-2 col-12 col-sm-3" >
               <q-text-field v-model="newCategory.name" label="Category" required density="compact"></q-text-field>
-            </q-col>
-            <q-col cols="12" sm="3" class="px-2">
+            </div>
+            <div class="col px-2 col-12 col-sm-3" >
               <q-text-field v-model="newCategory.group" label="Group (e.g., Utilities)" density="compact"></q-text-field>
-            </q-col>
-            <q-col cols="12" sm="2" class="px-2">
+            </div>
+            <div class="col px-2 col-12 col-sm-2" >
               <Currency-Input v-model.number="newCategory.target" label="Target" class="text-right" density="compact" required></Currency-Input>
-            </q-col>
-            <q-col cols="12" sm="2" class="px-2">
+            </div>
+            <div class="col px-2 col-12 col-sm-2" >
               <q-checkbox v-model="newCategory.isFund" label="Is Fund?" density="compact"></q-checkbox>
-            </q-col>
-            <q-col cols="12" sm="2" class="px-2">
+            </div>
+            <div class="col px-2 col-12 col-sm-2" >
               <q-btn type="submit" color="primary">Add Category</q-btn>
-            </q-col>
-          </q-row>
+            </div>
+          </div>
         </q-form>
       </q-form>
     </q-card-section>

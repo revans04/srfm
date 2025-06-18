@@ -20,14 +20,14 @@
         <q-window v-model="activeTab">
           <!-- Smart Matches Tab -->
           <q-window-item value="smart-matches">
-            <q-row v-if="smartMatches.length > 0" class="mt-4">
-              <q-col>
+            <div class="row" v-if="smartMatches.length > 0" class="mt-4">
+              <div class="col">
                 <h3>Smart Matches ({{ smartMatches.length }})</h3>
                 <p class="text-caption pb-2">These imported transactions have exactly one potential match. Review and confirm below (max 50 at a time).</p>
 
                 <!-- Sort Controls -->
-                <q-row class="mb-4">
-                  <q-col cols="12" md="4">
+                <div class="row mb-4" >
+                  <div class="col col-12 col-md-4">
                     <q-select
                       v-model="smartMatchesSortField"
                       :items="smartMatchesSortFields"
@@ -38,13 +38,13 @@
                       item-value="value"
                       @update:model-value="sortSmartMatches"
                     ></q-select>
-                  </q-col>
-                  <q-col cols="12" md="4">
+                  </div>
+                  <div class="col col-12 col-md-4">
                     <q-btn :color="smartMatchesSortDirection === 'asc' ? 'primary' : 'secondary'" @click="toggleSmartMatchesSortDirection">
                       {{ smartMatchesSortDirection === "asc" ? "Ascending" : "Descending" }}
                     </q-btn>
-                  </q-col>
-                  <q-col cols="12" md="4">
+                  </div>
+                  <div class="col col-12 col-md-4">
                     <q-text-field
                       v-model="smartMatchDateRange"
                       label="Match Date Range (days)"
@@ -52,8 +52,8 @@
                       variant="outlined"
                       @input="computeSmartMatchesLocal()"
                     ></q-text-field>
-                  </q-col>
-                  <q-col>
+                  </div>
+                  <div class="col">
                     <q-btn
                       color="primary"
                       @click="confirmSmartMatches"
@@ -62,8 +62,8 @@
                     >
                       Confirm Selected Matches ({{ selectedSmartMatchIds.length }})
                     </q-btn>
-                  </q-col>
-                </q-row>
+                  </div>
+                </div>
 
                 <q-data-table
                   :headers="smartMatchHeaders"
@@ -92,19 +92,19 @@
                 <q-btn color="primary" @click="confirmSmartMatches" :disabled="selectedSmartMatchIds.length === 0 || props.matching" :loading="props.matching">
                   Confirm Selected Matches ({{ selectedSmartMatchIds.length }})
                 </q-btn>
-              </q-col>
-            </q-row>
-            <q-row v-else class="mt-4">
-              <q-col>
+              </div>
+            </div>
+            <div class="row mt-4" v-else >
+              <div class="col">
                 <q-banner type="info"> No smart matches found. Check Remaining Transactions for potential conflicts. </q-banner>
-              </q-col>
-            </q-row>
+              </div>
+            </div>
           </q-window-item>
 
           <!-- Remaining Transactions Tab -->
           <q-window-item value="remaining">
-            <q-row v-if="remainingImportedTransactions.length > 0" class="mt-4">
-              <q-col>
+            <div class="row" v-if="remainingImportedTransactions.length > 0" class="mt-4">
+              <div class="col">
                 <h3>Remaining Transactions ({{ currentBankTransactionIndex + 1 }} of {{ remainingImportedTransactions.length }})</h3>
                 <q-markup-table>
                   <thead>
@@ -134,14 +134,14 @@
                 </q-markup-table>
 
                 <!-- Search Filters -->
-                <q-row class="mt-4">
-                  <q-col cols="12" md="4">
+                <div class="row mt-4" >
+                  <div class="col col-12 col-md-4">
                     <q-text-field v-model="searchAmount" label="Amount" type="number" variant="outlined" readonly></q-text-field>
-                  </q-col>
-                  <q-col cols="12" md="4">
+                  </div>
+                  <div class="col col-12 col-md-4">
                     <q-text-field v-model="searchMerchant" label="Merchant" variant="outlined" @input="searchBudgetTransactions"></q-text-field>
-                  </q-col>
-                  <q-col cols="12" md="4">
+                  </div>
+                  <div class="col col-12 col-md-4">
                     <q-text-field
                       v-model="searchDateRange"
                       label="Date Range (days)"
@@ -149,22 +149,22 @@
                       variant="outlined"
                       @input="searchBudgetTransactions"
                     ></q-text-field>
-                  </q-col>
-                </q-row>
+                  </div>
+                </div>
 
                 <!-- Split Transaction Option -->
-                <q-row class="mt-4">
-                  <q-col>
+                <div class="row mt-4" >
+                  <div class="col">
                     <q-btn color="primary" @click="toggleSplitTransaction" :disabled="props.matching">
                       {{ showSplitForm ? "Cancel Split" : "Split Transaction" }}
                     </q-btn>
-                  </q-col>
-                </q-row>
+                  </div>
+                </div>
 
                 <!-- Split Transaction Form -->
                 <q-form v-if="showSplitForm" ref="splitForm" @submit.prevent="saveSplitTransaction" class="mt-4">
-                  <q-row v-for="(split, index) in transactionSplits" :key="index" class="align-center">
-                    <q-col cols="12" md="3">
+                  <div class="row align-center" v-for="(split, index) in transactionSplits" :key="index" >
+                    <div class="col col-12 col-md-3">
                       <q-select
                         v-model="split.entityId"
                         :items="entityOptions"
@@ -175,8 +175,8 @@
                         density="compact"
                         :rules="[(v: string) => !!v || 'Entity is required']"
                       ></q-select>
-                    </q-col>
-                    <q-col cols="12" md="3">
+                    </div>
+                    <div class="col col-12 col-md-3">
                       <q-combobox
                         v-model="split.category"
                         :items="props.categoryOptions"
@@ -185,8 +185,8 @@
                         density="compact"
                         :rules="[(v: string) => !!v || 'Category is required']"
                       ></q-combobox>
-                    </q-col>
-                    <q-col cols="12" md="2">
+                    </div>
+                    <div class="col col-12 col-md-2">
                       <q-text-field
                         v-model.number="split.amount"
                         label="Amount"
@@ -195,11 +195,11 @@
                         density="compact"
                         :rules="[(v: number) => v > 0 || 'Amount must be greater than 0']"
                       ></q-text-field>
-                    </q-col>
-                    <q-col cols="12" md="1">
+                    </div>
+                    <div class="col col-12 col-md-1">
                       <q-btn color="error" icon="close" @click="removeSplit(index)" variant="plain"></q-btn>
-                    </q-col>
-                  </q-row>
+                    </div>
+                  </div>
                   <q-banner v-if="remainingSplitAmount !== 0" :type="remainingSplitAmount < 0 ? 'error' : 'warning'" class="mb-4">
                     <div v-if="remainingSplitAmount > 0">Remaining ${{ toDollars(toCents(remainingSplitAmount)) }}</div>
                     <div v-else>Over allocated ${{ toDollars(toCents(Math.abs(remainingSplitAmount))) }}</div>
@@ -211,8 +211,8 @@
                 </q-form>
 
                 <!-- Potential Matches -->
-                <q-row v-if="!showSplitForm" class="mb-4">
-                  <q-col cols="12" md="4">
+                <div class="row mb-4" v-if="!showSplitForm" >
+                  <div class="col col-12 col-md-4">
                     <q-select
                       v-model="potentialMatchesSortField"
                       :items="potentialMatchesSortFields"
@@ -223,13 +223,13 @@
                       item-value="value"
                       @update:model-value="sortPotentialMatches"
                     ></q-select>
-                  </q-col>
-                  <q-col cols="12" md="4">
+                  </div>
+                  <div class="col col-12 col-md-4">
                     <q-btn :color="potentialMatchesSortDirection === 'asc' ? 'primary' : 'secondary'" @click="togglePotentialMatchesSortDirection">
                       {{ potentialMatchesSortDirection === "asc" ? "Ascending" : "Descending" }}
                     </q-btn>
-                  </q-col>
-                </q-row>
+                  </div>
+                </div>
 
                 <q-data-table
                   v-if="potentialMatches.length > 0 && !showSplitForm"
@@ -260,13 +260,13 @@
                   <q-banner type="info" class="mb-4"> No potential matches found. Adjust the search criteria or add a new transaction. </q-banner>
                   <q-btn color="primary" @click="addNewTransaction" :disabled="props.matching"> Add New Transaction </q-btn>
                 </div>
-              </q-col>
-            </q-row>
-            <q-row v-else class="mt-4">
-              <q-col>
+              </div>
+            </div>
+            <div class="row mt-4" v-else >
+              <div class="col">
                 <q-banner type="success"> All bank transactions have been matched or ignored. </q-banner>
-              </q-col>
-            </q-row>
+              </div>
+            </div>
           </q-window-item>
         </q-window>
       </q-card-section>

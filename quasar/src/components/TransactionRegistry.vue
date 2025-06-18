@@ -1,8 +1,8 @@
 <!-- src/components/TransactionRegistry.vue -->
 <template>
   <q-page fluid>
-    <q-row>
-      <q-col cols="12" md="4">
+    <div class="row">
+      <div class="col col-12 col-md-4">
         <q-select
           v-model="selectedAccount"
           :items="accountOptions"
@@ -12,16 +12,16 @@
           item-value="value"
           @update:modelValue="loadTransactions"
         ></q-select>
-      </q-col>
-      <q-col cols="auto" class="d-flex align-center">
+      </div>
+      <div class="col d-flex align-center col-auto" >
         <q-btn color="primary" variant="plain" @click="refreshData" :loading="loading">
           <q-icon start>refresh</q-icon>
           Refresh
         </q-btn>
-      </q-col>
-    </q-row>
-    <q-row v-if="selectedAccount">
-      <q-col cols="12" md="4">
+      </div>
+    </div>
+    <div class="row" v-if="selectedAccount">
+      <div class="col col-12 col-md-4">
         <q-select
           v-model="selectedStatementId"
           :items="statementOptions"
@@ -30,27 +30,27 @@
           item-title="title"
           item-value="id"
         ></q-select>
-      </q-col>
-      <q-col cols="auto">
+      </div>
+      <div class="col col-auto">
         <q-btn color="primary" @click="openStatementDialog">Add Statement</q-btn>
-      </q-col>
-      <q-col cols="auto" v-if="selectedStatement">
+      </div>
+      <div class="col col-auto" v-if="selectedStatement">
         <q-btn color="primary" @click="startReconcile">Reconcile Statement</q-btn>
-      </q-col>
-      <q-col cols="auto" v-if="selectedStatement && selectedStatement.reconciled">
+      </div>
+      <div class="col col-auto" v-if="selectedStatement && selectedStatement.reconciled">
         <q-btn color="primary" @click="unreconcileStatement">Unreconcile</q-btn>
-      </q-col>
-      <q-col cols="auto" v-if="selectedStatement">
+      </div>
+      <div class="col col-auto" v-if="selectedStatement">
         <q-btn color="error" @click="deleteStatement">Delete Statement</q-btn>
-      </q-col>
-    </q-row>
+      </div>
+    </div>
 
     <!-- Balance Display -->
     <q-card class="mb-4" v-if="selectedAccount">
       <q-card-section>Account Balance</q-card-section>
       <q-card-section>
-        <q-row>
-          <q-col>
+        <div class="row">
+          <div class="col">
             <span class="text-h6">Balance from Accounts: </span>
             <span
               :class="{
@@ -64,11 +64,11 @@
               The current balance differs from the transaction registry balance ({{ formatCurrency(latestTransactionBalance) }}) by
               {{ formatCurrency(Math.abs(currentBalance - latestTransactionBalance)) }}. Adjust Balance to reconcile.
             </q-tooltip>
-          </q-col>
-          <q-col cols="auto" v-if="currentBalance !== latestTransactionBalance">
+          </div>
+          <div class="col col-auto" v-if="currentBalance !== latestTransactionBalance">
             <q-btn color="primary" @click="openBalanceAdjustmentDialog">Adjust Balance</q-btn>
-          </q-col>
-        </q-row>
+          </div>
+        </div>
       </q-card-section>
     </q-card>
 
@@ -88,8 +88,8 @@
     <q-card class="mb-4">
       <q-card-section>Filters</q-card-section>
       <q-card-section>
-        <q-row>
-          <q-col cols="6" md="6">
+        <div class="row">
+          <div class="col col-6 col-md-6">
             <q-text-field
               append-inner-icon="search"
               density="compact"
@@ -99,24 +99,24 @@
               v-model="search"
               @input="applyFilters"
             ></q-text-field>
-          </q-col>
-          <q-col cols="auto">
+          </div>
+          <div class="col col-auto">
             <q-checkbox v-model="filterMatched" label="Show Only Unmatched" density="compact" @input="applyFilters"></q-checkbox>
-          </q-col>
-        </q-row>
-        <q-row>
-          <q-col cols="12" md="2">
+          </div>
+        </div>
+        <div class="row">
+          <div class="col col-12 col-md-2">
             <q-text-field v-model="filterMerchant" label="Merchant" variant="outlined" density="compact" @input="applyFilters"></q-text-field>
-          </q-col>
-          <q-col cols="12" md="2">
+          </div>
+          <div class="col col-12 col-md-2">
             <q-text-field v-model="filterAmount" label="Amount" type="number" variant="outlined" density="compact" @input="applyFilters"></q-text-field>
-          </q-col>
-          <q-col cols="12" md="3">
+          </div>
+          <div class="col col-12 col-md-3">
             <q-text-field v-model="filterImportedMerchant" label="Imported Merchant" variant="outlined" density="compact" @input="applyFilters"></q-text-field>
-          </q-col>
-          <q-col cols="12" md="5">
-            <q-row>
-              <q-col cols="12" md="6">
+          </div>
+          <div class="col col-12 col-md-5">
+            <div class="row">
+              <div class="col col-12 col-md-6">
                 <q-text-field
                   v-model="filterStartDate"
                   label="Start Date"
@@ -126,8 +126,8 @@
                   :clearable="true"
                   @input="applyFilters"
                 ></q-text-field>
-              </q-col>
-              <q-col cols="12" md="6">
+              </div>
+              <div class="col col-12 col-md-6">
                 <q-text-field
                   v-model="filterEndDate"
                   label="End Date"
@@ -137,24 +137,24 @@
                   :clearable="true"
                   @input="applyFilters"
                 ></q-text-field>
-              </q-col>
-            </q-row>
-          </q-col>
-        </q-row>
+              </div>
+            </div>
+          </div>
+        </div>
       </q-card-section>
     </q-card>
 
     <q-card v-if="!loading">
       <q-card-section>
-        <q-row :dense="true">
-          <q-col>Transaction Registry</q-col>
-          <q-col cols="auto">
+        <div class="row dense">
+          <div class="col">Transaction Registry</div>
+          <div class="col col-auto">
             <q-btn variant="plain" @click="downloadCsv" :disabled="displayTransactions.length === 0">
               <q-icon>download</q-icon>
               <q-tooltip activator="parent" location="top">Download CSV</q-tooltip>
             </q-btn>
-          </q-col>
-        </q-row>
+          </div>
+        </div>
       </q-card-section>
       <q-card-section>
         <q-btn
@@ -285,8 +285,8 @@
         <q-card-section class="pt-4">
           <q-form ref="batchMatchForm">
             <p>Assign an entity, merchant, and category for {{ selectedRows.length }} unmatched transaction{{ selectedRows.length > 1 ? "s" : "" }}.</p>
-            <q-row>
-              <q-col>
+            <div class="row">
+              <div class="col">
                 <q-select
                   v-model="selectedEntityId"
                   :items="entityOptions"
@@ -297,15 +297,15 @@
                   item-title="name"
                   item-value="id"
                 ></q-select>
-              </q-col>
-            </q-row>
-            <q-row>
-              <q-col>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col">
                 <q-text-field v-model="batchMerchant" label="Merchant" variant="outlined" density="compact" :rules="requiredField"></q-text-field>
-              </q-col>
-            </q-row>
-            <q-row>
-              <q-col>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col">
                 <q-combobox
                   v-model="batchCategory"
                   :items="categoryOptions"
@@ -314,8 +314,8 @@
                   density="compact"
                   :rules="requiredField"
                 ></q-combobox>
-              </q-col>
-            </q-row>
+              </div>
+            </div>
           </q-form>
         </q-card-section>
         <q-card-actions>
@@ -334,8 +334,8 @@
         </q-card-section>
         <q-card-section>
           <q-form ref="statementForm">
-            <q-row>
-              <q-col>
+            <div class="row">
+              <div class="col">
                 <q-text-field
                   v-model="newStatement.startDate"
                   label="Start Date"
@@ -344,8 +344,8 @@
                   density="compact"
                   :rules="requiredField"
                 ></q-text-field>
-              </q-col>
-              <q-col>
+              </div>
+              <div class="col">
                 <q-text-field
                   v-model.number="newStatement.startingBalance"
                   label="Starting Balance"
@@ -354,10 +354,10 @@
                   density="compact"
                   :rules="requiredField"
                 ></q-text-field>
-              </q-col>
-            </q-row>
-            <q-row>
-              <q-col>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col">
                 <q-text-field
                   v-model="newStatement.endDate"
                   label="End Date"
@@ -366,8 +366,8 @@
                   density="compact"
                   :rules="requiredField"
                 ></q-text-field>
-              </q-col>
-              <q-col>
+              </div>
+              <div class="col">
                 <q-text-field
                   v-model.number="newStatement.endingBalance"
                   label="Ending Balance"
@@ -376,8 +376,8 @@
                   density="compact"
                   :rules="requiredField"
                 ></q-text-field>
-              </q-col>
-            </q-row>
+              </div>
+            </div>
           </q-form>
         </q-card-section>
         <q-card-actions>
@@ -413,18 +413,18 @@
         </q-card-section>
         <q-card-section>
           <q-form ref="adjustmentForm" @submit.prevent="saveBalanceAdjustment">
-            <q-row>
-              <q-col>
+            <div class="row">
+              <div class="col">
                 <p>
                   The current account balance ({{ formatCurrency(currentBalance) }}) differs from the transaction registry balance ({{
                     formatCurrency(latestTransactionBalance)
                   }}).
                 </p>
                 <p>Enter the adjustment amount to reconcile the balance:</p>
-              </q-col>
-            </q-row>
-            <q-row>
-              <q-col>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col">
                 <q-text-field
                   v-model.number="adjustmentAmount"
                   label="Adjustment Amount"
@@ -435,10 +435,10 @@
                   hint="Positive to increase balance, negative to decrease"
                   persistent-hint
                 ></q-text-field>
-              </q-col>
-            </q-row>
-            <q-row>
-              <q-col>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col">
                 <q-text-field
                   v-model="adjustmentDate"
                   label="Adjustment Date"
@@ -447,8 +447,8 @@
                   density="compact"
                   :rules="requiredField"
                 ></q-text-field>
-              </q-col>
-            </q-row>
+              </div>
+            </div>
             <q-btn type="submit" color="primary" :loading="saving">Save Adjustment</q-btn>
             <q-btn color="grey" variant="text" @click="closeBalanceAdjustmentDialog" class="ml-2">Cancel</q-btn>
           </q-form>
