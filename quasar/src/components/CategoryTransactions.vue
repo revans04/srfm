@@ -12,9 +12,14 @@
         <h2 class="category-title">{{ category.name }}</h2>
       </q-col>
       <q-col cols="auto">
-        <q-fab :class="isMobile ? 'mr-2' : 'mr-2 mt-2'" icon variant="plain" :absolute="true" location="top" @click="$emit('close')">
-          <q-icon>mdi-close</q-icon>
-        </q-fab>
+        <q-fab
+          :class="isMobile ? 'mr-2' : 'mr-2 mt-2'"
+          icon="mdi-close"
+          variant="plain"
+          :absolute="true"
+          location="top"
+          @click="$emit('close')"
+        />
       </q-col>
     </q-row>
 
@@ -85,9 +90,15 @@
     </q-row>
 
     <!-- Floating Action Button -->
-    <q-fab icon :app="true" color="primary" @click="$emit('add-transaction')" location="bottom right" class="mr-2" :class="isMobile ? 'mb-14' : 'mb-2'">
-      <q-icon>mdi-plus</q-icon>
-    </q-fab>
+    <q-fab
+      icon="mdi-plus"
+      :app="true"
+      color="primary"
+      @click="$emit('add-transaction')"
+      location="bottom right"
+      class="mr-2"
+      :class="isMobile ? 'mb-14' : 'mb-2'"
+    />
 
     <!-- Edit Transaction Dialog -->
     <q-dialog v-model="showEditDialog" :max-width="!isMobile ? '600px' : ''" :fullscreen="isMobile">
@@ -164,30 +175,33 @@ const showDeleteDialog = ref(false);
 const transactionToDelete = ref<Transaction | null>(null);
 
 const spent = computed(() => {
-  let spent = 0;
+  let spentTotal = 0;
   if (props.transactions) {
-    for (let i = 0; i < props.transactions.length; i++) {
-      if (props.transactions[i].deleted) continue; // Skip deleted transactions
-      if (props.transactions[i].categories.filter((c) => c.category === props.category.name).length > 0) {
+    for (const transaction of props.transactions) {
+      if (transaction.deleted) continue; // Skip deleted transactions
+      const hasCategory = transaction.categories.some(
+        (c) => c.category === props.category.name
+      );
+      if (hasCategory) {
         if (isIncome.value) {
-          props.transactions[i].categories.forEach((c) => {
-            spent += c.amount;
+          transaction.categories.forEach((c) => {
+            spentTotal += c.amount;
           });
         } else {
-          if (props.transactions[i].isIncome) {
-            props.transactions[i].categories.forEach((c) => {
-              if (c.category === props.category.name) spent -= c.amount;
+          if (transaction.isIncome) {
+            transaction.categories.forEach((c) => {
+              if (c.category === props.category.name) spentTotal -= c.amount;
             });
           } else {
-            props.transactions[i].categories.forEach((c) => {
-              if (c.category === props.category.name) spent += c.amount;
+            transaction.categories.forEach((c) => {
+              if (c.category === props.category.name) spentTotal += c.amount;
             });
           }
         }
       }
     }
   }
-  return spent;
+  return spentTotal;
 });
 
 const carryOverAndTarget = computed(() => {
@@ -252,7 +266,10 @@ const getCategoryAmount = (transaction: Transaction) => {
 };
 
 const formatDate = (dateStr: string): string => {
-  const [year, month, day] = dateStr.split("-").map(Number);
+  const [yearStr, monthStr, dayStr] = dateStr.split("-");
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  const day = Number(dayStr);
   const date = new Date(year, month - 1, day);
   return `
     ${date.toLocaleDateString("en-US", { month: "short" })}
