@@ -80,7 +80,7 @@
               </template>
               <template v-slot:item.actions="{ item }">
                 <q-btn icon density="compact" variant="plain" color="error" @click="confirmDeleteSnapshot(item.id)">
-                  <q-icon>mdi-trash-can-outline</q-icon>
+                  <q-icon>delete_outline</q-icon>
                 </q-btn>
               </template>
             </q-data-table>

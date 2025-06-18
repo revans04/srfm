@@ -15,7 +15,7 @@
       </q-col>
       <q-col cols="auto" class="d-flex align-center">
         <q-btn color="primary" variant="plain" @click="refreshData" :loading="loading">
-          <q-icon start>mdi-refresh</q-icon>
+          <q-icon start>refresh</q-icon>
           Refresh
         </q-btn>
       </q-col>
@@ -91,7 +91,7 @@
         <q-row>
           <q-col cols="6" md="6">
             <q-text-field
-              append-inner-icon="mdi-magnify"
+              append-inner-icon="search"
               density="compact"
               label="Search"
               variant="outlined"
@@ -150,7 +150,7 @@
           <q-col>Transaction Registry</q-col>
           <q-col cols="auto">
             <q-btn variant="plain" @click="downloadCsv" :disabled="displayTransactions.length === 0">
-              <q-icon>mdi-download</q-icon>
+              <q-icon>download</q-icon>
               <q-tooltip activator="parent" location="top">Download CSV</q-tooltip>
             </q-btn>
           </q-col>
@@ -229,7 +229,7 @@
             @click.stop="confirmAction(item, 'Disconnect')"
             title="Disconnect Transaction"
           >
-            <q-icon>mdi-link-off</q-icon>
+            <q-icon>link_off</q-icon>
           </q-btn>
           <q-btn
             v-if="item.status != 'C' && item.id"
@@ -239,7 +239,7 @@
             @click.stop="confirmAction(item, 'Ignore')"
             title="Ignore Imported Transaction"
           >
-            <q-icon>mdi-eye-off-outline</q-icon>
+            <q-icon>visibility_off</q-icon>
           </q-btn>
           <q-btn
             v-if="item.status != 'C' && item.id"
@@ -249,7 +249,7 @@
             @click.stop="confirmAction(item, 'Delete')"
             title="Delete Imported Transaction"
           >
-            <q-icon>mdi-trash-can-outline</q-icon>
+            <q-icon>delete_outline</q-icon>
           </q-btn>
         </template>
       </q-data-table>

@@ -49,7 +49,7 @@
                 <div v-bind="props" class="month-selector no-wrap" :class="{ 'white--text': isMobile }">
                   <h1>
                     {{ formatMonth(currentMonth) }}
-                    <q-icon small>mdi-chevron-down</q-icon>
+                    <q-icon small>expand_more</q-icon>
                   </h1>
                 </div>
               </template>
@@ -57,7 +57,7 @@
                 <q-row no-gutters class="month-navigation">
                   <q-col cols="auto">
                     <q-btn icon small @click.stop="shiftMonths(-6)">
-                      <q-icon>mdi-chevron-left</q-icon>
+                      <q-icon>chevron_left</q-icon>
                     </q-btn>
                   </q-col>
                   <q-col class="text-center">
@@ -65,7 +65,7 @@
                   </q-col>
                   <q-col cols="auto">
                     <q-btn icon small @click.stop="shiftMonths(6)">
-                      <q-icon>mdi-chevron-right</q-icon>
+                      <q-icon>chevron_right</q-icon>
                     </q-btn>
                   </q-col>
                 </q-row>
@@ -89,10 +89,10 @@
                 <q-icon color="primary">edit</q-icon>
               </q-btn>
               <q-btn v-if="isEditing" icon class="mr-1" @click="isEditing = false" title="Cancel" variant="plain">
-                <q-icon>mdi-close</q-icon>
+                <q-icon>close</q-icon>
               </q-btn>
               <q-btn v-if="!isMobile && !isEditing" icon title="Delete Budget" variant="plain">
-                <q-icon color="error">mdi-trash-can-outline</q-icon>
+                <q-icon color="error">delete_outline</q-icon>
               </q-btn>
             </div>
           </div>
@@ -111,10 +111,10 @@
         </q-col>
         <q-col v-if="!isMobile || selectedCategory == null" cols="12" sm="6">
           <div class="my-2 bg-white rounded-10 pt-2 pr-3 pl-3 mb-4">
-            <q-text-field append-inner-icon="mdi-magnify" density="compact" label="Search" variant="plain" single-line v-model="search"></q-text-field>
+            <q-text-field append-inner-icon="search" density="compact" label="Search" variant="plain" single-line v-model="search"></q-text-field>
           </div>
         </q-col>
-        <q-fab v-if="isMobile && !selectedCategory" icon="mdi-plus" variant="plain" color="white" app location="top right" @click="addTransaction"></q-fab>
+        <q-fab v-if="isMobile && !selectedCategory" icon="add" variant="plain" color="white" app location="top right" @click="addTransaction"></q-fab>
       </q-row>
 
       <q-row>
@@ -140,7 +140,7 @@
                       density="compact"
                       class="mt-2"
                       @keyup.enter="addMerchant"
-                      append-inner-icon="mdi-plus"
+                      append-inner-icon="add"
                       @click:append-inner="addMerchant"
                     ></q-text-field>
                   </q-col>
@@ -168,7 +168,7 @@
                     <q-checkbox v-model="cat.isFund" label="Is Fund?" density="compact"></q-checkbox>
                   </q-col>
                   <q-col cols="12" sm="1" class="pa-2">
-                    <q-btn color="error" icon="mdi-close" @click="removeCategory(index)" variant="plain"></q-btn>
+                    <q-btn color="error" icon="close" @click="removeCategory(index)" variant="plain"></q-btn>
                   </q-col>
                 </q-row>
 
@@ -231,7 +231,7 @@
                         @touchstart="startTouch(item, 'name')"
                         @touchend="endTouch"
                       >
-                        <q-icon v-if="item.isFund" small class="mr-1" color="primary">mdi-piggy-bank-outline</q-icon>
+                        <q-icon v-if="item.isFund" small class="mr-1" color="primary">savings</q-icon>
                         {{ item.name }}
                       </q-col>
                       <q-col v-else>

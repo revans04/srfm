@@ -11,8 +11,8 @@
           :complete="isStepComplete(step.value)"
           :title="step.title"
           :icon="getStepIcon(step.value)"
-          edit-icon="mdi-pencil"
-          error-icon="mdi-alert-circle"
+          edit-icon="edit"
+          error-icon="error"
         >
         </q-stepper-item>
       </template>
@@ -43,7 +43,7 @@
                     <q-row class="full-width align-center">
                       <q-col class="text-h6">Saved Entities</q-col>
                       <q-col cols="auto" class="text-right">
-                        <q-btn density="compact" variant="plain" icon="mdi-plus" color="success" @click="initNewEntity" aria-label="Add New Entity"></q-btn>
+                        <q-btn density="compact" variant="plain" icon="add" color="success" @click="initNewEntity" aria-label="Add New Entity"></q-btn>
                       </q-col>
                     </q-row>
                     <q-item
@@ -251,15 +251,15 @@ const isStepEditable = (stepValue: string): boolean => {
 // Step Icons
 function getStepIcon(stepValue: string): string {
   const icons = {
-    family: "mdi-account-group",
-    entities: "mdi-domain",
-    "account-bank": "mdi-bank",
-    "account-creditcard": "mdi-credit-card",
-    "account-investment": "mdi-chart-line",
-    "account-property": "mdi-home",
-    "account-loan": "mdi-handshake",
+    family: "group",
+    entities: "domain",
+    "account-bank": "account_balance",
+    "account-creditcard": "credit_card",
+    "account-investment": "show_chart",
+    "account-property": "home",
+    "account-loan": "handshake",
   };
-  return icons[stepValue] || "mdi-circle";
+  return icons[stepValue] || "circle";
 }
 
 watch(currentStepValue, (newValue) => {

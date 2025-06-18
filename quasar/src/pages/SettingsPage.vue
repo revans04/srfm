@@ -55,12 +55,12 @@
                   </q-col>
                   <q-col cols="auto">
                     <q-btn variant="plain" color="primary" icon @click="openEditEntityDialog(entity)">
-                      <q-icon>mdi-pencil</q-icon>
+                      <q-icon>edit</q-icon>
                     </q-btn>
                   </q-col>
                   <q-col cols="auto">
                     <q-btn variant="plain" icon @click="confirmDeleteEntity(entity)" color="error">
-                      <q-icon>mdi-trash-can-outline</q-icon>
+                      <q-icon>delete_outline</q-icon>
                     </q-btn>
                   </q-col>
                 </q-row>
@@ -94,7 +94,7 @@
                       @click.stop="confirmDeleteTransactionDoc(item)"
                       title="Delete Transaction Document"
                     >
-                      <q-icon>mdi-trash-can-outline</q-icon>
+                      <q-icon>delete_outline</q-icon>
                     </q-btn>
                   </template>
                 </q-data-table>
@@ -120,7 +120,7 @@
                   </template>
                   <template v-slot:item.actions="{ item }">
                     <q-btn icon density="compact" variant="plain" color="error" @click.stop="confirmDeleteBudget(item)" title="Delete Budget">
-                      <q-icon>mdi-trash-can-outline</q-icon>
+                      <q-icon>delete_outline</q-icon>
                     </q-btn>
                   </template>
                 </q-data-table>

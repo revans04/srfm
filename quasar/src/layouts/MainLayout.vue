@@ -104,13 +104,13 @@ const userEmail = computed(() => user.value?.email ?? 'Guest');
 const appVersion = version;
 
 const navItems = [
-  { title: 'Budget', path: '/', icon: 'mdi-turtle', desktop: true, mobile: true },
-  { title: 'Transactions', path: '/transactions', icon: 'mdi-format-list-bulleted', desktop: true, mobile: true },
-  { title: 'Accounts', path: '/accounts', icon: 'mdi-bank-outline', desktop: true, mobile: true },
-  { title: 'Reports', path: '/reports', icon: 'mdi-trending-up', desktop: true, mobile: false },
-  { title: 'Data Mgmt', path: '/data', icon: 'mdi-database-export-outline', desktop: true, mobile: false },
-  { title: 'Settings', path: '/settings', icon: 'mdi-account-group-outline', desktop: true, mobile: true },
-  { title: 'Logout', path: '', icon: 'mdi-logout', desktop: false, mobile: true },
+  { title: 'Budget', path: '/', icon: 'pie_chart', desktop: true, mobile: true },
+  { title: 'Transactions', path: '/transactions', icon: 'list', desktop: true, mobile: true },
+  { title: 'Accounts', path: '/accounts', icon: 'account_balance', desktop: true, mobile: true },
+  { title: 'Reports', path: '/reports', icon: 'trending_up', desktop: true, mobile: false },
+  { title: 'Data Mgmt', path: '/data', icon: 'storage', desktop: true, mobile: false },
+  { title: 'Settings', path: '/settings', icon: 'group', desktop: true, mobile: true },
+  { title: 'Logout', path: '', icon: 'logout', desktop: false, mobile: true },
 ];
 
 // Functions
