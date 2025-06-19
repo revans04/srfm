@@ -703,7 +703,11 @@ async function updateReportData() {
     const categoryToGroup = new Map<string, string>();
     budgets.forEach((budget) => {
       budget.categories.forEach((cat) => {
-        if (cat.group && cat.group.toLowerCase() !== "income") {
+        if (
+          cat.group &&
+          cat.group.toLowerCase() !== "income" &&
+          cat.name.toLowerCase() !== "income"
+        ) {
           categoryToGroup.set(cat.name, cat.group);
         }
       });
@@ -725,8 +729,13 @@ async function updateReportData() {
         if (!transaction.deleted) {
           transaction.categories.forEach((cat) => {
             const groupName = categoryToGroup.get(cat.category);
-            if (groupName && groupName.toLowerCase() !== "income") {
-              actualTotal += cat.amount || 0;
+            if (
+              groupName &&
+              groupName.toLowerCase() !== "income" &&
+              cat.category.toLowerCase() !== "income"
+            ) {
+              const sign = transaction.isIncome ? 1 : -1;
+              actualTotal += (cat.amount || 0) * sign;
             }
           });
         }
@@ -751,23 +760,28 @@ async function updateReportData() {
 
     budget.transactions.forEach((transaction) => {
       if (!transaction.deleted) {
-        transaction.categories.forEach((cat) => {
-          const groupName = categoryToGroup.get(cat.category);
-          if (groupName && groupName.toLowerCase() !== "income") {
-            const group = groupMap.get(groupName) || { planned: 0, actual: 0 };
-            group.actual += cat.amount || 0;
-            groupMap.set(groupName, group);
-            const arr = groupTransactions.value[groupName] || [];
-            arr.push({
-              id: transaction.id,
-              date: transaction.date,
-              merchant: transaction.merchant,
-              category: cat.category,
-              amount: cat.amount,
-            });
-            groupTransactions.value[groupName] = arr;
-          }
-        });
+          transaction.categories.forEach((cat) => {
+            const groupName = categoryToGroup.get(cat.category);
+            if (
+              groupName &&
+              groupName.toLowerCase() !== "income" &&
+              cat.category.toLowerCase() !== "income"
+            ) {
+              const sign = transaction.isIncome ? 1 : -1;
+              const group = groupMap.get(groupName) || { planned: 0, actual: 0 };
+              group.actual += (cat.amount || 0) * sign;
+              groupMap.set(groupName, group);
+              const arr = groupTransactions.value[groupName] || [];
+              arr.push({
+                id: transaction.id,
+                date: transaction.date,
+                merchant: transaction.merchant,
+                category: cat.category,
+                amount: (cat.amount || 0) * sign,
+              });
+              groupTransactions.value[groupName] = arr;
+            }
+          });
       }
     });
   });
