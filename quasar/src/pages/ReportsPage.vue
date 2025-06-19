@@ -32,6 +32,33 @@
           </div>
         </div>
 
+        <div class="row mt-4">
+          <div class="col col-12 col-md-6">
+            <q-select
+              v-model="excludedGroups"
+              :items="groupOptions"
+              label="Exclude Groups"
+              multiple
+              variant="outlined"
+              chips
+              closable-chips
+              @update:modelValue="updateReportData"
+            ></q-select>
+          </div>
+          <div class="col col-12 col-md-6">
+            <q-select
+              v-model="excludedCategories"
+              :items="categoryOptions"
+              label="Exclude Categories"
+              multiple
+              variant="outlined"
+              chips
+              closable-chips
+              @update:modelValue="updateReportData"
+            ></q-select>
+          </div>
+        </div>
+
         <div class="row mt-4" >
           <div class="col col-12 col-md-6">
             <q-card>
@@ -212,6 +239,10 @@ const budgetStore = useBudgetStore();
 const tab = ref("monthly");
 const budgetOptions = ref<Budget[]>([]);
 const selectedBudgets = ref<string[]>([]);
+const excludedGroups = ref<string[]>([]);
+const excludedCategories = ref<string[]>([]);
+const groupOptions = ref<string[]>([]);
+const categoryOptions = ref<string[]>([]);
 const budgetGroups = ref<{ name: string; planned: number; actual: number }[]>([]);
 const monthlyTotals = ref<{ month: string; planned: number; actual: number }[]>([]);
 const snapshots = ref<Snapshot[]>([]);
@@ -674,6 +705,8 @@ async function updateReportData() {
     return;
   }
 
+  groupTransactions.value = {};
+
   try {
     const budgets: Budget[] = await Promise.all(
       selectedBudgets.value.map(async (budgetId) => {
@@ -689,17 +722,21 @@ async function updateReportData() {
     ).then((results) => results.filter((b) => b !== null) as Budget[]);
 
     const categoryToGroup = new Map<string, string>();
+    const groupSet = new Set<string>();
+    const categorySet = new Set<string>();
     budgets.forEach((budget) => {
       budget.categories.forEach((cat) => {
-        if (
-          cat.group &&
-          cat.group.toLowerCase() !== "income" &&
-          cat.name.toLowerCase() !== "income"
-        ) {
-          categoryToGroup.set(cat.name, cat.group);
+        if (cat.group && cat.group.toLowerCase() !== "income") {
+          groupSet.add(cat.group);
+          if (cat.name.toLowerCase() !== "income") {
+            categorySet.add(cat.name);
+            categoryToGroup.set(cat.name, cat.group);
+          }
         }
       });
     });
+    groupOptions.value = Array.from(groupSet).sort();
+    categoryOptions.value = Array.from(categorySet).sort();
 
     const monthlyArray: { month: string; planned: number; actual: number }[] = [];
 
@@ -708,7 +745,12 @@ async function updateReportData() {
       let actualTotal = 0;
 
       budget.categories.forEach((category) => {
-        if (category.group && category.group.toLowerCase() !== "income") {
+        if (
+          category.group &&
+          category.group.toLowerCase() !== "income" &&
+          !excludedGroups.value.includes(category.group) &&
+          !excludedCategories.value.includes(category.name)
+        ) {
           plannedTotal += category.target || 0;
         }
       });
@@ -720,7 +762,9 @@ async function updateReportData() {
             if (
               groupName &&
               groupName.toLowerCase() !== "income" &&
-              cat.category.toLowerCase() !== "income"
+              cat.category.toLowerCase() !== "income" &&
+              !excludedGroups.value.includes(groupName) &&
+              !excludedCategories.value.includes(cat.category)
             ) {
               const sign = transaction.isIncome ? 1 : -1;
               actualTotal += (cat.amount || 0) * sign;
@@ -738,7 +782,12 @@ async function updateReportData() {
     const groupMap = new Map<string, { planned: number; actual: number }>();
     budgets.forEach((budget) => {
       budget.categories.forEach((category) => {
-        if (category.group && category.group.toLowerCase() !== "income") {
+        if (
+          category.group &&
+          category.group.toLowerCase() !== "income" &&
+          !excludedGroups.value.includes(category.group) &&
+          !excludedCategories.value.includes(category.name)
+        ) {
           const groupName = category.group;
           const group = groupMap.get(groupName) || { planned: 0, actual: 0 };
           group.planned += category.target || 0;
@@ -753,7 +802,9 @@ async function updateReportData() {
             if (
               groupName &&
               groupName.toLowerCase() !== "income" &&
-              cat.category.toLowerCase() !== "income"
+              cat.category.toLowerCase() !== "income" &&
+              !excludedGroups.value.includes(groupName) &&
+              !excludedCategories.value.includes(cat.category)
             ) {
               const sign = transaction.isIncome ? 1 : -1;
               const group = groupMap.get(groupName) || { planned: 0, actual: 0 };
