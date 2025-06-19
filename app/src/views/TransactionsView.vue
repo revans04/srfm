@@ -242,9 +242,7 @@
                         {{ formatDateLong(transaction.date) }}
                       </v-col>
                       <v-col class="text-right">
-                        <v-btn v-if="transaction.status !== 'C'" icon small @click.stop="selectBudgetTransactionToMatch(transaction)" title="Match Transaction">
-                          <v-icon color="primary">mdi-link</v-icon>
-                        </v-btn>
+                        <v-icon v-if="transaction.status !== 'C'" small @click.stop="selectBudgetTransactionToMatch(transaction)" title="Match Transaction" color="primary">mdi-link</v-icon>
                         <v-icon small @click.stop="deleteTransaction(transaction.id)" title="Delete Entry" color="error">mdi-trash-can-outline</v-icon>
                       </v-col>
                     </v-row>
