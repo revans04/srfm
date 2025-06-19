@@ -3,10 +3,10 @@
     <v-menu v-if="showMenu" v-model="menuOpen" offset-y>
       <template #activator="{ props }">
         <div v-bind="props" class="entity-selector no-wrap">
-          <h3>
+          <h4 :class="isMobile ? 'text-white' : ''">
             {{ currentEntityName }}
             <v-icon small>mdi-chevron-down</v-icon>
-          </h3>
+          </h4>
         </div>
       </template>
       <v-list class="entity-menu">
@@ -16,7 +16,7 @@
       </v-list>
     </v-menu>
     <div v-else class="entity-selector no-wrap">
-      <h3>{{ currentEntityName }}</h3>
+      <h4>{{ currentEntityName }}</h4>
     </div>
   </div>
 </template>
@@ -27,6 +27,7 @@ import { useFamilyStore } from '../store/family';
 
 const emit = defineEmits<{ (e: 'change', value: string): void }>();
 
+const isMobile = computed(() => window.innerWidth < 960);
 const familyStore = useFamilyStore();
 
 const menuOpen = ref(false);

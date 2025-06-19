@@ -31,7 +31,7 @@
             </v-row>
           </v-card-title>
           <v-card-text>
-            <v-row>
+            <v-row no-gutters>
               <v-col cols="12" md="4">
                 <EntitySelector @change="loadBudgets" />
               </v-col>
@@ -61,13 +61,13 @@
                 ></v-select>
               </v-col>
             </v-row>
-            <v-row v-if="budgetOptions.length === 0">
+            <v-row v-if="budgetOptions.length === 0" no-gutters>
               <v-col cols="12">
                 <v-alert type="info" class="mt-4"> No budgets available. Create a budget in the Dashboard to start tracking transactions. </v-alert>
               </v-col>
             </v-row>
 
-            <v-row>
+            <v-row no-gutters>
               <v-col cols="12" md="2">
                 <v-text-field v-model="entriesFilterMerchant" label="Merchant" variant="outlined" density="compact" @input="applyFilters"></v-text-field>
               </v-col>

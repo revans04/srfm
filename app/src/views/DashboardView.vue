@@ -86,10 +86,8 @@
             </div>
           </div>
           <div
-            class="pr-2 py-0"
+            class="text-left"
             :class="{
-              'text-center': isMobile,
-              'text-left': !isMobile,
               'text-white': isMobile,
               'text-red': !isMobile && remainingToBudget < 0,
             }"
