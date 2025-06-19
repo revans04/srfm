@@ -1,7 +1,7 @@
 <!-- src/views/TransactionsView.vue -->
 <template>
   <v-container :class="isMobile ? 'ps-0' : ''">
-    <h1>{{ isMobile ? 'Transactions' : 'Transaction and Registry'}}</h1>
+    <h1>{{ isMobile ? "Transactions" : "Transaction and Registry" }}</h1>
 
     <!-- Loading Overlay -->
     <v-overlay :model-value="loading" class="align-center justify-center" scrim="#00000080">
@@ -123,7 +123,13 @@
                   <v-expansion-panel-text>
                     <v-row no-gutters>
                       <v-col cols="12" md="2">
-                        <v-text-field v-model="entriesFilterMerchant" label="Merchant" variant="outlined" density="compact" @input="applyFilters"></v-text-field>
+                        <v-text-field
+                          v-model="entriesFilterMerchant"
+                          label="Merchant"
+                          variant="outlined"
+                          density="compact"
+                          @input="applyFilters"
+                        ></v-text-field>
                       </v-col>
                       <v-col cols="12" md="2">
                         <v-text-field
@@ -242,7 +248,14 @@
                         {{ formatDateLong(transaction.date) }}
                       </v-col>
                       <v-col class="text-right">
-                        <v-icon v-if="transaction.status !== 'C'" small @click.stop="selectBudgetTransactionToMatch(transaction)" title="Match Transaction" color="primary">mdi-link</v-icon>
+                        <v-icon
+                          v-if="transaction.status !== 'C'"
+                          small
+                          @click.stop="selectBudgetTransactionToMatch(transaction)"
+                          title="Match Transaction"
+                          color="primary"
+                          >mdi-link</v-icon
+                        >
                         <v-icon small @click.stop="deleteTransaction(transaction.id)" title="Delete Entry" color="error">mdi-trash-can-outline</v-icon>
                       </v-col>
                     </v-row>
@@ -449,7 +462,7 @@ const expenseTransactions = computed(() => {
     temp = temp.filter(
       (t) =>
         t.merchant.toLowerCase().includes(entriesFilterMerchant.value.toLowerCase()) ||
-        (t.importedMerchant && t.importedMerchant.toLowerCase().includes(entriesFilterMerchant.value.toLowerCase()))
+        (t.importedMerchant && t.importedMerchant.toLowerCase().includes(entriesFilterMerchant.value.toLowerCase())),
     );
   }
   if (entriesFilterAmount.value) {
@@ -470,11 +483,24 @@ const expenseTransactions = computed(() => {
   }
 
   if (entriesSearch.value && entriesSearch.value !== "") {
-    temp = temp.filter(
-      (t) =>
-        t.merchant.toLowerCase().includes(entriesSearch.value.toLowerCase()) ||
-        t.amount.toString().toLowerCase().includes(entriesSearch.value.toLowerCase())
-    );
+    const searchLower = entriesSearch.value.toLowerCase();
+    temp = temp.filter((t) => {
+      if (t.merchant.toLowerCase().includes(searchLower)) return true;
+      if (t.amount.toString().toLowerCase().includes(searchLower)) return true;
+      if (t.categories && t.categories.some((c) => c.category.toLowerCase().includes(searchLower))) {
+        return true;
+      }
+      const budget = budgetStore.getBudget(t.budgetId || "");
+      if (budget) {
+        for (const cat of t.categories || []) {
+          const matchCat = budget.categories.find((bc) => bc.name === cat.category);
+          if (matchCat && matchCat.group && matchCat.group.toLowerCase().includes(searchLower)) {
+            return true;
+          }
+        }
+      }
+      return false;
+    });
   }
 
   if (entriesFilterDuplicates.value) {
@@ -750,7 +776,7 @@ function openMatchBankTransactionsDialog() {
   }
 
   remainingImportedTransactions.value = unmatchedImportedTransactions.value.filter(
-    (importedTx) => !smartMatches.value.some((match) => match.importedTransaction.id === importedTx.id)
+    (importedTx) => !smartMatches.value.some((match) => match.importedTransaction.id === importedTx.id),
   );
 
   if (remainingImportedTransactions.value.length > 0) {
