@@ -67,7 +67,7 @@
       </v-card-text>
       <v-card-actions>
         <v-spacer></v-spacer>
-        <v-btn color="error" @click="localShowDialog = false">Cancel</v-btn>
+        <v-btn color="error" @click="cancel">Cancel</v-btn>
         <v-btn color="primary" @click="matchTransaction" :disabled="!selectedImportedTransaction.length"> Match </v-btn>
       </v-card-actions>
     </v-card>
@@ -169,6 +169,11 @@ watch(
 
 function handleDialogClose(value: boolean) {
   emit("update:showDialog", value);
+}
+
+function cancel() {
+  localShowDialog.value = false;
+  handleDialogClose(false);
 }
 
 function selectImportedTransaction(event: any, item: any) {

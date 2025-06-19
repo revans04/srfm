@@ -67,7 +67,7 @@
       </q-card-section>
       <q-card-actions>
         <q-space></q-space>
-        <q-btn color="error" @click="localShowDialog = false">Cancel</q-btn>
+        <q-btn color="error" @click="cancel">Cancel</q-btn>
         <q-btn color="primary" @click="matchTransaction" :disabled="!selectedImportedTransaction.length"> Match </q-btn>
       </q-card-actions>
     </q-card>
@@ -171,6 +171,11 @@ watch(
 
 function handleDialogClose(value: boolean) {
   emit("update:showDialog", value);
+}
+
+function cancel() {
+  localShowDialog.value = false;
+  handleDialogClose(false);
 }
 
 function selectImportedTransaction(event: any, item: any) {
