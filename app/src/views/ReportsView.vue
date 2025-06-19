@@ -734,7 +734,7 @@ async function updateReportData() {
               groupName.toLowerCase() !== "income" &&
               cat.category.toLowerCase() !== "income"
             ) {
-              const sign = transaction.isIncome ? 1 : -1;
+              const sign = transaction.isIncome ? -1 : 1;
               actualTotal += (cat.amount || 0) * sign;
             }
           });
@@ -767,7 +767,7 @@ async function updateReportData() {
               groupName.toLowerCase() !== "income" &&
               cat.category.toLowerCase() !== "income"
             ) {
-              const sign = transaction.isIncome ? 1 : -1;
+              const sign = transaction.isIncome ? -1 : 1;
               const group = groupMap.get(groupName) || { planned: 0, actual: 0 };
               group.actual += (cat.amount || 0) * sign;
               groupMap.set(groupName, group);
