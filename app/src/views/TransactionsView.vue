@@ -471,7 +471,9 @@ const expenseTransactions = computed(() => {
 
   if (entriesSearch.value && entriesSearch.value !== "") {
     temp = temp.filter(
-      (t) => t.merchant.toLowerCase().includes(entriesSearch.value.toLowerCase()) || t.amount.toString().toLowerCase().includes(search.value.toLowerCase())
+      (t) =>
+        t.merchant.toLowerCase().includes(entriesSearch.value.toLowerCase()) ||
+        t.amount.toString().toLowerCase().includes(entriesSearch.value.toLowerCase())
     );
   }
 
