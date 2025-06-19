@@ -30,19 +30,8 @@
     <div v-else>
       <v-row :class="isMobile ? '' : 'pe-16'" no-gutters>
         <v-col :cols="isMobile ? '8' : '12'">
-          <!-- Entity Dropdown -->
-          <v-select
-            v-model="familyStore.selectedEntityId"
-            :items="entityOptions"
-            item-title="name"
-            item-value="id"
-            label="Select Entity"
-            variant="outlined"
-            density="compact"
-            clearable
-            @update:modelValue="loadBudgets"
-            class="entity-select"
-          ></v-select>
+        <!-- Entity Selector -->
+        <EntitySelector @change="loadBudgets" class="mb-2" />
           <div class="d-flex align-center">
             <v-menu offset-y :close-on-content-click="false" v-model="menuOpen">
               <template v-slot:activator="{ props }">
@@ -370,6 +359,7 @@ import { dataAccess } from "../dataAccess";
 import CurrencyInput from "../components/CurrencyInput.vue";
 import CategoryTransactions from "../components/CategoryTransactions.vue";
 import TransactionForm from "../components/TransactionForm.vue";
+import EntitySelector from "../components/EntitySelector.vue";
 import { Transaction, Budget, IncomeTarget, BudgetCategoryTrx, BudgetCategory, Entity } from "../types";
 import version from "../version";
 import { toDollars, toCents, formatCurrency, adjustTransactionDate, todayISO, currentMonthISO } from "../utils/helpers";
@@ -454,14 +444,6 @@ const inlineEdit = ref({
 const isMobile = computed(() => window.innerWidth < 960);
 
 // Entity-related computed properties
-const entityOptions = computed(() => {
-  const options = (familyStore.family?.entities || []).map((entity) => ({
-    id: entity.id,
-    name: entity.name,
-  }));
-  return [{ id: "", name: "All Entities" }, ...options];
-});
-
 const selectedEntity = computed(() => {
   return familyStore.family?.entities?.find((e) => e.id === familyStore.selectedEntityId);
 });
@@ -1392,10 +1374,17 @@ h1 {
   font-size: 1.3em;
   text-wrap: nowrap;
 }
-.entity-select .v-field__input {
-  font-size: 1.6rem;
+.entity-selector {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  font-size: 1.5rem;
   font-weight: bold;
   color: rgb(var(--v-theme-primary));
+}
+.entity-menu {
+  padding: 8px;
+  min-width: 200px;
 }
 .search-container {
   max-width: 400px;
