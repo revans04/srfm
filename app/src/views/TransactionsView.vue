@@ -1,7 +1,7 @@
 <!-- src/views/TransactionsView.vue -->
 <template>
   <v-container :class="isMobile ? 'ps-0' : ''">
-    <h1>Transaction and Registry</h1>
+    <h1>{{ isMobile ? 'Transactions' : 'Transaction and Registry'}}</h1>
 
     <!-- Loading Overlay -->
     <v-overlay :model-value="loading" class="align-center justify-center" scrim="#00000080">
@@ -9,17 +9,17 @@
     </v-overlay>
 
     <!-- Tabs -->
-    <v-tabs v-model="tab" color="primary">
+    <v-tabs v-model="tab" :color="isMobile ? 'white' : 'primary'">
       <v-tab value="entries">Budget Entries</v-tab>
       <v-tab value="register">Transaction Register</v-tab>
     </v-tabs>
 
     <v-window v-model="tab">
       <!-- Budget Entries -->
-      <v-window-item value="entries">
+      <v-window-item class="bg-white" value="entries">
         <!-- Add Transaction Button -->
-        <v-btn color="primary" variant="plain" class="mb-4 mr-2" @click="showTransactionDialog = true"> Add Transaction </v-btn>
-        <v-btn color="primary" variant="plain" class="mb-4 mr-2" @click="openMatchBankTransactionsDialog"> Match Bank Transactions </v-btn>
+        <v-btn color="primary" variant="plain" :class="isMobile ? '' : 'mb-4 mr-2'" @click="showTransactionDialog = true"> Add Transaction </v-btn>
+        <v-btn color="primary" variant="plain" :class="isMobile ? '' : 'mb-4 mr-2'" @click="openMatchBankTransactionsDialog"> Match Bank Transactions </v-btn>
 
         <v-card class="mb-4">
           <v-card-title>
