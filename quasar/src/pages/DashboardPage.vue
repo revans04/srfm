@@ -111,7 +111,18 @@
         </div>
         <div v-if="!isMobile || selectedCategory == null" class="col-12 sm:col-6">
           <div class="my-2 bg-white rounded-10 pt-2 pr-3 pl-3 mb-4">
-            <q-input append-inner-icon="search" dense label="Search" variant="plain" single-line v-model="search"></q-input>
+            <q-input
+              append-inner-icon="search"
+              dense
+              label="Search"
+              variant="plain"
+              single-line
+              v-model="search"
+              clearable
+              ref="searchInput"
+              @keyup.enter="blurSearchInput"
+              @clear="clearSearch"
+            ></q-input>
           </div>
         </div>
         <q-fab v-if="isMobile && !selectedCategory" icon="add" variant="plain" color="white" app location="top right" @click="addTransaction"></q-fab>
@@ -427,6 +438,7 @@ const budgetId = computed(() => {
 const userId = computed(() => auth.user?.uid || '');
 const selectedCategory = ref<BudgetCategory | null>(null);
 const newMerchantName = ref('');
+const searchInput = ref<HTMLInputElement | null>(null);
 const search = ref('');
 const debouncedSearch = ref('');
 const monthOffset = ref(0);
@@ -632,6 +644,17 @@ const updateSearch = debounce((value: string) => {
 watch(search, (newValue) => {
   updateSearch(newValue);
 });
+
+function clearSearch() {
+  search.value = '';
+}
+
+function blurSearchInput() {
+  if (isMobile.value && searchInput.value) {
+    const el = (searchInput.value as any).$el?.querySelector('input') as HTMLInputElement | undefined;
+    el?.blur();
+  }
+}
 
 watch(selectedCategory, (newVal) => {
   if (newVal && isMobile.value) {

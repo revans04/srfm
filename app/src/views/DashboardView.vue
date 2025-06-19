@@ -111,7 +111,18 @@
         </v-col>
         <v-col v-if="!isMobile || selectedCategory == null" cols="12" sm="6">
           <div class="my-2 bg-white rounded-10 pt-2 pr-3 pl-3 mb-4">
-            <v-text-field append-inner-icon="mdi-magnify" density="compact" label="Search" variant="plain" single-line v-model="search"></v-text-field>
+            <v-text-field
+              append-inner-icon="mdi-magnify"
+              density="compact"
+              label="Search"
+              variant="plain"
+              single-line
+              v-model="search"
+              clearable
+              ref="searchInput"
+              @keyup.enter="blurSearchInput"
+              @click:clear="clearSearch"
+            ></v-text-field>
           </div>
         </v-col>
         <v-fab v-if="isMobile && !selectedCategory" icon="mdi-plus" variant="elevated" color="white" app location="top right" @click="addTransaction"></v-fab>
@@ -424,6 +435,7 @@ const budgetId = computed(() => {
 const userId = computed(() => auth.currentUser?.uid || "");
 const selectedCategory = ref<BudgetCategory | null>(null);
 const newMerchantName = ref("");
+const searchInput = ref<HTMLInputElement | null>(null);
 const search = ref("");
 const debouncedSearch = ref("");
 const monthOffset = ref(0);
@@ -630,6 +642,17 @@ const updateSearch = debounce((value: string) => {
 watch(search, (newValue) => {
   updateSearch(newValue);
 });
+
+function clearSearch() {
+  search.value = '';
+}
+
+function blurSearchInput() {
+  if (isMobile.value && searchInput.value) {
+    const el = (searchInput.value as any).$el?.querySelector('input') as HTMLInputElement | undefined;
+    el?.blur();
+  }
+}
 
 watch(selectedCategory, (newVal) => {
   if (newVal && isMobile.value) {
