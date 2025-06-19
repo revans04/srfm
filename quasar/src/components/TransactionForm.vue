@@ -1,14 +1,11 @@
 <!-- src/components/TransactionForm.vue -->
 <template>
   <div v-if="isInitialized && locTrnsx?.categories">
-    <div>
       <div class="row pa-0" >
         <div class="col col-6"> <q-btn variant="text" type="submit" color="primary" :loading="loading" @click="save()">Save</q-btn></div>
         <div class="col text-right col-6" >
-          <q-btn v-if="showCancel" @click="emit('cancel')" variant="text" type="submit" color="primary" :loading="loading">Cancel</q-btn></q-col
-        >
+          <q-btn v-if="showCancel" @click="emit('cancel')" variant="text" type="submit" color="primary" :loading="loading">Cancel</q-btn></div>
       </div>
-    </div>
     <q-form ref="form" @submit.prevent="save">
       <div class="row form-row" >
         <div class="col form-col-label" >Date</div>
@@ -64,10 +61,10 @@
                 required
               ></q-combobox>
             </div>
-            <div class="col" v-if="locTrnsx.categories.length > 1" no-gutters cols="4" class="form-col">
+            <div class="col form-col" v-if="locTrnsx.categories.length > 1" no-gutters cols="4">
               <Currency-Input v-model="split.amount" class="text-right" variant="plain"></Currency-Input>
             </div>
-            <div class="col" v-if="locTrnsx.categories.length > 1" no-gutters cols="auto" class="form-col"> </div>
+            <div class="col form-col" v-if="locTrnsx.categories.length > 1" no-gutters cols="auto"> </div>
           </div>
         </div>
         <div v-if="locTrnsx.categories.length > 1 && remainingSplit !== 0">

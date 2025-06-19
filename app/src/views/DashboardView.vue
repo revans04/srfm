@@ -28,8 +28,8 @@
 
     <!-- Main Content (hidden during loading) -->
     <div v-else>
-      <v-row :class="isMobile ? 'pa-2' : 'pe-16'">
-        <v-col cols="12">
+      <v-row :class="isMobile ? '' : 'pe-16'" no-gutters>
+        <v-col :cols="isMobile ? '8' : '12'">
           <!-- Entity Dropdown -->
           <v-select
             v-model="familyStore.selectedEntityId"
@@ -41,7 +41,7 @@
             density="compact"
             clearable
             @update:modelValue="loadBudgets"
-            class="entity-select mb-2"
+            class="entity-select"
           ></v-select>
           <div class="d-flex align-center">
             <v-menu offset-y :close-on-content-click="false" v-model="menuOpen">
@@ -114,7 +114,7 @@
             <v-text-field append-inner-icon="mdi-magnify" density="compact" label="Search" variant="plain" single-line v-model="search"></v-text-field>
           </div>
         </v-col>
-        <v-fab v-if="isMobile && !selectedCategory" icon="mdi-plus" variant="plain" color="white" app location="top right" @click="addTransaction"></v-fab>
+        <v-fab v-if="isMobile && !selectedCategory" icon="mdi-plus" variant="elevated" color="white" app location="top right" @click="addTransaction"></v-fab>
       </v-row>
 
       <v-row>
@@ -468,6 +468,7 @@ const remainingToBudget = computed(() => {
 const formatMonth = (month: string) => {
   const [year, monthNum] = month.split("-");
   const date = new Date(parseInt(year), parseInt(monthNum) - 1);
+  if (isMobile.value) return date.toLocaleString("en-US", { month: "short", year: "numeric" });
   return date.toLocaleString("en-US", { month: "long", year: "numeric" });
 };
 
