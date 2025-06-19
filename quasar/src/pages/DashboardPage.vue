@@ -31,18 +31,7 @@
       <div class="row" :class="isMobile ? 'pa-2' : 'pe-16'">
         <div class="col-12">
           <!-- Entity Dropdown -->
-          <q-select
-            v-model="familyStore.selectedEntityId"
-            :items="entityOptions"
-            item-title="name"
-            item-value="id"
-            label="Select Entity"
-            variant="outlined"
-            density="compact"
-            clearable
-            @update:modelValue="loadBudgets"
-            class="entity-select mb-2"
-          ></q-select>
+          <EntitySelector @change="loadBudgets" class="mb-2" />
           <div class="d-flex align-center">
             <q-menu offset-y :close-on-content-click="false" v-model="menuOpen">
               <template v-slot:activator="{ props }">
@@ -369,6 +358,7 @@ import { dataAccess } from '../dataAccess';
 import CurrencyInput from '../components/CurrencyInput.vue';
 import CategoryTransactions from '../components/CategoryTransactions.vue';
 import TransactionForm from '../components/TransactionForm.vue';
+import EntitySelector from '../components/EntitySelector.vue';
 import type { Transaction, Budget, IncomeTarget, BudgetCategoryTrx, BudgetCategory } from '../types';
 import { Entity } from '../types';
 import version from '../version';
@@ -1398,10 +1388,17 @@ h1 {
   font-size: 1.3em;
   text-wrap: nowrap;
 }
-.entity-select .v-field__input {
-  font-size: 1.6rem;
+.entity-selector {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  font-size: 1.5rem;
   font-weight: bold;
   color: rgb(var(--v-theme-primary));
+}
+.entity-menu {
+  padding: 8px;
+  min-width: 200px;
 }
 .search-container {
   max-width: 400px;

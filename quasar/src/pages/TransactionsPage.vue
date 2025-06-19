@@ -33,17 +33,7 @@
           <q-card-section>
             <div class="row">
               <div class="col col-12 col-md-4">
-                <q-select
-                  v-model="familyStore.selectedEntityId"
-                  :items="entityOptions"
-                  item-title="name"
-                  item-value="id"
-                  label="Select Entity"
-                  variant="outlined"
-                  density="compact"
-                  clearable
-                  @update:modelValue="loadBudgets"
-                ></q-select>
+                <EntitySelector @change="loadBudgets" />
               </div>
               <div class="col col-12 col-md-4">
                 <q-text-field
@@ -288,6 +278,7 @@ import TransactionDialog from "../components/TransactionDialog.vue";
 import MatchBankTransactionsDialog from "../components/MatchBankTransactionsDialog.vue";
 import MatchBudgetTransactionDialog from "../components/MatchBudgetTransactionDialog.vue";
 import TransactionRegistry from "../components/TransactionRegistry.vue";
+import EntitySelector from "../components/EntitySelector.vue";
 import { Transaction, BudgetInfo, ImportedTransaction, Account, Entity } from "../types";
 import { formatDateLong, toDollars, toCents, formatCurrency, toBudgetMonth, todayISO } from "../utils/helpers";
 import { useBudgetStore } from "../store/budget";
@@ -793,5 +784,13 @@ function applyFilters() {
 <style scoped>
 .transaction-item {
   border-bottom: 1px solid #e0e0e0;
+}
+.entity-selector {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: rgb(var(--v-theme-primary));
 }
 </style>
