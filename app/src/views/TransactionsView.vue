@@ -69,51 +69,107 @@
               </v-col>
             </v-row>
 
-            <v-row no-gutters>
-              <v-col cols="12" md="2">
-                <v-text-field v-model="entriesFilterMerchant" label="Merchant" variant="outlined" density="compact" @input="applyFilters"></v-text-field>
-              </v-col>
-              <v-col cols="12" md="2">
-                <v-text-field
-                  v-model="entriesFilterAmount"
-                  label="Amount"
-                  type="number"
-                  variant="outlined"
-                  density="compact"
-                  @input="applyFilters"
-                ></v-text-field>
-              </v-col>
-              <v-col cols="12" md="2">
-                <v-text-field v-model="entriesFilterNote" label="Note/Memo" variant="outlined" density="compact" @input="applyFilters"></v-text-field>
-              </v-col>
-              <v-col cols="12" md="2">
-                <v-text-field
-                  v-model="entriesFilterDate"
-                  label="Date"
-                  type="date"
-                  variant="outlined"
-                  density="compact"
-                  :clearable="true"
-                  @input="applyFilters"
-                ></v-text-field>
-              </v-col>
-              <v-col cols="12" md="2">
-                <v-text-field v-model="entriesFilterStatus" label="Status" variant="outlined" density="compact" @input="applyFilters"></v-text-field>
-              </v-col>
-              <v-col cols="12" md="2">
-                <v-select
-                  v-model="entriesFilterAccount"
-                  :items="availableAccounts"
-                  item-title="name"
-                  item-value="id"
-                  label="Account"
-                  variant="outlined"
-                  density="compact"
-                  clearable
-                  @update:modelValue="applyFilters"
-                ></v-select>
-              </v-col>
-            </v-row>
+            <template v-if="!isMobile">
+              <v-row no-gutters>
+                <v-col cols="12" md="2">
+                  <v-text-field v-model="entriesFilterMerchant" label="Merchant" variant="outlined" density="compact" @input="applyFilters"></v-text-field>
+                </v-col>
+                <v-col cols="12" md="2">
+                  <v-text-field
+                    v-model="entriesFilterAmount"
+                    label="Amount"
+                    type="number"
+                    variant="outlined"
+                    density="compact"
+                    @input="applyFilters"
+                  ></v-text-field>
+                </v-col>
+                <v-col cols="12" md="2">
+                  <v-text-field v-model="entriesFilterNote" label="Note/Memo" variant="outlined" density="compact" @input="applyFilters"></v-text-field>
+                </v-col>
+                <v-col cols="12" md="2">
+                  <v-text-field
+                    v-model="entriesFilterDate"
+                    label="Date"
+                    type="date"
+                    variant="outlined"
+                    density="compact"
+                    :clearable="true"
+                    @input="applyFilters"
+                  ></v-text-field>
+                </v-col>
+                <v-col cols="12" md="2">
+                  <v-text-field v-model="entriesFilterStatus" label="Status" variant="outlined" density="compact" @input="applyFilters"></v-text-field>
+                </v-col>
+                <v-col cols="12" md="2">
+                  <v-select
+                    v-model="entriesFilterAccount"
+                    :items="availableAccounts"
+                    item-title="name"
+                    item-value="id"
+                    label="Account"
+                    variant="outlined"
+                    density="compact"
+                    clearable
+                    @update:modelValue="applyFilters"
+                  ></v-select>
+                </v-col>
+              </v-row>
+            </template>
+            <template v-else>
+              <v-expansion-panels>
+                <v-expansion-panel>
+                  <v-expansion-panel-title>More Filters</v-expansion-panel-title>
+                  <v-expansion-panel-text>
+                    <v-row no-gutters>
+                      <v-col cols="12" md="2">
+                        <v-text-field v-model="entriesFilterMerchant" label="Merchant" variant="outlined" density="compact" @input="applyFilters"></v-text-field>
+                      </v-col>
+                      <v-col cols="12" md="2">
+                        <v-text-field
+                          v-model="entriesFilterAmount"
+                          label="Amount"
+                          type="number"
+                          variant="outlined"
+                          density="compact"
+                          @input="applyFilters"
+                        ></v-text-field>
+                      </v-col>
+                      <v-col cols="12" md="2">
+                        <v-text-field v-model="entriesFilterNote" label="Note/Memo" variant="outlined" density="compact" @input="applyFilters"></v-text-field>
+                      </v-col>
+                      <v-col cols="12" md="2">
+                        <v-text-field
+                          v-model="entriesFilterDate"
+                          label="Date"
+                          type="date"
+                          variant="outlined"
+                          density="compact"
+                          :clearable="true"
+                          @input="applyFilters"
+                        ></v-text-field>
+                      </v-col>
+                      <v-col cols="12" md="2">
+                        <v-text-field v-model="entriesFilterStatus" label="Status" variant="outlined" density="compact" @input="applyFilters"></v-text-field>
+                      </v-col>
+                      <v-col cols="12" md="2">
+                        <v-select
+                          v-model="entriesFilterAccount"
+                          :items="availableAccounts"
+                          item-title="name"
+                          item-value="id"
+                          label="Account"
+                          variant="outlined"
+                          density="compact"
+                          clearable
+                          @update:modelValue="applyFilters"
+                        ></v-select>
+                      </v-col>
+                    </v-row>
+                  </v-expansion-panel-text>
+                </v-expansion-panel>
+              </v-expansion-panels>
+            </template>
           </v-card-text>
         </v-card>
 
@@ -168,14 +224,11 @@
               <template v-else>
                 <v-card>
                   <v-card-item>
-                    <v-row no-gutters class="align-center">
-                      <v-col cols="3" class="text-caption">
-                        {{ formatDateLong(transaction.date) }}
-                      </v-col>
+                    <v-row no-gutters>
                       <v-col class="font-weight-bold">
                         {{ transaction.merchant }}
                       </v-col>
-                      <v-col cols="auto" class="text-right">
+                      <v-col class="text-right">
                         <div :class="transaction.isIncome ? 'text-success' : ''">
                           {{ formatCurrency(toDollars(toCents(transaction.amount))) }}
                           <span v-if="transaction.status === 'C'" class="text-success font-weight-bold" title="Cleared">
@@ -183,23 +236,33 @@
                           </span>
                         </div>
                       </v-col>
-                      <v-col cols="1" class="text-right">
+                    </v-row>
+                    <v-row no-gutters class="text-caption">
+                      <v-col>
+                        {{ formatDateLong(transaction.date) }}
+                      </v-col>
+                      <v-col class="text-right">
                         <v-btn v-if="transaction.status !== 'C'" icon small @click.stop="selectBudgetTransactionToMatch(transaction)" title="Match Transaction">
                           <v-icon color="primary">mdi-link</v-icon>
                         </v-btn>
                         <v-icon small @click.stop="deleteTransaction(transaction.id)" title="Delete Entry" color="error">mdi-trash-can-outline</v-icon>
                       </v-col>
                     </v-row>
-                    <v-row no-gutters class="mt-1 text-caption text-grey">
-                      <v-col cols="12">Entity: {{ getEntityName(transaction.entityId || transaction.budgetId) }}</v-col>
-                      <v-col cols="12" v-if="transaction.notes"> Notes: {{ transaction.notes }} </v-col>
-                      <v-col cols="12" v-if="transaction.categories.length > 1"> Split: {{ formatCategories(transaction.categories) }} </v-col>
-                      <v-col cols="12" v-if="transaction.status === 'C'">
+                    <v-row v-if="transaction.notes" no-gutters class="text-caption text-grey">
+                      <v-col cols="12"> Notes: {{ transaction.notes }} </v-col>
+                    </v-row>
+                    <v-row v-if="transaction.categories.length > 1" no-gutters class="text-caption text-grey">
+                      <v-col cols="12"> Split: {{ formatCategories(transaction.categories) }} </v-col>
+                    </v-row>
+                    <v-row v-if="transaction.status === 'C'" no-gutters class="text-caption text-grey">
+                      <v-col cols="12">
                         Imported: {{ transaction.accountSource || "N/A" }}
                         {{ getAccountName(transaction.accountNumber) }}
                         {{ transaction.postedDate ? `@ ${transaction.postedDate}` : "" }}
                       </v-col>
-                      <v-col cols="12" v-if="transaction.recurring" class="text-primary"> Repeats: {{ transaction.recurringInterval }} </v-col>
+                    </v-row>
+                    <v-row v-if="transaction.recurring" no-gutters class="text-caption text-primary">
+                      <v-col cols="12"> Repeats: {{ transaction.recurringInterval }} </v-col>
                     </v-row>
                   </v-card-item>
                 </v-card>

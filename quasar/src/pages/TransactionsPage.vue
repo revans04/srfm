@@ -67,51 +67,106 @@
               </div>
             </div>
 
-            <div class="row">
-              <div class="col col-12 col-md-2">
-                <q-text-field v-model="entriesFilterMerchant" label="Merchant" variant="outlined" density="compact" @input="applyFilters"></q-text-field>
+            <template v-if="!isMobile">
+              <div class="row">
+                <div class="col col-12 col-md-2">
+                  <q-text-field v-model="entriesFilterMerchant" label="Merchant" variant="outlined" density="compact" @input="applyFilters"></q-text-field>
+                </div>
+                <div class="col col-12 col-md-2">
+                  <q-text-field
+                    v-model="entriesFilterAmount"
+                    label="Amount"
+                    type="number"
+                    variant="outlined"
+                    density="compact"
+                    @input="applyFilters"
+                  ></q-text-field>
+                </div>
+                <div class="col col-12 col-md-2">
+                  <q-text-field v-model="entriesFilterNote" label="Note/Memo" variant="outlined" density="compact" @input="applyFilters"></q-text-field>
+                </div>
+                <div class="col col-12 col-md-2">
+                  <q-text-field
+                    v-model="entriesFilterDate"
+                    label="Date"
+                    type="date"
+                    variant="outlined"
+                    density="compact"
+                    :clearable="true"
+                    @input="applyFilters"
+                  ></q-text-field>
+                </div>
+                <div class="col col-12 col-md-2">
+                  <q-text-field v-model="entriesFilterStatus" label="Status" variant="outlined" density="compact" @input="applyFilters"></q-text-field>
+                </div>
+                <div class="col col-12 col-md-2">
+                  <q-select
+                    v-model="entriesFilterAccount"
+                    :items="availableAccounts"
+                    item-title="name"
+                    item-value="id"
+                    label="Account"
+                    variant="outlined"
+                    density="compact"
+                    clearable
+                    @update:modelValue="applyFilters"
+                  ></q-select>
+                </div>
               </div>
-              <div class="col col-12 col-md-2">
-                <q-text-field
-                  v-model="entriesFilterAmount"
-                  label="Amount"
-                  type="number"
-                  variant="outlined"
-                  density="compact"
-                  @input="applyFilters"
-                ></q-text-field>
-              </div>
-              <div class="col col-12 col-md-2">
-                <q-text-field v-model="entriesFilterNote" label="Note/Memo" variant="outlined" density="compact" @input="applyFilters"></q-text-field>
-              </div>
-              <div class="col col-12 col-md-2">
-                <q-text-field
-                  v-model="entriesFilterDate"
-                  label="Date"
-                  type="date"
-                  variant="outlined"
-                  density="compact"
-                  :clearable="true"
-                  @input="applyFilters"
-                ></q-text-field>
-              </div>
-              <div class="col col-12 col-md-2">
-                <q-text-field v-model="entriesFilterStatus" label="Status" variant="outlined" density="compact" @input="applyFilters"></q-text-field>
-              </div>
-              <div class="col col-12 col-md-2">
-                <q-select
-                  v-model="entriesFilterAccount"
-                  :items="availableAccounts"
-                  item-title="name"
-                  item-value="id"
-                  label="Account"
-                  variant="outlined"
-                  density="compact"
-                  clearable
-                  @update:modelValue="applyFilters"
-                ></q-select>
-              </div>
-            </div>
+            </template>
+            <template v-else>
+              <q-expansion-panels>
+                <q-expansion-panel title="More Filters">
+                  <q-expansion-panel-text>
+                    <div class="row">
+                      <div class="col col-12 col-md-2">
+                        <q-text-field v-model="entriesFilterMerchant" label="Merchant" variant="outlined" density="compact" @input="applyFilters"></q-text-field>
+                      </div>
+                      <div class="col col-12 col-md-2">
+                        <q-text-field
+                          v-model="entriesFilterAmount"
+                          label="Amount"
+                          type="number"
+                          variant="outlined"
+                          density="compact"
+                          @input="applyFilters"
+                        ></q-text-field>
+                      </div>
+                      <div class="col col-12 col-md-2">
+                        <q-text-field v-model="entriesFilterNote" label="Note/Memo" variant="outlined" density="compact" @input="applyFilters"></q-text-field>
+                      </div>
+                      <div class="col col-12 col-md-2">
+                        <q-text-field
+                          v-model="entriesFilterDate"
+                          label="Date"
+                          type="date"
+                          variant="outlined"
+                          density="compact"
+                          :clearable="true"
+                          @input="applyFilters"
+                        ></q-text-field>
+                      </div>
+                      <div class="col col-12 col-md-2">
+                        <q-text-field v-model="entriesFilterStatus" label="Status" variant="outlined" density="compact" @input="applyFilters"></q-text-field>
+                      </div>
+                      <div class="col col-12 col-md-2">
+                        <q-select
+                          v-model="entriesFilterAccount"
+                          :items="availableAccounts"
+                          item-title="name"
+                          item-value="id"
+                          label="Account"
+                          variant="outlined"
+                          density="compact"
+                          clearable
+                          @update:modelValue="applyFilters"
+                        ></q-select>
+                      </div>
+                    </div>
+                  </q-expansion-panel-text>
+                </q-expansion-panel>
+              </q-expansion-panels>
+            </template>
           </q-card-section>
         </q-card>
 
@@ -166,14 +221,11 @@
               <template v-else>
                 <q-card>
                   <q-card-item>
-                    <div class="row align-center no-gutters"  >
-                      <div class="col text-caption col-3" >
-                        {{ formatDateLong(transaction.date) }}
-                      </div>
-                      <div class="col font-weight-bold" >
+                    <div class="row no-gutters">
+                      <div class="col font-weight-bold">
                         {{ transaction.merchant }}
                       </div>
-                      <div class="col text-right col-auto" >
+                      <div class="col text-right">
                         <div :class="transaction.isIncome ? 'text-success' : ''">
                           {{ formatCurrency(toDollars(toCents(transaction.amount))) }}
                           <span v-if="transaction.status === 'C'" class="text-success font-weight-bold" title="Cleared">
@@ -181,23 +233,33 @@
                           </span>
                         </div>
                       </div>
-                      <div class="col text-right col-1" >
+                    </div>
+                    <div class="row text-caption no-gutters">
+                      <div class="col">
+                        {{ formatDateLong(transaction.date) }}
+                      </div>
+                      <div class="col text-right">
                         <q-btn v-if="transaction.status !== 'C'" icon small @click.stop="selectBudgetTransactionToMatch(transaction)" title="Match Transaction">
                           <q-icon color="primary">link</q-icon>
                         </q-btn>
                         <q-icon small @click.stop="deleteTransaction(transaction.id)" title="Delete Entry" color="error">delete_outline</q-icon>
                       </div>
                     </div>
-                    <div class="row mt-1 text-caption text-grey no-gutters"  >
-                      <div class="col col-12">Entity: {{ getEntityName(transaction.entityId || transaction.budgetId) }}</div>
-                      <div class="col col-12" v-if="transaction.notes"> Notes: {{ transaction.notes }} </div>
-                      <div class="col col-12" v-if="transaction.categories.length > 1"> Split: {{ formatCategories(transaction.categories) }} </div>
-                      <div class="col col-12" v-if="transaction.status === 'C'">
+                    <div class="row text-caption text-grey no-gutters" v-if="transaction.notes">
+                      <div class="col col-12"> Notes: {{ transaction.notes }} </div>
+                    </div>
+                    <div class="row text-caption text-grey no-gutters" v-if="transaction.categories.length > 1">
+                      <div class="col col-12"> Split: {{ formatCategories(transaction.categories) }} </div>
+                    </div>
+                    <div class="row text-caption text-grey no-gutters" v-if="transaction.status === 'C'">
+                      <div class="col col-12">
                         Imported: {{ transaction.accountSource || "N/A" }}
                         {{ getAccountName(transaction.accountNumber) }}
                         {{ transaction.postedDate ? `@ ${transaction.postedDate}` : "" }}
                       </div>
-                      <div class="col text-primary col-12" v-if="transaction.recurring" > Repeats: {{ transaction.recurringInterval }} </div>
+                    </div>
+                    <div class="row text-primary text-caption no-gutters" v-if="transaction.recurring">
+                      <div class="col col-12"> Repeats: {{ transaction.recurringInterval }} </div>
                     </div>
                   </q-card-item>
                 </q-card>
