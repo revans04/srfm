@@ -3,7 +3,7 @@
     <v-menu v-if="showMenu" v-model="menuOpen" offset-y>
       <template #activator="{ props }">
         <div v-bind="props" class="entity-selector no-wrap">
-          <h4 :class="isMobile ? 'text-white' : ''">
+          <h4 :class="isMobile ? 'text-secondary' : ''">
             {{ currentEntityName }}
             <v-icon small>mdi-chevron-down</v-icon>
           </h4>

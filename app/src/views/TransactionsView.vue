@@ -18,12 +18,14 @@
       <!-- Budget Entries -->
       <v-window-item class="bg-white" value="entries">
         <!-- Add Transaction Button -->
-        <v-btn color="primary" variant="plain" :class="isMobile ? '' : 'mb-4 mr-2'" @click="showTransactionDialog = true"> Add Transaction </v-btn>
-        <v-btn color="primary" variant="plain" :class="isMobile ? '' : 'mb-4 mr-2'" @click="openMatchBankTransactionsDialog"> Match Bank Transactions </v-btn>
+        <v-btn v-if="isMobile" color="primary" variant="plain" @click="showTransactionDialog = true" icon="mdi-plus"></v-btn>
+        <v-btn v-else color="primary" variant="plain" class="mb-4 mr-2" @click="showTransactionDialog = true">Add Transaction</v-btn>
+        <v-btn v-if="isMobile" color="primary" variant="plain" @click="openMatchBankTransactionsDialog">Match</v-btn>
+        <v-btn v-else color="primary" variant="plain" class="mb-4 mr-2" @click="openMatchBankTransactionsDialog">Match Bank Transactions</v-btn>
 
         <v-card class="mb-4">
           <v-card-title>
-            <v-row class="mt-2">
+            <v-row class="mt-2" no-gutters>
               <v-col cols="auto">Filters</v-col>
               <v-col>
                 <v-checkbox v-model="entriesFilterDuplicates" label="Look for Duplicates" density="compact" hide-details @update:modelValue="applyFilters" />
