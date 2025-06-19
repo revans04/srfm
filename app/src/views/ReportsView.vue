@@ -53,7 +53,12 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(group, index) in budgetGroups" :key="group.name">
+                <tr
+                  v-for="(group, index) in budgetGroups"
+                  :key="group.name"
+                  @click="openGroup(group.name)"
+                  style="cursor: pointer"
+                >
                   <td class="font-weight-bold" :style="{ color: groupColors[index % groupColors.length] }">
                     {{ group.name }}
                   </td>
@@ -76,6 +81,35 @@
                 </tr>
               </tbody>
             </v-table>
+            <v-dialog v-model="showGroupDialog" max-width="600">
+              <v-card>
+                <v-card-title>{{ selectedGroup }} Transactions</v-card-title>
+                <v-card-text>
+                  <v-table density="compact">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Merchant</th>
+                        <th>Category</th>
+                        <th class="text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="tx in selectedGroupTransactions" :key="tx.id">
+                        <td>{{ tx.date }}</td>
+                        <td>{{ tx.merchant }}</td>
+                        <td>{{ tx.category }}</td>
+                        <td class="text-right">${{ tx.amount.toFixed(2) }}</td>
+                      </tr>
+                    </tbody>
+                  </v-table>
+                </v-card-text>
+                <v-card-actions>
+                  <v-spacer></v-spacer>
+                  <v-btn text @click="showGroupDialog = false">Close</v-btn>
+                </v-card-actions>
+              </v-card>
+            </v-dialog>
           </v-col>
           <v-col cols="12" md="6">
             <v-card>
@@ -188,6 +222,14 @@ const monthlyTotals = ref<{ month: string; planned: number; actual: number }[]>(
 const snapshots = ref<Snapshot[]>([]);
 const familyId = ref<string | null>(null);
 const isLoadingSnapshots = ref(true);
+const groupTransactions = ref<Record<string, { id: string; date: string; merchant: string; category: string; amount: number }[]>>({});
+const selectedGroup = ref<string | null>(null);
+const showGroupDialog = ref(false);
+const selectedGroupTransactions = computed(() => {
+  if (!selectedGroup.value) return [];
+  const txs = groupTransactions.value[selectedGroup.value] || [];
+  return [...txs].sort((a, b) => b.date.localeCompare(a.date));
+});
 
 // Colors for each group
 const groupColors = ref([
@@ -640,6 +682,7 @@ onMounted(async () => {
 async function updateReportData() {
   if (!selectedBudgets.value.length) {
     budgetGroups.value = [];
+    groupTransactions.value = {};
     return;
   }
 
@@ -697,28 +740,37 @@ async function updateReportData() {
 
     const groupMap = new Map<string, { planned: number; actual: number }>();
     budgets.forEach((budget) => {
-      budget.categories.forEach((category) => {
-        if (category.group && category.group.toLowerCase() !== "income") {
-          const groupName = category.group;
-          const group = groupMap.get(groupName) || { planned: 0, actual: 0 };
-          group.planned += category.target || 0;
-          groupMap.set(groupName, group);
-        }
-      });
-
-      budget.transactions.forEach((transaction) => {
-        if (!transaction.deleted) {
-          transaction.categories.forEach((cat) => {
-            const groupName = categoryToGroup.get(cat.category);
-            if (groupName && groupName.toLowerCase() !== "income") {
-              const group = groupMap.get(groupName) || { planned: 0, actual: 0 };
-              group.actual += cat.amount || 0;
-              groupMap.set(groupName, group);
-            }
-          });
-        }
-      });
+    budget.categories.forEach((category) => {
+      if (category.group && category.group.toLowerCase() !== "income") {
+        const groupName = category.group;
+        const group = groupMap.get(groupName) || { planned: 0, actual: 0 };
+        group.planned += category.target || 0;
+        groupMap.set(groupName, group);
+      }
     });
+
+    budget.transactions.forEach((transaction) => {
+      if (!transaction.deleted) {
+        transaction.categories.forEach((cat) => {
+          const groupName = categoryToGroup.get(cat.category);
+          if (groupName && groupName.toLowerCase() !== "income") {
+            const group = groupMap.get(groupName) || { planned: 0, actual: 0 };
+            group.actual += cat.amount || 0;
+            groupMap.set(groupName, group);
+            const arr = groupTransactions.value[groupName] || [];
+            arr.push({
+              id: transaction.id,
+              date: transaction.date,
+              merchant: transaction.merchant,
+              category: cat.category,
+              amount: cat.amount,
+            });
+            groupTransactions.value[groupName] = arr;
+          }
+        });
+      }
+    });
+  });
 
     budgetGroups.value = Array.from(groupMap.entries()).map(([name, data]) => ({
       name,
@@ -729,6 +781,11 @@ async function updateReportData() {
     console.error("Error updating report data:", error);
     budgetGroups.value = [];
   }
+}
+
+function openGroup(name: string) {
+  selectedGroup.value = name;
+  showGroupDialog.value = true;
 }
 </script>
 

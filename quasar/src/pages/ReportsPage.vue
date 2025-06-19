@@ -53,7 +53,12 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(group, index) in budgetGroups" :key="group.name">
+                <tr
+                  v-for="(group, index) in budgetGroups"
+                  :key="group.name"
+                  @click="openGroup(group.name)"
+                  style="cursor: pointer"
+                >
                   <td class="font-weight-bold" :style="{ color: groupColors[index % groupColors.length] }">
                     {{ group.name }}
                   </td>
@@ -76,6 +81,34 @@
                 </tr>
               </tbody>
             </q-table>
+            <q-dialog v-model="showGroupDialog" max-width="600px">
+              <q-card>
+                <q-card-section>{{ selectedGroup }} Transactions</q-card-section>
+                <q-card-section>
+                  <q-table dense>
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Merchant</th>
+                        <th>Category</th>
+                        <th class="text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="tx in selectedGroupTransactions" :key="tx.id">
+                        <td>{{ tx.date }}</td>
+                        <td>{{ tx.merchant }}</td>
+                        <td>{{ tx.category }}</td>
+                        <td class="text-right">${{ tx.amount.toFixed(2) }}</td>
+                      </tr>
+                    </tbody>
+                  </q-table>
+                </q-card-section>
+                <q-card-actions align="right">
+                  <q-btn flat label="Close" v-close-popup />
+                </q-card-actions>
+              </q-card>
+            </q-dialog>
           </div>
           <div class="col col-12 col-md-6">
             <q-card>
@@ -184,6 +217,14 @@ const monthlyTotals = ref<{ month: string; planned: number; actual: number }[]>(
 const snapshots = ref<Snapshot[]>([]);
 const familyId = ref<string | null>(null);
 const isLoadingSnapshots = ref(true);
+const groupTransactions = ref<Record<string, { id: string; date: string; merchant: string; category: string; amount: number }[]>>({});
+const selectedGroup = ref<string | null>(null);
+const showGroupDialog = ref(false);
+const selectedGroupTransactions = computed(() => {
+  if (!selectedGroup.value) return [];
+  const txs = groupTransactions.value[selectedGroup.value] || [];
+  return [...txs].sort((a, b) => b.date.localeCompare(a.date));
+});
 
 // Colors for each group
 const groupColors = ref([
@@ -629,6 +670,7 @@ onMounted(async () => {
 async function updateReportData() {
   if (!selectedBudgets.value.length) {
     budgetGroups.value = [];
+    groupTransactions.value = {};
     return;
   }
 
@@ -703,6 +745,15 @@ async function updateReportData() {
               const group = groupMap.get(groupName) || { planned: 0, actual: 0 };
               group.actual += cat.amount || 0;
               groupMap.set(groupName, group);
+              const arr = groupTransactions.value[groupName] || [];
+              arr.push({
+                id: transaction.id,
+                date: transaction.date,
+                merchant: transaction.merchant,
+                category: cat.category,
+                amount: cat.amount,
+              });
+              groupTransactions.value[groupName] = arr;
             }
           });
         }
@@ -718,6 +769,11 @@ async function updateReportData() {
     console.error("Error updating report data:", error);
     budgetGroups.value = [];
   }
+}
+
+function openGroup(name: string) {
+  selectedGroup.value = name;
+  showGroupDialog.value = true;
 }
 </script>
 
