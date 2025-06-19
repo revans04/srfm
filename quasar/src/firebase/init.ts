@@ -3,11 +3,11 @@ import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup } from
 import type { User } from 'firebase/auth';
 
 const firebaseConfig = {
-  apiKey: process.env.VITE_FIREBASE_API_KEY ?? "",
-  authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN ?? "",
-  projectId: process.env.VITE_FIREBASE_PROJECT_ID ?? "",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY ?? '',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ?? '',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID ?? '',
 };
-const apiBaseUrl = process.env.VITE_API_BASE_URL;
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
