@@ -11,7 +11,7 @@
     <!-- Tabs -->
     <v-tabs v-model="tab" :color="isMobile ? 'white' : 'primary'">
       <v-tab value="entries">Budget Entries</v-tab>
-      <v-tab value="register">Transaction Register</v-tab>
+      <v-tab value="register">Register</v-tab>
     </v-tabs>
 
     <v-window v-model="tab">
