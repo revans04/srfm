@@ -33,17 +33,7 @@
           <v-card-text>
             <v-row>
               <v-col cols="12" md="4">
-                <v-select
-                  v-model="familyStore.selectedEntityId"
-                  :items="entityOptions"
-                  item-title="name"
-                  item-value="id"
-                  label="Select Entity"
-                  variant="outlined"
-                  density="compact"
-                  clearable
-                  @update:modelValue="loadBudgets"
-                ></v-select>
+                <EntitySelector @change="loadBudgets" />
               </v-col>
               <v-col cols="12" md="4">
                 <v-text-field
@@ -287,6 +277,7 @@ import TransactionDialog from "../components/TransactionDialog.vue";
 import MatchBankTransactionsDialog from "../components/MatchBankTransactionsDialog.vue";
 import MatchBudgetTransactionDialog from "../components/MatchBudgetTransactionDialog.vue";
 import TransactionRegistry from "../components/TransactionRegistry.vue";
+import EntitySelector from "../components/EntitySelector.vue";
 import { Transaction, BudgetInfo, ImportedTransaction, Account, Entity } from "../types";
 import { formatDateLong, toDollars, toCents, formatCurrency, toBudgetMonth, todayISO } from "../utils/helpers";
 import { useBudgetStore } from "../store/budget";
@@ -356,14 +347,6 @@ const targetBudgetId = ref<string>("");
 const isMobile = computed(() => window.innerWidth < 960);
 
 const userId = computed(() => auth.currentUser?.uid || "");
-
-const entityOptions = computed(() => {
-  const options = (familyStore.family?.entities || []).map((entity) => ({
-    id: entity.id,
-    name: entity.name,
-  }));
-  return [{ id: "", name: "All Entities" }, ...options];
-});
 
 const potentialDuplicateIds = computed(() => {
   const ids = new Set<string>();
@@ -789,6 +772,18 @@ function applyFilters() {
 </script>
 
 <style scoped>
+.entity-selector {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: rgb(var(--v-theme-primary));
+}
+.entity-menu {
+  padding: 8px;
+  min-width: 200px;
+}
 .transaction-item {
   border-bottom: 1px solid #e0e0e0;
 }
