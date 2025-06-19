@@ -25,7 +25,7 @@
 
         <v-card class="mb-4">
           <v-card-title>
-            <v-row class="mt-2" no-gutters>
+            <v-row class="mt-2" :no-gutters="isMobile">
               <v-col cols="auto">Filters</v-col>
               <v-col>
                 <v-checkbox v-model="entriesFilterDuplicates" label="Look for Duplicates" density="compact" hide-details @update:modelValue="applyFilters" />
@@ -33,7 +33,7 @@
             </v-row>
           </v-card-title>
           <v-card-text>
-            <v-row no-gutters>
+            <v-row :no-gutters="isMobile">
               <v-col cols="12" md="4">
                 <EntitySelector @change="loadBudgets" />
               </v-col>
@@ -70,7 +70,7 @@
             </v-row>
 
             <template v-if="!isMobile">
-              <v-row no-gutters>
+              <v-row>
                 <v-col cols="12" md="2">
                   <v-text-field v-model="entriesFilterMerchant" label="Merchant" variant="outlined" density="compact" @input="applyFilters"></v-text-field>
                 </v-col>
