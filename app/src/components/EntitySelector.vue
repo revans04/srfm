@@ -3,10 +3,10 @@
     <v-menu v-if="showMenu" v-model="menuOpen" offset-y>
       <template #activator="{ props }">
         <div v-bind="props" class="entity-selector no-wrap">
-          <h1>
+          <h3>
             {{ currentEntityName }}
             <v-icon small>mdi-chevron-down</v-icon>
-          </h1>
+          </h3>
         </div>
       </template>
       <v-list class="entity-menu">
@@ -16,7 +16,7 @@
       </v-list>
     </v-menu>
     <div v-else class="entity-selector no-wrap">
-      <h1>{{ currentEntityName }}</h1>
+      <h3>{{ currentEntityName }}</h3>
     </div>
   </div>
 </template>
