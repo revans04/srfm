@@ -157,12 +157,14 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
+import { storeToRefs } from "pinia";
 import { auth } from "../firebase/index";
 import { dataAccess } from "../dataAccess";
 import { Budget, Snapshot } from "../types";
 import { Doughnut, Line } from "vue-chartjs";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, LineElement, PointElement, LinearScale, TimeScale, Filler } from "chart.js";
 import { useBudgetStore } from "../store/budget";
+import { useUIStore } from "../store/ui";
 import { Timestamp } from "firebase/firestore";
 import "chartjs-adapter-date-fns";
 import { timestampToDate, currentMonthISO } from "../utils/helpers";
@@ -175,10 +177,12 @@ const DoughnutChart = Doughnut;
 const LineChart = Line;
 
 const budgetStore = useBudgetStore();
+const uiStore = useUIStore();
+
+const { selectedBudgetIds: selectedBudgets } = storeToRefs(uiStore);
 
 const tab = ref("monthly");
 const budgetOptions = ref<Budget[]>([]);
-const selectedBudgets = ref<string[]>([]);
 const budgetGroups = ref<{ name: string; planned: number; actual: number }[]>([]);
 const monthlyTotals = ref<{ month: string; planned: number; actual: number }[]>([]);
 const snapshots = ref<Snapshot[]>([]);
@@ -590,13 +594,20 @@ onMounted(async () => {
     await budgetStore.loadBudgets(user.uid);
     budgetOptions.value = Array.from(budgetStore.budgets.values());
 
-    // Default to current month
-    const currentMonth = currentMonthISO();
-    const currentBudget = budgetOptions.value.find((b) => b.month === currentMonth);
-    if (currentBudget && currentBudget.budgetId) {
-      selectedBudgets.value = [currentBudget.budgetId];
-    } else if (budgetOptions.value.length > 0 && budgetOptions.value[0].budgetId) {
-      selectedBudgets.value = [budgetOptions.value[0].budgetId];
+    // Default selection: previously selected budgets or year-to-date
+    if (!selectedBudgets.value.length) {
+      const currentMonth = currentMonthISO();
+      const currentYear = currentMonth.slice(0, 4);
+      const yearStart = `${currentYear}-01`;
+      const ytdBudgets = budgetOptions.value.filter(
+        (b) => b.month >= yearStart && b.month <= currentMonth
+      );
+
+      if (ytdBudgets.length > 0) {
+        selectedBudgets.value = ytdBudgets.map((b) => b.budgetId);
+      } else if (budgetOptions.value.length > 0 && budgetOptions.value[0].budgetId) {
+        selectedBudgets.value = [budgetOptions.value[0].budgetId];
+      }
     }
 
     // Load initial data for monthly report
