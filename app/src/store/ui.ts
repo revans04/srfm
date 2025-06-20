@@ -20,6 +20,7 @@ export const useUIStore = defineStore("uiState", () => {
   const entriesFilterDate = ref("");
   const entriesFilterAccount = ref("");
   const entriesFilterDuplicates = ref(false);
+  const entriesFilterDeleted = ref(false);
   const selectedBudgetIds = ref<string[]>([]);
 
   return {
@@ -39,6 +40,7 @@ export const useUIStore = defineStore("uiState", () => {
     entriesFilterDate,
     entriesFilterAccount,
     entriesFilterDuplicates,
+    entriesFilterDeleted,
     selectedBudgetIds,
   };
 });
