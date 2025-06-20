@@ -402,16 +402,20 @@ async function save() {
       const targetBudgetId = currentBudgetMonth === targetBudgetMonth ? props.budgetId : `${props.userId}_${entityId}_${targetBudgetMonth}`;
 
       let moved = false;
-      const targetBudget = budgetStore.getBudget(targetBudgetId);
+      let targetBudget = budgetStore.getBudget(targetBudgetId);
+      if (!targetBudget) {
+        targetBudget = await dataAccess.getBudget(targetBudgetId);
+        if (targetBudget) {
+          budgetStore.updateBudget(targetBudgetId, targetBudget);
+        }
+      }
+
       if (targetBudget) {
         if (currentBudgetMonth !== targetBudgetMonth && locTrnsx.id) {
           await dataAccess.deleteTransaction(budget.value, locTrnsx.id, !isLastMonth.value);
           moved = true;
         }
 
-        if (currentBudgetMonth !== targetBudgetMonth && locTrnsx.id) {
-          await dataAccess.deleteTransaction(budget.value, locTrnsx.id, !isLastMonth.value);
-        }
         const savedTransaction = await dataAccess.saveTransaction(targetBudget, locTrnsx, !isLastMonth.value);
         const index = transactions.value.findIndex((t) => t.id === savedTransaction.id);
         if (moved) {
