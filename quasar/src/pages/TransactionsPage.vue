@@ -27,6 +27,7 @@
               <div class="col col-auto">Filters</div>
               <div class="col">
                 <q-checkbox v-model="entriesFilterDuplicates" label="Look for Duplicates" density="compact" hide-details @update:modelValue="applyFilters" />
+                <q-checkbox v-model="entriesFilterDeleted" label="Show Deleted Only" density="compact" hide-details @update:modelValue="applyFilters" />
               </div>
             </div>
           </q-card-section>
@@ -360,6 +361,7 @@ const {
   entriesFilterDate,
   entriesFilterAccount,
   entriesFilterDuplicates,
+  entriesFilterDeleted,
   selectedBudgetIds,
 } = storeToRefs(uiStore);
 
@@ -445,7 +447,12 @@ const potentialDuplicateIds = computed(() => {
 });
 
 const expenseTransactions = computed(() => {
-  let temp = transactions.value.filter((t) => !t.deleted);
+  let temp = transactions.value;
+  if (entriesFilterDeleted.value) {
+    temp = temp.filter((t) => t.deleted);
+  } else {
+    temp = temp.filter((t) => !t.deleted);
+  }
 
   temp.sort((a, b) => {
     const dateA = new Date(a.date);
@@ -597,7 +604,6 @@ async function loadTransactions() {
       if (budget) {
         budgetStore.updateBudget(budgetId, budget);
         const budgetTransactions = (budget.transactions || [])
-          .filter((tx) => !tx.deleted)
           .map((tx) => ({
             ...tx,
             budgetId,
