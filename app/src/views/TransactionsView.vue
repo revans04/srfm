@@ -26,10 +26,12 @@
         <v-card class="mb-4">
           <v-card-title>
             <v-row class="mt-2" :no-gutters="isMobile">
-              <v-col cols="auto">Filters</v-col>
-              <v-col>
-                <v-checkbox v-model="entriesFilterDuplicates" label="Look for Duplicates" density="compact" hide-details @update:modelValue="applyFilters" />
+              <v-col>Filters</v-col>
+              <v-col cols="auto">
                 <v-checkbox v-model="entriesIncludeDeleted" label="Include Deleted" density="compact" hide-details @update:modelValue="applyFilters" />
+              </v-col>
+              <v-col cols="auto">
+                <v-checkbox v-model="entriesFilterDuplicates" label="Look for Duplicates" density="compact" hide-details @update:modelValue="applyFilters" />
               </v-col>
             </v-row>
           </v-card-title>
