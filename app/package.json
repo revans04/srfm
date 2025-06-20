@@ -1,6 +1,6 @@
 {
   "name": "family-budget-app",
-  "version": "0.3.32",
+  "version": "0.3.34",
   "private": true,
   "scripts": {
     "serve": "vue-cli-service serve",

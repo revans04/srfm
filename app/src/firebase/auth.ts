@@ -2,8 +2,7 @@
 import { auth } from "./index";
 import { onAuthStateChanged, User } from "firebase/auth";
 
-const apiBaseUrl =
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+const apiBaseUrl = process.env.VUE_APP_API_BASE_URL || "http://localhost:8080/api";
 
 export async function getIdToken(): Promise<string | null> {
   const user = auth.currentUser;
@@ -21,7 +20,7 @@ export const setupAuthListener = () => {
         const response = await fetch(apiBaseUrl + "/auth/ensure-profile", {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
         });
