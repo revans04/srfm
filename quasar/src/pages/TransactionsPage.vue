@@ -27,7 +27,7 @@
               <div class="col col-auto">Filters</div>
               <div class="col">
                 <q-checkbox v-model="entriesFilterDuplicates" label="Look for Duplicates" density="compact" hide-details @update:modelValue="applyFilters" />
-                <q-checkbox v-model="entriesFilterDeleted" label="Show Deleted Only" density="compact" hide-details @update:modelValue="applyFilters" />
+                <q-checkbox v-model="entriesIncludeDeleted" label="Include Deleted" density="compact" hide-details @update:modelValue="applyFilters" />
               </div>
             </div>
           </q-card-section>
@@ -173,7 +173,7 @@
         <q-card density="compact">
           <q-card-section>Budget Entries</q-card-section>
           <q-list dense>
-            <q-item v-for="transaction in expenseTransactions" :key="transaction.id" class="transaction-item" @click="editTransaction(transaction)">
+            <q-item v-for="transaction in expenseTransactions" :key="transaction.id" class="transaction-item" :class="{ 'deleted-transaction': transaction.deleted }" @click="editTransaction(transaction)">
               <!-- Desktop Layout -->
               <template v-if="!isMobile">
                 <div class="row pa-2 align-center">
@@ -205,7 +205,7 @@
                   </div>
                   <div class="col text-right col-1">
                     <q-icon
-                      v-if="transaction.status !== 'C' && !entriesFilterDeleted"
+                      v-if="transaction.status !== 'C' && !transaction.deleted"
                       color="primary"
                       small
                       @click.stop="selectBudgetTransactionToMatch(transaction)"
@@ -213,7 +213,7 @@
                       >link</q-icon
                     >
                     <q-icon
-                      v-if="!entriesFilterDeleted"
+                      v-if="!transaction.deleted"
                       small
                       @click.stop="deleteTransaction(transaction.id)"
                       title="Delete Entry"
@@ -258,11 +258,11 @@
                         {{ formatDateLong(transaction.date) }}
                       </div>
                       <div class="col text-right">
-                        <q-btn v-if="transaction.status !== 'C' && !entriesFilterDeleted" icon small @click.stop="selectBudgetTransactionToMatch(transaction)" title="Match Transaction">
+                        <q-btn v-if="transaction.status !== 'C' && !transaction.deleted" icon small @click.stop="selectBudgetTransactionToMatch(transaction)" title="Match Transaction">
                           <q-icon color="primary">link</q-icon>
                         </q-btn>
                         <q-icon
-                          v-if="!entriesFilterDeleted"
+                          v-if="!transaction.deleted"
                           small
                           @click.stop="deleteTransaction(transaction.id)"
                           title="Delete Entry"
@@ -397,7 +397,7 @@ const {
   entriesFilterDate,
   entriesFilterAccount,
   entriesFilterDuplicates,
-  entriesFilterDeleted,
+  entriesIncludeDeleted,
   selectedBudgetIds,
 } = storeToRefs(uiStore);
 
@@ -484,9 +484,7 @@ const potentialDuplicateIds = computed(() => {
 
 const expenseTransactions = computed(() => {
   let temp = transactions.value;
-  if (entriesFilterDeleted.value) {
-    temp = temp.filter((t) => t.deleted);
-  } else {
+  if (!entriesIncludeDeleted.value) {
     temp = temp.filter((t) => !t.deleted);
   }
 
@@ -939,6 +937,9 @@ function applyFilters() {
 <style scoped>
 .transaction-item {
   border-bottom: 1px solid #e0e0e0;
+}
+.deleted-transaction {
+  background-color: #f5f5f5;
 }
 .entity-selector {
   cursor: pointer;

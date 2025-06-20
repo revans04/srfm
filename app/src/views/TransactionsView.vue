@@ -29,7 +29,7 @@
               <v-col cols="auto">Filters</v-col>
               <v-col>
                 <v-checkbox v-model="entriesFilterDuplicates" label="Look for Duplicates" density="compact" hide-details @update:modelValue="applyFilters" />
-                <v-checkbox v-model="entriesFilterDeleted" label="Show Deleted Only" density="compact" hide-details @update:modelValue="applyFilters" />
+                <v-checkbox v-model="entriesIncludeDeleted" label="Include Deleted" density="compact" hide-details @update:modelValue="applyFilters" />
               </v-col>
             </v-row>
           </v-card-title>
@@ -183,7 +183,7 @@
         <v-card density="compact">
           <v-card-title>Budget Entries</v-card-title>
           <v-list dense>
-            <v-list-item v-for="transaction in expenseTransactions" :key="transaction.id" class="transaction-item" @click="editTransaction(transaction)">
+            <v-list-item v-for="transaction in expenseTransactions" :key="transaction.id" class="transaction-item" :class="{ 'deleted-transaction': transaction.deleted }" @click="editTransaction(transaction)">
               <!-- Desktop Layout -->
               <template v-if="!isMobile">
                 <v-row class="pa-2 align-center">
@@ -215,7 +215,7 @@
                   </v-col>
                   <v-col cols="1" class="text-right">
                     <v-icon
-                      v-if="transaction.status !== 'C' && !entriesFilterDeleted"
+                      v-if="transaction.status !== 'C' && !transaction.deleted"
                       color="primary"
                       small
                       @click.stop="selectBudgetTransactionToMatch(transaction)"
@@ -223,7 +223,7 @@
                       >mdi-link</v-icon
                     >
                     <v-icon
-                      v-if="!entriesFilterDeleted"
+                      v-if="!transaction.deleted"
                       small
                       @click.stop="deleteTransaction(transaction.id)"
                       title="Delete Entry"
@@ -267,7 +267,7 @@
                       </v-col>
                       <v-col class="text-right">
                         <v-icon
-                          v-if="transaction.status !== 'C' && !entriesFilterDeleted"
+                          v-if="transaction.status !== 'C' && !transaction.deleted"
                           small
                           @click.stop="selectBudgetTransactionToMatch(transaction)"
                           title="Match Transaction"
@@ -275,7 +275,7 @@
                           >mdi-link</v-icon
                         >
                         <v-icon
-                          v-if="!entriesFilterDeleted"
+                          v-if="!transaction.deleted"
                           small
                           @click.stop="deleteTransaction(transaction.id)"
                           title="Delete Entry"
@@ -405,7 +405,7 @@ const {
   entriesFilterDate,
   entriesFilterAccount,
   entriesFilterDuplicates,
-  entriesFilterDeleted,
+  entriesIncludeDeleted,
   selectedBudgetIds,
 } = storeToRefs(uiStore);
 
@@ -484,9 +484,7 @@ const potentialDuplicateIds = computed(() => {
 
 const expenseTransactions = computed(() => {
   let temp = transactions.value;
-  if (entriesFilterDeleted.value) {
-    temp = temp.filter((t) => t.deleted);
-  } else {
+  if (!entriesIncludeDeleted.value) {
     temp = temp.filter((t) => !t.deleted);
   }
 
@@ -951,5 +949,8 @@ function applyFilters() {
 }
 .transaction-item {
   border-bottom: 1px solid #e0e0e0;
+}
+.deleted-transaction {
+  background-color: #f5f5f5;
 }
 </style>
