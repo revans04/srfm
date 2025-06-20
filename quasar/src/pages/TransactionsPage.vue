@@ -205,14 +205,33 @@
                   </div>
                   <div class="col text-right col-1">
                     <q-icon
-                      v-if="transaction.status !== 'C'"
+                      v-if="transaction.status !== 'C' && !entriesFilterDeleted"
                       color="primary"
                       small
                       @click.stop="selectBudgetTransactionToMatch(transaction)"
                       title="Match Transaction"
                       >link</q-icon
                     >
-                    <q-icon small @click.stop="deleteTransaction(transaction.id)" title="Delete Entry" color="error" class="ml-2">delete_outline</q-icon>
+                    <q-icon
+                      v-if="!entriesFilterDeleted"
+                      small
+                      @click.stop="deleteTransaction(transaction.id)"
+                      title="Delete Entry"
+                      color="error"
+                      class="ml-2"
+                    >
+                      delete_outline
+                    </q-icon>
+                    <q-icon
+                      v-else
+                      small
+                      @click.stop="restoreTransaction(transaction.id)"
+                      title="Restore Entry"
+                      color="primary"
+                      class="ml-2"
+                    >
+                      restore
+                    </q-icon>
                   </div>
                 </div>
               </template>
@@ -239,10 +258,27 @@
                         {{ formatDateLong(transaction.date) }}
                       </div>
                       <div class="col text-right">
-                        <q-btn v-if="transaction.status !== 'C'" icon small @click.stop="selectBudgetTransactionToMatch(transaction)" title="Match Transaction">
+                        <q-btn v-if="transaction.status !== 'C' && !entriesFilterDeleted" icon small @click.stop="selectBudgetTransactionToMatch(transaction)" title="Match Transaction">
                           <q-icon color="primary">link</q-icon>
                         </q-btn>
-                        <q-icon small @click.stop="deleteTransaction(transaction.id)" title="Delete Entry" color="error">delete_outline</q-icon>
+                        <q-icon
+                          v-if="!entriesFilterDeleted"
+                          small
+                          @click.stop="deleteTransaction(transaction.id)"
+                          title="Delete Entry"
+                          color="error"
+                        >
+                          delete_outline
+                        </q-icon>
+                        <q-icon
+                          v-else
+                          small
+                          @click.stop="restoreTransaction(transaction.id)"
+                          title="Restore Entry"
+                          color="primary"
+                        >
+                          restore
+                        </q-icon>
                       </div>
                     </div>
                     <div class="row text-caption text-grey no-gutters" v-if="transaction.notes">
@@ -684,6 +720,43 @@ async function deleteTransaction(id: string) {
 
     await dataAccess.deleteTransaction(budget, originalId, await !isLastMonth(targetTransaction));
     showSnackbar('Transaction deleted successfully');
+    await loadTransactions();
+  } catch (error: any) {
+    showSnackbar(`Error: ${error.message}`, 'error');
+  }
+}
+
+async function restoreTransaction(id: string) {
+  if (selectedBudgetIds.value.length === 0) {
+    showSnackbar('Please select at least one budget to restore transactions', 'error');
+    return;
+  }
+
+  try {
+    const targetTransaction = transactions.value.find((tx) => tx.id === id);
+
+    if (!targetTransaction) {
+      showSnackbar('Transaction not found in selected budgets', 'error');
+      return;
+    }
+
+    const targetBudgetIdToUse = targetTransaction.budgetId;
+    const originalId = targetTransaction.originalId ?? targetTransaction.id;
+
+    if (!targetBudgetIdToUse || !originalId) {
+      showSnackbar('Transaction not found in selected budgets', 'error');
+      return;
+    }
+
+    const budget = budgetStore.getBudget(targetBudgetIdToUse);
+    if (!budget) throw new Error('Selected budget not found');
+
+    await dataAccess.restoreTransaction(
+      budget,
+      originalId,
+      await !isLastMonth(targetTransaction)
+    );
+    showSnackbar('Transaction restored successfully');
     await loadTransactions();
   } catch (error: any) {
     showSnackbar(`Error: ${error.message}`, 'error');
