@@ -29,7 +29,7 @@ export const useAuthStore = defineStore('auth', () => {
           authError.value = error.message;
           unsubscribe();
           reject(error);
-        }
+        },
       );
     });
   }

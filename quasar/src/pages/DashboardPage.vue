@@ -313,15 +313,6 @@
         </q-card>
       </q-dialog>
 
-      <!-- Snackbar -->
-      <q-notification v-model="snackbar" :color="snackbarColor" :timeout="timeout" position="bottom">
-        {{ snackbarText }}
-        <template v-slot:action>
-          <q-btn v-if="showRetry" flat @click="retryAction">Retry</q-btn>
-          <q-btn flat @click="snackbar = false">Close</q-btn>
-        </template>
-      </q-notification>
-
       <!-- Duplicating Overlay -->
       <q-loading v-model="duplicating" class="flex items-center justify-center">
         <q-spinner color="primary" size="50px" />
@@ -394,7 +385,6 @@ const newTransaction = ref<Transaction>({
   isIncome: false,
   taxMetadata: [],
 });
-const snackbar = ref(false);
 const snackbarText = ref('');
 const snackbarColor = ref('success');
 const showRetry = ref(false);
@@ -1347,12 +1337,13 @@ function cancelInlineEdit() {
 }
 
 function showSnackbar(text: string, color = 'success', retry?: () => void) {
-  snackbarText.value = text;
-  snackbarColor.value = color;
-  showRetry.value = !!retry;
-  retryAction.value = retry || null;
-  timeout.value = retry ? -1 : 3000;
-  snackbar.value = true;
+  $q.notify({
+    message: text,
+    color: color,
+    position: 'bottom',
+    timeout: retry ? 0 : 3000,
+    actions: [...(retry ? [{ label: 'Retry', color: 'white', handler: retry }] : []), { label: 'Close', color: 'white', handler: () => {} }],
+  });
 }
 
 interface GroupCategory {

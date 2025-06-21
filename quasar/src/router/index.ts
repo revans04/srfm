@@ -16,10 +16,9 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     const auth = useAuthStore();
     console.log('Route guard: Navigating to', to.path);
 
-    // Define routes that require authentication
-    const protectedRoutes = ['/', '/setup', '/transactions', '/settings', '/accounts', '/data', '/reports', '/verify-email', '/accept-invite'];
+    const requiresAuth = to.matched.some((record) => record.path !== '/login');
 
-    if (protectedRoutes.includes(to.path)) {
+    if (requiresAuth) {
       console.log('Route guard: Protected route, checking auth');
       try {
         const user = await auth.initializeAuth();

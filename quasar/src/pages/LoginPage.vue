@@ -74,7 +74,7 @@ const handleCredentialResponse = async (response: any) => {
     const { token } = await apiResponse.json();
 
     await authStore.loginWithCustomToken(token);
-    await authStore.user?.reload(); // Force refresh
+    await authStore.user?.reload();
     router.push('/');
   } catch (err: any) {
     error.value = err.message || 'Failed to sign in with Google';
