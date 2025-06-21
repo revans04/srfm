@@ -683,14 +683,15 @@ const displayTransactions = computed((): DisplayTransaction[] => {
       budgetId: budget.budgetId,
     }));
 
-  let unmatchedTxs: DisplayTransaction[] = importedTransactions.value
+  let baseUnmatchedTxs: (DisplayTransaction & { ignored?: boolean })[] = importedTransactions.value
     .filter(
       (tx) =>
         tx.accountNumber === selectedAccount.value &&
         !tx.matched &&
-        !tx.ignored &&
         !tx.deleted &&
-        (!selectedStatement.value || (tx.postedDate >= selectedStatement.value.startDate && tx.postedDate <= selectedStatement.value.endDate))
+        (!selectedStatement.value ||
+          (tx.postedDate >= selectedStatement.value.startDate &&
+            tx.postedDate <= selectedStatement.value.endDate))
     )
     .map((tx) => ({
       id: tx.id,
@@ -702,7 +703,10 @@ const displayTransactions = computed((): DisplayTransaction[] => {
       isIncome: tx.creditAmount > 0,
       status: tx.status || "U",
       notes: "",
+      ignored: tx.ignored,
     }));
+
+  let unmatchedTxs: DisplayTransaction[] = baseUnmatchedTxs.filter((tx) => !tx.ignored);
 
   // Apply filters
   if (filterMatched.value) {
@@ -747,7 +751,7 @@ const displayTransactions = computed((): DisplayTransaction[] => {
     );
   }
 
-  const allTxs = [...matchedTxs, ...unmatchedTxs].sort((a, b) => {
+  const allTxs = [...matchedTxs, ...baseUnmatchedTxs].sort((a, b) => {
     const dateA = new Date(a.date);
     const dateB = new Date(b.date);
     if (dateA.getTime() == dateB.getTime()) return b.merchant.localeCompare(a.merchant);
@@ -761,7 +765,7 @@ const displayTransactions = computed((): DisplayTransaction[] => {
     balance += tx.amount;
     order += 1;
     return { ...tx, balance, order };
-  });
+  }).filter((t) => !(t as any).ignored);
 
   if (filterMerchant.value) {
     const merchantFilter = filterMerchant.value.toLowerCase();
