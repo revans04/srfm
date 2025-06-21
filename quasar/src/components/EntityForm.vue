@@ -167,13 +167,6 @@
       </q-card>
     </q-dialog>
 
-    <!-- Snackbar for User Feedback -->
-    <q-snackbar v-model="snackbar" :color="snackbarColor" timeout="3000">
-      {{ snackbarText }}
-      <template v-slot:actions>
-        <q-btn variant="text" @click="snackbar = false">Close</q-btn>
-      </template>
-    </q-snackbar>
   </q-card>
 </template>
 
@@ -205,9 +198,6 @@ const familyStore = useFamilyStore();
 const budgetStore = useBudgetStore();
 const saving = ref(false);
 const importing = ref(false);
-const snackbar = ref(false);
-const snackbarText = ref("");
-const snackbarColor = ref("info");
 const showImportDialog = ref(false);
 const showCancelDialog = ref(false);
 const isEditing = computed(() => props.entityId !== "");
@@ -419,8 +409,12 @@ function resetForm() {
 }
 
 function showSnackbar(text: string, color: string) {
-  snackbarText.value = text;
-  snackbarColor.value = color;
-  snackbar.value = true;
+  $q.notify({
+    message: text,
+    color,
+    position: 'bottom',
+    timeout: 3000,
+    actions: [{ label: 'Close', color: 'white', handler: () => {} }],
+  });
 }
 </script>

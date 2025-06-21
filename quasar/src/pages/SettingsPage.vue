@@ -199,12 +199,6 @@
       />
     </q-dialog>
 
-    <q-snackbar v-model="snackbar" :color="snackbarColor" timeout="3000">
-      {{ snackbarText }}
-      <template v-slot:actions>
-        <q-btn variant="text" @click="snackbar = false">Close</q-btn>
-      </template>
-    </q-snackbar>
   </q-page>
 </template>
 
@@ -222,9 +216,6 @@ const familyStore = useFamilyStore();
 const inviteEmail = ref("");
 const inviting = ref(false);
 const resending = ref(false);
-const snackbar = ref(false);
-const snackbarText = ref("");
-const snackbarColor = ref("success");
 const userEmail = ref<string | null>(null);
 const emailVerified = ref(false);
 const user = ref(auth.currentUser);
@@ -530,8 +521,12 @@ function formatDate(timestamp: Timestamp | null) {
 }
 
 function showSnackbar(text: string, color = "success") {
-  snackbarText.value = text;
-  snackbarColor.value = color;
-  snackbar.value = true;
+  $q.notify({
+    message: text,
+    color,
+    position: 'bottom',
+    timeout: 3000,
+    actions: [{ label: 'Close', color: 'white', handler: () => {} }],
+  });
 }
 </script>

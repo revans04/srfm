@@ -3,10 +3,7 @@
   <q-page fluid>
     <h1>Data Management</h1>
 
-    <!-- Loading Overlay -->
-    <q-overlay :model-value="loading" class="align-center justify-center" scrim="#00000080">
-      <q-circular-progress indeterminate color="primary" size="50" />
-    </q-overlay>
+    <!-- Loading handled via $q.loading -->
 
     <!-- Tabs -->
     <q-tabs v-model="activeTab" color="primary" class="mb-4">
@@ -332,12 +329,7 @@
       </q-window-item>
     </q-window>
 
-    <q-snackbar v-model="snackbar" :color="snackbarColor" timeout="3000">
-      {{ snackbarText }}
-      <template v-slot:actions>
-        <q-btn variant="text" @click="snackbar = false">Close</q-btn>
-      </template>
-    </q-snackbar>
+    <!-- Snackbar handled via $q.notify -->
     <!-- Entity Form Dialog -->
     <q-dialog v-model="showEntityForm" max-width="1000px" persistent>
       <entity-form :initial-entity="null" @save="handleEntitySave" @cancel="showEntityForm = false" />
@@ -348,6 +340,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
+import { useQuasar } from 'quasar';
 import { auth } from "../firebase/init";
 import { dataAccess } from "../dataAccess";
 import Papa from "papaparse";
@@ -365,6 +358,7 @@ import { Timestamp } from "firebase/firestore";
 const familyStore = useFamilyStore();
 const budgetStore = useBudgetStore();
 const router = useRouter();
+const $q = useQuasar();
 const budgets = ref<Budget[]>([]);
 const familyId = ref<string | null>(null);
 const transactions = ref<Transaction[]>([]);
@@ -486,10 +480,6 @@ const transactionHeaders = [
 ];
 const importRunning = ref(false);
 
-const snackbar = ref(false);
-const snackbarText = ref("");
-const snackbarColor = ref("success");
-
 const entityOptions = computed(() => {
   return (familyStore.family?.entities || []).map((entity: Entity) => ({
     id: entity.id,
@@ -522,7 +512,14 @@ onMounted(async () => {
 });
 
 async function loadAllData() {
-  loadingData.value = true;
+  $q.loading.show({
+    message: 'Loading data...',
+    spinner: 'QSpinner',
+    spinnerColor: 'primary',
+    spinnerSize: '50px',
+    messageClass: 'q-ml-sm',
+    boxClass: 'flex items-center justify-center',
+  });
   try {
     const user = auth.currentUser;
     if (!user) return;
@@ -556,7 +553,7 @@ async function loadAllData() {
     console.error("Error loading data:", error);
     showSnackbar(`Error loading data: ${error.message}`, "error");
   } finally {
-    loadingData.value = false;
+    $q.loading.hide();
   }
 }
 
@@ -590,7 +587,14 @@ async function handleFileUpload(event: Event) {
 
   if (!selectedFiles.value.length) return;
 
-  importing.value = true;
+  $q.loading.show({
+    message: 'Importing data...',
+    spinner: 'QSpinner',
+    spinnerColor: 'primary',
+    spinnerSize: '50px',
+    messageClass: 'q-ml-sm',
+    boxClass: 'flex items-center justify-center',
+  });
   importError.value = null;
   importSuccess.value = null;
   previewData.value = { entities: [], categories: [], transactions: [], accountsAndSnapshots: [] };
@@ -629,7 +633,7 @@ async function handleFileUpload(event: Event) {
     console.error("Error parsing data:", error);
     importError.value = `Failed to parse data: ${error.message}`;
   } finally {
-    importing.value = false;
+    $q.loading.hide();
   }
 }
 
@@ -1021,7 +1025,14 @@ async function handleAccountsAndSnapshotsImport(event: Event) {
 
   if (!file) return;
 
-  importing.value = true;
+  $q.loading.show({
+    message: 'Importing data...',
+    spinner: 'QSpinner',
+    spinnerColor: 'primary',
+    spinnerSize: '50px',
+    messageClass: 'q-ml-sm',
+    boxClass: 'flex items-center justify-center',
+  });
   importError.value = null;
   importSuccess.value = null;
   previewData.value.accountsAndSnapshots = [];
@@ -1104,7 +1115,7 @@ async function handleAccountsAndSnapshotsImport(event: Event) {
     console.error("Error parsing accounts and snapshots:", error);
     importError.value = `Failed to parse data: ${error.message}`;
   } finally {
-    importing.value = false;
+    $q.loading.hide();
   }
 }
 
@@ -1114,7 +1125,14 @@ async function handleBankTransactionsFileUpload(event: Event) {
 
   if (!file) return;
 
-  importing.value = true;
+  $q.loading.show({
+    message: 'Importing bank transactions...',
+    spinner: 'QSpinner',
+    spinnerColor: 'primary',
+    spinnerSize: '50px',
+    messageClass: 'q-ml-sm',
+    boxClass: 'flex items-center justify-center',
+  });
   importError.value = null;
   importSuccess.value = null;
   previewBankTransactions.value = [];
@@ -1143,7 +1161,7 @@ async function handleBankTransactionsFileUpload(event: Event) {
     console.error("Error parsing bank transactions:", error);
     importError.value = `Failed to parse data: ${error.message}`;
   } finally {
-    importing.value = false;
+    $q.loading.hide();
   }
 }
 
@@ -1282,7 +1300,14 @@ async function confirmImport() {
 
   if (importType.value === "entities") {
     try {
-      importing.value = true;
+      $q.loading.show({
+        message: 'Importing entities...',
+        spinner: 'QSpinner',
+        spinnerColor: 'primary',
+        spinnerSize: '50px',
+        messageClass: 'q-ml-sm',
+        boxClass: 'flex items-center justify-center',
+      });
       const entitiesById = pendingImportData.value?.entitiesById || new Map();
       for (const [entityId, entity] of entitiesById) {
         await familyStore.createEntity(familyId.value, entity);
@@ -1298,7 +1323,7 @@ async function confirmImport() {
       console.error("Error importing entities:", error);
       showSnackbar(`Failed to import entities: ${error.message}`, "error");
     } finally {
-      importing.value = false;
+      $q.loading.hide();
       pendingImportData.value = null;
     }
   } else if (importType.value === "budgetTransactions") {
@@ -1436,7 +1461,14 @@ async function confirmImport() {
     }
   } else if (importType.value === "bankTransactions") {
     try {
-      importing.value = true;
+      $q.loading.show({
+        message: 'Importing transactions...',
+        spinner: 'QSpinner',
+        spinnerColor: 'primary',
+        spinnerSize: '50px',
+        messageClass: 'q-ml-sm',
+        boxClass: 'flex items-center justify-center',
+      });
       const accountId = selectedAccountId.value;
       if (!accountId) {
         showSnackbar("No account selected for import", "error");
@@ -1574,14 +1606,21 @@ async function confirmImport() {
       console.error("Error importing bank transactions:", error);
       showSnackbar(`Failed to import bank transactions: ${error.message}`, "error");
     } finally {
-      importing.value = false;
+      $q.loading.hide();
       importRunning.value = false;
       selectedAccountId.value = "";
       selectedEntityId.value = "";
     }
   } else if (importType.value === "accountsAndSnapshots") {
     try {
-      importing.value = true;
+      $q.loading.show({
+        message: 'Importing accounts...',
+        spinner: 'QSpinner',
+        spinnerColor: 'primary',
+        spinnerSize: '50px',
+        messageClass: 'q-ml-sm',
+        boxClass: 'flex items-center justify-center',
+      });
       const entries = pendingImportData.value?.accountsAndSnapshots || [];
       if (entries.length === 0) {
         showSnackbar("No accounts/snapshots data to import", "error");
@@ -1597,7 +1636,7 @@ async function confirmImport() {
       console.error("Error importing accounts and snapshots:", error);
       showSnackbar(`Failed to import accounts and snapshots: ${error.message}`, "error");
     } finally {
-      importing.value = false;
+      $q.loading.hide();
       pendingImportData.value = null;
     }
   }
@@ -1703,7 +1742,14 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
 async function proceedWithImport(budgetsById: Map<string, Budget> = new Map(), budgetIdMap: Map<string, string> = new Map()) {
   showPreview.value = false;
   showOverwriteDialog.value = false;
-  importing.value = true;
+  $q.loading.show({
+    message: 'Importing data...',
+    spinner: 'QSpinner',
+    spinnerColor: 'primary',
+    spinnerSize: '50px',
+    messageClass: 'q-ml-sm',
+    boxClass: 'flex items-center justify-center',
+  });
 
   try {
     const user = auth.currentUser;
@@ -1739,7 +1785,7 @@ async function proceedWithImport(budgetsById: Map<string, Budget> = new Map(), b
     console.error("Error confirming import:", error);
     showSnackbar(`Failed to import data: ${error.message}`, "error");
   } finally {
-    importing.value = false;
+    $q.loading.hide();
     importRunning.value = false;
     previewData.value = { entities: [], categories: [], transactions: [], accountsAndSnapshots: [] };
     previewErrors.value = [];
@@ -1752,7 +1798,14 @@ function formatCategories(categories: { category: string; amount: number }[]) {
 }
 
 async function exportDataToCSV() {
-  exporting.value = true;
+  $q.loading.show({
+    message: 'Exporting data...',
+    spinner: 'QSpinner',
+    spinnerColor: 'primary',
+    spinnerSize: '50px',
+    messageClass: 'q-ml-sm',
+    boxClass: 'flex items-center justify-center',
+  });
   try {
     const user = auth.currentUser;
     if (!user || !familyId.value) {
@@ -1886,13 +1939,17 @@ async function exportDataToCSV() {
     console.error("Error exporting data:", error);
     showSnackbar(`Error exporting data: ${error.message}`, "error");
   } finally {
-    exporting.value = false;
+    $q.loading.hide();
   }
 }
 
 function showSnackbar(text: string, color = "success") {
-  snackbarText.value = text;
-  snackbarColor.value = color;
-  snackbar.value = true;
+  $q.notify({
+    message: text,
+    color,
+    position: 'bottom',
+    timeout: 3000,
+    actions: [{ label: 'Close', color: 'white', handler: () => {} }],
+  });
 }
 </script>

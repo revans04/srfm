@@ -80,10 +80,7 @@
       </q-card-section>
     </q-card>
 
-    <!-- Loading Overlay -->
-    <q-overlay :model-value="loading" class="align-center justify-center" scrim="#00000080">
-      <q-circular-progress indeterminate color="primary" size="50" />
-    </q-overlay>
+    <!-- Loading handled via $q.loading -->
 
     <q-card class="mb-4">
       <q-card-section>Filters</q-card-section>
@@ -479,17 +476,13 @@
       </q-card-actions>
     </q-card>
 
-    <q-snackbar v-model="snackbar" :color="snackbarColor" timeout="3000">
-      {{ snackbarText }}
-      <template v-slot:actions>
-        <q-btn variant="text" @click="snackbar = false">Close</q-btn>
-      </template>
-    </q-snackbar>
+    <!-- Snackbar handled via $q.notify -->
   </q-page>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
+import { useQuasar } from 'quasar';
 import { storeToRefs } from "pinia";
 import { auth } from "../firebase/init";
 import { dataAccess } from "../dataAccess";
@@ -524,6 +517,7 @@ interface DisplayTransaction {
 const budgetStore = useBudgetStore();
 const familyStore = useFamilyStore();
 const statementStore = useStatementStore();
+const $q = useQuasar();
 const familyId = computed(() => familyStore.family?.id || "");
 
 const loading = ref(false);
@@ -552,9 +546,6 @@ const statementOptions = computed(() => [
   })),
 ]);
 const selectedStatementId = ref<string | null>(null);
-const snackbar = ref(false);
-const snackbarText = ref("");
-const snackbarColor = ref("success");
 const showActionDialog = ref(false);
 const transactionToAction = ref<any | null>(null);
 const transactionAction = ref("");
@@ -1770,9 +1761,13 @@ function downloadCsv() {
 }
 
 function showSnackbar(text: string, color = "success") {
-  snackbarText.value = text;
-  snackbarColor.value = color;
-  snackbar.value = true;
+  $q.notify({
+    message: text,
+    color,
+    position: 'bottom',
+    timeout: 3000,
+    actions: [{ label: 'Close', color: 'white', handler: () => {} }],
+  });
 }
 
 function applyFilters() {
