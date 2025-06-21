@@ -293,13 +293,7 @@
       @cancel="showTransactionDialog = false"
     />
 
-    <!-- Add Snackbar -->
-    <q-snackbar v-model="snackbar" :color="snackbarColor" :timeout="timeout">
-      {{ snackbarText }}
-      <template v-slot:actions>
-        <q-btn variant="text" @click="snackbar = false">Close</q-btn>
-      </template>
-    </q-snackbar>
+    <!-- Snackbar handled via $q.notify -->
   </q-dialog>
 </template>
 
@@ -352,10 +346,7 @@ const smartMatches = ref<
 const remainingImportedTransactions = ref<ImportedTransaction[]>(props.remainingImportedTransactions || []);
 const selectedBankTransaction = ref<ImportedTransaction | null>(props.selectedBankTransaction || null);
 
-// Snackbar state
-const snackbar = ref(false);
-const snackbarText = ref("");
-const snackbarColor = ref("success");
+// Snackbar timeout state for notifications
 const timeout = ref(3000);
 
 // Local state for Smart Matches sorting
@@ -1153,10 +1144,13 @@ function resetState(computeMatches = true) {
 }
 
 function showSnackbar(text: string, color = "success") {
-  snackbarText.value = text;
-  snackbarColor.value = color;
-  timeout.value = 3000;
-  snackbar.value = true;
+  $q.notify({
+    message: text,
+    color,
+    position: 'bottom',
+    timeout: timeout.value,
+    actions: [{ label: 'Close', color: 'white', handler: () => {} }],
+  });
 }
 
 // Helper function to create a budget if it doesn't exist

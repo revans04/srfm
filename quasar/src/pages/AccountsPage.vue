@@ -3,10 +3,7 @@
   <q-page fluid>
     <h1>Accounts</h1>
 
-    <!-- Loading Overlay -->
-    <q-overlay :model-value="loading" class="align-center justify-center" scrim="#00000080">
-      <q-circular-progress indeterminate color="primary" size="50" />
-    </q-overlay>
+    <!-- Loading handled via $q.loading -->
 
     <!-- Family Prompt -->
     <q-banner v-if="!familyId" type="warning" class="mb-4"> Please create or join a family to manage accounts. </q-banner>
@@ -210,12 +207,7 @@
       </q-card>
     </q-dialog>
 
-    <q-snackbar v-model="snackbar" :color="snackbarColor" timeout="3000">
-      {{ snackbarText }}
-      <template v-slot:actions>
-        <q-btn variant="text" @click="snackbar = false">Close</q-btn>
-      </template>
-    </q-snackbar>
+    <!-- Snackbar handled via $q.notify -->
   </q-page>
 </template>
 
@@ -228,13 +220,14 @@ import AccountList from "../components/AccountList.vue";
 import AccountForm from "../components/AccountForm.vue"; // Import AccountForm directly
 import { Account, Snapshot, ImportedTransaction, Transaction } from "../types";
 import { formatCurrency, formatTimestamp, todayISO } from "../utils/helpers";
+import { useQuasar } from 'quasar';
 import { v4 as uuidv4 } from "uuid";
 import { Timestamp } from "firebase/firestore";
 
 const familyStore = useFamilyStore();
+const $q = useQuasar();
 
 const tab = ref("bank");
-const loading = ref(false);
 const saving = ref(false);
 const deleting = ref(false);
 const accounts = ref<Account[]>([]);
@@ -284,9 +277,6 @@ const newSnapshot = ref<{
 });
 const accountToDelete = ref<string | null>(null);
 const snapshotToDelete = ref<string | null>(null);
-const snackbar = ref(false);
-const snackbarText = ref("");
-const snackbarColor = ref("success");
 
 const userId = computed(() => auth.currentUser?.uid || "");
 const familyId = ref<string>("");
@@ -331,7 +321,14 @@ onMounted(async () => {
     return;
   }
 
-  loading.value = true;
+  $q.loading.show({
+    message: 'Loading data...',
+    spinner: 'QSpinner',
+    spinnerColor: 'primary',
+    spinnerSize: '50px',
+    messageClass: 'q-ml-sm',
+    boxClass: 'flex items-center justify-center',
+  });
   try {
     const family = await familyStore.getFamily();
     if (!family) {
@@ -344,7 +341,7 @@ onMounted(async () => {
     showSnackbar(`Error loading data: ${error.message}`, "error");
     console.error("Error during onMounted:", error);
   } finally {
-    loading.value = false;
+    $q.loading.hide();
   }
 });
 
@@ -652,9 +649,13 @@ function getAccountCategory(accountId: string) {
 }
 
 function showSnackbar(text: string, color = "success") {
-  snackbarText.value = text;
-  snackbarColor.value = color;
-  snackbar.value = true;
+  $q.notify({
+    message: text,
+    color,
+    position: 'bottom',
+    timeout: 3000,
+    actions: [{ label: 'Close', color: 'white', handler: () => {} }],
+  });
 }
 </script>
 
