@@ -219,7 +219,7 @@
 import { ref, onMounted, computed } from "vue";
 import { auth } from "../firebase/init";
 import { dataAccess } from "../dataAccess";
-import { Budget, Snapshot } from "../types";
+import type { Budget, Snapshot } from "../types";
 import { Doughnut, Line } from "vue-chartjs";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, LineElement, PointElement, LinearScale, TimeScale, Filler } from "chart.js";
 import { useBudgetStore } from "../store/budget";
