@@ -227,7 +227,7 @@ import { useFamilyStore } from "../store/family";
 import AccountList from "../components/AccountList.vue";
 import AccountForm from "../components/AccountForm.vue"; // Import AccountForm directly
 import { Account, Snapshot, ImportedTransaction, Transaction } from "../types";
-import { formatCurrency, formatTimestamp, todayISO } from "../utils/helpers";
+import { formatCurrency, formatTimestamp, todayISO, timestampToMillis } from "../utils/helpers";
 import { v4 as uuidv4 } from "uuid";
 import { Timestamp } from "firebase/firestore";
 
@@ -431,7 +431,9 @@ async function saveAccount(account: Account, isPersonal: boolean) {
 
     if (!editMode.value && snapshot) {
       snapshots.value.push(snapshot);
-      snapshots.value.sort((a, b) => (a && a.date && b && b.date ? b.date.toMillis() - a.date.toMillis() : 1));
+      snapshots.value.sort((a, b) =>
+        a && a.date && b && b.date ? timestampToMillis(b.date) - timestampToMillis(a.date) : 1
+      );
     }
 
     // Handle updates to ImportedTransactions and Budget Transactions if accountNumber or name changed
@@ -578,7 +580,9 @@ async function saveSnapshot() {
 
     await dataAccess.saveSnapshot(familyId.value, snapshot);
     snapshots.value.push(snapshot);
-    snapshots.value.sort((a, b) => (a && a.date && b && b.date ? b.date.toMillis() - a.date.toMillis() : 1));
+    snapshots.value.sort((a, b) =>
+      a && a.date && b && b.date ? timestampToMillis(b.date) - timestampToMillis(a.date) : 1
+    );
 
     showSnackbar("Snapshot saved successfully", "success");
     showSnapshotDialog.value = false;
