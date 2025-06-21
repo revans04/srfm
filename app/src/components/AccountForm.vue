@@ -71,6 +71,7 @@
 import { ref, computed, watch, defineProps, defineEmits } from "vue";
 import { Account, AccountType } from "../types";
 import { Timestamp } from "firebase/firestore";
+import { v4 as uuidv4 } from "uuid";
 
 const props = defineProps<{
   accountType: AccountType;
@@ -88,7 +89,7 @@ const saving = ref(false);
 const isPersonalAccount = ref(false);
 
 const localAccount = ref<Account>({
-  id: "",
+  id: uuidv4(),
   name: "",
   type: props.accountType,
   category: props.accountType === AccountType.CreditCard || props.accountType === AccountType.Loan ? "Liability" : "Asset",
