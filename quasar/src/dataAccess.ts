@@ -32,6 +32,7 @@ export class DataAccess {
 
   // Budget Functions
   async loadAccessibleBudgets(userId: string, entityId?: string): Promise<BudgetInfo[]> {
+    console.log("loadAccessibleBudgets", entityId);
     if (!userId) throw new Error('User ID is required to load budgets');
 
     const headers = await this.getAuthHeaders();

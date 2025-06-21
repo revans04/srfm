@@ -1,174 +1,66 @@
 <template>
   <q-layout view="lHh Lpr lFf">
-    <!-- Desktop Navigation Drawer -->
-    <q-drawer app permanent v-if="!isMobile && !isLoginRoute">
-      <div class="text-center bg-primary">
-        <img alt="Steady Rise Financial Management" src="../assets/family-funds-sm.png" width="100" />
-      </div>
+    <q-header elevated class="bg-primary text-white">
+      <q-toolbar class="q-px-md">
+        <q-btn flat dense round icon="menu" @click="toggleLeftDrawer" />
+        <q-toolbar-title>SRFM</q-toolbar-title>
+        <q-space />
+        <q-btn flat label="Logout" @click="logout" />
+      </q-toolbar>
+    </q-header>
+
+    <q-drawer v-model="leftDrawerOpen" show-if-above bordered side="left" width="250">
       <q-list>
-        <q-separator />
-        <q-item
-          v-for="item in navItems.filter((n) => n.desktop)"
-          :key="item.title"
-          :to="item.path"
-          :title="item.title"
-          :prepend-icon="item.icon"
-          :active="router.currentRoute.value.path === item.path"
-        ></q-item>
-      </q-list>
-      <template v-slot:append>
-        <q-item disabled class="version-item">
-          <q-item-section class="text-caption text-center">
-            {{ `Version: ${appVersion}` }}
+        <q-item-label header>Navigation</q-item-label>
+        <q-item to="/" clickable exact active-class="text-primary">
+          <q-item-section avatar>
+            <q-icon name="home" />
           </q-item-section>
+          <q-item-section>Home</q-item-section>
         </q-item>
-        <q-separator />
-        <q-item :title="userEmail ? userEmail : ''" subtitle="Logout" @click="signOut">
-          <template v-slot:prepend>
-            <q-avatar size="36" class="mr-2">
-              <q-img v-if="user" :src="avatarSrc" alt="User Avatar"></q-img>
-            </q-avatar>
-          </template>
+        <q-item to="/dashboard" clickable active-class="text-primary">
+          <q-item-section avatar>
+            <q-icon name="dashboard" />
+          </q-item-section>
+          <q-item-section>Dashboard</q-item-section>
         </q-item>
-      </template>
+      </q-list>
     </q-drawer>
 
-    <!-- Main Content -->
-    <q-page-container :class="isMobile ? 'bg-primary' : 'bg-light'">
+    <q-page-container>
       <router-view />
     </q-page-container>
-
-    <!-- Mobile Bottom Navigation -->
-    <q-footer v-if="isMobile && !isLoginRoute">
-      <q-tabs no-caps active-color="primary" indicator-color="transparent" class="text-grey-8" v-model="currentTab">
-        <q-btn
-          v-for="item in navItems.filter((i) => i.mobile)"
-          :key="item.title"
-          :value="item.path"
-          @click="item.title === 'Logout' ? promptSignOut() : router.push(item.path)"
-        >
-          <q-icon>{{ item.icon }}</q-icon>
-          <span style="font-size: 5pt">{{ item.title }}</span>
-        </q-btn>
-      </q-tabs>
-    </q-footer>
-
-    <!-- Sign-Out Confirmation Dialog -->
-    <q-dialog v-model="showSignOutDialog" max-width="400">
-      <q-card>
-        <q-card-section class="bg-primary py-3">
-          <span class="text-white">Confirm Logout</span>
-        </q-card-section>
-        <q-card-section class="pt-4"> Are you sure you want to logout? </q-card-section>
-        <q-card-actions>
-          <q-space />
-          <q-btn color="grey" variant="text" @click="showSignOutDialog = false">Cancel</q-btn>
-          <q-btn color="primary" variant="flat" @click="signOut">Confirm</q-btn>
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-
-    <!-- Onboarding Modal -->
-    <q-dialog v-model="showOnboarding" persistent max-width="500">
-      <group-naming-form @family-created="completeOnboarding" />
-    </q-dialog>
   </q-layout>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
-import { useQuasar } from 'quasar';
-import type { User } from 'firebase/auth';
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import version from '../version';
-import GroupNamingForm from '../components/GroupNamingForm.vue';
-import { useAuthStore } from '../store/auth';
-import { useFamilyStore } from '../store/family';
 
 const router = useRouter();
-const auth = useAuthStore();
-const familyStore = useFamilyStore();
-const $q = useQuasar();
-const currentTab = ref('/');
+const leftDrawerOpen = ref(false);
 
-// Reactive state
-const user = ref<User | null>(null);
-const avatarSrc = ref<string>('https://via.placeholder.com/36');
-const showOnboarding = ref(false);
-const showSignOutDialog = ref(false); // New dialog state
-
-// Computed properties
-const isLoginRoute = computed(() => router.currentRoute.value.path === '/login');
-const isMobile = computed(() => $q.screen.lt.md);
-const userEmail = computed(() => user.value?.email ?? 'Guest');
-const appVersion = version;
-
-const navItems = [
-  { title: 'Budget', path: '/', icon: 'pie_chart', desktop: true, mobile: true },
-  { title: 'Transactions', path: '/transactions', icon: 'list', desktop: true, mobile: true },
-  { title: 'Accounts', path: '/accounts', icon: 'account_balance', desktop: true, mobile: true },
-  { title: 'Reports', path: '/reports', icon: 'trending_up', desktop: true, mobile: false },
-  { title: 'Data Mgmt', path: '/data', icon: 'storage', desktop: true, mobile: false },
-  { title: 'Settings', path: '/settings', icon: 'group', desktop: true, mobile: true },
-  { title: 'Logout', path: '', icon: 'logout', desktop: false, mobile: true },
-];
-
-// Functions
-async function signOut() {
-  try {
-    await auth.logout();
-    void router.push('/login');
-  } catch (error) {
-    console.error('Sign-out error:', error);
-  } finally {
-    showSignOutDialog.value = false; // Close dialog after sign-out
-  }
+function toggleLeftDrawer() {
+  console.log('Toggling drawer, current state:', leftDrawerOpen.value);
+  leftDrawerOpen.value = !leftDrawerOpen.value;
 }
 
-function promptSignOut() {
-  showSignOutDialog.value = true; // Show confirmation dialog
+function logout() {
+  console.log('Logout clicked');
+  // Implement logout logic, e.g., clear auth and redirect
+  router.push('/login');
 }
-
-function completeOnboarding(_familyId: string) {
-  showOnboarding.value = false;
-}
-
-// Lifecycle hooks
-onMounted(async () => {
-  auth.initializeAuth();
-  if (auth.user) {
-    try {
-      const family = await familyStore.loadFamily(auth.user.uid);
-      if (!family && router.currentRoute.value.path !== '/login') {
-        showOnboarding.value = true; // Show modal if no family
-      }
-
-      avatarSrc.value = localStorage.getItem('userAvatar') || auth.user.photoURL || 'https://via.placeholder.com/36';
-      if (!localStorage.getItem('userAvatar') && auth.user.photoURL) {
-        localStorage.setItem('userAvatar', auth.user.photoURL);
-      }
-    } catch (ex: any) {
-      console.warn('Failed to load family', ex.message);
-    }
-  } else {
-    avatarSrc.value = 'https://via.placeholder.com/36';
-    localStorage.removeItem('userAvatar');
-    void router.push('/login'); // Redirect to login if no user
-  }
-
-});
-
-
-watch(
-  () => auth.user,
-  (user) => {
-    if (!user) void router.push('/login');
-  },
-);
 </script>
 
 <style scoped>
-.v-main {
-  min-height: 100vh;
+.q-toolbar {
+  min-height: 64px;
+  padding: 0 16px;
+}
+.q-toolbar-title {
+  font-size: 1.5rem;
+}
+.q-drawer {
+  transition: transform 0.3s ease-in-out;
 }
 </style>

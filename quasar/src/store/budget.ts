@@ -1,7 +1,7 @@
 /** budget.ts */
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
-import { Budget } from "../types";
+import type { Budget } from "../types";
 import { dataAccess } from "../dataAccess";
 
 export const useBudgetStore = defineStore("budgets", () => {
