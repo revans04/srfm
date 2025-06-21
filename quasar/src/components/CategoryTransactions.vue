@@ -3,7 +3,7 @@
   <q-page fluid class="category-transactions text-black">
     <!-- Loading Overlay -->
     <q-overlay :model-value="loading" class="align-center justify-center" scrim="#00000080">
-      <q-progress-circular indeterminate color="primary" size="50" />
+      <q-circular-progress indeterminate color="primary" size="50" />
     </q-overlay>
 
     <!-- Header -->
@@ -32,13 +32,13 @@
             {{ isIncome ? "received" : "spent" }} of
             {{ formatCurrency(toDollars(toCents(category.target))) }}
           </div>
-          <q-progress-linear
+          <q-linear-progress
             v-model="progressPercentage"
             height="10"
             :color="isIncome ? 'green' : 'primary'"
             background-color="#e0e0e0"
             rounded
-          ></q-progress-linear>
+          ></q-linear-progress>
         </div>
         <div class="remaining-section" :class="{ 'over-budget': (remaining || 0) < 0 && !isIncome }">
           <span class="remaining-label"> {{ category.group == "Income" ? "Left to Receive " : "Available " }}</span>

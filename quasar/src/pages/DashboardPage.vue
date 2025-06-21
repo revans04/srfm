@@ -717,26 +717,36 @@ watch(currentMonth, () => {
 });
 
 onMounted(async () => {
-  console.log("mounted");
-  const user = auth.user;
-  if (!user) {
-    console.log("no user", auth);
-    showSnackbar('Please log in to view the dashboard', 'error');
-    loading.value = false;
-    return;
-  }
+  console.log('Mounted: Checking auth state');
+  loading.value = true;
 
   try {
+    // User should be guaranteed by route guard
+    if (!auth.user) {
+      console.error('No user found despite route guard');
+      showSnackbar('Authentication error: No user found', 'error');
+      loading.value = false;
+      return;
+    }
+
+    if (auth.authError) {
+      console.error('Auth error:', auth.authError);
+      showSnackbar(`Authentication error: ${auth.authError}`, 'error');
+      loading.value = false;
+      return;
+    }
+
     loadingTimeout = setTimeout(() => {
       showLoadingMessage.value = true;
       console.log('Loading timeout triggered');
     }, 5000);
 
-    console.log("loadFamily", user);
-    await familyStore.loadFamily(user.uid);
-    console.log("loadBudgets");
+    console.log('Loading family for user:', auth.user.uid);
+    await familyStore.loadFamily(auth.user.uid);
+    console.log('Loading budgets');
     await loadBudgets();
-  } catch (error) {
+  } catch (error: any) {
+    console.error('Initialization error:', error);
     showSnackbar(`Error loading data: ${error.message}`, 'error');
   } finally {
     if (loadingTimeout) clearTimeout(loadingTimeout);
@@ -753,12 +763,17 @@ onUnmounted(() => {
 
 async function loadBudgets() {
   const user = auth.user;
-  if (!user) return;
+  if (!user) {
+    console.log('No user for loading budgets');
+    return;
+  }
 
   loading.value = true;
   try {
+    console.log('Loading budgets for user:', user.uid, 'entity:', familyStore.selectedEntityId);
     await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
-  } catch (error) {
+  } catch (error: any) {
+    console.error('Error loading budgets:', error);
     showSnackbar(`Error loading budgets: ${error.message}`, 'error');
   } finally {
     loading.value = false;
@@ -838,7 +853,7 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
     const [sourceYear, sourceMonthNum] = sourceBudget.month.split('-').map(Number);
     const isFutureMonth = newYear > sourceYear || (newYear === sourceYear && newMonthNum > sourceMonthNum);
 
-    let newCarryover = {};
+    let newCarryover: Record<string, number> = {};
     if (isFutureMonth) {
       newCarryover = await dataAccess.calculateCarryOver(sourceBudget);
     }
@@ -858,7 +873,7 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
       budgetId: budgetId,
     };
 
-    const recurringTransactions = [];
+    const recurringTransactions: Transaction[] = [];
     if (sourceBudget.transactions) {
       const recurringGroups = sourceBudget.transactions.reduce(
         (groups, trx) => {
@@ -938,8 +953,7 @@ async function createDefaultBudget() {
     await createBudgetForMonth(currentMonth.value, family.id, family.ownerUid, familyStore.selectedEntityId);
     await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
     showSnackbar('Budget created successfully', 'success');
-  } catch (error) {
-    console.error('Error creating budget:', error);
+  } catch (error: any) {
     showSnackbar(`Failed to create budget: ${error.message}`, 'error');
   } finally {
     loading.value = false;
@@ -957,7 +971,7 @@ async function refreshBudget() {
         categoryOptions.value.push('Income');
       }
     }
-  } catch (error) {
+  } catch (error: any) {
     showSnackbar(`Error refreshing budget: ${error.message}`, 'error');
   }
 }
@@ -975,7 +989,7 @@ function onTransactionSaved(transaction: Transaction) {
 
     updateMerchants();
     showSnackbar(isIncomeTransaction.value ? 'Income added successfully' : 'Transaction added successfully');
-  } catch (error) {
+  } catch (error: any) {
     showSnackbar(`Error updating transaction: ${error.message}`, 'error');
   }
 }
@@ -985,7 +999,7 @@ function updateTransactions(newTransactions: Transaction[]) {
     budget.value.transactions = newTransactions;
     budgetStore.updateBudget(budgetId.value, { ...budget.value });
     updateMerchants();
-  } catch (error) {
+  } catch (error: any) {
     showSnackbar(`Error updating transactions: ${error.message}`, 'error');
   }
 }
@@ -1030,7 +1044,7 @@ async function selectMonth(month: string) {
         categoryOptions.value.push('Income');
       }
     }
-  } catch (error) {
+  } catch (error: any) {
     showSnackbar(`Error loading budget: ${error.message}`, 'error');
   } finally {
     loading.value = false;
@@ -1056,7 +1070,7 @@ async function saveBudget() {
     await dataAccess.saveBudget(budgetId.value, budget.value);
     showSnackbar('Budget saved successfully');
     isEditing.value = false;
-  } catch (error) {
+  } catch (error: any) {
     showSnackbar(`Error saving budget: ${error.message}`, 'error', async () => {
       await saveBudget();
     });
@@ -1221,8 +1235,7 @@ async function duplicateCurrentMonth(month: string) {
     await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
 
     showSnackbar("Created new month's budget");
-  } catch (error) {
-    console.error('Error duplicating budget:', error);
+  } catch (error: any) {
     showSnackbar(`Failed to duplicate budget: ${error.message}`, 'error');
   } finally {
     duplicating.value = false;
@@ -1321,7 +1334,7 @@ async function saveInlineEdit() {
     await dataAccess.saveBudget(budgetId.value, budget.value);
     budgetStore.updateBudget(budgetId.value, { ...budget.value });
     showSnackbar('Budget updated');
-  } catch (error) {
+  } catch (error: any) {
     showSnackbar(`Error saving budget: ${error.message}`, 'error');
   }
 

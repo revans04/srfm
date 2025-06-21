@@ -188,7 +188,7 @@
               <q-card-section>Net Worth Over Time</q-card-section>
               <q-card-section>
                 <div style="height: 400px">
-                  <q-progress-circular v-if="isLoadingSnapshots" indeterminate color="primary" />
+                  <q-circular-progress v-if="isLoadingSnapshots" indeterminate color="primary" />
                   <LineChart v-else-if="netWorthData?.labels?.length > 0" :data="netWorthData" :options="netWorthChartOptions" />
                   <p v-else>No net worth data available</p>
                 </div>
@@ -202,7 +202,7 @@
               <q-card-section>Assets and Liabilities Over Time</q-card-section>
               <q-card-section>
                 <div style="height: 400px">
-                  <q-progress-circular v-if="isLoadingSnapshots" indeterminate color="primary" />
+                  <q-circular-progress v-if="isLoadingSnapshots" indeterminate color="primary" />
                   <LineChart v-else-if="assetDebtData?.labels?.length > 0" :data="assetDebtData" :options="assetDebtChartOptions" />
                   <p v-else>No asset/debt data available</p>
                 </div>

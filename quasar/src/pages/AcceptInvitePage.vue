@@ -1,7 +1,7 @@
 <template>
   <q-page>
     <h1>Accept Invite</h1>
-    <q-progress-circular v-if="loading" indeterminate></q-progress-circular>
+    <q-circular-progress v-if="loading" indeterminate></q-circular-progress>
     <q-banner v-else-if="error" type="error">{{ error }}</q-banner>
     <div v-else-if="accepted">
       <q-banner type="success">You’ve joined the family! Redirecting to dashboard...</q-banner>

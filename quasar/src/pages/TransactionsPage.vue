@@ -5,7 +5,7 @@
 
     <!-- Loading Overlay -->
     <q-overlay :model-value="loading" class="align-center justify-center" scrim="#00000080">
-      <q-progress-circular indeterminate color="primary" size="50" />
+      <q-circular-progress indeterminate color="primary" size="50" />
     </q-overlay>
 
     <!-- Tabs -->

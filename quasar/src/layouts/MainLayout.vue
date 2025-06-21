@@ -9,7 +9,7 @@
       </q-toolbar>
     </q-header>
 
-    <q-drawer v-model="leftDrawerOpen" show-if-above bordered side="left" width="250">
+    <q-drawer v-model="leftDrawerOpen" show-if-above bordered side="left" :width="250">
       <q-list>
         <q-item-label header>Navigation</q-item-label>
         <q-item to="/" clickable exact active-class="text-primary">
