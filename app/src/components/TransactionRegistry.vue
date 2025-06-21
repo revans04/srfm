@@ -302,23 +302,19 @@
                 ></v-select>
               </v-col>
             </v-row>
-            <v-row>
-              <v-col>
-                <v-text-field v-model="batchMerchant" label="Merchant" variant="outlined" density="compact" :rules="requiredField"></v-text-field>
-              </v-col>
-            </v-row>
-            <v-row>
-              <v-col>
-                <v-combobox
-                  v-model="batchCategory"
-                  :items="categoryOptions"
-                  label="Category"
-                  variant="outlined"
-                  density="compact"
-                  :rules="requiredField"
-                ></v-combobox>
-              </v-col>
-            </v-row>
+            <v-list class="mt-2" density="compact">
+              <v-list-item v-for="entry in batchEntries" :key="entry.id">
+                <v-list-item-content>
+                  <div class="text-caption">{{ entry.date }} - {{ formatCurrency(entry.amount) }}</div>
+                </v-list-item-content>
+                <v-list-item-content>
+                  <v-text-field v-model="entry.merchant" label="Merchant" density="compact" variant="outlined" :rules="requiredField"></v-text-field>
+                </v-list-item-content>
+                <v-list-item-content>
+                  <v-combobox v-model="entry.category" :items="categoryOptions" label="Category" density="compact" variant="outlined" :rules="requiredField"></v-combobox>
+                </v-list-item-content>
+              </v-list-item>
+            </v-list>
           </v-form>
         </v-card-text>
         <v-card-actions>
@@ -572,8 +568,7 @@ const adjustmentForm = ref<InstanceType<typeof VForm> | null>(null);
 const selectedRows = ref<string[]>([]);
 const showBatchMatchDialog = ref(false);
 const batchMatchForm = ref<InstanceType<typeof VForm> | null>(null);
-const batchMerchant = ref("");
-const batchCategory = ref("");
+const batchEntries = ref<Array<{ id: string; date: string; amount: number; merchant: string; category: string; isIncome: boolean }>>([]);
 const selectedEntityId = ref<string>("");
 const showBatchActionDialog = ref(false);
 const batchAction = ref<string>("");
@@ -1075,9 +1070,17 @@ function openBatchMatchDialog() {
     showSnackbar("No entities available. Please set up entities first.", "error");
     return;
   }
-  const firstSelectedTx = displayTransactions.value?.find((t) => t.id === selectedRows.value[0]);
-  batchMerchant.value = filterMerchant.value || (firstSelectedTx ? firstSelectedTx.merchant : "");
-  batchCategory.value = "";
+  batchEntries.value = selectedRows.value.map((id) => {
+    const tx = displayTransactions.value?.find((t) => t.id === id);
+    return {
+      id,
+      date: tx?.date || "",
+      amount: tx?.amount || 0,
+      isIncome: tx?.isIncome || false,
+      merchant: filterMerchant.value || (tx ? tx.merchant : ""),
+      category: "",
+    };
+  });
   selectedEntityId.value = familyStore.selectedEntityId || "";
   showBatchMatchDialog.value = true;
 }
@@ -1107,7 +1110,8 @@ async function executeBatchMatch() {
 
     const ownerUid = family.ownerUid || user.uid;
 
-    for (const txId of selectedRows.value) {
+    for (const entry of batchEntries.value) {
+      const txId = entry.id;
       const transaction = displayTransactions.value?.find((t) => t.id === txId);
       if (!transaction) {
         console.error(`Transaction with ID ${txId} not found in displayTransactions`);
@@ -1136,9 +1140,9 @@ async function executeBatchMatch() {
       }
 
       // Check if category exists in budget; if not, add it
-      if (!targetBudget.categories.some((cat) => cat.name === batchCategory.value)) {
+      if (!targetBudget.categories.some((cat) => cat.name === entry.category)) {
         targetBudget.categories.push({
-          name: batchCategory.value,
+          name: entry.category,
           target: 0,
           isFund: false,
           group: "Ungrouped",
@@ -1153,8 +1157,8 @@ async function executeBatchMatch() {
         id: uuidv4(),
         date: date,
         budgetMonth: budgetMonth,
-        merchant: batchMerchant.value,
-        categories: [{ category: batchCategory.value, amount: Math.abs(amount) }],
+        merchant: entry.merchant,
+        categories: [{ category: entry.category, amount: Math.abs(amount) }],
         amount: Math.abs(amount),
         notes: "",
         recurring: false,
@@ -1197,9 +1201,8 @@ async function executeBatchMatch() {
     showSnackbar(`Successfully matched ${selectedRows.value.length} transaction${selectedRows.value.length > 1 ? "s" : ""}`, "success");
     selectedRows.value = [];
     showBatchMatchDialog.value = false;
-    batchMerchant.value = "";
-    batchCategory.value = "";
     selectedEntityId.value = "";
+    batchEntries.value = [];
     const acct = selectedAccount.value;
     await loadData(); // Refresh data to reflect changes
     selectedAccount.value = acct;
