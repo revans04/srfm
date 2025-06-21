@@ -548,12 +548,13 @@ const importedTransactions = ref<ImportedTransaction[]>([]);
 const accounts = ref<Account[]>([]);
 const accountOptions = ref<{ title: string; value: string }[]>([]);
 const statements = ref<Statement[]>([]);
-const statementOptions = computed(() =>
-  statements.value.map((s) => ({
+const statementOptions = computed(() => [
+  { title: "All", id: "ALL" },
+  ...statements.value.map((s) => ({
     title: `${s.startDate} - ${s.endDate}`,
     id: s.id,
-  }))
-);
+  })),
+]);
 const selectedStatementId = ref<string | null>(null);
 const snackbar = ref(false);
 const snackbarText = ref("");
@@ -585,7 +586,12 @@ const newStatement = ref<Statement>({
   reconciled: false,
 });
 const reconciling = ref(false);
-const selectedStatement = computed(() => statements.value.find((s) => s.id === selectedStatementId.value) || null);
+const selectedStatement = computed(() => {
+  if (!selectedStatementId.value || selectedStatementId.value === "ALL") {
+    return null;
+  }
+  return statements.value.find((s) => s.id === selectedStatementId.value) || null;
+});
 const categoryOptions = computed(() => {
   const categories = new Set<string>(["Income"]);
   budgets.value.forEach((budget) => {
@@ -916,7 +922,7 @@ async function loadTransactions() {
     if (statements.value.length > 0) {
       selectedStatementId.value = statements.value[statements.value.length - 1]!.id;
     } else {
-      selectedStatementId.value = null;
+      selectedStatementId.value = "ALL";
     }
   } catch (error: any) {
     console.error("Error loading transactions:", error);
@@ -1510,7 +1516,10 @@ async function refreshData() {
   if (prevAccount) {
     selectedAccount.value = prevAccount;
     await loadTransactions();
-    if (prevStatement && statements.value.some((s) => s.id === prevStatement)) {
+    if (
+      prevStatement === "ALL" ||
+      (prevStatement && statements.value.some((s) => s.id === prevStatement))
+    ) {
       selectedStatementId.value = prevStatement;
     }
   }
@@ -1721,7 +1730,7 @@ async function deleteStatement() {
     if (statements.value.length > 0) {
       selectedStatementId.value = statements.value[statements.value.length - 1].id;
     } else {
-      selectedStatementId.value = null;
+      selectedStatementId.value = "ALL";
     }
     showSnackbar("Statement deleted", "success");
   } catch (error: any) {
