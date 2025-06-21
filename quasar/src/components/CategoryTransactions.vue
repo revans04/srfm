@@ -1,35 +1,23 @@
 <!-- CategoryTransactions.vue -->
 <template>
   <q-page fluid class="category-transactions text-black">
-    <!-- Loading Overlay -->
-    <q-overlay :model-value="loading" class="align-center justify-center" scrim="#00000080">
-      <q-circular-progress indeterminate color="primary" size="50" />
-    </q-overlay>
-
     <!-- Header -->
-    <div class="row header" >
+    <div class="row header">
       <div class="col">
         <h2 class="category-title">{{ category.name }}</h2>
       </div>
       <div class="col col-auto">
-        <q-fab
-          :class="isMobile ? 'mr-2' : 'mr-2 mt-2'"
-          icon="close"
-          variant="plain"
-          :absolute="true"
-          location="top"
-          @click="$emit('close')"
-        />
+        <q-fab :class="isMobile ? 'mr-2' : 'mr-2 mt-2'" icon="close" variant="plain" :absolute="true" location="top" @click="$emit('close')" />
       </div>
     </div>
 
     <!-- Progress Bar and Remaining -->
-    <div class="row mt-2" >
+    <div class="row mt-2">
       <div class="col">
         <div class="progress-section">
           <div class="progress-label">
             <span :class="!isIncome && spent > category.target ? 'text-error' : ''">{{ formatCurrency(toDollars(toCents(spent))) }}</span>
-            {{ isIncome ? "received" : "spent" }} of
+            {{ isIncome ? 'received' : 'spent' }} of
             {{ formatCurrency(toDollars(toCents(category.target))) }}
           </div>
           <q-linear-progress
@@ -41,7 +29,7 @@
           ></q-linear-progress>
         </div>
         <div class="remaining-section" :class="{ 'over-budget': (remaining || 0) < 0 && !isIncome }">
-          <span class="remaining-label"> {{ category.group == "Income" ? "Left to Receive " : "Available " }}</span>
+          <span class="remaining-label"> {{ category.group == 'Income' ? 'Left to Receive ' : 'Available ' }}</span>
           <span class="remaining-amount">
             {{ formatCurrency(toDollars(toCents(available))) }}
           </span>
@@ -50,33 +38,33 @@
     </div>
 
     <!-- Transactions List -->
-    <div class="row flex-grow-1 mt-4 pl-0 pr-0" >
-      <div class="col transaction-list pl-0 pr-0" >
+    <div class="row flex-grow-1 mt-4 pl-0 pr-0">
+      <div class="col transaction-list pl-0 pr-0">
         <h3 class="section-title pb-2">Transactions ({{ categoryTransactions.length }})</h3>
         <div class="my-2 bg-white rounded-10 pt-2 pr-3 pl-3 mb-4">
-          <q-text-field append-inner-icon="search" density="compact" label="Search" variant="plain" single-line v-model="search"></q-text-field>
+          <q-input v-model="search" label="Search" dense clearable prepend-icon="search"></q-input>
         </div>
         <q-list dense class="rounded-10">
           <q-item
             v-for="transaction in categoryTransactions"
             :key="transaction.id"
             class="transaction-item"
-            density="compact"
+            dense
             @click="editTransaction(transaction)"
             style="border-bottom: 1px solid rgb(var(--v-theme-light))"
           >
             <q-item-section class="d-flex align-center">
-              <div class="row pa-2 align-center no-gutters"  >
-                <div class="col pt-2 font-weight-bold text-primary col-2"  style="min-width: 60px; font-size: 10px">
+              <div class="row pa-2 align-center no-gutters">
+                <div class="col pt-2 font-weight-bold text-primary col-2" style="min-width: 60px; font-size: 10px">
                   {{ formatDate(transaction.date) }}
                 </div>
-                <div class="col text-truncate"  style="flex: 1; min-width: 0">
+                <div class="col text-truncate" style="flex: 1; min-width: 0">
                   {{ transaction.merchant }}
                 </div>
-                <div class="col text-right no-wrap col-auto"  :class="transaction.isIncome ? 'green--text' : ''" style="min-width: 60px">
+                <div class="col text-right no-wrap col-auto" :class="transaction.isIncome ? 'green--text' : ''" style="min-width: 60px">
                   ${{ Math.abs(getCategoryAmount(transaction)).toFixed(2) }}
                 </div>
-                <div class="col text-right col-auto"  style="min-width: 40px">
+                <div class="col text-right col-auto" style="min-width: 40px">
                   <q-icon small @click.stop="confirmDelete(transaction)" title="Move to Trash" color="error">trash</q-icon>
                 </div>
               </div>
@@ -90,19 +78,11 @@
     </div>
 
     <!-- Floating Action Button -->
-    <q-fab
-      icon="add"
-      :app="true"
-      color="primary"
-      @click="$emit('add-transaction')"
-      location="bottom right"
-      class="mr-2"
-      :class="isMobile ? 'mb-14' : 'mb-2'"
-    />
+    <q-fab icon="add" :app="true" color="primary" @click="$emit('add-transaction')" location="bottom right" class="mr-2" :class="isMobile ? 'mb-14' : 'mb-2'" />
 
     <!-- Edit Transaction Dialog -->
     <q-dialog v-model="showEditDialog" :max-width="!isMobile ? '600px' : ''" :fullscreen="isMobile">
-      <q-card density="compact">
+      <q-card dense>
         <q-card-section class="bg-primary py-5">
           <div class="row">
             <div class="col">Edit {{ transactionToEdit?.merchant }} Transaction</div>
@@ -132,7 +112,7 @@
         </q-card-section>
         <q-card-section class="pt-4">
           Are you sure you want to delete the transaction for "{{ transactionToDelete?.merchant }}" on
-          {{ transactionToDelete ? formatDate(transactionToDelete.date) : "" }}?
+          {{ transactionToDelete ? formatDate(transactionToDelete.date) : '' }}?
         </q-card-section>
         <q-card-actions>
           <q-space></q-space>
@@ -145,13 +125,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
-import { dataAccess } from "../dataAccess";
-import TransactionForm from "./TransactionForm.vue";
-import { BudgetCategory, Transaction, Budget } from "../types";
-import { toDollars, toCents, formatCurrency } from "../utils/helpers";
-import { useBudgetStore } from "../store/budget";
+import { dataAccess } from '../dataAccess';
+import TransactionForm from './TransactionForm.vue';
+import { BudgetCategory, Transaction, Budget } from '../types';
+import { toDollars, toCents, formatCurrency } from '../utils/helpers';
+import { useBudgetStore } from '../store/budget';
 
 const props = defineProps<{
   category: BudgetCategory;
@@ -162,12 +142,12 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (e: "close"): void;
-  (e: "add-transaction"): void;
-  (e: "update-transactions", transactions: Transaction[]): void;
+  (e: 'close'): void;
+  (e: 'add-transaction'): void;
+  (e: 'update-transactions', transactions: Transaction[]): void;
 }>();
 
-const search = ref("");
+const search = ref('');
 const budgetStore = useBudgetStore();
 const $q = useQuasar();
 const loading = ref(false);
@@ -180,10 +160,8 @@ const spent = computed(() => {
   let spentTotal = 0;
   if (props.transactions) {
     for (const transaction of props.transactions) {
-      if (transaction.deleted) continue; // Skip deleted transactions
-      const hasCategory = transaction.categories.some(
-        (c) => c.category === props.category.name
-      );
+      if (transaction.deleted) continue;
+      const hasCategory = transaction.categories.some((c) => c.category === props.category.name);
       if (hasCategory) {
         if (isIncome.value) {
           transaction.categories.forEach((c) => {
@@ -211,12 +189,12 @@ const carryOverAndTarget = computed(() => {
 });
 
 const remaining = computed(() => {
-  if (props.category.group === "Income") return (Number(spent.value) || 0) - (Number(props.category.target) || 0);
+  if (props.category.group === 'Income') return (Number(spent.value) || 0) - (Number(props.category.target) || 0);
   return (Number(props.category.target) || 0) - (Number(spent.value) || 0);
 });
 
 const available = computed(() => {
-  if (props.category.group === "Income") {
+  if (props.category.group === 'Income') {
     const avail = (Number(spent.value) || 0) - carryOverAndTarget.value;
     if (avail > 0) return 0;
     return avail;
@@ -234,13 +212,13 @@ const progressPercentage = computed(() => {
 const isMobile = computed(() => $q.screen.lt.md);
 
 const isIncome = computed(() => {
-  return props.category.group === "Income";
+  return props.category.group === 'Income';
 });
 
 const categoryTransactions = computed(() => {
   let temp = props.transactions || [];
   temp = temp
-    .filter((t) => !t.deleted) // Exclude deleted transactions
+    .filter((t) => !t.deleted)
     .filter((t) => (t.categories && Array.isArray(t.categories) ? t.categories.some((split) => split.category === props.category.name) : false))
     .sort((a, b) => {
       const dateA = new Date(a.date);
@@ -250,9 +228,9 @@ const categoryTransactions = computed(() => {
       }
       return a.merchant.localeCompare(b.merchant);
     });
-  if (search.value && search.value !== "") {
+  if (search.value && search.value !== '') {
     temp = temp.filter(
-      (t) => t.merchant.toLowerCase().includes(search.value.toLowerCase()) || t.amount.toString().toLowerCase().includes(search.value.toLowerCase())
+      (t) => t.merchant.toLowerCase().includes(search.value.toLowerCase()) || t.amount.toString().toLowerCase().includes(search.value.toLowerCase()),
     );
   }
   return temp;
@@ -268,14 +246,14 @@ const getCategoryAmount = (transaction: Transaction) => {
 };
 
 const formatDate = (dateStr: string): string => {
-  const [yearStr, monthStr, dayStr] = dateStr.split("-");
+  const [yearStr, monthStr, dayStr] = dateStr.split('-');
   const year = Number(yearStr);
   const month = Number(monthStr);
   const day = Number(dayStr);
   const date = new Date(year, month - 1, day);
   return `
-    ${date.toLocaleDateString("en-US", { month: "short" })}
-    ${date.toLocaleDateString("en-US", { day: "numeric" })}
+    ${date.toLocaleDateString('en-US', { month: 'short' })}
+    ${date.toLocaleDateString('en-US', { day: 'numeric' })}
   `;
 };
 
@@ -296,7 +274,14 @@ async function executeDelete() {
     showDeleteDialog.value = false;
     return;
   }
-  loading.value = true;
+  $q.loading.show({
+    message: 'Deleting transaction...',
+    spinner: 'QSpinner',
+    spinnerColor: 'primary',
+    spinnerSize: '50px',
+    messageClass: 'q-ml-sm',
+    boxClass: 'flex items-center justify-center',
+  });
   try {
     const targetBudget = budgetStore.getBudget(props.budgetId);
     if (targetBudget) {
@@ -304,29 +289,26 @@ async function executeDelete() {
     }
     const updatedTransactions = budgetStore.getBudget(props.budgetId)?.transactions;
     if (updatedTransactions) {
-      emit("update-transactions", updatedTransactions);
+      emit('update-transactions', updatedTransactions);
     }
   } catch (error: any) {
-    console.error("Error moving transaction to trash:", error);
+    console.error('Error moving transaction to trash:', error);
   } finally {
-    loading.value = false;
+    $q.loading.hide();
     showDeleteDialog.value = false;
     transactionToDelete.value = null;
   }
 }
 
-async function onTransactionSaved(savedTransaction: Transaction) {
+function onTransactionSaved(savedTransaction: Transaction) {
   showEditDialog.value = false;
-  // No need to emit update-transactions here; TransactionForm already emits it
 }
 
 function updateTransactions(updatedTransactions: Transaction[]) {
-  // Propagate the update-transactions event to DashboardView
-  emit("update-transactions", updatedTransactions);
+  emit('update-transactions', updatedTransactions);
 }
 
 onMounted(async () => {
-  // Rely on budgetStore instead of fetching directly
   const budget = budgetStore.getBudget(props.budgetId);
   if (!budget) {
     console.error(`Budget ${props.budgetId} not found in store`);
@@ -334,5 +316,4 @@ onMounted(async () => {
 });
 </script>
 
-<style scoped>
-</style>
+<style scoped></style>

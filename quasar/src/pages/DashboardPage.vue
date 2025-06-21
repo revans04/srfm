@@ -312,12 +312,6 @@
           </q-card-section>
         </q-card>
       </q-dialog>
-
-      <!-- Duplicating Overlay -->
-      <q-loading v-model="duplicating" class="flex items-center justify-center">
-        <q-spinner color="primary" size="50px" />
-        <span class="q-ml-sm">Duplicating budget...</span>
-      </q-loading>
     </div>
   </q-page>
 </template>
@@ -385,11 +379,6 @@ const newTransaction = ref<Transaction>({
   isIncome: false,
   taxMetadata: [],
 });
-const snackbarText = ref('');
-const snackbarColor = ref('success');
-const showRetry = ref(false);
-const retryAction = ref<(() => void) | null>(null);
-const timeout = ref(-1);
 const ownerUid = ref<string | null>(null);
 const budgetId = computed(() => {
   if (!ownerUid.value || !familyStore.selectedEntityId) return '';
@@ -995,7 +984,7 @@ function updateTransactions(newTransactions: Transaction[]) {
 }
 
 function shiftMonths(offset: number) {
-  monthOffset.value += offset;
+  monthOffset.value = offset;
 }
 
 async function selectMonth(month: string) {
@@ -1206,7 +1195,15 @@ async function duplicateCurrentMonth(month: string) {
     return;
   }
 
-  duplicating.value = true;
+  $q.loading.show({
+    message: 'Duplicating budget...',
+    spinner: 'QSpinner',
+    spinnerColor: 'primary',
+    spinnerSize: '50px',
+    messageClass: 'q-ml-sm',
+    boxClass: 'flex items-center justify-center',
+  });
+
   try {
     const family = await familyStore.getFamily();
     if (!family) {
@@ -1228,7 +1225,7 @@ async function duplicateCurrentMonth(month: string) {
   } catch (error: any) {
     showSnackbar(`Failed to duplicate budget: ${error.message}`, 'error');
   } finally {
-    duplicating.value = false;
+    $q.loading.hide();
   }
 }
 
@@ -1342,7 +1339,10 @@ function showSnackbar(text: string, color = 'success', retry?: () => void) {
     color: color,
     position: 'bottom',
     timeout: retry ? 0 : 3000,
-    actions: [...(retry ? [{ label: 'Retry', color: 'white', handler: retry }] : []), { label: 'Close', color: 'white', handler: () => {} }],
+    actions: [
+      ...(retry ? [{ label: 'Retry', color: 'white', handler: retry }] : []),
+      { label: 'Close', color: 'white', handler: () => {} },
+    ],
   });
 }
 
