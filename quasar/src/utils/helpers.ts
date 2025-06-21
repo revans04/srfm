@@ -49,6 +49,19 @@ export function timestampToDate(t: Timestamp): Date {
   return new Date(milliseconds);
 }
 
+export function timestampToMillis(t: any): number {
+  if (!t) return 0;
+  if (t instanceof Timestamp) {
+    return t.toMillis();
+  }
+  if (typeof t === 'object' && 'seconds' in t) {
+    const seconds = (t as any).seconds ?? 0;
+    const nanos = (t as any).nanoseconds ?? 0;
+    return seconds * 1000 + nanos / 1e6;
+  }
+  return 0;
+}
+
 export function stringToFirestoreTimestamp(dateString: string): Timestamp {
   // Validate the date string format (YYYY-MM-DD)
   const dateRegex = /^\d{4}-\d{2}-\d{2}$/;

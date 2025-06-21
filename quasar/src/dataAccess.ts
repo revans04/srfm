@@ -689,7 +689,12 @@ export class DataAccess {
         headers,
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      return await response.json();
+      const data = await response.json();
+      return data.map((s: any) => ({
+        ...s,
+        date: new Timestamp(s.date.seconds, s.date.nanoseconds),
+        createdAt: new Timestamp(s.createdAt.seconds, s.createdAt.nanoseconds),
+      }));
     } catch (error) {
       console.error('Error fetching snapshots:', error);
       return [];
