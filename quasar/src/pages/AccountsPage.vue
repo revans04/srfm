@@ -256,7 +256,7 @@ const originalAccountName = ref<string>("");
 const affectedImportedTransactionCount = ref(0);
 const affectedBudgetTransactionCount = ref(0);
 const newAccount = ref<Account>({
-  id: "",
+  id: uuidv4(),
   name: "",
   type: "Bank",
   category: "Asset",
@@ -512,7 +512,7 @@ function closeAccountDialog() {
   affectedImportedTransactionCount.value = 0;
   affectedBudgetTransactionCount.value = 0;
   newAccount.value = {
-    id: "",
+    id: uuidv4(),
     name: "",
     type: "Bank",
     category: "Asset",
