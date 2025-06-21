@@ -167,7 +167,7 @@
             return tx && tx.status === 'U';
           })"
         >
-          Batch Match {{ selectedRows.length }} Transaction{{ selectedRows.length > 1 ? "s" : "" }}
+          Create {{ selectedRows.length }} Budget Transaction{{ selectedRows.length > 1 ? "s" : "" }}
         </v-btn>
         <v-btn
           v-if="selectedRows.length > 0"
