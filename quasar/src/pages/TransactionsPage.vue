@@ -3,10 +3,6 @@
   <q-page :class="isMobile ? 'ps-0' : ''">
     <h1>Transaction and Registry</h1>
 
-    <!-- Loading Overlay -->
-    <q-overlay :model-value="loading" class="align-center justify-center" scrim="#00000080">
-      <q-circular-progress indeterminate color="primary" size="50" />
-    </q-overlay>
 
     <!-- Tabs -->
     <q-tabs v-model="tab" color="primary">
@@ -357,12 +353,6 @@
       @match-transaction="matchTransaction"
     />
 
-    <q-snackbar v-model="snackbar" :color="snackbarColor" timeout="3000">
-      {{ snackbarText }}
-      <template v-slot:actions>
-        <q-btn variant="text" @click="snackbar = false">Close</q-btn>
-      </template>
-    </q-snackbar>
   </q-page>
 </template>
 
@@ -422,9 +412,6 @@ const availableAccounts = ref<Account[]>([]);
 const categoryOptions = ref<string[]>(['Income']);
 const loading = ref(false);
 const editMode = ref(false);
-const snackbar = ref(false);
-const snackbarText = ref('');
-const snackbarColor = ref('success');
 const showTransactionDialog = ref(false);
 const showMatchBudgetTransactionDialog = ref(false);
 const showMatchBankTransactionsDialog = ref(false);
@@ -568,7 +555,14 @@ onMounted(async () => {
     return;
   }
 
-  loading.value = true;
+  $q.loading.show({
+    message: 'Loading data...',
+    spinner: 'QSpinner',
+    spinnerColor: 'primary',
+    spinnerSize: '50px',
+    messageClass: 'q-ml-sm',
+    boxClass: 'flex items-center justify-center',
+  });
   try {
     await familyStore.loadFamily(user.uid);
     await loadBudgets();
@@ -589,7 +583,7 @@ onMounted(async () => {
   } catch (error: any) {
     showSnackbar(`Error loading data: ${error.message}`, 'error');
   } finally {
-    loading.value = false;
+    $q.loading.hide();
   }
 });
 
@@ -611,13 +605,20 @@ async function loadBudgets() {
   const user = auth.currentUser;
   if (!user) return;
 
-  loading.value = true;
+  $q.loading.show({
+    message: 'Loading budgets...',
+    spinner: 'QSpinner',
+    spinnerColor: 'primary',
+    spinnerSize: '50px',
+    messageClass: 'q-ml-sm',
+    boxClass: 'flex items-center justify-center',
+  });
   try {
     await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
   } catch (error: any) {
     showSnackbar(`Error loading budgets: ${error.message}`, 'error');
   } finally {
-    loading.value = false;
+    $q.loading.hide();
   }
 }
 
@@ -628,7 +629,14 @@ async function loadTransactions() {
     return;
   }
 
-  loading.value = true;
+  $q.loading.show({
+    message: 'Loading transactions...',
+    spinner: 'QSpinner',
+    spinnerColor: 'primary',
+    spinnerSize: '50px',
+    messageClass: 'q-ml-sm',
+    boxClass: 'flex items-center justify-center',
+  });
   const allTransactions: Transaction[] = [];
   const allCategories = new Set<string>(['Income']);
 
@@ -653,7 +661,7 @@ async function loadTransactions() {
   } catch (error: any) {
     showSnackbar(`Error loading transactions: ${error.message}`, 'error');
   } finally {
-    loading.value = false;
+    $q.loading.hide();
   }
 }
 
@@ -662,7 +670,14 @@ async function isLastMonth(transaction: Transaction) {
 }
 
 async function saveTransaction(transaction: Transaction) {
-  loading.value = true;
+  $q.loading.show({
+    message: 'Saving transaction...',
+    spinner: 'QSpinner',
+    spinnerColor: 'primary',
+    spinnerSize: '50px',
+    messageClass: 'q-ml-sm',
+    boxClass: 'flex items-center justify-center',
+  });
   try {
     let targetBudgetIdToUse = targetBudgetId.value;
 
@@ -678,7 +693,7 @@ async function saveTransaction(transaction: Transaction) {
   } catch (error: any) {
     showSnackbar(`Error: ${error.message}`, 'error');
   } finally {
-    loading.value = false;
+    $q.loading.hide();
   }
 }
 
@@ -696,6 +711,14 @@ async function deleteTransaction(id: string) {
     return;
   }
 
+  $q.loading.show({
+    message: 'Deleting transaction...',
+    spinner: 'QSpinner',
+    spinnerColor: 'primary',
+    spinnerSize: '50px',
+    messageClass: 'q-ml-sm',
+    boxClass: 'flex items-center justify-center',
+  });
   try {
     const targetTransaction = transactions.value.find((tx) => tx.id === id);
 
@@ -721,6 +744,8 @@ async function deleteTransaction(id: string) {
     await loadTransactions();
   } catch (error: any) {
     showSnackbar(`Error: ${error.message}`, 'error');
+  } finally {
+    $q.loading.hide();
   }
 }
 
@@ -730,6 +755,14 @@ async function restoreTransaction(id: string) {
     return;
   }
 
+  $q.loading.show({
+    message: 'Restoring transaction...',
+    spinner: 'QSpinner',
+    spinnerColor: 'primary',
+    spinnerSize: '50px',
+    messageClass: 'q-ml-sm',
+    boxClass: 'flex items-center justify-center',
+  });
   try {
     const targetTransaction = transactions.value.find((tx) => tx.id === id);
 
@@ -758,6 +791,8 @@ async function restoreTransaction(id: string) {
     await loadTransactions();
   } catch (error: any) {
     showSnackbar(`Error: ${error.message}`, 'error');
+  } finally {
+    $q.loading.hide();
   }
 }
 
@@ -772,7 +807,14 @@ async function matchTransaction(importedTx: ImportedTransaction) {
     return;
   }
 
-  loading.value = true;
+  $q.loading.show({
+    message: 'Matching transaction...',
+    spinner: 'QSpinner',
+    spinnerColor: 'primary',
+    spinnerSize: '50px',
+    messageClass: 'q-ml-sm',
+    boxClass: 'flex items-center justify-center',
+  });
   try {
     const budgetTx = selectedBudgetTransaction.value;
 
@@ -837,7 +879,7 @@ async function matchTransaction(importedTx: ImportedTransaction) {
     console.log(error);
     showSnackbar(`Error matching transaction: ${error.message}`, 'error');
   } finally {
-    loading.value = false;
+    $q.loading.hide();
   }
 }
 
@@ -920,9 +962,13 @@ function formatCategories(categories: { category: string; amount: number }[] | u
 }
 
 function showSnackbar(text: string, color = 'success') {
-  snackbarText.value = text;
-  snackbarColor.value = color;
-  snackbar.value = true;
+  $q.notify({
+    message: text,
+    color,
+    position: 'bottom',
+    timeout: 3000,
+    actions: [{ label: 'Close', color: 'white', handler: () => {} }],
+  });
 }
 
 function updateTransactions(newTransactions: Transaction[]) {

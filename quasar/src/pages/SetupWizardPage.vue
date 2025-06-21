@@ -141,12 +141,13 @@
       </q-card>
     </q-dialog>
 
-    <q-snackbar v-model="snackbar.show" :color="snackbar.color" timeout="3000" location="top right"></q-snackbar>
+    <!-- Snackbar handled via $q.notify -->
   </q-page>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from "vue";
+import { useQuasar } from 'quasar';
 import { useRouter } from "vue-router";
 import { auth } from "../firebase/init";
 import { dataAccess } from "../dataAccess";
@@ -167,8 +168,8 @@ interface WizardStep {
 
 const router = useRouter();
 const familyStore = useFamilyStore();
+const $q = useQuasar();
 
-const snackbar = ref({ show: false, text: "", color: "success" });
 
 // Messages for consistency
 const messages = {
@@ -548,7 +549,13 @@ async function finishSetup() {
 // Snackbar Helper
 function showSnackbarMessage(keyOrText: string, color: string = "success", ...args: any[]) {
   const text = messages[keyOrText] ? messages[keyOrText](...args) : keyOrText;
-  snackbar.value = { show: true, text, color };
+  $q.notify({
+    message: text,
+    color,
+    position: 'bottom',
+    timeout: 3000,
+    actions: [{ label: 'Close', color: 'white', handler: () => {} }],
+  });
 }
 </script>
 
