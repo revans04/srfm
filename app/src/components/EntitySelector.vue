@@ -1,6 +1,6 @@
 <template>
   <div>
-    <v-menu v-if="showMenu" v-model="menuOpen" offset-y>
+    <v-menu v-model="menuOpen" offset-y>
       <template #activator="{ props }">
         <div v-bind="props" class="entity-selector no-wrap">
           <h4 :class="isMobile ? 'text-secondary' : ''">
@@ -15,9 +15,6 @@
         </v-list-item>
       </v-list>
     </v-menu>
-    <div v-else class="entity-selector no-wrap">
-      <h4>{{ currentEntityName }}</h4>
-    </div>
   </div>
 </template>
 
@@ -43,7 +40,6 @@ const currentEntityName = computed(() => {
   return entities.value.find(e => e.id === familyStore.selectedEntityId)?.name || 'All Entities';
 });
 
-const showMenu = computed(() => entities.value.length > 1);
 
 function selectEntity(id: string) {
   familyStore.selectEntity(id);

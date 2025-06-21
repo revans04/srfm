@@ -1,27 +1,20 @@
 <template>
   <div>
-    <template v-if="showMenu">
-      <q-menu v-model="menuOpen" offset-y>
-        <template #activator="{ props }">
-          <div v-bind="props" class="entity-selector no-wrap">
-            <h1>
-              {{ currentEntityName }}
-              <q-icon small>expand_more</q-icon>
-            </h1>
-          </div>
-        </template>
-        <q-list class="entity-menu">
-          <q-item v-for="option in entityOptions" :key="option.id" clickable @click="selectEntity(option.id)">
-            <q-item-section>{{ option.name }}</q-item-section>
-          </q-item>
-        </q-list>
-      </q-menu>
-    </template>
-    <template v-else>
-      <div class="entity-selector no-wrap">
-        <h1>{{ currentEntityName }}</h1>
-      </div>
-    </template>
+    <q-menu v-model="menuOpen" offset-y>
+      <template #activator="{ props }">
+        <div v-bind="props" class="entity-selector no-wrap">
+          <h1>
+            {{ currentEntityName }}
+            <q-icon small>expand_more</q-icon>
+          </h1>
+        </div>
+      </template>
+      <q-list class="entity-menu">
+        <q-item v-for="option in entityOptions" :key="option.id" clickable @click="selectEntity(option.id)">
+          <q-item-section>{{ option.name }}</q-item-section>
+        </q-item>
+      </q-list>
+    </q-menu>
   </div>
 </template>
 
@@ -46,7 +39,6 @@ const currentEntityName = computed(() => {
   return entities.value.find(e => e.id === familyStore.selectedEntityId)?.name || 'All Entities';
 });
 
-const showMenu = computed(() => entities.value.length > 1);
 
 function selectEntity(id: string) {
   familyStore.selectEntity(id);
