@@ -699,7 +699,7 @@ onMounted(async () => {
 });
 
 async function updateReportData() {
-  if (!selectedBudgets.value.length) {
+  if (!selectedBudgets.value || !selectedBudgets.value.length) {
     budgetGroups.value = [];
     groupTransactions.value = {};
     return;
