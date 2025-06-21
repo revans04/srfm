@@ -20,7 +20,7 @@
         <q-window v-model="activeTab">
           <!-- Smart Matches Tab -->
           <q-window-item value="smart-matches">
-            <div class="row" v-if="smartMatches.length > 0" class="mt-4">
+            <div class="row mt-4" v-if="smartMatches.length > 0">
               <div class="col">
                 <h3>Smart Matches ({{ smartMatches.length }})</h3>
                 <p class="text-caption pb-2">These imported transactions have exactly one potential match. Review and confirm below (max 50 at a time).</p>
@@ -103,7 +103,7 @@
 
           <!-- Remaining Transactions Tab -->
           <q-window-item value="remaining">
-            <div class="row" v-if="remainingImportedTransactions.length > 0" class="mt-4">
+            <div class="row mt-4" v-if="remainingImportedTransactions.length > 0">
               <div class="col">
                 <h3>Remaining Transactions ({{ currentBankTransactionIndex + 1 }} of {{ remainingImportedTransactions.length }})</h3>
                 <q-markup-table>
