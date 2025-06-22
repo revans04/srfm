@@ -17,6 +17,6 @@ declare module "file-saver";
 declare module 'quasar' {
   interface QTableSlots {
     [name: `item.${string}`]: (scope: any) => any
-    [name: `header.${string}`]?: (scope: any) => any
+    [name: `header.${string}`]: (scope: any) => any
   }
 }
