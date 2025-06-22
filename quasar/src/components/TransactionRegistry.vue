@@ -14,10 +14,10 @@
         ></q-select>
       </div>
       <div class="col d-flex align-center col-auto" >
-        <q-btn color="primary" variant="plain" @click="refreshData" :loading="loading">
-          <q-icon start>refresh</q-icon>
-          Refresh
-        </q-btn>
+          <q-btn color="primary" variant="plain" @click="refreshData" :loading="loading">
+            <q-icon start name="refresh"></q-icon>
+            Refresh
+          </q-btn>
       </div>
     </div>
     <div class="row" v-if="selectedAccount">
@@ -147,7 +147,7 @@
           <div class="col">Transaction Registry</div>
           <div class="col col-auto">
             <q-btn variant="plain" @click="downloadCsv" :disabled="displayTransactions.length === 0">
-              <q-icon>download</q-icon>
+                <q-icon name="download"></q-icon>
               <q-tooltip activator="parent" location="top">Download CSV</q-tooltip>
             </q-btn>
           </div>
@@ -226,7 +226,7 @@
             @click.stop="confirmAction(item, 'Disconnect')"
             title="Disconnect Transaction"
           >
-            <q-icon>link_off</q-icon>
+              <q-icon name="link_off"></q-icon>
           </q-btn>
           <q-btn
             v-if="item.status != 'C' && item.id"
@@ -236,7 +236,7 @@
             @click.stop="confirmAction(item, 'Ignore')"
             title="Ignore Imported Transaction"
           >
-            <q-icon>visibility_off</q-icon>
+              <q-icon name="visibility_off"></q-icon>
           </q-btn>
           <q-btn
             v-if="item.status != 'C' && item.id"
@@ -246,7 +246,7 @@
             @click.stop="confirmAction(item, 'Delete')"
             title="Delete Imported Transaction"
           >
-            <q-icon>delete_outline</q-icon>
+              <q-icon name="delete_outline"></q-icon>
           </q-btn>
         </template>
       </q-data-table>

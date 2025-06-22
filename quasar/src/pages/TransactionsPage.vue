@@ -206,8 +206,8 @@
                       small
                       @click.stop="selectBudgetTransactionToMatch(transaction)"
                       title="Match Transaction"
-                      >link</q-icon
-                    >
+                      name="link"
+                    ></q-icon>
                     <q-icon
                       v-if="!transaction.deleted"
                       small
@@ -215,9 +215,8 @@
                       title="Delete Entry"
                       color="error"
                       class="ml-2"
-                    >
-                      delete_outline
-                    </q-icon>
+                      name="delete_outline"
+                    ></q-icon>
                     <q-icon
                       v-else
                       small
@@ -225,9 +224,8 @@
                       title="Restore Entry"
                       color="primary"
                       class="ml-2"
-                    >
-                      restore
-                    </q-icon>
+                      name="restore"
+                    ></q-icon>
                   </div>
                 </div>
               </template>
@@ -255,26 +253,24 @@
                       </div>
                       <div class="col text-right">
                         <q-btn v-if="transaction.status !== 'C' && !transaction.deleted" icon small @click.stop="selectBudgetTransactionToMatch(transaction)" title="Match Transaction">
-                          <q-icon color="primary">link</q-icon>
+                          <q-icon color="primary" name="link"></q-icon>
                         </q-btn>
-                        <q-icon
-                          v-if="!transaction.deleted"
-                          small
-                          @click.stop="deleteTransaction(transaction.id)"
-                          title="Delete Entry"
-                          color="error"
-                        >
-                          delete_outline
-                        </q-icon>
-                        <q-icon
-                          v-else
-                          small
-                          @click.stop="restoreTransaction(transaction.id)"
-                          title="Restore Entry"
-                          color="primary"
-                        >
-                          restore
-                        </q-icon>
+                          <q-icon
+                            v-if="!transaction.deleted"
+                            small
+                            @click.stop="deleteTransaction(transaction.id)"
+                            title="Delete Entry"
+                            color="error"
+                            name="delete_outline"
+                          ></q-icon>
+                          <q-icon
+                            v-else
+                            small
+                            @click.stop="restoreTransaction(transaction.id)"
+                            title="Restore Entry"
+                            color="primary"
+                            name="restore"
+                          ></q-icon>
                       </div>
                     </div>
                     <div class="row text-caption text-grey no-gutters" v-if="transaction.notes">

@@ -65,7 +65,7 @@
                   ${{ Math.abs(getCategoryAmount(transaction)).toFixed(2) }}
                 </div>
                 <div class="col text-right col-auto" style="min-width: 40px">
-                  <q-icon small @click.stop="confirmDelete(transaction)" title="Move to Trash" color="error">trash</q-icon>
+                    <q-icon small @click.stop="confirmDelete(transaction)" title="Move to Trash" color="error" name="trash"></q-icon>
                 </div>
               </div>
             </q-item-section>

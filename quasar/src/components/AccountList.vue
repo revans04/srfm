@@ -35,7 +35,7 @@
             @click="$emit('edit', item)"
             :disabled="item.userId && item.userId !== userId"
           >
-            <q-icon>edit</q-icon>
+              <q-icon name="edit"></q-icon>
           </q-btn>
           <q-btn
             density="compact"
@@ -44,7 +44,7 @@
             @click="$emit('delete', item.id)"
             :disabled="item.userId && item.userId !== userId"
           >
-            <q-icon>delete</q-icon>
+              <q-icon name="delete"></q-icon>
           </q-btn>
         </template>
       </q-data-table>
