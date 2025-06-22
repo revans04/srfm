@@ -13,7 +13,7 @@
       </div>
     </q-card-section>
     <q-card-section>
-      <q-data-table
+      <q-table
         v-if="accounts.length > 0"
         :headers="headers"
         :items="accounts"
@@ -47,7 +47,7 @@
               <q-icon name="delete"></q-icon>
           </q-btn>
         </template>
-      </q-data-table>
+      </q-table>
 
     </q-card-section>
   </q-card>

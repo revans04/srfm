@@ -33,7 +33,7 @@
                 <EntitySelector @change="loadBudgets" />
               </div>
               <div class="col col-12 col-md-4">
-                <q-text-field append-inner-icon="search" density="compact" label="Search" variant="outlined" single-line v-model="entriesSearch"></q-text-field>
+                <q-input append-inner-icon="search" density="compact" label="Search" variant="outlined" single-line v-model="entriesSearch"></q-input>
               </div>
               <div class="col col-12 col-md-4">
                 <q-select
@@ -60,23 +60,23 @@
             <template v-if="!isMobile">
               <div class="row">
                 <div class="col col-12 col-md-2">
-                  <q-text-field v-model="entriesFilterMerchant" label="Merchant" variant="outlined" density="compact" @input="applyFilters"></q-text-field>
+                  <q-input v-model="entriesFilterMerchant" label="Merchant" variant="outlined" density="compact" @input="applyFilters"></q-input>
                 </div>
                 <div class="col col-12 col-md-2">
-                  <q-text-field
+                  <q-input
                     v-model="entriesFilterAmount"
                     label="Amount"
                     type="number"
                     variant="outlined"
                     density="compact"
                     @input="applyFilters"
-                  ></q-text-field>
+                  ></q-input>
                 </div>
                 <div class="col col-12 col-md-2">
-                  <q-text-field v-model="entriesFilterNote" label="Note/Memo" variant="outlined" density="compact" @input="applyFilters"></q-text-field>
+                  <q-input v-model="entriesFilterNote" label="Note/Memo" variant="outlined" density="compact" @input="applyFilters"></q-input>
                 </div>
                 <div class="col col-12 col-md-2">
-                  <q-text-field
+                  <q-input
                     v-model="entriesFilterDate"
                     label="Date"
                     type="date"
@@ -84,10 +84,10 @@
                     density="compact"
                     :clearable="true"
                     @input="applyFilters"
-                  ></q-text-field>
+                  ></q-input>
                 </div>
                 <div class="col col-12 col-md-2">
-                  <q-text-field v-model="entriesFilterStatus" label="Status" variant="outlined" density="compact" @input="applyFilters"></q-text-field>
+                  <q-input v-model="entriesFilterStatus" label="Status" variant="outlined" density="compact" @input="applyFilters"></q-input>
                 </div>
                 <div class="col col-12 col-md-2">
                   <q-select
@@ -110,29 +110,29 @@
                   <q-expansion-panel-text>
                     <div class="row">
                       <div class="col col-12 col-md-2">
-                        <q-text-field
+                        <q-input
                           v-model="entriesFilterMerchant"
                           label="Merchant"
                           variant="outlined"
                           density="compact"
                           @input="applyFilters"
-                        ></q-text-field>
+                        ></q-input>
                       </div>
                       <div class="col col-12 col-md-2">
-                        <q-text-field
+                        <q-input
                           v-model="entriesFilterAmount"
                           label="Amount"
                           type="number"
                           variant="outlined"
                           density="compact"
                           @input="applyFilters"
-                        ></q-text-field>
+                        ></q-input>
                       </div>
                       <div class="col col-12 col-md-2">
-                        <q-text-field v-model="entriesFilterNote" label="Note/Memo" variant="outlined" density="compact" @input="applyFilters"></q-text-field>
+                        <q-input v-model="entriesFilterNote" label="Note/Memo" variant="outlined" density="compact" @input="applyFilters"></q-input>
                       </div>
                       <div class="col col-12 col-md-2">
-                        <q-text-field
+                        <q-input
                           v-model="entriesFilterDate"
                           label="Date"
                           type="date"
@@ -140,10 +140,10 @@
                           density="compact"
                           :clearable="true"
                           @input="applyFilters"
-                        ></q-text-field>
+                        ></q-input>
                       </div>
                       <div class="col col-12 col-md-2">
-                        <q-text-field v-model="entriesFilterStatus" label="Status" variant="outlined" density="compact" @input="applyFilters"></q-text-field>
+                        <q-input v-model="entriesFilterStatus" label="Status" variant="outlined" density="compact" @input="applyFilters"></q-input>
                       </div>
                       <div class="col col-12 col-md-2">
                         <q-select

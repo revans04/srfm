@@ -34,16 +34,16 @@
             <h3>Select Bank Transaction to Match</h3>
             <div class="row mb-2" >
               <div class="col col-12 col-md-4">
-                <q-text-field v-model="searchAmount" label="Amount" type="number" variant="outlined"></q-text-field>
+                <q-input v-model="searchAmount" label="Amount" type="number" variant="outlined"></q-input>
               </div>
               <div class="col col-12 col-md-4">
-                <q-text-field v-model="searchMerchant" label="Merchant" variant="outlined"></q-text-field>
+                <q-input v-model="searchMerchant" label="Merchant" variant="outlined"></q-input>
               </div>
               <div class="col col-12 col-md-4">
-                <q-text-field v-model="searchDateRange" label="Date Range (days)" type="number" variant="outlined"></q-text-field>
+                <q-input v-model="searchDateRange" label="Date Range (days)" type="number" variant="outlined"></q-input>
               </div>
             </div>
-            <q-data-table
+            <q-table
               :headers="importedTransactionHeaders"
               :items="filteredImportedTransactions"
               :items-per-page="10"
@@ -61,7 +61,7 @@
               <template v-slot:item.accountId="{ item }">
                 {{ getAccountName(item.accountId) }}
               </template>
-            </q-data-table>
+            </q-table>
           </div>
         </div>
       </q-card-section>

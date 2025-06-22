@@ -1,7 +1,7 @@
 <!-- src/components/AccountForm.vue -->
 <template>
   <q-form v-model="validForm" @submit.prevent="save">
-    <q-text-field
+    <q-input
       v-model="localAccount.name"
       label="Account Name"
       variant="outlined"
@@ -9,17 +9,17 @@
       :rules="[(v: string | null) => !!v || 'Account name is required']"
       required
       aria-required="true"
-    ></q-text-field>
-    <q-text-field v-model="localAccount.institution" label="Institution" variant="outlined" density="compact"></q-text-field>
+    ></q-input>
+    <q-input v-model="localAccount.institution" label="Institution" variant="outlined" density="compact"></q-input>
     <q-checkbox v-if="showPersonalOption" v-model="isPersonalAccount" label="Personal Account (not shared with family)" density="compact"></q-checkbox>
-    <q-text-field
+    <q-input
       v-if="localAccount.type === 'Bank' || localAccount.type === 'CreditCard'"
       v-model="localAccount.accountNumber"
       label="Account Number"
       variant="outlined"
       density="compact"
-    ></q-text-field>
-    <q-text-field
+    ></q-input>
+    <q-input
       v-if="localAccount.type === 'Loan' || localAccount.type === 'CreditCard'"
       v-model.number="localAccount.details.interestRate"
       label="Interest Rate (%)"
@@ -27,31 +27,31 @@
       step="0.01"
       variant="outlined"
       density="compact"
-    ></q-text-field>
-    <q-text-field
+    ></q-input>
+    <q-input
       v-if="localAccount.type === AccountType.Property"
       v-model.number="localAccount.details.appraisedValue"
       label="Original Value"
       type="number"
       variant="outlined"
       density="compact"
-    ></q-text-field>
-    <q-text-field
+    ></q-input>
+    <q-input
       v-if="localAccount.type === AccountType.Property"
       v-model="localAccount.details.address"
       :label="localAccount.type === AccountType.Property ? 'Address' : 'Description'"
       variant="outlined"
       density="compact"
-    ></q-text-field>
-    <q-text-field
+    ></q-input>
+    <q-input
       v-if="localAccount.type === AccountType.Investment || localAccount.type === AccountType.Loan"
       v-model="localAccount.details.maturityDate"
       label="Maturity Date"
       type="date"
       variant="outlined"
       density="compact"
-    ></q-text-field>
-    <q-text-field
+    ></q-input>
+    <q-input
       v-model.number="localAccount.balance"
       :label="localAccount.category === 'Liability' ? 'Current Balance (as positive #)' : 'Current Value'"
       type="number"
@@ -59,7 +59,7 @@
       density="compact"
       hint="Enter the current balance or value as of today"
       :rules="[(v: number | null) => v !== null || 'Balance is required']"
-    ></q-text-field>
+    ></q-input>
     <div class="mt-4">
       <q-btn type="submit" color="primary" :loading="saving" :disabled="!validForm"> Save </q-btn>
       <q-btn color="grey" variant="text" @click="cancel" class="ml-2"> Cancel </q-btn>

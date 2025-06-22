@@ -4,13 +4,13 @@
       <p>Let’s get started by naming your Family, Group, or Organization. This name will be used when sharing access with other people.</p>
       <br>
       <q-form @submit.prevent="createFamily">
-        <q-text-field
+        <q-input
           v-model="groupName"
           label="Family/Group/Org Name"
           required
           :rules="[(v: string) => !!v || 'Name is required']"
           autofocus
-        ></q-text-field>
+        ></q-input>
         <q-btn type="submit" color="primary" :loading="creating" block>Save</q-btn>
       </q-form>
     </q-card-section>

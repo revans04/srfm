@@ -45,13 +45,13 @@
                     </q-btn>
                   </div>
                   <div class="col col-12 col-md-4">
-                    <q-text-field
+                    <q-input
                       v-model="smartMatchDateRange"
                       label="Match Date Range (days)"
                       type="number"
                       variant="outlined"
                       @input="computeSmartMatchesLocal()"
-                    ></q-text-field>
+                    ></q-input>
                   </div>
                   <div class="col">
                     <q-btn
@@ -65,7 +65,7 @@
                   </div>
                 </div>
 
-                <q-data-table
+                <q-table
                   :headers="smartMatchHeaders"
                   :items="sortedSmartMatches"
                   v-model="selectedSmartMatchIds"
@@ -87,7 +87,7 @@
                         name="warning"
                       ></q-icon>
                   </template>
-                </q-data-table>
+                </q-table>
                 <q-btn color="primary" @click="confirmSmartMatches" :disabled="selectedSmartMatchIds.length === 0 || props.matching" :loading="props.matching">
                   Confirm Selected Matches ({{ selectedSmartMatchIds.length }})
                 </q-btn>
@@ -135,19 +135,19 @@
                 <!-- Search Filters -->
                 <div class="row mt-4" >
                   <div class="col col-12 col-md-4">
-                    <q-text-field v-model="searchAmount" label="Amount" type="number" variant="outlined" readonly></q-text-field>
+                    <q-input v-model="searchAmount" label="Amount" type="number" variant="outlined" readonly></q-input>
                   </div>
                   <div class="col col-12 col-md-4">
-                    <q-text-field v-model="searchMerchant" label="Merchant" variant="outlined" @input="searchBudgetTransactions"></q-text-field>
+                    <q-input v-model="searchMerchant" label="Merchant" variant="outlined" @input="searchBudgetTransactions"></q-input>
                   </div>
                   <div class="col col-12 col-md-4">
-                    <q-text-field
+                    <q-input
                       v-model="searchDateRange"
                       label="Date Range (days)"
                       type="number"
                       variant="outlined"
                       @input="searchBudgetTransactions"
-                    ></q-text-field>
+                    ></q-input>
                   </div>
                 </div>
 
@@ -176,24 +176,24 @@
                       ></q-select>
                     </div>
                     <div class="col col-12 col-md-3">
-                      <q-combobox
+                      <q-select
                         v-model="split.category"
                         :items="props.categoryOptions"
                         label="Category"
                         variant="outlined"
                         density="compact"
                         :rules="[(v: string) => !!v || 'Category is required']"
-                      ></q-combobox>
+                      ></q-select>
                     </div>
                     <div class="col col-12 col-md-2">
-                      <q-text-field
+                      <q-input
                         v-model.number="split.amount"
                         label="Amount"
                         type="number"
                         variant="outlined"
                         density="compact"
                         :rules="[(v: number) => v > 0 || 'Amount must be greater than 0']"
-                      ></q-text-field>
+                      ></q-input>
                     </div>
                     <div class="col col-12 col-md-1">
                       <q-btn color="error" icon="close" @click="removeSplit(index)" variant="plain"></q-btn>
@@ -230,7 +230,7 @@
                   </div>
                 </div>
 
-                <q-data-table
+                <q-table
                   v-if="potentialMatches.length > 0 && !showSplitForm"
                   :headers="budgetTransactionHeaders"
                   :items="sortedPotentialMatches"
@@ -254,7 +254,7 @@
                       Match
                     </q-btn>
                   </template>
-                </q-data-table>
+                </q-table>
                 <div v-else-if="!showSplitForm" class="mt-4">
                   <q-banner type="info" class="mb-4"> No potential matches found. Adjust the search criteria or add a new transaction. </q-banner>
                   <q-btn color="primary" @click="addNewTransaction" :disabled="props.matching"> Add New Transaction </q-btn>
