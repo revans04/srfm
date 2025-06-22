@@ -45,7 +45,7 @@
             </div>
             <q-table
               :headers="importedTransactionHeaders"
-              :items="filteredImportedTransactions"
+              :rows="filteredImportedTransactions"
               :items-per-page="10"
               v-model="selectedImportedTransaction"
               show-select

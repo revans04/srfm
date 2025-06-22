@@ -62,7 +62,7 @@
             <q-btn color="error" class="mb-4" @click="confirmBatchDeleteSnapshots" :disabled="selectedSnapshots.length === 0" :loading="deleting">
               Delete Selected
             </q-btn>
-            <q-table :headers="snapshotHeaders" :items="snapshotsWithSelection" class="elevation-1" :items-per-page="10">
+            <q-table :headers="snapshotHeaders" :rows="snapshotsWithSelection" class="elevation-1" :items-per-page="10">
               <template v-slot:header.select="{ column }">
                 <q-checkbox v-model="selectAll" @update:modelValue="toggleSelectAll" hide-details density="compact" />
               </template>
@@ -118,7 +118,7 @@
                 { title: 'Type', value: 'type' },
                 { title: 'Value', value: 'value' },
               ]"
-              :items="newSnapshot.accounts"
+              :rows="newSnapshot.accounts"
               hide-default-footer
               items-per-page="100"
             >

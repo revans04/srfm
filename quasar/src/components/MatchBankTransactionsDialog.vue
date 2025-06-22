@@ -67,7 +67,7 @@
 
                 <q-table
                   :headers="smartMatchHeaders"
-                  :items="sortedSmartMatches"
+                  :rows="sortedSmartMatches"
                   v-model="selectedSmartMatchIds"
                   show-select
                   item-value="importedTransaction.id"
@@ -233,7 +233,7 @@
                 <q-table
                   v-if="potentialMatches.length > 0 && !showSplitForm"
                   :headers="budgetTransactionHeaders"
-                  :items="sortedPotentialMatches"
+                  :rows="sortedPotentialMatches"
                   :items-per-page="5"
                   v-model="selectedBudgetTransactionForMatch"
                   show-select

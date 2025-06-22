@@ -16,7 +16,7 @@
       <q-table
         v-if="accounts.length > 0"
         :headers="headers"
-        :items="accounts"
+        :rows="accounts"
         class="elevation-1"
         :items-per-page="100"
         :hide-default-footer="true"
