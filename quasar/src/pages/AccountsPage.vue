@@ -18,8 +18,8 @@
       <q-tab value="net-worth">Snapshots</q-tab>
     </q-tabs>
 
-    <q-window v-model="tab">
-      <q-window-item value="bank">
+    <q-tab-panels v-model="tab">
+      <q-tab-panel name="bank">
         <AccountList
           :accounts="bankAccounts"
           :imported-transactions="importedTransactions"
@@ -28,8 +28,8 @@
           @edit="editAccount"
           @delete="confirmDeleteAccount"
         />
-      </q-window-item>
-      <q-window-item value="credit">
+      </q-tab-panel>
+      <q-tab-panel name="credit">
         <AccountList
           :accounts="creditCardAccounts"
           :imported-transactions="importedTransactions"
@@ -38,8 +38,8 @@
           @edit="editAccount"
           @delete="confirmDeleteAccount"
         />
-      </q-window-item>
-      <q-window-item value="investment">
+      </q-tab-panel>
+      <q-tab-panel name="investment">
         <AccountList
           :accounts="investmentAccounts"
           type="Investment"
@@ -47,14 +47,14 @@
           @edit="editAccount"
           @delete="confirmDeleteAccount"
         />
-      </q-window-item>
-      <q-window-item value="property">
+      </q-tab-panel>
+      <q-tab-panel name="property">
         <AccountList :accounts="propertyAccounts" type="Property" @add="openAccountDialog('Property')" @edit="editAccount" @delete="confirmDeleteAccount" />
-      </q-window-item>
-      <q-window-item value="loan">
+      </q-tab-panel>
+      <q-tab-panel name="loan">
         <AccountList :accounts="loanAccounts" type="Loan" @add="openAccountDialog('Loan')" @edit="editAccount" @delete="confirmDeleteAccount" />
-      </q-window-item>
-      <q-window-item value="net-worth">
+      </q-tab-panel>
+      <q-tab-panel name="net-worth">
         <q-card>
           <q-card-section>Net Worth Over Time</q-card-section>
           <q-card-section>
@@ -86,8 +86,8 @@
             </div>
           </q-card-section>
         </q-card>
-      </q-window-item>
-    </q-window>
+      </q-tab-panel>
+    </q-tab-panels>
 
     <!-- Account Dialog -->
     <q-dialog v-model="showAccountDialog" max-width="600px">

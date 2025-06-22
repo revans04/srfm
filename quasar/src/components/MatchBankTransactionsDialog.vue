@@ -17,9 +17,9 @@
           <q-tab value="remaining">Remaining Transactions</q-tab>
         </q-tabs>
 
-        <q-window v-model="activeTab">
+        <q-tab-panels v-model="activeTab">
           <!-- Smart Matches Tab -->
-          <q-window-item value="smart-matches">
+          <q-tab-panel name="smart-matches">
             <div class="row mt-4" v-if="smartMatches.length > 0">
               <div class="col">
                 <h3>Smart Matches ({{ smartMatches.length }})</h3>
@@ -99,10 +99,10 @@
                 <q-banner type="info"> No smart matches found. Check Remaining Transactions for potential conflicts. </q-banner>
               </div>
             </div>
-          </q-window-item>
+          </q-tab-panel>
 
           <!-- Remaining Transactions Tab -->
-          <q-window-item value="remaining">
+          <q-tab-panel name="remaining">
             <div class="row mt-4" v-if="remainingImportedTransactions.length > 0">
               <div class="col">
                 <h3>Remaining Transactions ({{ currentBankTransactionIndex + 1 }} of {{ remainingImportedTransactions.length }})</h3>
@@ -267,8 +267,8 @@
                 <q-banner type="success"> All bank transactions have been matched or ignored. </q-banner>
               </div>
             </div>
-          </q-window-item>
-        </q-window>
+          </q-tab-panel>
+        </q-tab-panels>
       </q-card-section>
       <q-card-actions>
         <q-btn v-if="remainingImportedTransactions.length > 0" color="warning" @click="ignoreBankTransaction" :disabled="props.matching"> Ignore </q-btn>

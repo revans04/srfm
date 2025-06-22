@@ -11,9 +11,9 @@
       <q-tab value="export">Export</q-tab>
     </q-tabs>
 
-    <q-window v-model="activeTab">
+    <q-tab-panels v-model="activeTab">
       <!-- Import Tab -->
-      <q-window-item value="import">
+      <q-tab-panel name="import">
         <div class="row">
           <div class="col col-12">
             <q-card>
@@ -239,37 +239,37 @@
                         <q-tab value="bankTransactions" v-if="previewBankTransactions.length > 0">Bank Transactions</q-tab>
                         <q-tab value="accountsAndSnapshots" v-if="previewData.accountsAndSnapshots?.length > 0">Accounts/Snapshots</q-tab>
                       </q-tabs>
-                      <q-window v-model="previewTab">
-                        <q-window-item value="entities">
+                      <q-tab-panels v-model="previewTab">
+                        <q-tab-panel name="entities">
                           <q-data-table :headers="entityHeaders" :items="previewData.entities" :items-per-page="5" class="mt-4"></q-data-table>
-                        </q-window-item>
-                        <q-window-item value="categories">
+                        </q-tab-panel>
+                        <q-tab-panel name="categories">
                           <q-data-table :headers="categoryHeaders" :items="previewData.categories" :items-per-page="5" class="mt-4"></q-data-table>
-                        </q-window-item>
-                        <q-window-item value="transactions">
+                        </q-tab-panel>
+                        <q-tab-panel name="transactions">
                           <q-data-table :headers="transactionHeaders" :items="previewData.transactions" :items-per-page="5" class="mt-4">
                             <template v-slot:item.categories="{ item }">
                               <span>{{ formatCategories(item.categories) }}</span>
                             </template>
                           </q-data-table>
-                        </q-window-item>
-                        <q-window-item value="bankTransactions">
+                        </q-tab-panel>
+                        <q-tab-panel name="bankTransactions">
                           <q-data-table
                             :headers="bankTransactionPreviewHeaders"
                             :items="previewBankTransactions"
                             :items-per-page="5"
                             class="mt-4"
                           ></q-data-table>
-                        </q-window-item>
-                        <q-window-item value="accountsAndSnapshots">
+                        </q-tab-panel>
+                        <q-tab-panel name="accountsAndSnapshots">
                           <q-data-table
                             :headers="accountsAndSnapshotsHeaders"
                             :items="previewData.accountsAndSnapshots"
                             :items-per-page="5"
                             class="mt-4"
                           ></q-data-table>
-                        </q-window-item>
-                      </q-window>
+                        </q-tab-panel>
+                      </q-tab-panels>
                       <q-banner v-if="previewErrors.length > 0" type="error" class="mt-4">
                         <ul>
                           <li v-for="(error, index) in previewErrors" :key="index">
@@ -312,10 +312,10 @@
             </q-card>
           </div>
         </div>
-      </q-window-item>
+      </q-tab-panel>
 
       <!-- Export Tab -->
-      <q-window-item value="export">
+      <q-tab-panel name="export">
         <div class="row">
           <div class="col col-12">
             <q-card>
@@ -326,8 +326,8 @@
             </q-card>
           </div>
         </div>
-      </q-window-item>
-    </q-window>
+      </q-tab-panel>
+    </q-tab-panels>
 
     <!-- Snackbar handled via $q.notify -->
     <!-- Entity Form Dialog -->
