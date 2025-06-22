@@ -33,7 +33,7 @@
               </q-item>
             </q-list>
             <q-form @submit.prevent="inviteMember">
-              <q-text-field v-model="inviteEmail" label="Invite Email" type="email" required></q-text-field>
+              <q-input v-model="inviteEmail" label="Invite Email" type="email" required></q-input>
               <q-btn type="submit" :loading="inviting">Invite</q-btn>
             </q-form>
           </q-card-section>
@@ -78,7 +78,7 @@
             <q-card>
               <q-card-section>Imported Transaction</q-card-section>
               <q-card-section>
-                <q-data-table :headers="transactionDocHeaders" :items="importedTransactionDocs" :items-per-page="10" class="elevation-1">
+                <q-table :headers="transactionDocHeaders" :items="importedTransactionDocs" :items-per-page="10" class="elevation-1">
                   <template v-slot:item.createdAt="{ item }">
                     {{ getDateRange(item) }}
                   </template>
@@ -97,7 +97,7 @@
                         <q-icon name="delete_outline"></q-icon>
                     </q-btn>
                   </template>
-                </q-data-table>
+                </q-table>
               </q-card-section>
             </q-card>
           </div>
@@ -111,7 +111,7 @@
             <q-card>
               <q-card-section>Monthly Budgets</q-card-section>
               <q-card-section>
-                <q-data-table :headers="budgetHeaders" :items="budgets" :items-per-page="10" class="elevation-1">
+                <q-table :headers="budgetHeaders" :items="budgets" :items-per-page="10" class="elevation-1">
                   <template v-slot:item.entityName="{ item }">
                     {{ getEntityName(item.entityId) }}
                   </template>
@@ -123,7 +123,7 @@
                         <q-icon name="delete_outline"></q-icon>
                     </q-btn>
                   </template>
-                </q-data-table>
+                </q-table>
               </q-card-section>
             </q-card>
           </div>

@@ -87,7 +87,7 @@
       <q-card-section>
         <div class="row">
           <div class="col col-6 col-md-6">
-            <q-text-field
+            <q-input
               append-inner-icon="search"
               density="compact"
               label="Search"
@@ -95,7 +95,7 @@
               single-line
               v-model="search"
               @input="applyFilters"
-            ></q-text-field>
+            ></q-input>
           </div>
           <div class="col col-auto">
             <q-checkbox v-model="filterMatched" label="Show Only Unmatched" density="compact" @input="applyFilters"></q-checkbox>
@@ -103,18 +103,18 @@
         </div>
         <div class="row">
           <div class="col col-12 col-md-2">
-            <q-text-field v-model="filterMerchant" label="Merchant" variant="outlined" density="compact" @input="applyFilters"></q-text-field>
+            <q-input v-model="filterMerchant" label="Merchant" variant="outlined" density="compact" @input="applyFilters"></q-input>
           </div>
           <div class="col col-12 col-md-2">
-            <q-text-field v-model="filterAmount" label="Amount" type="number" variant="outlined" density="compact" @input="applyFilters"></q-text-field>
+            <q-input v-model="filterAmount" label="Amount" type="number" variant="outlined" density="compact" @input="applyFilters"></q-input>
           </div>
           <div class="col col-12 col-md-3">
-            <q-text-field v-model="filterImportedMerchant" label="Imported Merchant" variant="outlined" density="compact" @input="applyFilters"></q-text-field>
+            <q-input v-model="filterImportedMerchant" label="Imported Merchant" variant="outlined" density="compact" @input="applyFilters"></q-input>
           </div>
           <div class="col col-12 col-md-5">
             <div class="row">
               <div class="col col-12 col-md-6">
-                <q-text-field
+                <q-input
                   v-model="filterStartDate"
                   label="Start Date"
                   type="date"
@@ -122,10 +122,10 @@
                   density="compact"
                   :clearable="true"
                   @input="applyFilters"
-                ></q-text-field>
+                ></q-input>
               </div>
               <div class="col col-12 col-md-6">
-                <q-text-field
+                <q-input
                   v-model="filterEndDate"
                   label="End Date"
                   type="date"
@@ -133,7 +133,7 @@
                   density="compact"
                   :clearable="true"
                   @input="applyFilters"
-                ></q-text-field>
+                ></q-input>
               </div>
             </div>
           </div>
@@ -191,7 +191,7 @@
           Delete {{ selectedRows.length }}
         </q-btn>
       </q-card-section>
-      <q-data-table
+      <q-table
         v-model="selectedRows"
         :headers="headers"
         :items="displayTransactions"
@@ -249,7 +249,7 @@
               <q-icon name="delete_outline"></q-icon>
           </q-btn>
         </template>
-      </q-data-table>
+      </q-table>
     </q-card>
 
     <!-- Action Confirmation Dialog -->
@@ -305,7 +305,7 @@
                   <q-input v-model="entry.merchant" label="Merchant" dense :rules="requiredField" />
                 </q-item-section>
                 <q-item-section>
-                  <q-combobox v-model="entry.category" :items="categoryOptions" label="Category" dense :rules="requiredField" />
+                  <q-select v-model="entry.category" :items="categoryOptions" label="Category" dense :rules="requiredField" />
                 </q-item-section>
               </q-item>
             </q-list>
@@ -329,46 +329,46 @@
           <q-form ref="statementForm">
             <div class="row">
               <div class="col">
-                <q-text-field
+                <q-input
                   v-model="newStatement.startDate"
                   label="Start Date"
                   type="date"
                   variant="outlined"
                   density="compact"
                   :rules="requiredField"
-                ></q-text-field>
+                ></q-input>
               </div>
               <div class="col">
-                <q-text-field
+                <q-input
                   v-model.number="newStatement.startingBalance"
                   label="Starting Balance"
                   type="number"
                   variant="outlined"
                   density="compact"
                   :rules="requiredField"
-                ></q-text-field>
+                ></q-input>
               </div>
             </div>
             <div class="row">
               <div class="col">
-                <q-text-field
+                <q-input
                   v-model="newStatement.endDate"
                   label="End Date"
                   type="date"
                   variant="outlined"
                   density="compact"
                   :rules="requiredField"
-                ></q-text-field>
+                ></q-input>
               </div>
               <div class="col">
-                <q-text-field
+                <q-input
                   v-model.number="newStatement.endingBalance"
                   label="Ending Balance"
                   type="number"
                   variant="outlined"
                   density="compact"
                   :rules="requiredField"
-                ></q-text-field>
+                ></q-input>
               </div>
             </div>
           </q-form>
@@ -418,7 +418,7 @@
             </div>
             <div class="row">
               <div class="col">
-                <q-text-field
+                <q-input
                   v-model.number="adjustmentAmount"
                   label="Adjustment Amount"
                   type="number"
@@ -427,19 +427,19 @@
                   :rules="adjustmentRules"
                   hint="Positive to increase balance, negative to decrease"
                   persistent-hint
-                ></q-text-field>
+                ></q-input>
               </div>
             </div>
             <div class="row">
               <div class="col">
-                <q-text-field
+                <q-input
                   v-model="adjustmentDate"
                   label="Adjustment Date"
                   type="date"
                   variant="outlined"
                   density="compact"
                   :rules="requiredField"
-                ></q-text-field>
+                ></q-input>
               </div>
             </div>
             <q-btn type="submit" color="primary" :loading="saving">Save Adjustment</q-btn>

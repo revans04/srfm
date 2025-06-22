@@ -10,7 +10,7 @@
       <div class="row form-row" >
         <div class="col form-col-label" >Date</div>
         <div class="col form-col col-auto" >
-          <q-text-field
+          <q-input
             v-model="locTrnsx.date"
             type="date"
             :rules="requiredField"
@@ -18,13 +18,13 @@
             variant="plain"
             density="compact"
             class="text-right"
-          ></q-text-field>
+          ></q-input>
         </div>
       </div>
       <div class="row form-row" >
         <div class="col form-col-label q-pr-5" >Merchant</div>
         <div class="col form-col col-auto"  style="min-width: 150px">
-          <q-combobox
+          <q-select
             v-model="locTrnsx.merchant"
             :items="merchantNames"
             :rules="requiredField"
@@ -33,7 +33,7 @@
             menu-icon=""
             class="text-right"
             align-end
-          ></q-combobox>
+          ></q-select>
         </div>
       </div>
       <div class="row form-row" >
@@ -50,7 +50,7 @@
                 <q-icon color="error" @click="removeSplit(index)" name="close"></q-icon>
             </div>
             <div class="col">
-              <q-combobox
+              <q-select
                 v-model="split.category"
                 :items="remainingCategories"
                 label="Category"
@@ -59,7 +59,7 @@
                 variant="plain"
                 menu-icon=""
                 required
-              ></q-combobox>
+              ></q-select>
             </div>
             <div class="col form-col" v-if="locTrnsx.categories.length > 1" no-gutters cols="4">
               <Currency-Input v-model="split.amount" class="text-right" variant="plain"></Currency-Input>
@@ -118,37 +118,37 @@
         <div class="row form-row" >
           <div class="col form-col-label" >Posted Date</div>
           <div class="col form-col" >
-            <q-text-field v-model="locTrnsx.postedDate" type="date" variant="plain" density="compact" readonly></q-text-field>
+            <q-input v-model="locTrnsx.postedDate" type="date" variant="plain" density="compact" readonly></q-input>
           </div>
         </div>
         <div class="row form-row" >
           <div class="col form-col-label q-pr-5" >Imported Merchant</div>
           <div class="col form-col"  style="min-width: 150px">
-            <q-text-field v-model="locTrnsx.importedMerchant" variant="plain" density="compact" readonly></q-text-field>
+            <q-input v-model="locTrnsx.importedMerchant" variant="plain" density="compact" readonly></q-input>
           </div>
         </div>
         <div class="row form-row" >
           <div class="col form-col-label" >Account Source</div>
           <div class="col form-col" >
-            <q-text-field v-model="locTrnsx.accountSource" variant="plain" density="compact" readonly></q-text-field>
+            <q-input v-model="locTrnsx.accountSource" variant="plain" density="compact" readonly></q-input>
           </div>
         </div>
         <div class="row form-row" >
           <div class="col form-col-label" >Account Number</div>
           <div class="col form-col" >
-            <q-text-field v-model="locTrnsx.accountNumber" variant="plain" density="compact" readonly></q-text-field>
+            <q-input v-model="locTrnsx.accountNumber" variant="plain" density="compact" readonly></q-input>
           </div>
         </div>
         <div class="row form-row" >
           <div class="col form-col-label" >Check Number</div>
           <div class="col form-col" >
-            <q-text-field v-model="locTrnsx.checkNumber" variant="plain" density="compact" readonly></q-text-field>
+            <q-input v-model="locTrnsx.checkNumber" variant="plain" density="compact" readonly></q-input>
           </div>
         </div>
         <div class="row form-row" >
           <div class="col form-col-label" >Status</div>
           <div class="col form-col" >
-            <q-text-field v-model="locTrnsx.status" variant="plain" density="compact" readonly></q-text-field>
+            <q-input v-model="locTrnsx.status" variant="plain" density="compact" readonly></q-input>
           </div>
         </div>
         <div class="row form-row" >

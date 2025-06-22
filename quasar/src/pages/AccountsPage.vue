@@ -62,7 +62,7 @@
             <q-btn color="error" class="mb-4" @click="confirmBatchDeleteSnapshots" :disabled="selectedSnapshots.length === 0" :loading="deleting">
               Delete Selected
             </q-btn>
-            <q-data-table :headers="snapshotHeaders" :items="snapshotsWithSelection" class="elevation-1" :items-per-page="10">
+            <q-table :headers="snapshotHeaders" :items="snapshotsWithSelection" class="elevation-1" :items-per-page="10">
               <template v-slot:header.select="{ column }">
                 <q-checkbox v-model="selectAll" @update:modelValue="toggleSelectAll" hide-details density="compact" />
               </template>
@@ -80,7 +80,7 @@
                     <q-icon name="delete_outline"></q-icon>
                 </q-btn>
               </template>
-            </q-data-table>
+            </q-table>
             <div class="mt-4">
               <p>Net worth trend chart coming soon!</p>
             </div>
@@ -111,8 +111,8 @@
         <q-card-section>Capture Net Worth Snapshot</q-card-section>
         <q-card-section>
           <q-form @submit.prevent="saveSnapshot">
-            <q-text-field v-model="newSnapshot.date" label="Snapshot Date" type="date" variant="outlined" density="compact" required></q-text-field>
-            <q-data-table
+            <q-input v-model="newSnapshot.date" label="Snapshot Date" type="date" variant="outlined" density="compact" required></q-input>
+            <q-table
               :headers="[
                 { title: 'Account', value: 'name' },
                 { title: 'Type', value: 'type' },
@@ -129,15 +129,15 @@
                 {{ getAccountType(item.accountId) }}
               </template>
               <template v-slot:item.value="{ item }">
-                <q-text-field
+                <q-input
                   v-model.number="item.value"
                   type="number"
                   variant="outlined"
                   density="compact"
                   :prefix="getAccountCategory(item.accountId) === 'Liability' ? '-' : ''"
-                ></q-text-field>
+                ></q-input>
               </template>
-            </q-data-table>
+            </q-table>
             <q-btn type="submit" color="primary" :loading="saving" class="mt-4"> Save Snapshot </q-btn>
             <q-btn color="grey" variant="text" @click="showSnapshotDialog = false" class="ml-2"> Cancel </q-btn>
           </q-form>

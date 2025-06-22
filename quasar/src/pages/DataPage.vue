@@ -98,14 +98,14 @@
                         <!-- Common Fields -->
                         <div class="row" v-for="(field, index) in commonBankTransactionFields" :key="index">
                           <div class="col col-12 col-md-6">
-                            <q-combobox
+                            <q-select
                               v-model="fieldMapping[field.key]"
                               :items="csvHeaders"
                               :label="field.label"
                               variant="outlined"
                               clearable
                               placeholder="Select a column or type a value"
-                            ></q-combobox>
+                            ></q-select>
                           </div>
                         </div>
 
@@ -113,86 +113,86 @@
                         <div v-if="amountFormat === 'separate'">
                           <div class="row">
                             <div class="col col-12 col-md-6">
-                              <q-combobox
+                              <q-select
                                 v-model="fieldMapping.creditAmount"
                                 :items="csvHeaders"
                                 label="Credit Amount"
                                 variant="outlined"
                                 clearable
                                 placeholder="Select a column or type a value"
-                              ></q-combobox>
+                              ></q-select>
                             </div>
                           </div>
                           <div class="row">
                             <div class="col col-12 col-md-6">
-                              <q-combobox
+                              <q-select
                                 v-model="fieldMapping.debitAmount"
                                 :items="csvHeaders"
                                 label="Debit Amount"
                                 variant="outlined"
                                 clearable
                                 placeholder="Select a column or type a value"
-                              ></q-combobox>
+                              ></q-select>
                             </div>
                           </div>
                         </div>
                         <div v-else-if="amountFormat === 'type'">
                           <div class="row">
                             <div class="col col-12 col-md-6">
-                              <q-combobox
+                              <q-select
                                 v-model="fieldMapping.transactionType"
                                 :items="csvHeaders"
                                 label="Transaction Type Column"
                                 variant="outlined"
                                 clearable
                                 placeholder="Select a column or type a value"
-                              ></q-combobox>
+                              ></q-select>
                             </div>
                           </div>
                           <div class="row">
                             <div class="col col-12 col-md-6">
-                              <q-text-field
+                              <q-input
                                 v-model="creditTypeValue"
                                 label="Value for Credit"
                                 variant="outlined"
                                 placeholder="e.g., 'Credit' or 'CR'"
-                              ></q-text-field>
+                              ></q-input>
                             </div>
                           </div>
                           <div class="row">
                             <div class="col col-12 col-md-6">
-                              <q-text-field
+                              <q-input
                                 v-model="debitTypeValue"
                                 label="Value for Debit"
                                 variant="outlined"
                                 placeholder="e.g., 'Debit' or 'DR'"
-                              ></q-text-field>
+                              ></q-input>
                             </div>
                           </div>
                           <div class="row">
                             <div class="col col-12 col-md-6">
-                              <q-combobox
+                              <q-select
                                 v-model="fieldMapping.amount"
                                 :items="csvHeaders"
                                 label="Amount"
                                 variant="outlined"
                                 clearable
                                 placeholder="Select a column or type a value"
-                              ></q-combobox>
+                              ></q-select>
                             </div>
                           </div>
                         </div>
                         <div v-else-if="amountFormat === 'single'">
                           <div class="row">
                             <div class="col col-12 col-md-6">
-                              <q-combobox
+                              <q-select
                                 v-model="fieldMapping.amount"
                                 :items="csvHeaders"
                                 label="Amount (Positive = Credit, Negative = Debit)"
                                 variant="outlined"
                                 clearable
                                 placeholder="Select a column or type a value"
-                              ></q-combobox>
+                              ></q-select>
                             </div>
                           </div>
                         </div>
@@ -241,33 +241,33 @@
                       </q-tabs>
                       <q-tab-panels v-model="previewTab">
                         <q-tab-panel name="entities">
-                          <q-data-table :headers="entityHeaders" :items="previewData.entities" :items-per-page="5" class="mt-4"></q-data-table>
+                          <q-table :headers="entityHeaders" :items="previewData.entities" :items-per-page="5" class="mt-4"></q-table>
                         </q-tab-panel>
                         <q-tab-panel name="categories">
-                          <q-data-table :headers="categoryHeaders" :items="previewData.categories" :items-per-page="5" class="mt-4"></q-data-table>
+                          <q-table :headers="categoryHeaders" :items="previewData.categories" :items-per-page="5" class="mt-4"></q-table>
                         </q-tab-panel>
                         <q-tab-panel name="transactions">
-                          <q-data-table :headers="transactionHeaders" :items="previewData.transactions" :items-per-page="5" class="mt-4">
+                          <q-table :headers="transactionHeaders" :items="previewData.transactions" :items-per-page="5" class="mt-4">
                             <template v-slot:item.categories="{ item }">
                               <span>{{ formatCategories(item.categories) }}</span>
                             </template>
-                          </q-data-table>
+                          </q-table>
                         </q-tab-panel>
                         <q-tab-panel name="bankTransactions">
-                          <q-data-table
+                          <q-table
                             :headers="bankTransactionPreviewHeaders"
                             :items="previewBankTransactions"
                             :items-per-page="5"
                             class="mt-4"
-                          ></q-data-table>
+                          ></q-table>
                         </q-tab-panel>
                         <q-tab-panel name="accountsAndSnapshots">
-                          <q-data-table
+                          <q-table
                             :headers="accountsAndSnapshotsHeaders"
                             :items="previewData.accountsAndSnapshots"
                             :items-per-page="5"
                             class="mt-4"
-                          ></q-data-table>
+                          ></q-table>
                         </q-tab-panel>
                       </q-tab-panels>
                       <q-banner v-if="previewErrors.length > 0" type="error" class="mt-4">

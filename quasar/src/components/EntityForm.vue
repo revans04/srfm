@@ -7,13 +7,13 @@
         <!-- Entity Details -->
         <div class="row dense">
           <div class="col col-12 col-sm-6">
-            <q-text-field
+            <q-input
               v-model="entityName"
               label="Entity Name"
               required
               density="compact"
               :rules="[(v: string) => !!v || 'Entity Name is required']"
-            ></q-text-field>
+            ></q-input>
           </div>
           <div class="col col-12 col-sm-6">
             <q-select
@@ -26,7 +26,7 @@
             ></q-select>
           </div>
           <div class="col col-12">
-            <q-text-field v-model="entityEmail" label="Owner Email" density="compact" disabled></q-text-field>
+            <q-input v-model="entityEmail" label="Owner Email" density="compact" disabled></q-input>
           </div>
           <div class="col col-12">
             <q-select
@@ -95,10 +95,10 @@
           <q-item v-for="(category, index) in budget.categories" :key="index">
             <div class="row dense">
               <div class="col px-2 col-12 col-sm-3" >
-                <q-text-field v-model="budget.categories[index]!.name" label="Category" required density="compact"></q-text-field>
+                <q-input v-model="budget.categories[index]!.name" label="Category" required density="compact"></q-input>
               </div>
               <div class="col px-2 col-12 col-sm-3" >
-                <q-text-field v-model="budget.categories[index]!.group" label="Group" required density="compact"></q-text-field>
+                <q-input v-model="budget.categories[index]!.group" label="Group" required density="compact"></q-input>
               </div>
               <div class="col px-2 col-12 col-sm-3" >
                 <Currency-Input v-model.number="budget.categories[index]!.target" label="Target" class="text-right" density="compact" required></Currency-Input>
@@ -118,10 +118,10 @@
         <q-form @submit.prevent="addCategory">
           <div class="row dense">
             <div class="col px-2 col-12 col-sm-3" >
-              <q-text-field v-model="newCategory.name" label="Category" required density="compact"></q-text-field>
+              <q-input v-model="newCategory.name" label="Category" required density="compact"></q-input>
             </div>
             <div class="col px-2 col-12 col-sm-3" >
-              <q-text-field v-model="newCategory.group" label="Group (e.g., Utilities)" density="compact"></q-text-field>
+              <q-input v-model="newCategory.group" label="Group (e.g., Utilities)" density="compact"></q-input>
             </div>
             <div class="col px-2 col-12 col-sm-2" >
               <Currency-Input v-model.number="newCategory.target" label="Target" class="text-right" density="compact" required></Currency-Input>
