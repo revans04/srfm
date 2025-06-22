@@ -599,6 +599,8 @@ async function confirmSmartMatches() {
       });
     });
 
+    console.log("confirmSmartMatches matchesByBudget", matchesByBudget);
+
     for (const budgetId in matchesByBudget) {
       const budget = budgetStore.getBudget(budgetId);
       if (!budget) throw new Error(`Budget ${budgetId} not found`);
@@ -607,6 +609,8 @@ async function confirmSmartMatches() {
         budgetId,
         reconciliations: matchesByBudget[budgetId],
       };
+
+      console.log("sending reconcile for", budgetId, reconcileData);
 
       await dataAccess.batchReconcileTransactions(budgetId, budget, reconcileData);
       const updatedBudget = await dataAccess.getBudget(budgetId);
