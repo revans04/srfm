@@ -17,9 +17,9 @@
       <q-tab value="manageBudgets">Manage Budgets</q-tab>
     </q-tabs>
 
-    <q-window v-model="activeTab">
+    <q-tab-panels v-model="activeTab">
       <!-- Group Management Tab -->
-      <q-window-item value="group">
+      <q-tab-panel name="group">
         <q-card class="mt-4">
           <q-card-section>Family/Group Information</q-card-section>
           <q-card-section>
@@ -38,10 +38,10 @@
             </q-form>
           </q-card-section>
         </q-card>
-      </q-window-item>
+      </q-tab-panel>
 
       <!-- Entity Management Tab -->
-      <q-window-item value="entity">
+      <q-tab-panel name="entity">
         <q-card class="mt-4">
           <q-card-section>Entities</q-card-section>
           <q-card-section>
@@ -69,10 +69,10 @@
             </q-list>
           </q-card-section>
         </q-card>
-      </q-window-item>
+      </q-tab-panel>
 
       <!-- Manage Imported Transactions Tab -->
-      <q-window-item value="manageTransactions">
+      <q-tab-panel name="manageTransactions">
         <div class="row">
           <div class="col col-12">
             <q-card>
@@ -102,10 +102,10 @@
             </q-card>
           </div>
         </div>
-      </q-window-item>
+      </q-tab-panel>
 
       <!-- Manage Budgets Tab -->
-      <q-window-item value="manageBudgets">
+      <q-tab-panel name="manageBudgets">
         <div class="row">
           <div class="col col-12">
             <q-card>
@@ -128,8 +128,8 @@
             </q-card>
           </div>
         </div>
-      </q-window-item>
-    </q-window>
+      </q-tab-panel>
+    </q-tab-panels>
 
     <!-- Delete Transaction Doc Confirmation Dialog -->
     <q-dialog v-model="showDeleteDialog" max-width="400" @keyup.enter="deleteTransactionDoc">

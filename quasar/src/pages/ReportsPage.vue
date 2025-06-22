@@ -11,9 +11,9 @@
       <q-tab value="net-worth">Net Worth</q-tab>
     </q-tabs>
 
-    <q-window v-model="tab">
+    <q-tab-panels v-model="tab">
       <!-- Monthly Overview -->
-      <q-window-item value="monthly">
+      <q-tab-panel name="monthly">
         <!-- Budget Selection -->
         <div class="row mt-4" >
           <div class="col col-12 col-md-6">
@@ -164,10 +164,10 @@
             </q-table>
           </div>
         </div>
-      </q-window-item>
+      </q-tab-panel>
 
       <!-- Year-over-Year -->
-      <q-window-item value="year-over-year">
+      <q-tab-panel name="year-over-year">
         <div class="row mt-4" >
           <div class="col">
             <q-card>
@@ -177,10 +177,10 @@
             </q-card>
           </div>
         </div>
-      </q-window-item>
+      </q-tab-panel>
 
       <!-- Net Worth -->
-      <q-window-item value="net-worth">
+      <q-tab-panel name="net-worth">
         <div class="row mt-4" >
           <!-- Net Worth Over Time with Trend Line -->
           <div class="col col-12">
@@ -210,8 +210,8 @@
             </q-card>
           </div>
         </div>
-      </q-window-item>
-    </q-window>
+      </q-tab-panel>
+    </q-tab-panels>
   </q-page>
 </template>
 
