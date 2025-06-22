@@ -54,7 +54,7 @@
     </q-page-container>
 
     <q-footer v-if="isMobile && !isLoginRoute" class="bg-primary text-white">
-      <VueBottomNavigation v-model="currentTab" class="bg-primary text-white">
+      <SwiperBottomNavigation v-model="currentTab" class="bg-primary text-white">
         <q-btn
           v-for="item in navItems.filter(i => i.mobile)"
           :key="item.title"
@@ -65,7 +65,7 @@
         >
           <span class="text-caption">{{ item.title }}</span>
         </q-btn>
-      </VueBottomNavigation>
+      </SwiperBottomNavigation>
     </q-footer>
   </q-layout>
 </template>
@@ -73,7 +73,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import VueBottomNavigation from 'vue-bottom-navigation';
+import SwiperBottomNavigation from 'bottom-navigation-vue';
 import { useAuthStore } from '../store/auth';
 import version from '../version';
 
