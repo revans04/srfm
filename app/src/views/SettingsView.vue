@@ -247,19 +247,19 @@ const associatedBudgets = ref<Budget[]>([]);
 const entities = computed(() => family.value?.entities || []);
 
 const transactionDocHeaders = [
-  { title: "Document ID", value: "id" },
-  { title: "Transaction Count", value: "importedTransactions.length" },
-  { title: "Account Info", value: "account" },
-  { title: "Created At", value: "createdAt" },
-  { title: "Actions", value: "actions" },
+  { title: "Document ID", value: "id", sortable: true },
+  { title: "Transaction Count", value: "importedTransactions.length", sortable: true },
+  { title: "Account Info", value: "account", sortable: true },
+  { title: "Created At", value: "createdAt", sortable: true },
+  { title: "Actions", value: "actions", sortable: false },
 ];
 
 const budgetHeaders = [
-  { title: "Budget ID", value: "budgetId" },
-  { title: "Month", value: "month" },
-  { title: "Entity Name", value: "entityName" },
-  { title: "Transaction Count", value: "transactionCount" },
-  { title: "Actions", value: "actions" },
+  { title: "Budget ID", value: "budgetId", sortable: true },
+  { title: "Month", value: "month", sortable: true },
+  { title: "Entity Name", value: "entityName", sortable: true },
+  { title: "Transaction Count", value: "transactionCount", sortable: true },
+  { title: "Actions", value: "actions", sortable: false },
 ];
 
 onMounted(async () => {
