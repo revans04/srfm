@@ -609,12 +609,17 @@ export class DataAccess {
     reconcileData: { budgetId: string; reconciliations: Array<{ budgetTransactionId: string; importedTransactionId: string; match: boolean; ignore: boolean }> }
   ): Promise<void> {
     const headers = await this.getAuthHeaders();
+    console.log("batchReconcileTransactions payload", budgetId, reconcileData);
     const response = await fetch(`${this.apiBaseUrl}/budget/${budgetId}/batch-reconcile`, {
       method: "POST",
       headers,
       body: JSON.stringify(reconcileData),
     });
-    if (!response.ok) throw new Error(`Failed to batch reconcile transactions: ${response.statusText}`);
+    if (!response.ok) {
+      const text = await response.text();
+      console.error("batchReconcileTransactions failed", response.status, text);
+      throw new Error(`Failed to batch reconcile transactions: ${response.statusText}`);
+    }
 
     const budgetStore = useBudgetStore();
     budgetStore.updateBudget(budgetId, budget);

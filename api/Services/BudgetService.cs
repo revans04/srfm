@@ -553,7 +553,12 @@ namespace FamilyBudgetApi.Services
                 foreach (var req in requestBatch)
                 {
                     var budgetTxIndex = budget.Transactions.FindIndex(t => t.Id == req.BudgetTransactionId);
-                    if (budgetTxIndex < 0) throw new Exception($"Budget transaction {req.BudgetTransactionId} not found in budget {budgetId}");
+                    if (budgetTxIndex < 0)
+                    {
+                        var knownIds = string.Join(",", budget.Transactions.Take(5).Select(t => t.Id));
+                        Console.WriteLine($"BatchReconcileTransactions: transaction {req.BudgetTransactionId} not found in budget {budgetId}. Known IDs sample: {knownIds}");
+                        throw new Exception($"Budget transaction {req.BudgetTransactionId} not found in budget {budgetId}");
+                    }
 
                     var budgetTx = budget.Transactions[budgetTxIndex];
 
