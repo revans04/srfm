@@ -75,13 +75,13 @@
                   hide-default-footer
                   items-per-page="50"
                 >
-                  <template v-slot:item.bankAmount="{ item }"> ${{ toDollars(toCents(item.bankAmount)) }} </template>
-                  <template v-slot:item.bankType="{ item }"> {{ item.bankType }} </template>
-                  <template v-slot:item.budgetAmount="{ item }"> ${{ toDollars(toCents(item.budgetTransaction.amount)) }} </template>
-                  <template v-slot:item.budgetType="{ item }"> {{ item.budgetTransaction.isIncome ? "Income" : "Expense" }} </template>
-                  <template v-slot:item.actions="{ item }">
+                  <template v-slot:body-cell-bankAmount="{ row }"> ${{ toDollars(toCents(row.bankAmount)) }} </template>
+                  <template v-slot:body-cell-bankType="{ row }"> {{ row.bankType }} </template>
+                  <template v-slot:body-cell-budgetAmount="{ row }"> ${{ toDollars(toCents(row.budgetTransaction.amount)) }} </template>
+                  <template v-slot:body-cell-budgetType="{ row }"> {{ row.budgetTransaction.isIncome ? "Income" : "Expense" }} </template>
+                  <template v-slot:body-cell-actions="{ row }">
                       <q-icon
-                        v-if="isBudgetTxMatchedMultiple(item.budgetTransaction.id)"
+                        v-if="isBudgetTxMatchedMultiple(row.budgetTransaction.id)"
                         color="warning"
                         title="This budget transaction matches multiple bank transactions"
                         name="warning"
@@ -239,15 +239,15 @@
                   show-select
                   single-select
                 >
-                  <template v-slot:item.amount="{ item }"> ${{ toDollars(toCents(item.amount)) }} </template>
-                  <template v-slot:item.type="{ item }">
-                    {{ item.isIncome ? "Income" : "Expense" }}
+                  <template v-slot:body-cell-amount="{ row }"> ${{ toDollars(toCents(row.amount)) }} </template>
+                  <template v-slot:body-cell-type="{ row }">
+                    {{ row.isIncome ? "Income" : "Expense" }}
                   </template>
-                  <template v-slot:item.actions="{ item }">
+                  <template v-slot:body-cell-actions="{ row }">
                     <q-btn
                       color="primary"
                       small
-                      @click="matchBankTransaction(item)"
+                      @click="matchBankTransaction(row)"
                       :disabled="!selectedBudgetTransactionForMatch.length || props.matching"
                       :loading="props.matching"
                     >
@@ -670,7 +670,7 @@ async function matchBankTransaction(budgetTransaction: Transaction) {
         updatedTransaction.budgetMonth!,
         fam?.id ?? "",
         user.uid,
-        updatedTransaction.entityId
+        updatedTransaction.entityId || ""
       );
     }
 
@@ -845,7 +845,7 @@ async function handleTransactionAdded(savedTransaction: Transaction) {
     const targetBudgetId = `${user.uid}_${savedTransaction.entityId}_${savedTransaction.budgetMonth}`;
     let budget = budgetStore.getBudget(targetBudgetId);
     if (!budget) {
-      budget = await createBudgetForMonth(savedTransaction.budgetMonth!, family.id, user.uid, savedTransaction.entityId);
+      budget = await createBudgetForMonth(savedTransaction.budgetMonth!, family.id, user.uid, savedTransaction.entityId || "");
     }
 
     budgetStore.updateBudget(targetBudgetId, {

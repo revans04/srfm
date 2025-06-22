@@ -206,44 +206,44 @@
         height="600"
         :item-class="getRowClass"
       >
-        <template v-slot:item.amount="{ item }">
-          <span :class="item.isIncome ? 'text-success' : 'text-error'">
-            {{ formatCurrency(item.amount) }}
+        <template v-slot:body-cell-amount="{ row }">
+          <span :class="row.isIncome ? 'text-success' : 'text-error'">
+            {{ formatCurrency(row.amount) }}
           </span>
         </template>
-        <template v-slot:item.balance="{ item }">
-          {{ formatCurrency(item.balance) }}
+        <template v-slot:body-cell-balance="{ row }">
+          {{ formatCurrency(row.balance) }}
         </template>
-        <template v-slot:item.entity="{ item }">
-          {{ getEntityName(item.entityId || item.budgetId) }}
+        <template v-slot:body-cell-entity="{ row }">
+          {{ getEntityName(row.entityId || row.budgetId) }}
         </template>
-        <template v-slot:item.actions="{ item }">
+        <template v-slot:body-cell-actions="{ row }">
           <q-btn
-            v-if="item.status === 'C'"
+            v-if="row.status === 'C'"
             density="compact"
             variant="plain"
             color="warning"
-            @click.stop="confirmAction(item, 'Disconnect')"
+            @click.stop="confirmAction(row, 'Disconnect')"
             title="Disconnect Transaction"
           >
               <q-icon name="link_off"></q-icon>
           </q-btn>
           <q-btn
-            v-if="item.status != 'C' && item.id"
+            v-if="row.status != 'C' && row.id"
             density="compact"
             variant="plain"
             color="error"
-            @click.stop="confirmAction(item, 'Ignore')"
+            @click.stop="confirmAction(row, 'Ignore')"
             title="Ignore Imported Transaction"
           >
               <q-icon name="visibility_off"></q-icon>
           </q-btn>
           <q-btn
-            v-if="item.status != 'C' && item.id"
+            v-if="row.status != 'C' && row.id"
             density="compact"
             variant="plain"
             color="error"
-            @click.stop="confirmAction(item, 'Delete')"
+            @click.stop="confirmAction(row, 'Delete')"
             title="Delete Imported Transaction"
           >
               <q-icon name="delete_outline"></q-icon>
