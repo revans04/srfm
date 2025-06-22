@@ -194,7 +194,7 @@
       <q-table
         v-model="selectedRows"
         :headers="headers"
-        :items="displayTransactions"
+        :rows="displayTransactions"
         class="elevation-1"
         items-per-page="0"
         :hide-default-footer="true"

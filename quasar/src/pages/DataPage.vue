@@ -241,13 +241,13 @@
                       </q-tabs>
                       <q-tab-panels v-model="previewTab">
                         <q-tab-panel name="entities">
-                          <q-table :headers="entityHeaders" :items="previewData.entities" :items-per-page="5" class="mt-4"></q-table>
+                          <q-table :headers="entityHeaders" :rows="previewData.entities" :items-per-page="5" class="mt-4"></q-table>
                         </q-tab-panel>
                         <q-tab-panel name="categories">
-                          <q-table :headers="categoryHeaders" :items="previewData.categories" :items-per-page="5" class="mt-4"></q-table>
+                          <q-table :headers="categoryHeaders" :rows="previewData.categories" :items-per-page="5" class="mt-4"></q-table>
                         </q-tab-panel>
                         <q-tab-panel name="transactions">
-                          <q-table :headers="transactionHeaders" :items="previewData.transactions" :items-per-page="5" class="mt-4">
+                          <q-table :headers="transactionHeaders" :rows="previewData.transactions" :items-per-page="5" class="mt-4">
                             <template v-slot:item.categories="{ item }">
                               <span>{{ formatCategories(item.categories) }}</span>
                             </template>
@@ -256,7 +256,7 @@
                         <q-tab-panel name="bankTransactions">
                           <q-table
                             :headers="bankTransactionPreviewHeaders"
-                            :items="previewBankTransactions"
+                            :rows="previewBankTransactions"
                             :items-per-page="5"
                             class="mt-4"
                           ></q-table>
@@ -264,7 +264,7 @@
                         <q-tab-panel name="accountsAndSnapshots">
                           <q-table
                             :headers="accountsAndSnapshotsHeaders"
-                            :items="previewData.accountsAndSnapshots"
+                            :rows="previewData.accountsAndSnapshots"
                             :items-per-page="5"
                             class="mt-4"
                           ></q-table>

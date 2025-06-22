@@ -78,7 +78,7 @@
             <q-card>
               <q-card-section>Imported Transaction</q-card-section>
               <q-card-section>
-                <q-table :headers="transactionDocHeaders" :items="importedTransactionDocs" :items-per-page="10" class="elevation-1">
+                <q-table :headers="transactionDocHeaders" :rows="importedTransactionDocs" :items-per-page="10" class="elevation-1">
                   <template v-slot:item.createdAt="{ item }">
                     {{ getDateRange(item) }}
                   </template>
@@ -111,7 +111,7 @@
             <q-card>
               <q-card-section>Monthly Budgets</q-card-section>
               <q-card-section>
-                <q-table :headers="budgetHeaders" :items="budgets" :items-per-page="10" class="elevation-1">
+                <q-table :headers="budgetHeaders" :rows="budgets" :items-per-page="10" class="elevation-1">
                   <template v-slot:item.entityName="{ item }">
                     {{ getEntityName(item.entityId) }}
                   </template>
