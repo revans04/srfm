@@ -8,7 +8,7 @@
           <div class="col"><q-space></q-space></div>
           <div class="col-auto text-right">
             <q-btn color="error" @click="closeDialog(false)" :disabled="props.matching" variant="plain">
-              <q-icon>close</q-icon>
+              <q-icon name="close"></q-icon>
             </q-btn>
           </div>
         </div>
@@ -80,13 +80,12 @@
                   <template v-slot:item.budgetAmount="{ item }"> ${{ toDollars(toCents(item.budgetTransaction.amount)) }} </template>
                   <template v-slot:item.budgetType="{ item }"> {{ item.budgetTransaction.isIncome ? "Income" : "Expense" }} </template>
                   <template v-slot:item.actions="{ item }">
-                    <q-icon
-                      v-if="isBudgetTxMatchedMultiple(item.budgetTransaction.id)"
-                      color="warning"
-                      title="This budget transaction matches multiple bank transactions"
-                    >
-                      warning
-                    </q-icon>
+                      <q-icon
+                        v-if="isBudgetTxMatchedMultiple(item.budgetTransaction.id)"
+                        color="warning"
+                        title="This budget transaction matches multiple bank transactions"
+                        name="warning"
+                      ></q-icon>
                   </template>
                 </q-data-table>
                 <q-btn color="primary" @click="confirmSmartMatches" :disabled="selectedSmartMatchIds.length === 0 || props.matching" :loading="props.matching">
