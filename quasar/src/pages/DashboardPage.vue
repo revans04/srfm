@@ -71,11 +71,9 @@
                 </q-card>
               </q-menu>
             </q-icon>
-            <div class="q-ml-sm">
-              <q-btn v-if="!isMobile && !isEditing" flat icon="edit" @click="isEditing = true" title="Edit Budget" />
-              <q-btn v-if="isEditing" flat icon="close" @click="isEditing = false" title="Cancel" />
-              <q-btn v-if="!isMobile && !isEditing" flat icon="delete" color="negative" title="Delete Budget" />
-            </div>
+            <q-btn v-if="!isMobile && !isEditing" flat icon="edit" @click="isEditing = true" title="Edit Budget" />
+            <q-btn v-if="isEditing" flat icon="close" @click="isEditing = false" title="Cancel" />
+            <q-btn v-if="!isMobile && !isEditing" flat icon="delete" color="negative" title="Delete Budget" />
           </h4>
           <div
             class="q-pr-sm q-py-none"
