@@ -71,7 +71,7 @@
               </q-card-section>
             </q-card>
             <!-- Table for Group, Planned, Actual -->
-            <q-table class="mt-4">
+            <q-markup-table class="mt-4">
               <thead>
                 <tr>
                   <th>Group</th>
@@ -107,12 +107,12 @@
                   </td>
                 </tr>
               </tbody>
-            </q-table>
+            </q-markup-table>
             <q-dialog v-model="showGroupDialog" max-width="600px">
               <q-card>
                 <q-card-section>{{ selectedGroup }} Transactions</q-card-section>
                 <q-card-section>
-                  <q-table dense>
+                  <q-markup-table dense>
                     <thead>
                       <tr>
                         <th>Date</th>
@@ -129,7 +129,7 @@
                         <td class="text-right">${{ tx.amount.toFixed(2) }}</td>
                       </tr>
                     </tbody>
-                  </q-table>
+                  </q-markup-table>
                 </q-card-section>
                 <q-card-actions align="right">
                   <q-btn flat label="Close" v-close-popup />
@@ -146,7 +146,7 @@
                 </div>
               </q-card-section>
             </q-card>
-            <q-table class="mt-4">
+            <q-markup-table class="mt-4">
               <thead>
                 <tr>
                   <th>Month</th>
@@ -161,7 +161,7 @@
                   <td>${{ item.actual.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</td>
                 </tr>
               </tbody>
-            </q-table>
+            </q-markup-table>
           </div>
         </div>
       </q-tab-panel>
