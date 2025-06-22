@@ -6,13 +6,13 @@
 
     <!-- Tabs -->
     <q-tabs v-model="tab" color="primary">
-      <q-tab value="entries">Budget Entries</q-tab>
-      <q-tab value="register">Transaction Register</q-tab>
+      <q-tab name="entries">Budget Entries</q-tab>
+      <q-tab name="register">Transaction Register</q-tab>
     </q-tabs>
 
-    <q-window v-model="tab">
+    <q-tab-panels v-model="tab">
       <!-- Budget Entries -->
-      <q-window-item value="entries">
+      <q-tab-panel name="entries">
         <!-- Add Transaction Button -->
         <q-btn color="primary" variant="plain" class="mb-4 mr-2" @click="showTransactionDialog = true"> Add Transaction </q-btn>
         <q-btn color="primary" variant="plain" class="mb-4 mr-2" @click="openMatchBankTransactionsDialog"> Match Bank Transactions </q-btn>
@@ -302,13 +302,13 @@
             </q-item>
           </q-list>
         </q-card>
-      </q-window-item>
+      </q-tab-panel>
 
       <!-- Transaction Register -->
-      <q-window-item value="register">
+      <q-tab-panel name="register">
         <TransactionRegistry></TransactionRegistry>
-      </q-window-item>
-    </q-window>
+      </q-tab-panel>
+    </q-tab-panels>
 
     <!-- Transaction Dialog Component -->
     <TransactionDialog
