@@ -29,52 +29,54 @@
 
     <!-- Main Content -->
     <div v-else>
-      <div class="row" :class="isMobile ? 'q-pa-sm' : 'q-pr-xl'">
+      <div class="row" :class="isMobile ? 'q-pa-sm' : 'q-pr-xl'" style="overflow: visible; min-height: 60px">
         <div class="col-12">
           <!-- Entity Dropdown -->
           <EntitySelector @change="loadBudgets" class="q-mb-sm" />
-          <div class="flex items-center">
-            <q-menu v-model="menuOpen" :offset="[0, 4]" :close-on-content-click="false">
-              <template v-slot:activator="{ props }">
-                <div v-bind="props" class="month-selector no-wrap" :class="{ 'text-white': isMobile }">
-                  <h1 class="text-h5 q-my-none">
-                    {{ formatMonth(currentMonth) }}
-                    <q-icon size="xs" name="expand_more" />
-                  </h1>
-                </div>
-              </template>
-              <q-card class="month-menu">
-                <div class="row no-wrap items-center q-px-sm q-py-xs border-bottom">
-                  <div class="col-auto">
-                    <q-btn flat dense icon="chevron_left" @click.stop="shiftMonths(-6)" />
+          <h4>
+            {{ formatMonth(currentMonth) }}
+            <q-icon size="xs" name="expand_more">
+              <q-menu v-model="menuOpen" :offset="[0, 4]" :close-on-content-click="false">
+                <template v-slot:activator="{ props }">
+                  <div v-bind="props" class="month-selector no-wrap" :class="{ 'text-white': isMobile }">
+                    <h1 class="text-h5 q-my-none">
+                      {{ formatMonth(currentMonth) }}
+                    </h1>
                   </div>
-                  <div class="col text-center">
-                    <span>{{ displayYear }}</span>
-                  </div>
-                  <div class="col-auto">
-                    <q-btn flat dense icon="chevron_right" @click.stop="shiftMonths(6)" />
-                  </div>
-                </div>
-                <div class="row">
-                  <div v-for="month in displayedMonths" :key="month.value" class="col-4">
-                    <div
-                      class="q-pa-xs q-ma-xs text-center cursor-pointer border rounded"
-                      :class="month.value === currentMonth ? 'bg-primary text-white' : 'text-primary'"
-                      :style="monthExists(month.value) ? 'border-style: solid' : 'border-style: dashed'"
-                      @click="selectMonth(month.value)"
-                    >
-                      {{ month.label }}
+                </template>
+                <q-card class="month-menu">
+                  <div class="row no-wrap items-center q-px-sm q-py-xs border-bottom">
+                    <div class="col-auto">
+                      <q-btn flat dense icon="chevron_left" @click.stop="shiftMonths(-6)" />
+                    </div>
+                    <div class="col text-center">
+                      <span>{{ displayYear }}</span>
+                    </div>
+                    <div class="col-auto">
+                      <q-btn flat dense icon="chevron_right" @click.stop="shiftMonths(6)" />
                     </div>
                   </div>
-                </div>
-              </q-card>
-            </q-menu>
+                  <div class="row">
+                    <div v-for="month in displayedMonths" :key="month.value" class="col-4">
+                      <div
+                        class="q-pa-xs q-ma-xs text-center cursor-pointer border rounded"
+                        :class="month.value === currentMonth ? 'bg-primary text-white' : 'text-primary'"
+                        :style="monthExists(month.value) ? 'border-style: solid' : 'border-style: dashed'"
+                        @click="selectMonth(month.value)"
+                      >
+                        {{ month.label }}
+                      </div>
+                    </div>
+                  </div>
+                </q-card>
+              </q-menu>
+            </q-icon>
             <div class="q-ml-sm">
               <q-btn v-if="!isMobile && !isEditing" flat icon="edit" @click="isEditing = true" title="Edit Budget" />
               <q-btn v-if="isEditing" flat icon="close" @click="isEditing = false" title="Cancel" />
               <q-btn v-if="!isMobile && !isEditing" flat icon="delete" color="negative" title="Delete Budget" />
             </div>
-          </div>
+          </h4>
           <div
             class="q-pr-sm q-py-none"
             :class="{
@@ -1339,10 +1341,7 @@ function showSnackbar(text: string, color = 'success', retry?: () => void) {
     color: color,
     position: 'bottom',
     timeout: retry ? 0 : 3000,
-    actions: [
-      ...(retry ? [{ label: 'Retry', color: 'white', handler: retry }] : []),
-      { label: 'Close', color: 'white', handler: () => {} },
-    ],
+    actions: [...(retry ? [{ label: 'Retry', color: 'white', handler: retry }] : []), { label: 'Close', color: 'white', handler: () => {} }],
   });
 }
 
