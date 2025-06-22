@@ -175,6 +175,7 @@ import { ref, computed, onMounted, watch } from "vue";
 import type { TemplateBudget, BudgetCategory, TaxForm, Entity} from "../types";
 import { EntityType } from "../types";
 import CurrencyInput from "./CurrencyInput.vue";
+import { useQuasar } from 'quasar';
 import { useBudgetStore } from "../store/budget";
 import { useFamilyStore } from "../store/family";
 import { auth } from "../firebase/init";
@@ -196,6 +197,7 @@ const emit = defineEmits<{
 
 const familyStore = useFamilyStore();
 const budgetStore = useBudgetStore();
+const $q = useQuasar();
 const saving = ref(false);
 const importing = ref(false);
 const showImportDialog = ref(false);

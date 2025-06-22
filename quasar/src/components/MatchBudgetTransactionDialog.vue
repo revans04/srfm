@@ -52,14 +52,14 @@
               single-select
               @click:row="selectImportedTransaction"
             >
-              <template v-slot:item.creditAmount="{ item }">
-                {{ item.creditAmount ? `$${toDollars(toCents(item.creditAmount))}` : "" }}
+              <template v-slot:body-cell-creditAmount="{ row }">
+                {{ row.creditAmount ? `$${toDollars(toCents(row.creditAmount))}` : "" }}
               </template>
-              <template v-slot:item.debitAmount="{ item }">
-                {{ item.debitAmount ? `$${toDollars(toCents(item.debitAmount))}` : "" }}
+              <template v-slot:body-cell-debitAmount="{ row }">
+                {{ row.debitAmount ? `$${toDollars(toCents(row.debitAmount))}` : "" }}
               </template>
-              <template v-slot:item.accountId="{ item }">
-                {{ getAccountName(item.accountId) }}
+              <template v-slot:body-cell-accountId="{ row }">
+                {{ getAccountName(row.accountId) }}
               </template>
             </q-table>
           </div>

@@ -21,19 +21,19 @@
         :items-per-page="100"
         :hide-default-footer="true"
       >
-        <template v-slot:item.owner="{ item }">
-          {{ item.userId ? 'Personal' : 'Shared' }}
+        <template v-slot:body-cell-owner="{ row }">
+          {{ row.userId ? 'Personal' : 'Shared' }}
         </template>
-        <template v-slot:item.balance="{ item }">
-          {{ formatCurrency(item.balance || 0) }}
+        <template v-slot:body-cell-balance="{ row }">
+          {{ formatCurrency(row.balance || 0) }}
         </template>
-        <template v-slot:item.actions="{ item }">
+        <template v-slot:body-cell-actions="{ row }">
           <q-btn
             density="compact"
             variant="plain"
             color="primary"
-            @click="$emit('edit', item)"
-            :disabled="item.userId && item.userId !== userId"
+            @click="$emit('edit', row)"
+            :disabled="row.userId && row.userId !== userId"
           >
               <q-icon name="edit"></q-icon>
           </q-btn>
@@ -41,8 +41,8 @@
             density="compact"
             variant="plain"
             color="error"
-            @click="$emit('delete', item.id)"
-            :disabled="item.userId && item.userId !== userId"
+            @click="$emit('delete', row.id)"
+            :disabled="row.userId && row.userId !== userId"
           >
               <q-icon name="delete"></q-icon>
           </q-btn>
