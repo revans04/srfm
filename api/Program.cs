@@ -57,7 +57,7 @@ try
 
     // Configure logging
     builder.Logging.ClearProviders();
-    builder.Logging.AddProvider(new CustomGoogleLoggerProvider(projectId));
+    builder.Logging.AddProvider(new CustomGoogleLoggerProvider(projectId, credential));
     builder.Logging.AddConsole();
 }
 catch (Exception ex)

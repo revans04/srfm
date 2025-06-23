@@ -1,6 +1,7 @@
 using Google.Api;
 using Google.Cloud.Logging.Type;
 using Google.Cloud.Logging.V2;
+using Google.Apis.Auth.OAuth2;
 using Microsoft.Extensions.Logging;
 using System;
 
@@ -12,11 +13,14 @@ public class CustomGoogleLogger : ILogger
     private readonly string _projectId;
     private readonly string _categoryName;
 
-    public CustomGoogleLogger(string projectId, string categoryName)
+    public CustomGoogleLogger(string projectId, string categoryName, GoogleCredential credential)
     {
         _projectId = projectId;
         _categoryName = categoryName;
-        _client = LoggingServiceV2Client.Create();
+        _client = new LoggingServiceV2ClientBuilder
+        {
+            Credential = credential
+        }.Build();
     }
 
     public IDisposable BeginScope<TState>(TState state) => null;
