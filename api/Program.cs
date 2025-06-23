@@ -54,7 +54,7 @@ try
 
         // Configure logging providers
         builder.Logging.ClearProviders();
-        builder.Logging.AddGoogle(new GoogleLoggerOptions { ProjectId = projectId });
+        builder.Logging.AddGoogle(new LoggingServiceOptions { ProjectId = projectId });
         // Also log to console for local development
         builder.Logging.AddConsole();
     }
