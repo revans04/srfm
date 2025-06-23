@@ -81,6 +81,26 @@ builder.Services.AddSingleton<AccountService>();
 builder.Services.AddSingleton<BrevoService>();
 builder.Services.AddSingleton<StatementService>();
 
+// Configure CORS policies
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowLocalDomain", policy =>
+    {
+        policy.WithOrigins("http://localhost:8080",
+            "http://localhost",
+            "http://localhost:8081",
+            "http://localhost:9000",
+            "http://localhost:9001",
+            "http://family-budget.local:8081",
+            "https://budget-buddy-a6b6c.web.app",
+            "https://app.steadyrise.us",
+            "https://budget-buddy-a6b6c.firebaseapp.com")
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .SetPreflightMaxAge(TimeSpan.FromDays(1));
+    });
+});
+
 // Brevo settings
 builder.Services.Configure<FamilyBudgetApi.Models.BrevoSettings>(builder.Configuration.GetSection("Brevo"));
 
@@ -120,25 +140,8 @@ var app = builder.Build();
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
 logger.LogInformation("Firebase setup completed with project ID: {ProjectId}", projectId);
 
-// CORS for Vue
-app.UseCors(options =>
-{
-    options.AddPolicy("AllowLocalDomain", policy =>
-    {
-        policy.WithOrigins("http://localhost:8080",
-            "http://localhost",
-            "http://localhost:8081",
-            "http://localhost:9000",
-            "http://localhost:9001",
-            "http://family-budget.local:8081",
-            "https://budget-buddy-a6b6c.web.app",
-            "https://app.steadyrise.us",
-            "https://budget-buddy-a6b6c.firebaseapp.com")
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .SetPreflightMaxAge(TimeSpan.FromDays(1));
-    });
-});
+// Enable CORS using the configured policy
+app.UseCors("AllowLocalDomain");
 
 
 if (app.Environment.IsDevelopment())
