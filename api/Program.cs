@@ -4,6 +4,7 @@ using Google.Apis.Auth.OAuth2;
 using Google.Cloud.Firestore;
 using Google.Cloud.Firestore.V1;
 using Google.Cloud.Diagnostics.AspNetCore;
+using Google.Cloud.Diagnostics.Common;
 using Microsoft.OpenApi.Models;
 using FamilyBudgetApi.Services;
 using System.IO;
@@ -53,7 +54,7 @@ try
 
         // Configure logging providers
         builder.Logging.ClearProviders();
-        builder.Logging.AddGoogle(new LoggingServiceOptions { ProjectId = projectId });
+        builder.Logging.AddGoogle(new GoogleLoggerOptions { ProjectId = projectId });
         // Also log to console for local development
         builder.Logging.AddConsole();
     }
