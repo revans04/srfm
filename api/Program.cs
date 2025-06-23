@@ -15,6 +15,9 @@ using System.IO;
 // Top-level statements
 var builder = WebApplication.CreateBuilder(args);
 
+// Declare projectId so it's available after initialization
+string projectId = null!;
+
 // Firebase setup (pre-build logging using Console temporarily)
 var credentialsJson = Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS_JSON");
 if (string.IsNullOrEmpty(credentialsJson))
@@ -37,7 +40,7 @@ try
     });
 
     var credential = GoogleCredential.FromFile(tempCredentialsPath);
-    var projectId = Environment.GetEnvironmentVariable("GOOGLE_CLOUD_PROJECT") ?? builder.Configuration["GoogleCloud:ProjectId"];
+    projectId = Environment.GetEnvironmentVariable("GOOGLE_CLOUD_PROJECT") ?? builder.Configuration["GoogleCloud:ProjectId"];
     if (string.IsNullOrEmpty(projectId))
     {
         throw new InvalidOperationException("Google Cloud project ID not set.");
@@ -62,6 +65,53 @@ finally
     if (File.Exists(tempCredentialsPath))
         File.Delete(tempCredentialsPath);
 }
+
+// Register controllers and JSON converters
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new TimestampJsonConverter());
+    });
+
+// Register application services
+builder.Services.AddSingleton<FamilyService>();
+builder.Services.AddSingleton<BudgetService>();
+builder.Services.AddSingleton<UserService>();
+builder.Services.AddSingleton<AccountService>();
+builder.Services.AddSingleton<BrevoService>();
+builder.Services.AddSingleton<StatementService>();
+
+// Brevo settings
+builder.Services.Configure<FamilyBudgetApi.Models.BrevoSettings>(builder.Configuration.GetSection("Brevo"));
+
+// Swagger
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "family-budget-api", Version = "v1" });
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        In = ParameterLocation.Header,
+        Description = "Please enter JWT with Bearer prefix (e.g., 'Bearer <token>')",
+        Name = "Authorization",
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new string[] { }
+        }
+    });
+});
 
 // Build the application
 var app = builder.Build();
@@ -90,52 +140,6 @@ app.UseCors(options =>
     });
 });
 
-// Add controllers
-app.MapControllers()
-    .AddJsonOptions(options =>
-    {
-        options.JsonSerializerOptions.Converters.Add(new TimestampJsonConverter());
-    });
-
-// Add services
-app.Services.AddSingleton<FamilyService>();
-app.Services.AddSingleton<BudgetService>();
-app.Services.AddSingleton<UserService>();
-app.Services.AddSingleton<AccountService>();
-app.Services.AddSingleton<BrevoService>();
-app.Services.AddSingleton<StatementService>();
-
-// Add Brevo
-app.Services.Configure<FamilyBudgetApi.Models.BrevoSettings>(app.Configuration.GetSection("Brevo"));
-
-// Configure Swagger
-app.Services.AddEndpointsApiExplorer();
-app.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "family-budget-api", Version = "v1" });
-    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-    {
-        In = ParameterLocation.Header,
-        Description = "Please enter JWT with Bearer prefix (e.g., 'Bearer <token>')",
-        Name = "Authorization",
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
-    });
-    c.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            new string[] { }
-        }
-    });
-});
 
 if (app.Environment.IsDevelopment())
 {
@@ -145,6 +149,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseAuthorization();
+
+app.MapControllers();
 
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 var url = $"http://0.0.0.0:{port}";
