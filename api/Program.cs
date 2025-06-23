@@ -32,6 +32,11 @@ try
     tempCredentialsPath = Path.Combine(Path.GetTempPath(), "firebase-service-account.json");
     File.WriteAllText(tempCredentialsPath, credentialsJson);
     Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", tempCredentialsPath);
+    AppDomain.CurrentDomain.ProcessExit += (_, __) =>
+    {
+        if (File.Exists(tempCredentialsPath))
+            File.Delete(tempCredentialsPath);
+    };
     Console.WriteLine($"Firebase credentials loaded from environment variable and written to {tempCredentialsPath}");
 
     FirebaseApp.Create(new AppOptions()
@@ -59,11 +64,6 @@ catch (Exception ex)
 {
     Console.WriteLine($"Error initializing Firebase: {ex.Message}");
     throw;
-}
-finally
-{
-    if (File.Exists(tempCredentialsPath))
-        File.Delete(tempCredentialsPath);
 }
 
 // Register controllers and JSON converters
