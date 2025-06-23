@@ -4,11 +4,14 @@ using Google.Apis.Auth.OAuth2;
 using Google.Cloud.Firestore;
 using Google.Cloud.Firestore.V1;
 using Google.Cloud.Diagnostics.AspNetCore;
+using Google.Cloud.Diagnostics.Common;
 using Microsoft.OpenApi.Models;
 using FamilyBudgetApi.Services;
 using System.IO;
 using FamilyBudgetApi.Controllers;
 using FamilyBudgetApi.Converters;
+using Microsoft.Extensions.Logging;
+using FamilyBudgetApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -49,9 +52,11 @@ try
             Credential = credential
         }.Build()));
 
-        // Configure Google Cloud Logging
+        // Configure logging providers
         builder.Logging.ClearProviders();
-        builder.Logging.AddGoogle(new LoggingServiceOptions { ProjectId = projectId });
+        builder.Logging.AddGoogle(new GoogleLoggerOptions { ProjectId = projectId });
+        // Also log to console for local development
+        builder.Logging.AddConsole();
     }
     finally
     {
@@ -136,6 +141,12 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
+// Redirect Console output to ILogger so existing Console.WriteLine statements
+// are captured by the logging infrastructure (e.g., Google Cloud Logging).
+var logger = app.Services.GetRequiredService<ILogger<Program>>();
+Console.SetOut(new LoggerTextWriter(logger, LogLevel.Information));
+Console.SetError(new LoggerTextWriter(logger, LogLevel.Error));
+
 // Middleware pipeline
 app.UseCors("AllowLocalDomain");
 
@@ -152,5 +163,5 @@ app.MapControllers();
 // Cloud Run sets the PORT environment variable; use it if available, otherwise default to 8080
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 var url = $"http://0.0.0.0:{port}";
-Console.WriteLine($"Starting server on {url}");
+logger.LogInformation("Starting server on {Url}", url);
 app.Run(url);
