@@ -3,20 +3,19 @@ using FirebaseAdmin;
 using Google.Apis.Auth.OAuth2;
 using Google.Cloud.Firestore;
 using Google.Cloud.Firestore.V1;
-using Google.Cloud.Diagnostics.AspNetCore;
-using Google.Cloud.Diagnostics.Common;
 using Microsoft.OpenApi.Models;
 using FamilyBudgetApi.Services;
-using System.IO;
 using FamilyBudgetApi.Controllers;
 using FamilyBudgetApi.Converters;
 using Microsoft.Extensions.Logging;
-using FamilyBudgetApi;
+using FamilyBudgetApi.Logging;
+using System;
+using System.IO;
 
+// Top-level statements
 var builder = WebApplication.CreateBuilder(args);
 
-// Firebase setup
-// Load Firebase credentials from environment variable instead of a file
+// Firebase setup (pre-build logging using Console temporarily)
 var credentialsJson = Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS_JSON");
 if (string.IsNullOrEmpty(credentialsJson))
 {
@@ -24,59 +23,58 @@ if (string.IsNullOrEmpty(credentialsJson))
     throw new InvalidOperationException("Firebase credentials not provided via GOOGLE_APPLICATION_CREDENTIALS_JSON.");
 }
 
+string tempCredentialsPath = null;
 try
 {
-    // Write the credentials to a temporary file
-    var tempCredentialsPath = Path.Combine(Path.GetTempPath(), "firebase-service-account.json");
-    try
+    tempCredentialsPath = Path.Combine(Path.GetTempPath(), "firebase-service-account.json");
+    File.WriteAllText(tempCredentialsPath, credentialsJson);
+    Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", tempCredentialsPath);
+    Console.WriteLine($"Firebase credentials loaded from environment variable and written to {tempCredentialsPath}");
+
+    FirebaseApp.Create(new AppOptions()
     {
-        File.WriteAllText(tempCredentialsPath, credentialsJson);
-        Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", tempCredentialsPath);
-        Console.WriteLine($"Firebase credentials loaded from environment variable and written to {tempCredentialsPath}");
+        Credential = GoogleCredential.FromFile(tempCredentialsPath)
+    });
 
-        // Initialize Firebase
-        FirebaseApp.Create(new AppOptions()
-        {
-            Credential = GoogleCredential.FromFile(tempCredentialsPath)
-        });
-
-        // Add FirestoreDb as a singleton
-        var credential = GoogleCredential.FromFile(tempCredentialsPath);
-        var projectId = Environment.GetEnvironmentVariable("GOOGLE_CLOUD_PROJECT") ?? builder.Configuration["GoogleCloud:ProjectId"];
-        if (string.IsNullOrEmpty(projectId))
-        {
-            throw new InvalidOperationException("Google Cloud project ID not set. Set GOOGLE_CLOUD_PROJECT environment variable or GoogleCloud:ProjectId in appsettings.json.");
-        }
-        builder.Services.AddSingleton(FirestoreDb.Create(projectId, new FirestoreClientBuilder
-        {
-            Credential = credential
-        }.Build()));
-
-        // Configure logging providers
-        builder.Logging.ClearProviders();
-        builder.Logging.AddGoogle(new LoggingServiceOptions { ProjectId = projectId });
-        // Also log to console for local development
-        builder.Logging.AddConsole();
-    }
-    finally
+    var credential = GoogleCredential.FromFile(tempCredentialsPath);
+    var projectId = Environment.GetEnvironmentVariable("GOOGLE_CLOUD_PROJECT") ?? builder.Configuration["GoogleCloud:ProjectId"];
+    if (string.IsNullOrEmpty(projectId))
     {
-        if (File.Exists(tempCredentialsPath))
-            File.Delete(tempCredentialsPath);
+        throw new InvalidOperationException("Google Cloud project ID not set.");
     }
+    builder.Services.AddSingleton(FirestoreDb.Create(projectId, new FirestoreClientBuilder
+    {
+        Credential = credential
+    }.Build()));
+
+    // Configure logging
+    builder.Logging.ClearProviders();
+    builder.Logging.AddProvider(new CustomGoogleLoggerProvider(projectId));
+    builder.Logging.AddConsole();
 }
 catch (Exception ex)
 {
     Console.WriteLine($"Error initializing Firebase: {ex.Message}");
     throw;
 }
+finally
+{
+    if (File.Exists(tempCredentialsPath))
+        File.Delete(tempCredentialsPath);
+}
+
+// Build the application
+var app = builder.Build();
+
+// Get logger after app is built
+var logger = app.Services.GetRequiredService<ILogger<Program>>();
+logger.LogInformation("Firebase setup completed with project ID: {ProjectId}", projectId);
 
 // CORS for Vue
-builder.Services.AddCors(options =>
+app.UseCors(options =>
 {
     options.AddPolicy("AllowLocalDomain", policy =>
     {
-        // Allow local development URLs for now
-        // Update this with your deployed frontend URL after deployment
         policy.WithOrigins("http://localhost:8080",
             "http://localhost",
             "http://localhost:8081",
@@ -88,31 +86,31 @@ builder.Services.AddCors(options =>
             "https://budget-buddy-a6b6c.firebaseapp.com")
               .AllowAnyMethod()
               .AllowAnyHeader()
-              .SetPreflightMaxAge(TimeSpan.FromDays(1)); // Cache preflight for 1 day
+              .SetPreflightMaxAge(TimeSpan.FromDays(1));
     });
 });
 
 // Add controllers
-builder.Services.AddControllers()
+app.MapControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new TimestampJsonConverter());
     });
 
 // Add services
-builder.Services.AddSingleton<FamilyService>();
-builder.Services.AddSingleton<BudgetService>();
-builder.Services.AddSingleton<UserService>();
-builder.Services.AddSingleton<AccountService>();
-builder.Services.AddSingleton<BrevoService>();
-builder.Services.AddSingleton<StatementService>();
+app.Services.AddSingleton<FamilyService>();
+app.Services.AddSingleton<BudgetService>();
+app.Services.AddSingleton<UserService>();
+app.Services.AddSingleton<AccountService>();
+app.Services.AddSingleton<BrevoService>();
+app.Services.AddSingleton<StatementService>();
 
 // Add Brevo
-builder.Services.Configure<FamilyBudgetApi.Models.BrevoSettings>(builder.Configuration.GetSection("Brevo"));
+app.Services.Configure<FamilyBudgetApi.Models.BrevoSettings>(app.Configuration.GetSection("Brevo"));
 
 // Configure Swagger
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c =>
+app.Services.AddEndpointsApiExplorer();
+app.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "family-budget-api", Version = "v1" });
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -139,17 +137,6 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-var app = builder.Build();
-
-// Redirect Console output to ILogger so existing Console.WriteLine statements
-// are captured by the logging infrastructure (e.g., Google Cloud Logging).
-var logger = app.Services.GetRequiredService<ILogger<Program>>();
-Console.SetOut(new LoggerTextWriter(logger, LogLevel.Information));
-Console.SetError(new LoggerTextWriter(logger, LogLevel.Error));
-
-// Middleware pipeline
-app.UseCors("AllowLocalDomain");
-
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
@@ -158,9 +145,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseAuthorization();
-app.MapControllers();
 
-// Cloud Run sets the PORT environment variable; use it if available, otherwise default to 8080
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 var url = $"http://0.0.0.0:{port}";
 logger.LogInformation("Starting server on {Url}", url);
