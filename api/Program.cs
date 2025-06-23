@@ -3,6 +3,7 @@ using FirebaseAdmin;
 using Google.Apis.Auth.OAuth2;
 using Google.Cloud.Firestore;
 using Google.Cloud.Firestore.V1;
+using Google.Cloud.Diagnostics.AspNetCore;
 using Microsoft.OpenApi.Models;
 using FamilyBudgetApi.Services;
 using System.IO;
@@ -47,6 +48,10 @@ try
         {
             Credential = credential
         }.Build()));
+
+        // Configure Google Cloud Logging
+        builder.Logging.ClearProviders();
+        builder.Logging.AddGoogle(new LoggingServiceOptions { ProjectId = projectId });
     }
     finally
     {
