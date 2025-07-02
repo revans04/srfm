@@ -484,7 +484,26 @@ const potentialDuplicateIds = computed(() => {
   return ids;
 });
 
-const expenseTransactions = computed(() => {
+const expenseTransactions = ref<Transaction[]>([]);
+
+watch(
+  [
+    transactions,
+    entriesFilterMerchant,
+    entriesFilterAmount,
+    entriesFilterNote,
+    entriesFilterStatus,
+    entriesFilterDate,
+    entriesFilterAccount,
+    entriesFilterDuplicates,
+    entriesIncludeDeleted,
+    entriesSearch,
+  ],
+  applyFilters,
+  { immediate: true },
+);
+
+function applyFilters() {
   let temp = transactions.value;
   if (!entriesIncludeDeleted.value) {
     temp = temp.filter((t) => !t.deleted);
@@ -504,7 +523,6 @@ const expenseTransactions = computed(() => {
     );
   }
   if (entriesFilterAmount.value) {
-    const amount = parseFloat(entriesFilterAmount.value);
     temp = temp.filter((t) => t.amount.toString().includes(entriesFilterAmount.value.toString()));
   }
   if (entriesFilterNote.value) {
@@ -546,8 +564,8 @@ const expenseTransactions = computed(() => {
     temp = temp.filter((t) => dupes.has(t.id));
   }
 
-  return temp;
-});
+  expenseTransactions.value = temp;
+}
 
 const unmatchedImportedTransactions = computed(() => {
   return importedTransactions.value.filter((tx) => !tx.matched && !tx.ignored);
@@ -931,9 +949,6 @@ function updateTransactions(newTransactions: Transaction[]) {
   loadTransactions();
 }
 
-function applyFilters() {
-  // Trigger recomputation of expenseTransactions
-}
 </script>
 
 <style scoped>
