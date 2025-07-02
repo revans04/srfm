@@ -749,8 +749,12 @@ const displayTransactions = computed((): DisplayTransaction[] => {
   const allTxs = [...matchedTxs, ...baseUnmatchedTxs].sort((a, b) => {
     const dateA = new Date(a.date);
     const dateB = new Date(b.date);
-    if (dateA.getTime() == dateB.getTime()) return b.merchant.localeCompare(a.merchant);
-    return dateA.getTime() - dateB.getTime(); // Newest first
+    if (dateA.getTime() === dateB.getTime()) {
+      const merchantDiff = b.merchant.localeCompare(a.merchant);
+      if (merchantDiff !== 0) return merchantDiff;
+      return b.amount - a.amount;
+    }
+    return dateA.getTime() - dateB.getTime(); // Will be reversed later
   });
 
   // Calculate running balance

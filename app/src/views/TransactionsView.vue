@@ -512,7 +512,13 @@ function applyFilters() {
   temp.sort((a, b) => {
     const dateA = new Date(a.date);
     const dateB = new Date(b.date);
-    return dateB.getTime() - dateA.getTime();
+    const dateDiff = dateB.getTime() - dateA.getTime();
+    if (dateDiff !== 0) return dateDiff;
+
+    const merchantDiff = a.merchant.localeCompare(b.merchant);
+    if (merchantDiff !== 0) return merchantDiff;
+
+    return a.amount - b.amount;
   });
 
   if (entriesFilterMerchant.value) {
