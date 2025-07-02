@@ -87,16 +87,16 @@
           <q-item v-for="(category, index) in budget.categories" :key="index">
             <div class="row dense">
               <div class="col px-2 col-12 col-sm-3">
-                <q-input v-model="budget.categories[index]!.name" label="Category" required density="compact"></q-input>
+                <q-input v-model="budget.categories[index].name" label="Category" required density="compact"></q-input>
               </div>
               <div class="col px-2 col-12 col-sm-3">
-                <q-input v-model="budget.categories[index]!.group" label="Group" required density="compact"></q-input>
+                <q-input v-model="budget.categories[index].group" label="Group" required density="compact"></q-input>
               </div>
               <div class="col px-2 col-12 col-sm-3">
-                <Currency-Input v-model.number="budget.categories[index]!.target" label="Target" class="text-right" density="compact" required></Currency-Input>
+                <Currency-Input v-model.number="budget.categories[index].target" label="Target" class="text-right" density="compact" required></Currency-Input>
               </div>
               <div class="col px-2 col-12 col-sm-2">
-                <q-checkbox v-model="budget.categories[index]!.isFund" label="Is Fund?" density="compact"></q-checkbox>
+                <q-checkbox v-model="budget.categories[index].isFund" label="Is Fund?" density="compact"></q-checkbox>
               </div>
               <div class="col px-2 col-12 col-sm-1">
                 <q-btn icon="delete" variant="plain" @click="removeCategory(index)" color="error"> </q-btn>
@@ -252,10 +252,11 @@ const hasUnsavedChanges = computed(() => {
   }
 
   return (
-    currentEntity.name !== initialEntity.value!.name ||
-    currentEntity.type !== initialEntity.value!.type ||
-    JSON.stringify(currentEntity.taxFormIds) !== JSON.stringify(initialEntity.value!.taxFormIds) ||
-    JSON.stringify(currentEntity.templateBudget?.categories) !== JSON.stringify(initialEntity.value!.templateBudget?.categories)
+    currentEntity.name !== initialEntity.value?.name ||
+    currentEntity.type !== initialEntity.value?.type ||
+    JSON.stringify(currentEntity.taxFormIds) !== JSON.stringify(initialEntity.value?.taxFormIds) ||
+    JSON.stringify(currentEntity.templateBudget?.categories) !==
+      JSON.stringify(initialEntity.value?.templateBudget?.categories)
   );
 });
 
@@ -272,11 +273,12 @@ onMounted(async () => {
   await budgetStore.loadBudgets(userId, props.entityId);
   if (isEditing.value) {
     const entity = familyStore.family?.entities.find((e) => e.id === props.entityId);
-    if (entity) {
-      initialEntity.value = entity;
-      let o = entity.members.find((m) => m.uid === initialEntity.value!.ownerUid);
-      entityName.value = initialEntity.value.name;
-      entityType.value = initialEntity.value.type;
+      if (entity) {
+        initialEntity.value = entity;
+        const ownerUid = initialEntity.value?.ownerUid;
+        const o = ownerUid ? entity.members.find((m) => m.uid === ownerUid) : undefined;
+        entityName.value = initialEntity.value.name;
+        entityType.value = initialEntity.value.type;
       entityEmail.value = o?.email ?? entityEmail.value;
       entityTaxFormIds.value = initialEntity.value.taxFormIds ?? [];
       budget.value.categories = initialEntity.value.templateBudget?.categories ?? [];
@@ -297,11 +299,13 @@ function importCategories() {
       showSnackbar('Categories imported successfully.', 'success');
     } else if (DEFAULT_BUDGET_TEMPLATES[entityType.value]) {
       const predefinedTemplate = DEFAULT_BUDGET_TEMPLATES[entityType.value];
-      budget.value.categories = predefinedTemplate!.categories.map((cat) => ({
-        ...cat,
-        carryover: cat.isFund ? 0 : 0,
-      }));
-      showSnackbar('Default categories imported for entity type.', 'success');
+      if (predefinedTemplate) {
+        budget.value.categories = predefinedTemplate.categories.map((cat) => ({
+          ...cat,
+          carryover: cat.isFund ? 0 : 0,
+        }));
+        showSnackbar('Default categories imported for entity type.', 'success');
+      }
     } else {
       showSnackbar('No budgets or default categories found for this entity.', 'info');
     }
