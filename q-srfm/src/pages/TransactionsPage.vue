@@ -1,8 +1,7 @@
-<!-- src/views/TransactionsView.vue -->
+<!-- src/views/TransactionsPage.vue -->
 <template>
   <q-page :class="isMobile ? 'ps-0' : ''">
     <h1>Transaction and Registry</h1>
-
 
     <!-- Tabs -->
     <q-tabs v-model="tab" color="primary">
@@ -63,14 +62,7 @@
                   <q-input v-model="entriesFilterMerchant" label="Merchant" variant="outlined" density="compact" @input="applyFilters"></q-input>
                 </div>
                 <div class="col col-12 col-md-2">
-                  <q-input
-                    v-model="entriesFilterAmount"
-                    label="Amount"
-                    type="number"
-                    variant="outlined"
-                    density="compact"
-                    @input="applyFilters"
-                  ></q-input>
+                  <q-input v-model="entriesFilterAmount" label="Amount" type="number" variant="outlined" density="compact" @input="applyFilters"></q-input>
                 </div>
                 <div class="col col-12 col-md-2">
                   <q-input v-model="entriesFilterNote" label="Note/Memo" variant="outlined" density="compact" @input="applyFilters"></q-input>
@@ -110,13 +102,7 @@
                   <q-expansion-panel-text>
                     <div class="row">
                       <div class="col col-12 col-md-2">
-                        <q-input
-                          v-model="entriesFilterMerchant"
-                          label="Merchant"
-                          variant="outlined"
-                          density="compact"
-                          @input="applyFilters"
-                        ></q-input>
+                        <q-input v-model="entriesFilterMerchant" label="Merchant" variant="outlined" density="compact" @input="applyFilters"></q-input>
                       </div>
                       <div class="col col-12 col-md-2">
                         <q-input
@@ -169,7 +155,13 @@
         <q-card density="compact">
           <q-card-section>Budget Entries</q-card-section>
           <q-list dense>
-            <q-item v-for="transaction in expenseTransactions" :key="transaction.id" class="transaction-item" :class="{ 'deleted-transaction': transaction.deleted }" @click="editTransaction(transaction)">
+            <q-item
+              v-for="transaction in expenseTransactions"
+              :key="transaction.id"
+              class="transaction-item"
+              :class="{ 'deleted-transaction': transaction.deleted }"
+              @click="editTransaction(transaction)"
+            >
               <!-- Desktop Layout -->
               <template v-if="!isMobile">
                 <div class="row pa-2 align-center">
@@ -252,25 +244,24 @@
                         {{ formatDateLong(transaction.date) }}
                       </div>
                       <div class="col text-right">
-                        <q-btn v-if="transaction.status !== 'C' && !transaction.deleted" icon small @click.stop="selectBudgetTransactionToMatch(transaction)" title="Match Transaction">
+                        <q-btn
+                          v-if="transaction.status !== 'C' && !transaction.deleted"
+                          icon
+                          small
+                          @click.stop="selectBudgetTransactionToMatch(transaction)"
+                          title="Match Transaction"
+                        >
                           <q-icon color="primary" name="link"></q-icon>
                         </q-btn>
-                          <q-icon
-                            v-if="!transaction.deleted"
-                            small
-                            @click.stop="deleteTransaction(transaction.id)"
-                            title="Delete Entry"
-                            color="error"
-                            name="delete_outline"
-                          ></q-icon>
-                          <q-icon
-                            v-else
-                            small
-                            @click.stop="restoreTransaction(transaction.id)"
-                            title="Restore Entry"
-                            color="primary"
-                            name="restore"
-                          ></q-icon>
+                        <q-icon
+                          v-if="!transaction.deleted"
+                          small
+                          @click.stop="deleteTransaction(transaction.id)"
+                          title="Delete Entry"
+                          color="error"
+                          name="delete_outline"
+                        ></q-icon>
+                        <q-icon v-else small @click.stop="restoreTransaction(transaction.id)" title="Restore Entry" color="primary" name="restore"></q-icon>
                       </div>
                     </div>
                     <div class="row text-caption text-grey no-gutters" v-if="transaction.notes">
@@ -348,13 +339,12 @@
       @update:showDialog="showMatchBudgetTransactionDialog = $event"
       @match-transaction="matchTransaction"
     />
-
   </q-page>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
-import { useQuasar } from 'quasar';
+import { useQuasar, QSpinner } from 'quasar';
 import { storeToRefs } from 'pinia';
 import { auth } from '../firebase/init';
 import { dataAccess } from '../dataAccess';
@@ -369,6 +359,7 @@ import { useBudgetStore } from '../store/budget';
 import { useFamilyStore } from '../store/family';
 import { useUIStore } from '../store/ui';
 import { v4 as uuidv4 } from 'uuid';
+
 const $q = useQuasar();
 
 const budgetStore = useBudgetStore();
@@ -401,7 +392,7 @@ const newTransaction = ref<Transaction>({
   recurringInterval: 'Monthly',
   userId: '',
   isIncome: false,
-  entityId: familyStore.selectedEntityId, // Initialize with selected entity
+  entityId: familyStore.selectedEntityId,
   taxMetadata: [],
 });
 const availableAccounts = ref<Account[]>([]);
@@ -445,10 +436,12 @@ const potentialDuplicateIds = computed(() => {
   const txs = transactions.value;
   for (let i = 0; i < txs.length; i++) {
     const a = txs[i];
+    if (!a) continue;
     const merchantA = (a.importedMerchant || a.merchant).toLowerCase();
     const dateA = new Date(a.date);
     for (let j = i + 1; j < txs.length; j++) {
       const b = txs[j];
+      if (!b) continue;
       if (a.amount !== b.amount) continue;
       if (a.isIncome !== b.isIncome) continue;
       const merchantB = (b.importedMerchant || b.merchant).toLowerCase();
@@ -465,26 +458,7 @@ const potentialDuplicateIds = computed(() => {
   return ids;
 });
 
-const expenseTransactions = ref<Transaction[]>([]);
-
-watch(
-  [
-    transactions,
-    entriesFilterMerchant,
-    entriesFilterAmount,
-    entriesFilterNote,
-    entriesFilterStatus,
-    entriesFilterDate,
-    entriesFilterAccount,
-    entriesFilterDuplicates,
-    entriesIncludeDeleted,
-    entriesSearch,
-  ],
-  applyFilters,
-  { immediate: true },
-);
-
-function applyFilters() {
+const expenseTransactions = computed(() => {
   let temp = transactions.value;
   if (!entriesIncludeDeleted.value) {
     temp = temp.filter((t) => !t.deleted);
@@ -504,6 +478,7 @@ function applyFilters() {
     );
   }
   if (entriesFilterAmount.value) {
+    const amount = parseFloat(entriesFilterAmount.value);
     temp = temp.filter((t) => t.amount.toString().includes(entriesFilterAmount.value.toString()));
   }
   if (entriesFilterNote.value) {
@@ -527,7 +502,7 @@ function applyFilters() {
       if (t.categories && t.categories.some((c) => c.category.toLowerCase().includes(searchLower))) {
         return true;
       }
-      const budget = budgetStore.getBudget(t.budgetId || '');
+      const budget = t.budgetId ? budgetStore.getBudget(t.budgetId) : null;
       if (budget) {
         for (const cat of t.categories || []) {
           const matchCat = budget.categories.find((bc) => bc.name === cat.category);
@@ -545,8 +520,8 @@ function applyFilters() {
     temp = temp.filter((t) => dupes.has(t.id));
   }
 
-  expenseTransactions.value = temp;
-}
+  return temp;
+});
 
 const unmatchedImportedTransactions = computed(() => {
   return importedTransactions.value.filter((tx) => !tx.matched && !tx.ignored);
@@ -571,18 +546,19 @@ onMounted(async () => {
 
   $q.loading.show({
     message: 'Loading data...',
-    spinner: 'QSpinner',
+    spinner: QSpinner,
     spinnerColor: 'primary',
-    spinnerSize: '50px',
-    messageClass: 'q-ml-sm',
-    boxClass: 'flex items-center justify-center',
+    spinnerSize: 50,
+    customClass: 'q-ml-sm flex items-center justify-center',
   });
   try {
     await familyStore.loadFamily(user.uid);
     await loadBudgets();
     if (budgetOptions.value.length > 0) {
-      if (!selectedBudgetIds.value || selectedBudgetIds.value.length == 0) selectedBudgetIds.value = [budgetOptions.value[0].budgetId];
-      targetBudgetId.value = selectedBudgetIds.value[0];
+      if (!selectedBudgetIds.value || selectedBudgetIds.value.length === 0) {
+        selectedBudgetIds.value = [budgetOptions.value[0]?.budgetId || ''];
+      }
+      targetBudgetId.value = selectedBudgetIds.value[0] || '';
       await loadTransactions();
     } else {
       showSnackbar('No budgets available. Please create one in the Dashboard.', 'warning');
@@ -621,11 +597,10 @@ async function loadBudgets() {
 
   $q.loading.show({
     message: 'Loading budgets...',
-    spinner: 'QSpinner',
+    spinner: QSpinner,
     spinnerColor: 'primary',
-    spinnerSize: '50px',
-    messageClass: 'q-ml-sm',
-    boxClass: 'flex items-center justify-center',
+    spinnerSize: 50,
+    customClass: 'q-ml-sm flex items-center justify-center',
   });
   try {
     await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
@@ -645,11 +620,10 @@ async function loadTransactions() {
 
   $q.loading.show({
     message: 'Loading transactions...',
-    spinner: 'QSpinner',
+    spinner: QSpinner,
     spinnerColor: 'primary',
-    spinnerSize: '50px',
-    messageClass: 'q-ml-sm',
-    boxClass: 'flex items-center justify-center',
+    spinnerSize: 50,
+    customClass: 'q-ml-sm flex items-center justify-center',
   });
   const allTransactions: Transaction[] = [];
   const allCategories = new Set<string>(['Income']);
@@ -659,12 +633,11 @@ async function loadTransactions() {
       const budget = budgetStore.getBudget(budgetId) || (await dataAccess.getBudget(budgetId));
       if (budget) {
         budgetStore.updateBudget(budgetId, budget);
-        const budgetTransactions = (budget.transactions || [])
-          .map((tx) => ({
-            ...tx,
-            budgetId,
-            entityId: tx.entityId || budget.entityId, // Use transaction entityId or fall back to budget
-          }));
+        const budgetTransactions = (budget.transactions || []).map((tx) => ({
+          ...tx,
+          budgetId,
+          entityId: tx.entityId || budget.entityId || '',
+        }));
         allTransactions.push(...budgetTransactions);
         budget.categories.forEach((cat) => allCategories.add(cat.name));
       }
@@ -680,26 +653,29 @@ async function loadTransactions() {
 }
 
 async function isLastMonth(transaction: Transaction) {
-  return transaction.budgetMonth == budgetOptions.value[0].month;
+  return transaction.budgetMonth === (budgetOptions.value[0]?.month || '');
 }
 
 async function saveTransaction(transaction: Transaction) {
   $q.loading.show({
     message: 'Saving transaction...',
-    spinner: 'QSpinner',
+    spinner: QSpinner,
     spinnerColor: 'primary',
-    spinnerSize: '50px',
-    messageClass: 'q-ml-sm',
-    boxClass: 'flex items-center justify-center',
+    spinnerSize: 50,
+    customClass: 'q-ml-sm flex items-center justify-center',
   });
   try {
     let targetBudgetIdToUse = targetBudgetId.value;
 
     if (editMode.value && transaction.id) {
-      targetBudgetIdToUse = transaction.budgetId || selectedBudgetIds.value[0];
+      targetBudgetIdToUse = transaction.budgetId || selectedBudgetIds.value[0] || '';
     }
 
-    transaction.entityId = familyStore.selectedEntityId || transaction.entityId; // Ensure entityId is set
+    if (!targetBudgetIdToUse) {
+      throw new Error('No budget selected for transaction');
+    }
+
+    transaction.entityId = familyStore.selectedEntityId || transaction.entityId || '';
     showSnackbar(editMode.value ? 'Transaction updated successfully' : 'Transaction added successfully');
     resetForm();
     showTransactionDialog.value = false;
@@ -714,8 +690,8 @@ async function saveTransaction(transaction: Transaction) {
 function editTransaction(item: Transaction) {
   newTransaction.value = { ...item, categories: [...item.categories] };
   editMode.value = true;
-  targetBudgetId.value = item.budgetId || selectedBudgetIds.value[0];
-  familyStore.selectEntity(item.entityId || ''); // Set entity for editing
+  targetBudgetId.value = item.budgetId || selectedBudgetIds.value[0] || '';
+  familyStore.selectEntity(item.entityId || '');
   showTransactionDialog.value = true;
 }
 
@@ -727,11 +703,10 @@ async function deleteTransaction(id: string) {
 
   $q.loading.show({
     message: 'Deleting transaction...',
-    spinner: 'QSpinner',
+    spinner: QSpinner,
     spinnerColor: 'primary',
-    spinnerSize: '50px',
-    messageClass: 'q-ml-sm',
-    boxClass: 'flex items-center justify-center',
+    spinnerSize: 50,
+    customClass: 'q-ml-sm flex items-center justify-center',
   });
   try {
     const targetTransaction = transactions.value.find((tx) => tx.id === id);
@@ -741,7 +716,6 @@ async function deleteTransaction(id: string) {
       return;
     }
 
-    // when loading transactions, we add budgetId
     const targetBudgetIdToUse = targetTransaction.budgetId;
     const originalId = targetTransaction.originalId ?? targetTransaction.id;
 
@@ -753,7 +727,7 @@ async function deleteTransaction(id: string) {
     const budget = budgetStore.getBudget(targetBudgetIdToUse);
     if (!budget) throw new Error('Selected budget not found');
 
-    await dataAccess.deleteTransaction(budget, originalId, await !isLastMonth(targetTransaction));
+    await dataAccess.deleteTransaction(budget, originalId, !(await isLastMonth(targetTransaction)));
     showSnackbar('Transaction deleted successfully');
     await loadTransactions();
   } catch (error: any) {
@@ -771,11 +745,10 @@ async function restoreTransaction(id: string) {
 
   $q.loading.show({
     message: 'Restoring transaction...',
-    spinner: 'QSpinner',
+    spinner: QSpinner,
     spinnerColor: 'primary',
-    spinnerSize: '50px',
-    messageClass: 'q-ml-sm',
-    boxClass: 'flex items-center justify-center',
+    spinnerSize: 50,
+    customClass: 'q-ml-sm flex items-center justify-center',
   });
   try {
     const targetTransaction = transactions.value.find((tx) => tx.id === id);
@@ -796,11 +769,7 @@ async function restoreTransaction(id: string) {
     const budget = budgetStore.getBudget(targetBudgetIdToUse);
     if (!budget) throw new Error('Selected budget not found');
 
-    await dataAccess.restoreTransaction(
-      budget,
-      originalId,
-      await !isLastMonth(targetTransaction)
-    );
+    await dataAccess.restoreTransaction(budget, originalId, !(await isLastMonth(targetTransaction)));
     showSnackbar('Transaction restored successfully');
     await loadTransactions();
   } catch (error: any) {
@@ -823,11 +792,10 @@ async function matchTransaction(importedTx: ImportedTransaction) {
 
   $q.loading.show({
     message: 'Matching transaction...',
-    spinner: 'QSpinner',
+    spinner: QSpinner,
     spinnerColor: 'primary',
-    spinnerSize: '50px',
-    messageClass: 'q-ml-sm',
-    boxClass: 'flex items-center justify-center',
+    spinnerSize: 50,
+    customClass: 'q-ml-sm flex items-center justify-center',
   });
   try {
     const budgetTx = selectedBudgetTransaction.value;
@@ -851,14 +819,15 @@ async function matchTransaction(importedTx: ImportedTransaction) {
       recurring: budgetTx.recurring || false,
       recurringInterval: budgetTx.recurringInterval || 'Monthly',
       isIncome: budgetTx.isIncome || false,
-      entityId: budgetTx.entityId, // Preserve entityId
+      entityId: budgetTx.entityId || '',
+      taxMetadata: budgetTx.taxMetadata || [],
     };
 
     let targetBudgetIdToUse = budgetTx.budgetId;
     if (!targetBudgetIdToUse) {
       for (const budgetId of selectedBudgetIds.value) {
         const budget = budgetStore.getBudget(budgetId);
-        if (budget && budget.transactions?.some((tx) => tx.id === budgetTx.originalId)) {
+        if (budget && budget.transactions?.some((tx) => tx.id === (budgetTx.originalId || budgetTx.id))) {
           targetBudgetIdToUse = budgetId;
           break;
         }
@@ -873,7 +842,7 @@ async function matchTransaction(importedTx: ImportedTransaction) {
     const budget = budgetStore.getBudget(targetBudgetIdToUse);
     if (!budget) throw new Error('Selected budget not found');
 
-    await dataAccess.saveTransaction(budget, updatedTransaction, await !isLastMonth(updatedTransaction));
+    await dataAccess.saveTransaction(budget, updatedTransaction, !(await isLastMonth(updatedTransaction)));
 
     const parts = importedTx.id.split('-');
     const txId = parts[parts.length - 1];
@@ -882,7 +851,7 @@ async function matchTransaction(importedTx: ImportedTransaction) {
 
     const txIndex = importedTransactions.value.findIndex((tx) => tx.id === importedTx.id);
     if (txIndex !== -1) {
-      importedTransactions.value[txIndex].matched = true;
+      importedTransactions.value[txIndex] = { ...importedTransactions.value[txIndex], matched: true };
     }
 
     showSnackbar('Transaction matched successfully');
@@ -936,7 +905,8 @@ function resetForm() {
     recurringInterval: 'Monthly',
     userId: '',
     isIncome: false,
-    entityId: familyStore.selectedEntityId, // Set default entityId
+    entityId: familyStore.selectedEntityId,
+    taxMetadata: [],
   };
   editMode.value = false;
   targetBudgetId.value = selectedBudgetIds.value.length > 0 ? selectedBudgetIds.value[0] : '';
@@ -956,7 +926,6 @@ function getEntityName(entityId: string): string {
   if (!entityId) return 'N/A';
   const entity = familyStore.family?.entities?.find((e) => e.id === entityId);
   if (entity) return entity.name;
-  // Fallback: Check if entityId is a budgetId and get entityId from budget
   const budget = budgetStore.getBudget(entityId);
   if (budget?.entityId) {
     const budgetEntity = familyStore.family?.entities?.find((e) => e.id === budget.entityId);
@@ -989,6 +958,9 @@ function updateTransactions(newTransactions: Transaction[]) {
   loadTransactions();
 }
 
+function applyFilters() {
+  // Trigger recomputation of expenseTransactions
+}
 </script>
 
 <style scoped>
