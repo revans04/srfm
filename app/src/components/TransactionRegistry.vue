@@ -304,15 +304,30 @@
             </v-row>
             <v-list class="mt-2" density="compact">
               <v-list-item v-for="entry in batchEntries" :key="entry.id">
-                <v-list-item-content>
-                  <div class="text-caption">{{ entry.date }} - {{ formatCurrency(entry.amount) }}</div>
-                </v-list-item-content>
-                <v-list-item-content>
-                  <v-text-field v-model="entry.merchant" label="Merchant" density="compact" variant="outlined" :rules="requiredField"></v-text-field>
-                </v-list-item-content>
-                <v-list-item-content>
-                  <v-combobox v-model="entry.category" :items="categoryOptions" label="Category" density="compact" variant="outlined" :rules="requiredField"></v-combobox>
-                </v-list-item-content>
+                <v-row no-gutters class="w-100">
+                  <v-col cols="4" class="text-caption">
+                    {{ entry.date }} - {{ formatCurrency(entry.amount) }}
+                  </v-col>
+                  <v-col cols="4">
+                    <v-text-field
+                      v-model="entry.merchant"
+                      label="Merchant"
+                      density="compact"
+                      variant="outlined"
+                      :rules="requiredField"
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="4">
+                    <v-combobox
+                      v-model="entry.category"
+                      :items="categoryOptions"
+                      label="Category"
+                      density="compact"
+                      variant="outlined"
+                      :rules="requiredField"
+                    ></v-combobox>
+                  </v-col>
+                </v-row>
               </v-list-item>
             </v-list>
           </v-form>
