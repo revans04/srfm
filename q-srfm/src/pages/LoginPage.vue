@@ -42,12 +42,15 @@ onMounted(() => {
         client_id: '583821970715-53n7g2bv1r3s810vro67vaiqujiek4en.apps.googleusercontent.com',
         callback: handleCredentialResponse,
       });
-      window.google.accounts.id.renderButton(document.getElementById('google-signin-button')!, {
-        theme: 'outline',
-        size: 'large',
-        text: 'signin_with',
-        logo_alignment: 'left',
-      });
+      const btn = document.getElementById('google-signin-button');
+      if (btn) {
+        window.google.accounts.id.renderButton(btn, {
+          theme: 'outline',
+          size: 'large',
+          text: 'signin_with',
+          logo_alignment: 'left',
+        });
+      }
     } else {
       setTimeout(checkGoogle, 100);
     }

@@ -281,11 +281,31 @@ const snapshotToDelete = ref<string | null>(null);
 const userId = computed(() => auth.currentUser?.uid || "");
 const familyId = ref<string>("");
 
-const bankAccounts = computed(() => accounts.value.filter((a) => a.type === "Bank").sort((a, b) => a.name.localeCompare(b.name)));
-const creditCardAccounts = computed(() => accounts.value.filter((a) => a.type === "CreditCard").sort((a, b) => a.name.localeCompare(b.name)));
-const investmentAccounts = computed(() => accounts.value.filter((a) => a.type === "Investment").sort((a, b) => a.name.localeCompare(b.name)));
-const propertyAccounts = computed(() => accounts.value.filter((a) => a.type === "Property").sort((a, b) => a.name.localeCompare(b.name)));
-const loanAccounts = computed(() => accounts.value.filter((a) => a.type === "Loan").sort((a, b) => a.name.localeCompare(b.name)));
+const bankAccounts = computed(() =>
+  accounts.value
+    .filter((acc) => acc.type === "Bank")
+    .sort((a, b) => a.name.localeCompare(b.name))
+);
+const creditCardAccounts = computed(() =>
+  accounts.value
+    .filter((acc) => acc.type === "CreditCard")
+    .sort((a, b) => a.name.localeCompare(b.name))
+);
+const investmentAccounts = computed(() =>
+  accounts.value
+    .filter((acc) => acc.type === "Investment")
+    .sort((a, b) => a.name.localeCompare(b.name))
+);
+const propertyAccounts = computed(() =>
+  accounts.value
+    .filter((acc) => acc.type === "Property")
+    .sort((a, b) => a.name.localeCompare(b.name))
+);
+const loanAccounts = computed(() =>
+  accounts.value
+    .filter((acc) => acc.type === "Loan")
+    .sort((a, b) => a.name.localeCompare(b.name))
+);
 
 const snapshotHeaders = ref([
   { title: "", value: "select", sortable: false },
@@ -428,9 +448,7 @@ async function saveAccount(account: Account, isPersonal: boolean) {
 
     if (!editMode.value && snapshot) {
       snapshots.value.push(snapshot);
-      snapshots.value.sort((a, b) =>
-        a && a.date && b && b.date ? timestampToMillis(b.date) - timestampToMillis(a.date) : 1
-      );
+      snapshots.value.sort((a, b) => timestampToMillis(b.date) - timestampToMillis(a.date));
     }
 
     // Handle updates to ImportedTransactions and Budget Transactions if accountNumber or name changed
@@ -531,7 +549,7 @@ async function executeDeleteAccount() {
 
   try {
     await dataAccess.deleteAccount(familyId.value, accountToDelete.value);
-    accounts.value = accounts.value.filter((a) => a.id !== accountToDelete.value);
+    accounts.value = accounts.value.filter((acc) => acc.id !== accountToDelete.value);
     showSnackbar("Account deleted successfully", "success");
   } catch (error: any) {
     showSnackbar(`Error deleting account: ${error.message}`, "error");
@@ -542,18 +560,18 @@ async function executeDeleteAccount() {
 }
 
 function openSnapshotDialog() {
-  const a = accounts.value.sort((a, b) => {
-    if (a.type == b.type) return a.name.localeCompare(b.name);
+  const sortedAccounts = accounts.value.slice().sort((a, b) => {
+    if (a.type === b.type) return a.name.localeCompare(b.name);
     return a.type.localeCompare(b.type);
   });
 
   newSnapshot.value = {
     date: todayISO(),
-    accounts: a.map((a) => ({
-      accountId: a.id,
-      accountName: a.name,
-      type: a.type,
-      value: a.balance || 0,
+    accounts: sortedAccounts.map((account) => ({
+      accountId: account.id,
+      accountName: account.name,
+      type: account.type,
+      value: account.balance || 0,
     })),
   };
   showSnapshotDialog.value = true;
@@ -577,9 +595,7 @@ async function saveSnapshot() {
 
     await dataAccess.saveSnapshot(familyId.value, snapshot);
     snapshots.value.push(snapshot);
-    snapshots.value.sort((a, b) =>
-      a && a.date && b && b.date ? timestampToMillis(b.date) - timestampToMillis(a.date) : 1
-    );
+    snapshots.value.sort((a, b) => timestampToMillis(b.date) - timestampToMillis(a.date));
 
     showSnackbar("Snapshot saved successfully", "success");
     showSnapshotDialog.value = false;
