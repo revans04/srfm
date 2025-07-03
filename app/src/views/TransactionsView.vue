@@ -505,6 +505,8 @@ watch(
 
 function applyFilters() {
   let temp = transactions.value;
+
+  console.log("initial temp", temp);
   if (!entriesIncludeDeleted.value) {
     temp = temp.filter((t) => !t.deleted);
   }
@@ -571,6 +573,7 @@ function applyFilters() {
   }
 
   expenseTransactions.value = temp;
+  console.log("final temp", temp);
 }
 
 const unmatchedImportedTransactions = computed(() => {
