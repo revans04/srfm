@@ -423,6 +423,29 @@ const isMobile = computed(() => $q.screen.lt.md);
 
 const userId = computed(() => auth.currentUser?.uid || '');
 
+const actionQueue: Array<() => Promise<void>> = [];
+let processingQueue = false;
+
+function enqueueAction(action: () => Promise<void>) {
+  actionQueue.push(action);
+  if (!processingQueue) {
+    processQueue();
+  }
+}
+
+async function processQueue() {
+  if (actionQueue.length === 0) {
+    processingQueue = false;
+    return;
+  }
+  processingQueue = true;
+  const next = actionQueue.shift();
+  if (next) {
+    await next();
+  }
+  processQueue();
+}
+
 const entityOptions = computed(() => {
   const options = (familyStore.family?.entities || []).map((entity) => ({
     id: entity.id,
@@ -696,6 +719,10 @@ function editTransaction(item: Transaction) {
 }
 
 async function deleteTransaction(id: string) {
+  enqueueAction(() => processDeleteTransaction(id));
+}
+
+async function processDeleteTransaction(id: string) {
   if (selectedBudgetIds.value.length === 0) {
     showSnackbar('Please select at least one budget to delete transactions', 'error');
     return;
@@ -738,6 +765,10 @@ async function deleteTransaction(id: string) {
 }
 
 async function restoreTransaction(id: string) {
+  enqueueAction(() => processRestoreTransaction(id));
+}
+
+async function processRestoreTransaction(id: string) {
   if (selectedBudgetIds.value.length === 0) {
     showSnackbar('Please select at least one budget to restore transactions', 'error');
     return;
