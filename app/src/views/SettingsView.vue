@@ -78,7 +78,7 @@
             <v-card>
               <v-card-title>Imported Transaction</v-card-title>
               <v-card-text>
-                <v-data-table :headers="transactionDocHeaders" :items="importedTransactionDocs" :items-per-page="10" class="elevation-1">
+              <v-data-table :headers="transactionDocHeaders" :items="importedTransactionDocs" :items-per-page="10" class="elevation-1">
                   <template v-slot:item.createdAt="{ item }">
                     {{ getDateRange(item) }}
                   </template>
@@ -98,6 +98,11 @@
                     </v-btn>
                   </template>
                 </v-data-table>
+                <div class="mt-4">
+                  <v-btn color="secondary" @click="validateImportedTransactions" :loading="validatingImports">
+                    Validate Imported Transactions
+                  </v-btn>
+                </div>
               </v-card-text>
             </v-card>
           </v-col>
@@ -124,6 +129,11 @@
                     </v-btn>
                   </template>
                 </v-data-table>
+                <div class="mt-4">
+                  <v-btn color="secondary" @click="validateBudgetTransactions" :loading="validatingBudgets">
+                    Validate Budget Transactions
+                  </v-btn>
+                </div>
               </v-card-text>
             </v-card>
           </v-col>
@@ -213,10 +223,11 @@ import { ref, onMounted, onUnmounted, computed } from "vue";
 import { auth } from "../firebase/index";
 import { dataAccess } from "../dataAccess";
 import { Timestamp } from "firebase/firestore";
-import { Family, PendingInvite, Entity, Budget, ImportedTransactionDoc } from "../types";
+import { Family, PendingInvite, Entity, Budget, ImportedTransactionDoc, Transaction, ImportedTransaction } from "../types";
 import { useFamilyStore } from "../store/family";
 import EntityForm from "../components/EntityForm.vue";
 import { timestampToDate } from "../utils/helpers";
+import { v4 as uuidv4 } from "uuid";
 
 const familyStore = useFamilyStore();
 const inviteEmail = ref("");
@@ -243,6 +254,8 @@ const showDeleteEntityDialog = ref(false);
 const showEntityDialog = ref(false);
 const entityToDelete = ref<Entity | null>(null);
 const associatedBudgets = ref<Budget[]>([]);
+const validatingBudgets = ref(false);
+const validatingImports = ref(false);
 
 const entities = computed(() => family.value?.entities || []);
 
@@ -522,6 +535,80 @@ async function deleteBudget() {
   } finally {
     showDeleteBudgetDialog.value = false;
     budgetToDelete.value = null;
+  }
+}
+
+async function validateBudgetTransactions() {
+  validatingBudgets.value = true;
+  try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      showSnackbar('User not authenticated', 'error');
+      return;
+    }
+
+    const budgetsList = await dataAccess.loadAccessibleBudgets(currentUser.uid);
+    const seenBudgetIds = new Set<string>();
+    const budgetUpdates: { budgetId: string; transaction: Transaction }[] = [];
+
+    budgetsList.forEach((b) => {
+      b.transactions?.forEach((tx) => {
+        if (!tx.id || seenBudgetIds.has(tx.id)) {
+          const newId = uuidv4();
+          budgetUpdates.push({ budgetId: b.budgetId || b.month, transaction: { ...tx, id: newId } });
+          seenBudgetIds.add(newId);
+        } else {
+          seenBudgetIds.add(tx.id);
+        }
+      });
+    });
+
+    if (budgetUpdates.length > 0) {
+      await dataAccess.updateBudgetTransactions(budgetUpdates);
+    }
+
+    budgets.value = await dataAccess.loadAccessibleBudgets(currentUser.uid);
+
+    showSnackbar(`Validation complete. Updated ${budgetUpdates.length} budget transactions`, 'success');
+  } catch (error: any) {
+    console.error('Error validating budgets:', error);
+    showSnackbar(`Error validating budgets: ${error.message}`, 'error');
+  } finally {
+    validatingBudgets.value = false;
+  }
+}
+
+async function validateImportedTransactions() {
+  validatingImports.value = true;
+  try {
+    const importedDocs = await dataAccess.getImportedTransactionDocs();
+    const seenImportedIds = new Set<string>();
+    const importedUpdates: ImportedTransaction[] = [];
+
+    importedDocs.forEach((doc) => {
+      doc.importedTransactions.forEach((tx) => {
+        if (!tx.id || seenImportedIds.has(tx.id)) {
+          const newId = `${doc.id}-${uuidv4()}`;
+          importedUpdates.push({ ...tx, id: newId });
+          seenImportedIds.add(newId);
+        } else {
+          seenImportedIds.add(tx.id);
+        }
+      });
+    });
+
+    if (importedUpdates.length > 0) {
+      await dataAccess.updateImportedTransactions(importedUpdates);
+    }
+
+    importedTransactionDocs.value = await dataAccess.getImportedTransactionDocs();
+
+    showSnackbar(`Validation complete. Updated ${importedUpdates.length} imported transactions`, 'success');
+  } catch (error: any) {
+    console.error('Error validating imported transactions:', error);
+    showSnackbar(`Error validating imported transactions: ${error.message}`, 'error');
+  } finally {
+    validatingImports.value = false;
   }
 }
 
