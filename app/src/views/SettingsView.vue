@@ -549,13 +549,13 @@ async function validateBudgetTransactions() {
 
     const budgetsList = await dataAccess.loadAccessibleBudgets(currentUser.uid);
     const seenBudgetIds = new Set<string>();
-    const budgetUpdates: { budgetId: string; transaction: Transaction }[] = [];
+    const budgetUpdates: { budgetId: string; transaction: Transaction; oldId?: string }[] = [];
 
     budgetsList.forEach((b) => {
       b.transactions?.forEach((tx) => {
         if (!tx.id || seenBudgetIds.has(tx.id)) {
           const newId = uuidv4();
-          budgetUpdates.push({ budgetId: b.budgetId || b.month, transaction: { ...tx, id: newId } });
+          budgetUpdates.push({ budgetId: b.budgetId || b.month, oldId: tx.id, transaction: { ...tx, id: newId } });
           seenBudgetIds.add(newId);
         } else {
           seenBudgetIds.add(tx.id);

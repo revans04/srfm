@@ -410,7 +410,10 @@ namespace FamilyBudgetApi.Services
                 foreach (var txWithBudget in group)
                 {
                     var tx = txWithBudget.Transaction;
-                    var index = transactionsList.FindIndex(t => t.Id == tx.Id);
+                    // Use OldId when provided so we can update transactions whose
+                    // id is being changed during validation.
+                    var lookupId = txWithBudget.OldId ?? tx.Id;
+                    var index = transactionsList.FindIndex(t => t.Id == lookupId);
                     if (index >= 0)
                     {
                         transactionsList[index] = tx;

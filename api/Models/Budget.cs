@@ -132,6 +132,10 @@ namespace FamilyBudgetApi.Models
     public class TransactionWithBudgetId
     {
         public string BudgetId { get; set; }
+        // Id of the transaction as currently stored in the budget. This allows
+        // updates where the client changes the transaction id to resolve
+        // duplicates.
+        public string? OldId { get; set; }
         public Transaction Transaction { get; set; }
     }
 
