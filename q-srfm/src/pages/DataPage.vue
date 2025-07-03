@@ -322,6 +322,7 @@
               <q-card-section>Export Data</q-card-section>
               <q-card-section>
                 <q-btn color="primary" @click="exportDataToCSV" :loading="exporting">Export All Data</q-btn>
+                <q-btn color="secondary" class="q-ml-md" @click="validateData" :loading="validating">Validate Data</q-btn>
               </q-card-section>
             </q-card>
           </div>
@@ -364,8 +365,9 @@ const familyId = ref<string | null>(null);
 const transactions = ref<Transaction[]>([]);
 const loadingData = ref(false);
 const exporting = ref(false);
+const validating = ref(false);
 const importing = ref(false);
-const loading = computed(() => loadingData.value || importing.value || exporting.value);
+const loading = computed(() => loadingData.value || importing.value || exporting.value || validating.value);
 const activeTab = ref<string>("import");
 const availableAccounts = ref<Account[]>([]);
 const selectedAccountId = ref<string>("");
@@ -1940,6 +1942,78 @@ async function exportDataToCSV() {
     showSnackbar(`Error exporting data: ${error.message}`, "error");
   } finally {
     $q.loading.hide();
+  }
+}
+
+async function validateData() {
+  $q.loading.show({
+    message: 'Validating data...',
+    spinner: 'QSpinner',
+    spinnerColor: 'primary',
+    spinnerSize: '50px',
+    messageClass: 'q-ml-sm',
+    boxClass: 'flex items-center justify-center',
+  });
+  validating.value = true;
+  try {
+    const user = auth.currentUser;
+    if (!user) {
+      showSnackbar('User not authenticated', 'error');
+      return;
+    }
+
+    const budgetsList = await dataAccess.loadAccessibleBudgets(user.uid);
+    const seenBudgetIds = new Set<string>();
+    const budgetUpdates: { budgetId: string; transaction: Transaction }[] = [];
+
+    budgetsList.forEach((b) => {
+      b.transactions?.forEach((tx) => {
+        if (!tx.id || seenBudgetIds.has(tx.id)) {
+          const newId = uuidv4();
+          budgetUpdates.push({ budgetId: b.budgetId || b.month, transaction: { ...tx, id: newId } });
+          seenBudgetIds.add(newId);
+        } else {
+          seenBudgetIds.add(tx.id);
+        }
+      });
+    });
+
+    if (budgetUpdates.length > 0) {
+      await dataAccess.updateBudgetTransactions(budgetUpdates);
+    }
+
+    const importedDocs = await dataAccess.getImportedTransactionDocs();
+    const seenImportedIds = new Set<string>();
+    const importedUpdates: ImportedTransaction[] = [];
+
+    importedDocs.forEach((doc) => {
+      doc.importedTransactions.forEach((tx) => {
+        if (!tx.id || seenImportedIds.has(tx.id)) {
+          const newId = `${doc.id}-${uuidv4()}`;
+          importedUpdates.push({ ...tx, id: newId });
+          seenImportedIds.add(newId);
+        } else {
+          seenImportedIds.add(tx.id);
+        }
+      });
+    });
+
+    if (importedUpdates.length > 0) {
+      await dataAccess.updateImportedTransactions(importedUpdates);
+    }
+
+    await loadAllData();
+
+    showSnackbar(
+      `Validation complete. Updated ${budgetUpdates.length} budget transactions and ${importedUpdates.length} imported transactions`,
+      'success',
+    );
+  } catch (error: any) {
+    console.error('Error validating data:', error);
+    showSnackbar(`Error validating data: ${error.message}`, 'error');
+  } finally {
+    $q.loading.hide();
+    validating.value = false;
   }
 }
 
