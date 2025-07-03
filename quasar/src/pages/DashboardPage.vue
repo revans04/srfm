@@ -1218,7 +1218,9 @@ async function duplicateCurrentMonth(month: string) {
       return;
     }
 
-    const newBudget = await createBudgetForMonth(month, family.id, family.ownerUid, familyStore.selectedEntityId);
+    let newBudget = await createBudgetForMonth(month, family.id, family.ownerUid, familyStore.selectedEntityId);
+    newBudget.merchants = budget.value.merchants ? [...budget.value.merchants] : [];
+    await dataAccess.saveBudget(newBudget.budgetId, newBudget);
     await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
 
     showSnackbar("Created new month's budget");
