@@ -736,7 +736,10 @@ async function processDeleteTransaction(id: string) {
     customClass: 'q-ml-sm flex items-center justify-center',
   });
   try {
-    const targetTransaction = transactions.value.find((tx) => tx.id === id);
+    // Select the transaction matching the clicked entry
+    const targetTransaction = transactions.value.find(
+      (tx) => tx.id === id && !tx.deleted,
+    );
 
     if (!targetTransaction) {
       showSnackbar('Transaction not found in selected budgets', 'error');
@@ -782,7 +785,11 @@ async function processRestoreTransaction(id: string) {
     customClass: 'q-ml-sm flex items-center justify-center',
   });
   try {
-    const targetTransaction = transactions.value.find((tx) => tx.id === id);
+    // The restore icon is only shown for deleted transactions, so
+    // locate the deleted entry matching the provided id
+    const targetTransaction = transactions.value.find(
+      (tx) => tx.id === id && tx.deleted,
+    );
 
     if (!targetTransaction) {
       showSnackbar('Transaction not found in selected budgets', 'error');
