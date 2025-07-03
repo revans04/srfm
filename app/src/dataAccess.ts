@@ -470,7 +470,9 @@ export class DataAccess {
     return budgetTxs;
   }
 
-  async updateBudgetTransactions(transactions: { budgetId: string; transaction: Transaction }[]): Promise<void> {
+  async updateBudgetTransactions(
+    transactions: { budgetId: string; transaction: Transaction; oldId?: string }[]
+  ): Promise<void> {
     console.log(`Updating budget transactions:`, transactions);
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/budget/transactions/batch-update`, {
