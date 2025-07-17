@@ -65,12 +65,31 @@
             <v-btn color="error" class="mb-4" @click="confirmBatchDeleteSnapshots" :disabled="selectedSnapshots.length === 0" :loading="deleting">
               Delete Selected
             </v-btn>
-            <v-data-table :headers="snapshotHeaders" :items="snapshotsWithSelection" class="elevation-1" :items-per-page="10">
+            <v-data-table
+              :headers="snapshotHeaders"
+              :items="snapshotsWithSelection"
+              class="elevation-1"
+              :items-per-page="10"
+              @click:row="viewSnapshotDetails"
+            >
               <template v-slot:header.select="{ column }">
-                <v-checkbox v-model="selectAll" @update:modelValue="toggleSelectAll" hide-details density="compact" />
+                <v-checkbox
+                  v-model="selectAll"
+                  @update:modelValue="toggleSelectAll"
+                  hide-details
+                  density="compact"
+                  @click.stop
+                />
               </template>
               <template v-slot:item.select="{ item }">
-                <v-checkbox v-model="selectedSnapshots" :value="item.id" hide-details density="compact" @update:modelValue="updateSelectAll" />
+                <v-checkbox
+                  v-model="selectedSnapshots"
+                  :value="item.id"
+                  hide-details
+                  density="compact"
+                  @update:modelValue="updateSelectAll"
+                  @click.stop
+                />
               </template>
               <template v-slot:item.date="{ item }">
                 {{ formatTimestamp(item.date) }}
@@ -79,7 +98,13 @@
                 {{ formatCurrency(item.netWorth) }}
               </template>
               <template v-slot:item.actions="{ item }">
-                <v-btn icon density="compact" variant="plain" color="error" @click="confirmDeleteSnapshot(item.id)">
+                <v-btn
+                  icon
+                  density="compact"
+                  variant="plain"
+                  color="error"
+                  @click.stop="confirmDeleteSnapshot(item.id)"
+                >
                   <v-icon>mdi-trash-can-outline</v-icon>
                 </v-btn>
               </template>
@@ -193,6 +218,36 @@
       </v-card>
     </v-dialog>
 
+    <!-- Snapshot Details Dialog -->
+    <v-dialog v-model="showSnapshotDetailsDialog" max-width="600px">
+      <v-card>
+        <v-card-title>
+          Snapshot on {{ snapshotDetails ? formatTimestamp(snapshotDetails.date) : '' }}
+        </v-card-title>
+        <v-card-text>
+          <v-data-table
+            :headers="[
+              { title: 'Account', value: 'accountName' },
+              { title: 'Type', value: 'type' },
+              { title: 'Value', value: 'value' }
+            ]"
+            :items="snapshotDetails ? snapshotDetails.accounts : []"
+            hide-default-footer
+          >
+            <template v-slot:item.value="{ item }">
+              {{ formatCurrency(item.value) }}
+            </template>
+          </v-data-table>
+          <div class="text-right mt-4">
+            <strong>Net Worth: {{ snapshotDetails ? formatCurrency(snapshotDetails.netWorth) : '' }}</strong>
+          </div>
+        </v-card-text>
+        <v-card-actions class="justify-end">
+          <v-btn color="primary" variant="text" @click="showSnapshotDetailsDialog = false">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- Update Budget Transactions Confirmation Dialog -->
     <v-dialog v-model="showUpdateBudgetTransactionsDialog" max-width="500px">
       <v-card>
@@ -245,7 +300,9 @@ const showSnapshotDialog = ref(false);
 const showDeleteAccountDialog = ref(false);
 const showDeleteSnapshotDialog = ref(false);
 const showBatchDeleteSnapshotDialog = ref(false);
+const showSnapshotDetailsDialog = ref(false);
 const showUpdateBudgetTransactionsDialog = ref(false);
+const snapshotDetails = ref<Snapshot | null>(null);
 const accountType = ref<"Bank" | "CreditCard" | "Investment" | "Property" | "Loan">("Bank");
 const editMode = ref(false);
 const isPersonalAccount = ref(false);
@@ -638,6 +695,11 @@ async function executeBatchDeleteSnapshots() {
     showBatchDeleteSnapshotDialog.value = false;
     deleting.value = false;
   }
+}
+
+function viewSnapshotDetails(snapshot: Snapshot) {
+  snapshotDetails.value = snapshot;
+  showSnapshotDetailsDialog.value = true;
 }
 
 function getAccountName(accountId: string) {
