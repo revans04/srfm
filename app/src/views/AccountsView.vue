@@ -233,6 +233,8 @@
             ]"
             :items="snapshotDetails ? snapshotDetails.accounts : []"
             hide-default-footer
+            items-per-page="0"
+            height="575px"
           >
             <template v-slot:item.value="{ item }">
               {{ formatCurrency(item.value) }}
@@ -697,8 +699,9 @@ async function executeBatchDeleteSnapshots() {
   }
 }
 
-function viewSnapshotDetails(snapshot: Snapshot) {
-  snapshotDetails.value = snapshot;
+function viewSnapshotDetails(event: any, snapshotRow: any) {
+  snapshotDetails.value = snapshotRow.item as Snapshot;
+  console.log(snapshotRow.item as Snapshot);
   showSnapshotDetailsDialog.value = true;
 }
 
