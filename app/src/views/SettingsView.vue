@@ -78,7 +78,13 @@
             <v-card>
               <v-card-title>Imported Transaction</v-card-title>
               <v-card-text>
-              <v-data-table :headers="transactionDocHeaders" :items="importedTransactionDocs" :items-per-page="10" class="elevation-1">
+              <v-data-table
+                :headers="transactionDocHeaders"
+                :items="importedTransactionDocs"
+                :items-per-page="10"
+                class="elevation-1"
+                @click:row="viewTransactionDoc"
+              >
                   <template v-slot:item.createdAt="{ item }">
                     {{ getDateRange(item) }}
                   </template>
@@ -97,7 +103,7 @@
                       <v-icon>mdi-trash-can-outline</v-icon>
                     </v-btn>
                   </template>
-                </v-data-table>
+              </v-data-table>
                 <div class="mt-4">
                   <v-btn color="secondary" @click="validateImportedTransactions" :loading="validatingImports">
                     Validate Imported Transactions
@@ -140,6 +146,30 @@
         </v-row>
       </v-window-item>
     </v-window>
+
+    <!-- Transaction Document Details Dialog -->
+    <v-dialog v-model="showTransactionDocDialog" max-width="1000px" @hide="closeTransactionDocDialog">
+      <v-card style="min-width: 600px">
+        <v-card-title class="bg-primary py-3">
+          <span class="text-white">Imported Transactions</span>
+        </v-card-title>
+        <v-card-text>
+          <v-data-table
+            :headers="importedTransactionHeaders"
+            :items="selectedTransactionDoc?.importedTransactions || []"
+            :items-per-page="10"
+            class="elevation-1"
+          >
+            <template v-slot:item.accountId="{ item }">
+              {{ item.accountId }}
+            </template>
+          </v-data-table>
+        </v-card-text>
+        <v-card-actions class="justify-end">
+          <v-btn variant="text" color="primary" @click="closeTransactionDocDialog">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
     <!-- Delete Transaction Doc Confirmation Dialog -->
     <v-dialog v-model="showDeleteDialog" max-width="400" @keyup.enter="deleteTransactionDoc">
@@ -256,6 +286,8 @@ const entityToDelete = ref<Entity | null>(null);
 const associatedBudgets = ref<Budget[]>([]);
 const validatingBudgets = ref(false);
 const validatingImports = ref(false);
+const showTransactionDocDialog = ref(false);
+const selectedTransactionDoc = ref<ImportedTransactionDoc | null>(null);
 
 const entities = computed(() => family.value?.entities || []);
 
@@ -265,6 +297,17 @@ const transactionDocHeaders = [
   { title: "Account Info", value: "account", sortable: true },
   { title: "Created At", value: "createdAt", sortable: true },
   { title: "Actions", value: "actions", sortable: false },
+];
+
+const importedTransactionHeaders = [
+  { title: 'Posted Date', value: 'postedDate' },
+  { title: 'Payee', value: 'payee' },
+  { title: 'Credit Amount', value: 'creditAmount' },
+  { title: 'Debit Amount', value: 'debitAmount' },
+  { title: 'Account', value: 'accountId' },
+  { title: 'Account Source', value: 'accountSource' },
+  { title: 'Account #', value: 'accountNumber' },
+  { title: 'Check Number', value: 'checkNumber' }
 ];
 
 const budgetHeaders = [
@@ -486,6 +529,16 @@ async function deleteEntity() {
 function confirmDeleteTransactionDoc(doc: ImportedTransactionDoc) {
   transactionDocToDelete.value = doc;
   showDeleteDialog.value = true;
+}
+
+function viewTransactionDoc(event: any, data: any) {
+  selectedTransactionDoc.value = data.item;
+  showTransactionDocDialog.value = true;
+}
+
+function closeTransactionDocDialog() {
+  showTransactionDocDialog.value = false;
+  selectedTransactionDoc.value = null;
 }
 
 async function deleteTransactionDoc() {
