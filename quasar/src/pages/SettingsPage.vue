@@ -78,7 +78,14 @@
             <q-card>
               <q-card-section>Imported Transaction</q-card-section>
               <q-card-section>
-                <q-table :headers="transactionDocHeaders" :rows="importedTransactionDocs" :items-per-page="10" class="elevation-1">
+                <q-table
+                  :columns="transactionDocColumns"
+                  :rows="importedTransactionDocs"
+                  row-key="id"
+                  :items-per-page="10"
+                  class="elevation-1"
+                  @click:row="viewTransactionDoc"
+                >
                   <template v-slot:item.createdAt="{ item }">
                     {{ getDateRange(item) }}
                   </template>
@@ -130,6 +137,30 @@
         </div>
       </q-tab-panel>
     </q-tab-panels>
+
+    <!-- Transaction Document Details Dialog -->
+    <q-dialog v-model="showTransactionDocDialog" max-width="1000px" @hide="closeTransactionDocDialog">
+      <q-card style="min-width: 600px">
+        <q-card-section class="bg-primary py-3">
+          <span class="text-white">Imported Transactions</span>
+        </q-card-section>
+        <q-card-section>
+          <q-table
+            :headers="importedTransactionHeaders"
+            :rows="selectedTransactionDoc?.importedTransactions || []"
+            :items-per-page="10"
+            class="elevation-1"
+          >
+            <template v-slot:item.accountId="{ item }">
+              {{ item.accountId }}
+            </template>
+          </q-table>
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Close" color="primary" @click="closeTransactionDocDialog" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
 
     <!-- Delete Transaction Doc Confirmation Dialog -->
     <q-dialog v-model="showDeleteDialog" max-width="400" @keyup.enter="deleteTransactionDoc">
@@ -235,7 +266,47 @@ const showEntityDialog = ref(false);
 const entityToDelete = ref<Entity | null>(null);
 const associatedBudgets = ref<Budget[]>([]);
 
+const showTransactionDocDialog = ref(false);
+const selectedTransactionDoc = ref<ImportedTransactionDoc | null>(null);
+
 const entities = computed(() => family.value?.entities || []);
+
+const transactionDocColumns = [
+  { name: 'id', label: 'Document ID', field: 'id', sortable: true, align: 'left' },
+  {
+    name: 'transactionCount',
+    label: 'Transaction Count',
+    field: (row: ImportedTransactionDoc) => row.importedTransactions.length,
+    sortable: true,
+    align: 'left'
+  },
+  {
+    name: 'account',
+    label: 'Account Info',
+    field: (row: ImportedTransactionDoc) => getAccountInfo(row),
+    sortable: true,
+    align: 'left'
+  },
+  {
+    name: 'createdAt',
+    label: 'Created At',
+    field: (row: ImportedTransactionDoc) => getDateRange(row),
+    sortable: true,
+    align: 'left'
+  },
+  { name: 'actions', label: 'Actions', field: 'actions', sortable: false, align: 'right' }
+];
+
+const importedTransactionHeaders = [
+  { title: 'Posted Date', value: 'postedDate' },
+  { title: 'Payee', value: 'payee' },
+  { title: 'Credit Amount', value: 'creditAmount' },
+  { title: 'Debit Amount', value: 'debitAmount' },
+  { title: 'Account', value: 'accountId' },
+  { title: 'Account Source', value: 'accountSource' },
+  { title: 'Account #', value: 'accountNumber' },
+  { title: 'Check Number', value: 'checkNumber' }
+];
 
 const transactionDocHeaders = [
   { title: "Document ID", value: "id", sortable: true },
@@ -464,6 +535,16 @@ async function deleteEntity() {
 function confirmDeleteTransactionDoc(doc: ImportedTransactionDoc) {
   transactionDocToDelete.value = doc;
   showDeleteDialog.value = true;
+}
+
+function viewTransactionDoc(event: any, data: any) {
+  selectedTransactionDoc.value = data.item;
+  showTransactionDocDialog.value = true;
+}
+
+function closeTransactionDocDialog() {
+  showTransactionDocDialog.value = false;
+  selectedTransactionDoc.value = null;
 }
 
 async function deleteTransactionDoc() {
