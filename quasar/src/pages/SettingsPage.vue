@@ -297,6 +297,14 @@ const transactionDocColumns = [
   { name: 'actions', label: 'Actions', field: 'actions', sortable: false, align: 'right' }
 ];
 
+const transactionDocHeaders = [
+  { title: "Document ID", value: "id", sortable: true },
+  { title: "Transaction Count", value: "importedTransactions.length", sortable: true },
+  { title: "Account Info", value: "account", sortable: true },
+  { title: "Created At", value: "createdAt", sortable: true },
+  { title: "Actions", value: "actions", sortable: false },
+];
+
 const importedTransactionHeaders = [
   { title: 'Posted Date', value: 'postedDate' },
   { title: 'Payee', value: 'payee' },
@@ -308,13 +316,6 @@ const importedTransactionHeaders = [
   { title: 'Check Number', value: 'checkNumber' }
 ];
 
-const transactionDocHeaders = [
-  { title: "Document ID", value: "id", sortable: true },
-  { title: "Transaction Count", value: "importedTransactions.length", sortable: true },
-  { title: "Account Info", value: "account", sortable: true },
-  { title: "Created At", value: "createdAt", sortable: true },
-  { title: "Actions", value: "actions", sortable: false },
-];
 
 const budgetHeaders = [
   { title: "Budget ID", value: "budgetId", sortable: true },
