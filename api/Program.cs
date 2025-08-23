@@ -81,6 +81,9 @@ builder.Services.AddSingleton<AccountService>();
 builder.Services.AddSingleton<BrevoService>();
 builder.Services.AddSingleton<StatementService>();
 
+// Register SyncService for Firestore → Supabase synchronization
+builder.Services.AddSingleton<SyncService>();
+
 // Configure CORS policies
 builder.Services.AddCors(options =>
 {
