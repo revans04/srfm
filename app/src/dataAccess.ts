@@ -828,6 +828,15 @@ export class DataAccess {
     });
     if (!response.ok) throw new Error(`Failed to remove entity member: ${response.statusText}`);
   }
+
+  async syncFirestoreToSupabase(): Promise<void> {
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(`${this.apiBaseUrl}/sync/full`, {
+      method: "POST",
+      headers,
+    });
+    if (!response.ok) throw new Error(`Failed to sync data: ${response.statusText}`);
+  }
 }
 
 export const dataAccess = new DataAccess();
