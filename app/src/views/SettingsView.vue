@@ -36,6 +36,11 @@
               <v-text-field v-model="inviteEmail" label="Invite Email" type="email" required></v-text-field>
               <v-btn type="submit" :loading="inviting">Invite</v-btn>
             </v-form>
+            <div class="mt-4">
+              <v-btn color="secondary" @click="syncFirestoreToSupabase" :loading="syncing">
+                Sync Firestore to Supabase
+              </v-btn>
+            </div>
           </v-card-text>
         </v-card>
       </v-window-item>
@@ -263,6 +268,7 @@ const familyStore = useFamilyStore();
 const inviteEmail = ref("");
 const inviting = ref(false);
 const resending = ref(false);
+const syncing = ref(false);
 const snackbar = ref(false);
 const snackbarText = ref("");
 const snackbarColor = ref("success");
@@ -662,6 +668,23 @@ async function validateImportedTransactions() {
     showSnackbar(`Error validating imported transactions: ${error.message}`, 'error');
   } finally {
     validatingImports.value = false;
+  }
+}
+
+async function syncFirestoreToSupabase() {
+  const user = auth.currentUser;
+  if (!user) {
+    showSnackbar('User not authenticated', 'error');
+    return;
+  }
+  syncing.value = true;
+  try {
+    await dataAccess.syncFirestoreToSupabase();
+    showSnackbar('Sync completed successfully', 'success');
+  } catch (error: any) {
+    showSnackbar(`Error syncing data: ${error.message}`, 'error');
+  } finally {
+    syncing.value = false;
   }
 }
 
