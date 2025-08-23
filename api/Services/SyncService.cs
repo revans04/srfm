@@ -152,6 +152,7 @@ namespace FamilyBudgetApi.Services
         {
             var url = Environment.GetEnvironmentVariable("SUPABASE_URL");
             var key = Environment.GetEnvironmentVariable("SUPABASE_SERVICE_ROLE_KEY") ?? Environment.GetEnvironmentVariable("SUPABASE_ANON_KEY");
+            
             if (string.IsNullOrEmpty(url) || string.IsNullOrEmpty(key))
             {
                 throw new InvalidOperationException("Supabase configuration missing. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY.");
