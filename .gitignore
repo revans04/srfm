@@ -5,6 +5,7 @@ app/src/firebase/index.ts
 app/functions
 *firestore.rules
 .firebase*
+backup/*
 
 # local env files
 api/.env
