@@ -106,7 +106,7 @@
               </v-data-table>
                 <div class="mt-4">
                   <v-btn color="secondary" @click="validateImportedTransactions" :loading="validatingImports">
-                    Validate Imported Transactions
+                    Validate Imported Transaction IDs
                   </v-btn>
                 </div>
               </v-card-text>
