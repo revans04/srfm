@@ -51,7 +51,7 @@ namespace FamilyBudgetApi.Services
 
         private async Task SyncBudgetsAsync(DateTime? updatedSince)
         {
-            var query = _firestoreDb.Collection("budgets");
+            Query query = _firestoreDb.Collection("budgets");
             if (updatedSince.HasValue)
             {
                 // Firestore stores timestamps as 'updatedAt'
@@ -66,15 +66,15 @@ namespace FamilyBudgetApi.Services
                 var budget = doc.ConvertTo<Budget>();
                 var pgBudget = new PgBudget
                 {
-                    Id = budget.Id,
+                    Id = budget.BudgetId,
                     FamilyId = TryParseGuid(budget.FamilyId),
                     EntityId = TryParseGuid(budget.EntityId),
                     Month = budget.Month,
                     Label = budget.Label,
-                    IncomeTarget = budget.IncomeTarget,
+                    IncomeTarget = (decimal)budget.IncomeTarget,
                     OriginalBudgetId = budget.OriginalBudgetId,
-                    CreatedAt = budget.CreatedAt,
-                    UpdatedAt = budget.UpdatedAt
+                    CreatedAt = doc.CreateTime?.ToDateTime(),
+                    UpdatedAt = doc.UpdateTime?.ToDateTime()
                 };
                 supabaseBudgets.Add(pgBudget);
             }
@@ -121,7 +121,7 @@ namespace FamilyBudgetApi.Services
 
         private async Task SyncTransactionsAsync(DateTime? updatedSince)
         {
-            var query = _firestoreDb.Collection("transactions");
+            Query query = _firestoreDb.Collection("transactions");
             if (updatedSince.HasValue)
             {
                 query = query.WhereGreaterThanOrEqualTo("updatedAt", updatedSince.Value);
@@ -131,30 +131,30 @@ namespace FamilyBudgetApi.Services
 
             foreach (var doc in snapshot.Documents)
             {
-                var transaction = doc.ConvertTo<Transaction>();
+                var firestoreTransaction = doc.ConvertTo<FamilyBudgetApi.Models.Transaction>();
                 var pgTransaction = new PgTransaction
                 {
-                    Id = transaction.Id,
-                    BudgetId = transaction.BudgetId,
-                    Date = transaction.Date,
-                    BudgetMonth = transaction.BudgetMonth,
-                    Merchant = transaction.Merchant,
-                    Amount = transaction.Amount,
-                    Notes = transaction.Notes,
-                    Recurring = transaction.Recurring,
-                    RecurringInterval = transaction.RecurringInterval,
-                    UserId = transaction.UserId,
-                    IsIncome = transaction.IsIncome,
-                    AccountNumber = transaction.AccountNumber,
-                    AccountSource = transaction.AccountSource,
-                    PostedDate = transaction.PostedDate,
-                    ImportedMerchant = transaction.ImportedMerchant,
-                    Status = transaction.Status,
-                    CheckNumber = transaction.CheckNumber,
-                    Deleted = transaction.Deleted,
-                    EntityId = TryParseGuid(transaction.EntityId),
-                    CreatedAt = transaction.CreatedAt,
-                    UpdatedAt = transaction.UpdatedAt
+                    Id = firestoreTransaction.Id ?? doc.Id,
+                    BudgetId = firestoreTransaction.BudgetId,
+                    Date = TryParseDate(firestoreTransaction.Date),
+                    BudgetMonth = firestoreTransaction.BudgetMonth,
+                    Merchant = firestoreTransaction.Merchant,
+                    Amount = (decimal)firestoreTransaction.Amount,
+                    Notes = firestoreTransaction.Notes,
+                    Recurring = firestoreTransaction.Recurring,
+                    RecurringInterval = firestoreTransaction.RecurringInterval,
+                    UserId = firestoreTransaction.UserId,
+                    IsIncome = firestoreTransaction.IsIncome,
+                    AccountNumber = firestoreTransaction.AccountNumber,
+                    AccountSource = firestoreTransaction.AccountSource,
+                    PostedDate = TryParseDate(firestoreTransaction.PostedDate),
+                    ImportedMerchant = firestoreTransaction.ImportedMerchant,
+                    Status = firestoreTransaction.Status,
+                    CheckNumber = firestoreTransaction.CheckNumber,
+                    Deleted = firestoreTransaction.Deleted,
+                    EntityId = TryParseGuid(firestoreTransaction.EntityId),
+                    CreatedAt = doc.CreateTime?.ToDateTime(),
+                    UpdatedAt = doc.UpdateTime?.ToDateTime()
                 };
                 supabaseTransactions.Add(pgTransaction);
             }
@@ -197,10 +197,10 @@ namespace FamilyBudgetApi.Services
                     created_at = EXCLUDED.created_at,
                     updated_at = EXCLUDED.updated_at;";
 
-            await using var transaction = await conn.BeginTransactionAsync();
+            await using var dbTransaction = await conn.BeginTransactionAsync();
             foreach (var t in supabaseTransactions)
             {
-                await using var cmd = new NpgsqlCommand(sql, conn, transaction);
+                await using var cmd = new NpgsqlCommand(sql, conn, dbTransaction);
                 cmd.Parameters.AddWithValue("id", t.Id);
                 cmd.Parameters.AddWithValue("budget_id", t.BudgetId);
                 cmd.Parameters.AddWithValue("date", (object?)t.Date ?? DBNull.Value);
@@ -224,7 +224,7 @@ namespace FamilyBudgetApi.Services
                 cmd.Parameters.AddWithValue("updated_at", (object?)t.UpdatedAt ?? DBNull.Value);
                 await cmd.ExecuteNonQueryAsync();
             }
-            await transaction.CommitAsync();
+            await dbTransaction.CommitAsync();
         }
 
         /// <summary>
@@ -243,6 +243,11 @@ namespace FamilyBudgetApi.Services
         private Guid? TryParseGuid(string? input)
         {
             return Guid.TryParse(input, out var guid) ? guid : (Guid?)null;
+        }
+
+        private DateTime? TryParseDate(string? input)
+        {
+            return DateTime.TryParse(input, out var dt) ? dt : (DateTime?)null;
         }
     }
 
