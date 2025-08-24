@@ -161,43 +161,45 @@ public class FamilyService
             }
         }
 
-        // Load snapshots and their accounts
-        const string sqlSnapshots =
-            "SELECT id, snapshot_date, net_worth, created_at FROM snapshots WHERE family_id=@fid";
+        // Load snapshots and their accounts in a single query to avoid nested readers
+        const string sqlSnapshots = @"
+            SELECT s.id, s.snapshot_date, s.net_worth, s.created_at,
+                   sa.account_id, sa.account_name, sa.value, sa.account_type
+            FROM snapshots s
+            LEFT JOIN snapshot_accounts sa ON s.id = sa.snapshot_id
+            WHERE s.family_id=@fid
+            ORDER BY s.snapshot_date";
         await using (var snapCmd = new Npgsql.NpgsqlCommand(sqlSnapshots, conn))
         {
             snapCmd.Parameters.AddWithValue("fid", fid);
             await using var snapReader = await snapCmd.ExecuteReaderAsync();
+            var snapMap = new Dictionary<Guid, Snapshot>();
             while (await snapReader.ReadAsync())
             {
-                var snapshotId = snapReader.GetGuid(0);
-                var snapshot = new Snapshot
+                var sid = snapReader.GetGuid(0);
+                if (!snapMap.TryGetValue(sid, out var snap))
                 {
-                    Id = snapshotId.ToString(),
-                    Date = Timestamp.FromDateTime(snapReader.IsDBNull(1) ? DateTime.UtcNow : snapReader.GetDateTime(1).ToUniversalTime()),
-                    NetWorth = snapReader.IsDBNull(2) ? 0 : (double)snapReader.GetDecimal(2),
-                    CreatedAt = Timestamp.FromDateTime(snapReader.IsDBNull(3) ? DateTime.UtcNow : snapReader.GetDateTime(3).ToUniversalTime()),
-                    Accounts = new List<SnapshotAccount>()
-                };
-
-                const string sqlSnapshotAccounts =
-                    "SELECT account_id, account_name, value, account_type FROM snapshot_accounts WHERE snapshot_id=@sid";
-                await using (var saCmd = new Npgsql.NpgsqlCommand(sqlSnapshotAccounts, conn))
-                {
-                    saCmd.Parameters.AddWithValue("sid", snapshotId);
-                    await using var saReader = await saCmd.ExecuteReaderAsync();
-                    while (await saReader.ReadAsync())
+                    snap = new Snapshot
                     {
-                        snapshot.Accounts.Add(new SnapshotAccount
-                        {
-                            AccountId = saReader.GetGuid(0).ToString(),
-                            AccountName = saReader.GetString(1),
-                            Value = saReader.IsDBNull(2) ? 0 : (double)saReader.GetDecimal(2),
-                            Type = saReader.GetString(3)
-                        });
-                    }
+                        Id = sid.ToString(),
+                        Date = Timestamp.FromDateTime(snapReader.IsDBNull(1) ? DateTime.UtcNow : snapReader.GetDateTime(1).ToUniversalTime()),
+                        NetWorth = snapReader.IsDBNull(2) ? 0 : (double)snapReader.GetDecimal(2),
+                        CreatedAt = Timestamp.FromDateTime(snapReader.IsDBNull(3) ? DateTime.UtcNow : snapReader.GetDateTime(3).ToUniversalTime()),
+                        Accounts = new List<SnapshotAccount>()
+                    };
+                    snapMap[sid] = snap;
+                    family.Snapshots.Add(snap);
                 }
-                family.Snapshots.Add(snapshot);
+                if (!snapReader.IsDBNull(4))
+                {
+                    snap.Accounts.Add(new SnapshotAccount
+                    {
+                        AccountId = snapReader.GetGuid(4).ToString(),
+                        AccountName = snapReader.IsDBNull(5) ? string.Empty : snapReader.GetString(5),
+                        Value = snapReader.IsDBNull(6) ? 0 : (double)snapReader.GetDecimal(6),
+                        Type = snapReader.IsDBNull(7) ? string.Empty : snapReader.GetString(7)
+                    });
+                }
             }
         }
 
