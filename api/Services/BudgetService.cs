@@ -1,621 +1,624 @@
-using Google.Cloud.Firestore;
 using FamilyBudgetApi.Models;
+using Microsoft.Extensions.Logging;
+using Npgsql;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
-using System.Threading.Tasks;
 
-namespace FamilyBudgetApi.Services
+namespace FamilyBudgetApi.Services;
+
+/// <summary>
+/// Budget service backed by Supabase/PostgreSQL.
+/// Only a subset of operations are implemented; additional endpoints
+/// still require migration from the legacy Firestore implementation.
+/// </summary>
+public class BudgetService
 {
-    public class BudgetService
+    private readonly SupabaseDbService _db;
+    private readonly ILogger<BudgetService> _logger;
+
+    public BudgetService(SupabaseDbService db, ILogger<BudgetService> logger)
     {
-        private readonly FirestoreDb _firestoreDb;
-        private readonly FamilyService _familyService;
-        private static readonly PropertyInfo[] TransactionProperties = typeof(Models.Transaction).GetProperties();
-        private static readonly PropertyInfo[] ImportedTransactionProperties = typeof(ImportedTransaction).GetProperties();
-        private static readonly Dictionary<string, PropertyInfo> TransactionPropertyMap = TransactionProperties.ToDictionary(p => p.Name);
-        private static readonly Dictionary<string, PropertyInfo> ImportedTransactionPropertyMap = ImportedTransactionProperties.ToDictionary(p => p.Name);
+        _db = db;
+        _logger = logger;
+    }
 
-        public BudgetService(FirestoreDb firestoreDb, FamilyService familyService)
+    /// <summary>
+    /// Load budgets belonging to the user's family. Optionally filter by entity.
+    /// </summary>
+    public async Task<List<BudgetInfo>> LoadAccessibleBudgets(string userId, string? entityId = null)
+    {
+        _logger.LogInformation("Loading budgets for user {UserId} and entity {EntityId}", userId, entityId);
+        await using var conn = await _db.GetOpenConnectionAsync();
+
+        // Resolve family id for the user
+        const string sqlFamily = "SELECT family_id FROM family_members WHERE user_id=@uid LIMIT 1";
+        await using var famCmd = new NpgsqlCommand(sqlFamily, conn);
+        famCmd.Parameters.AddWithValue("uid", userId);
+        var familyIdObj = await famCmd.ExecuteScalarAsync();
+        if (familyIdObj is not Guid familyId)
         {
-            _firestoreDb = firestoreDb;
-            _familyService = familyService;
+            _logger.LogWarning("No family found for user {UserId}", userId);
+            return new List<BudgetInfo>();
         }
 
-        public async Task<List<BudgetInfo>> LoadAccessibleBudgets(string userId, string? entityId = null)
+        var sql = "SELECT id, family_id, entity_id, month, label, income_target, original_budget_id FROM budgets WHERE family_id=@fid";
+        if (!string.IsNullOrEmpty(entityId)) sql += " AND entity_id=@eid";
+
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("fid", familyId);
+        if (!string.IsNullOrEmpty(entityId) && Guid.TryParse(entityId, out var eid))
+            cmd.Parameters.AddWithValue("eid", eid);
+
+        await using var reader = await cmd.ExecuteReaderAsync();
+        var budgets = new List<BudgetInfo>();
+        while (await reader.ReadAsync())
         {
-            var family = await _familyService.GetUserFamily(userId);
-            if (family == null) return new List<BudgetInfo>();
-
-            var budgetsQuery = _firestoreDb.Collection("budgets")
-                .WhereEqualTo("familyId", family.Id);
-            if (!string.IsNullOrEmpty(entityId))
+            budgets.Add(new BudgetInfo
             {
-                budgetsQuery = budgetsQuery.WhereEqualTo("entityId", entityId);
-            }
-
-            var budgetsSnapshot = await budgetsQuery.GetSnapshotAsync();
-            var budgets = budgetsSnapshot.Documents
-                .Select(doc =>
-                {
-                    var budget = doc.ConvertTo<BudgetInfo>();
-                    budget.BudgetId = doc.Id;
-                    budget.IsOwner = family.OwnerUid == userId;
-                    return budget;
-                })
-                .ToList();
-            return budgets;
-        }
-
-        public async Task<Budget?> GetBudget(string budgetId)
-        {
-            var budgetRef = _firestoreDb.Collection("budgets").Document(budgetId);
-            try
-            {
-                var budgetSnap = await budgetRef.GetSnapshotAsync();
-                if (!budgetSnap.Exists) return null;
-
-                return budgetSnap.ConvertTo<Budget>();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error in GetBudget: {ex.Message}");
-                return null;
-            }
-        }
-
-        public async Task DeleteBudget(string budgetId, string userId, string userEmail)
-        {
-            var budgetRef = _firestoreDb.Collection("budgets").Document(budgetId);
-            var budgetSnap = await budgetRef.GetSnapshotAsync();
-            if (!budgetSnap.Exists)
-            {
-                throw new Exception($"Budget {budgetId} not found");
-            }
-
-            var budget = budgetSnap.ConvertTo<Budget>();
-            if (!await CanAccessBudget(budget, userId))
-            {
-                throw new Exception($"User {userId} is not authorized to delete budget {budgetId}");
-            }
-
-            // Check if the user is the entity owner or an admin
-            var family = await _familyService.GetUserFamily(userId);
-            if (family == null)
-            {
-                throw new Exception($"Family not found for user {userId}");
-            }
-            var entity = family.Entities?.FirstOrDefault(e => e.Id == budget.EntityId);
-            if (entity == null)
-            {
-                throw new Exception($"Entity {budget.EntityId} not found for budget {budgetId}");
-            }
-            if (!entity.Members.Any(m => m.Uid == userId && m.Role == "Admin"))
-            {
-                throw new Exception($"User {userId} does not have permission to delete budget {budgetId}");
-            }
-
-            // Delete the budget
-            await budgetRef.DeleteAsync();
-
-            // Log the deletion event
-            await LogEditEvent(budgetId, userId, userEmail, "delete_budget");
-
-        }
-
-        public async Task<List<SharedBudget>> GetSharedBudgets(string userId)
-        {
-            var q = _firestoreDb.Collection("sharedBudgets").WhereEqualTo("userId", userId);
-            var snapshot = await q.GetSnapshotAsync();
-            return snapshot.Documents.Select(doc => doc.ConvertTo<SharedBudget>()).ToList();
-        }
-
-        public async Task SaveBudget(string budgetId, Budget budget, string userId, string userEmail)
-        {
-            var familyQuery = _firestoreDb.Collection("families")
-                .WhereArrayContains("memberUids", userId)
-                .WhereEqualTo("id", budget.FamilyId);
-            if (!(await familyQuery.GetSnapshotAsync()).Any())
-                throw new Exception("User not part of this family");
-
-            if (budget.Merchants == null)
-            {
-                budget.Merchants = new List<Merchant>();
-                Console.WriteLine($"Initialized Merchants list for budget {budgetId} in SaveBudget");
-            }
-
-            await _firestoreDb.Collection("budgets").Document(budgetId).SetAsync(budget, SetOptions.MergeAll);
-            await LogEditEvent(budgetId, userId, userEmail, "update_budget");
-        }
-
-        public async Task<List<EditEvent>> GetEditHistory(string budgetId, DateTime since)
-        {
-            var editHistoryRef = _firestoreDb.Collection("budgets").Document(budgetId).Collection("editHistory");
-            var query = editHistoryRef.WhereGreaterThanOrEqualTo("timestamp", Timestamp.FromDateTime(since.ToUniversalTime()));
-            var snapshot = await query.GetSnapshotAsync();
-            return snapshot.Documents.Select(doc => doc.ConvertTo<EditEvent>()).ToList();
-        }
-
-        public async Task AddTransaction(string budgetId, Models.Transaction transaction, string userId, string userEmail)
-        {
-            var budget = await GetBudget(budgetId) ?? throw new Exception($"Budget {budgetId} not found");
-            transaction.Id ??= _firestoreDb.Collection("budgets").Document().Id;
-            budget.Transactions.Add(transaction);
-            if (!string.IsNullOrEmpty(transaction.Merchant))
-            {
-                Console.WriteLine($"Adding merchant {transaction.Merchant} for budget {budgetId}");
-                await UpdateMerchants(budgetId, transaction.Merchant, 1, budget);
-            }
-            await SaveBudget(budgetId, budget, userId, userEmail.Replace("update_budget", "add_transaction"));
-        }
-
-        public async Task SaveTransaction(string budgetId, Models.Transaction transaction, string userId, string userEmail)
-        {
-            var budget = await GetBudget(budgetId) ?? throw new Exception($"Budget {budgetId} not found");
-            var index = budget.Transactions.FindIndex(t => t.Id == transaction.Id);
-            string? oldMerchant = null;
-            if (index >= 0)
-            {
-                oldMerchant = budget.Transactions[index].Merchant;
-                budget.Transactions[index] = transaction;
-            }
-            else
-            {
-                transaction.Id ??= _firestoreDb.Collection("budgets").Document().Id;
-                budget.Transactions.Add(transaction);
-            }
-
-            if (!string.IsNullOrEmpty(oldMerchant) && oldMerchant != transaction.Merchant)
-            {
-                Console.WriteLine($"Decreasing count for old merchant {oldMerchant} in budget {budgetId}");
-                await UpdateMerchants(budgetId, oldMerchant, -1, budget);
-            }
-            if (!string.IsNullOrEmpty(transaction.Merchant) && (oldMerchant == null || oldMerchant != transaction.Merchant))
-            {
-                Console.WriteLine($"Increasing count for new merchant {transaction.Merchant} in budget {budgetId}");
-                await UpdateMerchants(budgetId, transaction.Merchant, 1, budget);
-            }
-
-            await SaveBudget(budgetId, budget, userId, userEmail.Replace("update_budget", transaction.Id != null ? "update_transaction" : "add_transaction"));
-        }
-
-        public async Task BatchSaveTransactions(string budgetId, List<Models.Transaction> transactions, string userId, string userEmail)
-        {
-            var budget = await GetBudget(budgetId) ?? throw new Exception($"Budget {budgetId} not found");
-            foreach (var transaction in transactions)
-            {
-                transaction.Id ??= _firestoreDb.Collection("budgets").Document().Id;
-                budget.Transactions.Add(transaction);
-                if (!string.IsNullOrEmpty(transaction.Merchant))
-                {
-                    Console.WriteLine($"Adding merchant {transaction.Merchant} for budget {budgetId}");
-                    await UpdateMerchants(budgetId, transaction.Merchant, 1, budget);
-                }
-            }
-
-            await SaveBudget(budgetId, budget, userId, userEmail.Replace("update_budget", "batch_add_transactions"));
-        }
-
-        public async Task DeleteTransaction(string budgetId, string transactionId, string userId, string userEmail)
-        {
-            var budget = await GetBudget(budgetId) ?? throw new Exception($"Budget {budgetId} not found");
-            var transaction = budget.Transactions.FirstOrDefault(t => t.Id == transactionId) ?? throw new Exception($"Transaction {transactionId} not found");
-            transaction.Deleted = true;
-            if (!string.IsNullOrEmpty(transaction.Merchant))
-            {
-                Console.WriteLine($"Decreasing count for merchant {transaction.Merchant} in budget {budgetId}");
-                await UpdateMerchants(budgetId, transaction.Merchant, -1, budget);
-            }
-            await SaveBudget(budgetId, budget, userId, userEmail.Replace("update_budget", "delete_transaction"));
-        }
-
-        private async Task UpdateMerchants(string budgetId, string merchantName, int increment, Budget budget)
-        {
-            if (string.IsNullOrEmpty(merchantName)) return;
-
-            if (budget.Merchants == null)
-            {
-                budget.Merchants = new List<Merchant>();
-                Console.WriteLine($"Initialized Merchants list for budget {budgetId} in UpdateMerchants");
-            }
-
-            var merchant = budget.Merchants.FirstOrDefault(m => m.Name == merchantName);
-            if (merchant != null)
-            {
-                merchant.UsageCount += increment;
-                Console.WriteLine($"Updated {merchantName} count to {merchant.UsageCount}");
-                if (merchant.UsageCount <= 0)
-                {
-                    budget.Merchants.Remove(merchant);
-                    Console.WriteLine($"Removed {merchantName} from budget {budgetId}");
-                }
-            }
-            else if (increment > 0)
-            {
-                budget.Merchants.Add(new Merchant { Name = merchantName, UsageCount = increment });
-                Console.WriteLine($"Added {merchantName} with count {increment} to budget {budgetId}");
-            }
-            budget.Merchants.Sort((a, b) => b.UsageCount.CompareTo(a.UsageCount));
-        }
-
-        private async Task LogEditEvent(string budgetId, string userId, string userEmail, string action)
-        {
-            var editEventRef = _firestoreDb.Collection("budgets").Document(budgetId).Collection("editHistory").Document();
-            await editEventRef.SetAsync(new EditEvent
-            {
-                UserId = userId ?? "",
-                UserEmail = userEmail ?? "",
-                Timestamp = DateTime.UtcNow,
-                Action = action ?? ""
+                BudgetId = reader.GetString(0),
+                FamilyId = reader.GetGuid(1).ToString(),
+                EntityId = reader.IsDBNull(2) ? null : reader.GetGuid(2).ToString(),
+                Month = reader.GetString(3),
+                Label = reader.IsDBNull(4) ? null : reader.GetString(4),
+                IncomeTarget = reader.IsDBNull(5) ? 0 : (double)reader.GetDecimal(5),
+                OriginalBudgetId = reader.IsDBNull(6) ? null : reader.GetString(6),
+                IsOwner = true
             });
         }
+        await reader.DisposeAsync();
 
-        public async Task<string> SaveImportedTransactions(string userId, ImportedTransactionDoc doc)
+        foreach (var b in budgets)
         {
-            var docRef = _firestoreDb.Collection("importedTransactions").Document(doc.Id);
-            doc.UserId = userId;
-            await docRef.SetAsync(doc, SetOptions.Overwrite);
-            return doc.Id;
+            await LoadBudgetDetails(conn, b);
         }
 
-        public async Task<List<ImportedTransactionDoc>> GetImportedTransactions(string userId)
+        _logger.LogInformation("Loaded {Count} budgets for user {UserId}", budgets.Count, userId);
+        return budgets;
+    }
+
+    /// <summary>
+    /// Budgets that have been shared with the user by others.
+    /// </summary>
+    public async Task<List<SharedBudget>> GetSharedBudgets(string userId)
+    {
+        _logger.LogInformation("Fetching shared budgets for user {UserId}", userId);
+        await using var conn = await _db.GetOpenConnectionAsync();
+        const string sql = "SELECT owner_uid, budget_id FROM shared_budgets WHERE user_id=@uid";
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("uid", userId);
+        await using var reader = await cmd.ExecuteReaderAsync();
+
+        var map = new Dictionary<string, SharedBudget>();
+        while (await reader.ReadAsync())
         {
-            var family = await _familyService.GetUserFamily(userId);
-            if (family == null) return new List<ImportedTransactionDoc>();
+            var owner = reader.IsDBNull(0) ? string.Empty : reader.GetString(0);
+            var budgetId = reader.GetString(1);
+            if (!map.TryGetValue(owner, out var sb))
+            {
+                sb = new SharedBudget { OwnerUid = owner, UserId = userId };
+                map[owner] = sb;
+            }
+            sb.BudgetIds.Add(budgetId);
+        }
+        _logger.LogInformation("User {UserId} has access to {Count} shared budgets", userId, map.Count);
+        return map.Values.ToList();
+    }
 
-            var importedDocs = await _firestoreDb.Collection("importedTransactions")
-                .WhereEqualTo("familyId", family.Id)
-                .GetSnapshotAsync();
-
-            return importedDocs.Documents
-                .Select(doc =>
+    private async Task LoadBudgetDetails(NpgsqlConnection conn, Budget budget)
+    {
+        const string sqlTx = "SELECT id, date, budget_month, merchant, amount, notes, recurring, recurring_interval, user_id, is_income, account_number, account_source, posted_date, imported_merchant, status, check_number, deleted, entity_id FROM transactions WHERE budget_id=@id";
+        await using (var txCmd = new NpgsqlCommand(sqlTx, conn))
+        {
+            txCmd.Parameters.AddWithValue("id", budget.BudgetId);
+            await using var txReader = await txCmd.ExecuteReaderAsync();
+            while (await txReader.ReadAsync())
+            {
+                var tx = new Transaction
                 {
-                    var importedDoc = doc.ConvertTo<ImportedTransactionDoc>();
-                    return importedDoc;
-                })
-                .ToList();
-        }
-
-        public async Task DeleteImportedTransactionDoc(string id)
-        {
-            var itdRef = _firestoreDb.Collection("importedTransactions").Document(id);
-            var itdSnap = await itdRef.GetSnapshotAsync();
-            if (!itdSnap.Exists) throw new Exception("Imported Transaction Doc not found");
-
-            await itdRef.DeleteAsync();
-        }
-
-        public async Task<List<ImportedTransaction>> GetImportedTransactionsByAccountId(string accountId)
-        {
-            Console.WriteLine($"Fetching imported transactions for account {accountId}");
-            var importedDocs = await _firestoreDb.Collection("importedTransactions").GetSnapshotAsync();
-
-            var transactions = new List<ImportedTransaction>();
-            foreach (var doc in importedDocs)
-            {
-                var importedDoc = doc.ConvertTo<ImportedTransactionDoc>();
-                var matchingTxs = importedDoc.importedTransactions
-                    .Where(tx => tx.AccountId == accountId && !(tx.Deleted ?? false))
-                    .ToList();
-                transactions.AddRange(matchingTxs);
+                    Id = txReader.GetString(0),
+                    BudgetId = budget.BudgetId,
+                    Date = txReader.IsDBNull(1) ? null : txReader.GetDateTime(1).ToString("yyyy-MM-dd"),
+                    BudgetMonth = txReader.IsDBNull(2) ? null : txReader.GetString(2),
+                    Merchant = txReader.IsDBNull(3) ? null : txReader.GetString(3),
+                    Amount = (double)txReader.GetDecimal(4),
+                    Notes = txReader.IsDBNull(5) ? null : txReader.GetString(5),
+                    Recurring = txReader.GetBoolean(6),
+                    RecurringInterval = txReader.IsDBNull(7) ? null : txReader.GetString(7),
+                    UserId = txReader.IsDBNull(8) ? null : txReader.GetString(8),
+                    IsIncome = txReader.GetBoolean(9),
+                    AccountNumber = txReader.IsDBNull(10) ? null : txReader.GetString(10),
+                    AccountSource = txReader.IsDBNull(11) ? null : txReader.GetString(11),
+                    PostedDate = txReader.IsDBNull(12) ? null : txReader.GetDateTime(12).ToString("yyyy-MM-dd"),
+                    ImportedMerchant = txReader.IsDBNull(13) ? null : txReader.GetString(13),
+                    Status = txReader.IsDBNull(14) ? null : txReader.GetString(14),
+                    CheckNumber = txReader.IsDBNull(15) ? null : txReader.GetString(15),
+                    Deleted = txReader.IsDBNull(16) ? (bool?)null : txReader.GetBoolean(16),
+                    EntityId = txReader.IsDBNull(17) ? null : txReader.GetGuid(17).ToString()
+                };
+                budget.Transactions.Add(tx);
             }
-
-            Console.WriteLine($"Found {transactions.Count} imported transactions for account {accountId}");
-            return transactions;
         }
 
-        public async Task BatchUpdateImportedTransactions(List<ImportedTransaction> transactions)
+        const string sqlCats = "SELECT name, target, is_fund, \"group\", carryover FROM budget_categories WHERE budget_id=@id";
+        await using (var catCmd = new NpgsqlCommand(sqlCats, conn))
         {
-            Console.WriteLine($"Batch updating {transactions.Count} imported transactions");
-            var groupedByDoc = transactions.GroupBy(tx => tx.Id.Split('-')[0]);
-            foreach (var group in groupedByDoc)
+            catCmd.Parameters.AddWithValue("id", budget.BudgetId);
+            await using var catReader = await catCmd.ExecuteReaderAsync();
+            while (await catReader.ReadAsync())
             {
-                var docId = group.Key;
-                var docRef = _firestoreDb.Collection("importedTransactions").Document(docId);
-                var docSnap = await docRef.GetSnapshotAsync();
-                if (!docSnap.Exists)
+                budget.Categories.Add(new BudgetCategory
                 {
-                    Console.WriteLine($"Imported transaction doc {docId} not found");
-                    continue;
-                }
-                var importedDoc = docSnap.ConvertTo<ImportedTransactionDoc>();
-                var importedTxs = importedDoc.importedTransactions.ToList();
-                foreach (var tx in group)
-                {
-                    var index = importedTxs.FindIndex(t => t.Id == tx.Id);
-                    if (index >= 0)
-                    {
-                        importedTxs[index] = tx;
-                    }
-                }
-                importedDoc.importedTransactions = importedTxs.ToArray();
-                await docRef.SetAsync(importedDoc, SetOptions.MergeAll);
-            }
-            Console.WriteLine($"Batch updated {transactions.Count} imported transactions");
-        }
-
-        public async Task<List<TransactionWithBudgetId>> GetBudgetTransactionsMatchedToImported(string accountId, string userId)
-        {
-            Console.WriteLine($"Fetching budget transactions matched to imported for account {accountId} and user {userId}");
-            // First, get all imported transactions for this account
-            var importedTxs = await GetImportedTransactionsByAccountId(accountId);
-            var matchedImportedTxs = importedTxs
-                .Where(tx => tx.Matched && !tx.Ignored && !(tx.Deleted ?? false))
-                .ToList();
-
-            // Get all budgets accessible to the user
-            var budgets = new List<Budget>();
-            var family = await _familyService.GetUserFamily(userId);
-            if (family == null)
-            {
-                Console.WriteLine($"No family found for user {userId}");
-                return new List<TransactionWithBudgetId>();
-            }
-
-            var budgetDocs = await _firestoreDb.Collection("budgets")
-                .WhereEqualTo("familyId", family.Id)
-                .GetSnapshotAsync();
-
-            foreach (var budgetDoc in budgetDocs)
-            {
-                var budget = budgetDoc.ConvertTo<Budget>();
-                if (await CanAccessBudget(budget, userId))
-                {
-                    budgets.Add(budget);
-                }
-            }
-
-            // Find budget transactions that match the imported transactions
-            var matchedBudgetTxs = new List<TransactionWithBudgetId>();
-            foreach (var budget in budgets)
-            {
-                var budgetTxs = budget.Transactions ?? new List<Models.Transaction>();
-                foreach (var importedTx in matchedImportedTxs)
-                {
-                    // Match criteria: same accountNumber, postedDate, amount, and payee/merchant
-                    var matchingBudgetTxs = budgetTxs
-                        .Where(tx =>
-                            (!tx.Deleted ?? false) &&
-                            tx.AccountNumber == importedTx.AccountNumber &&
-                            tx.PostedDate == importedTx.PostedDate &&
-                            (tx.Amount == importedTx.DebitAmount || tx.Amount == importedTx.CreditAmount) &&
-                            tx.Merchant == importedTx.Payee)
-                        .ToList();
-                    matchedBudgetTxs.AddRange(matchingBudgetTxs.Select(tx => new TransactionWithBudgetId
-                    {
-                        BudgetId = budget.BudgetId,
-                        Transaction = tx
-                    }));
-                }
-            }
-
-            Console.WriteLine($"Found {matchedBudgetTxs.Count} budget transactions matched to imported for account {accountId}");
-            return matchedBudgetTxs;
-        }
-
-        public async Task BatchUpdateBudgetTransactions(List<TransactionWithBudgetId> transactions, string userId, string userEmail)
-        {
-            Console.WriteLine($"Batch updating {transactions.Count} budget transactions by user {userId}");
-            var groupedByBudget = transactions.GroupBy(tx => tx.BudgetId);
-            foreach (var group in groupedByBudget)
-            {
-                var budgetId = group.Key;
-                var budget = await GetBudget(budgetId) ?? throw new Exception($"Budget {budgetId} not found");
-
-                if (!await CanAccessBudget(budget, userId))
-                    throw new Exception("User does not have access to this budget");
-
-                var transactionsList = budget.Transactions ?? new List<Models.Transaction>();
-                foreach (var txWithBudget in group)
-                {
-                    var tx = txWithBudget.Transaction;
-                    // Use OldId when provided so we can update transactions whose
-                    // id is being changed during validation.
-                    var lookupId = txWithBudget.OldId ?? tx.Id;
-                    var index = transactionsList.FindIndex(t => t.Id == lookupId);
-                    if (index >= 0)
-                    {
-                        transactionsList[index] = tx;
-                    }
-                }
-
-                budget.Transactions = transactionsList;
-                await SaveBudget(budgetId, budget, userId, userEmail.Replace("update_budget", $"batch_update_transactions_{group.Count()}"));
-            }
-            Console.WriteLine($"Batch updated {transactions.Count} budget transactions");
-        }
-
-        public async Task<bool> CanAccessBudget(Budget budget, string userId)
-        {
-            Console.WriteLine($"Checking if user {userId} can access budget {budget.BudgetId}");
-            var familyDoc = await _firestoreDb.Collection("families").Document(budget.FamilyId).GetSnapshotAsync();
-            if (!familyDoc.Exists)
-            {
-                Console.WriteLine($"Family {budget.FamilyId} not found for budget {budget.BudgetId}");
-                return false;
-            }
-            var family = familyDoc.ConvertTo<Family>();
-            if (!family.MemberUids.Contains(userId))
-            {
-                Console.WriteLine($"User {userId} is not a member of family {budget.FamilyId}");
-                return false;
-            }
-
-            if (string.IsNullOrEmpty(budget.EntityId))
-            {
-                Console.WriteLine($"Budget {budget.BudgetId} has no entity, access granted for user {userId}");
-                return true;
-            }
-
-            var entity = family.Entities?.FirstOrDefault(e => e.Id == budget.EntityId);
-            if (entity == null)
-            {
-                Console.WriteLine($"Entity {budget.EntityId} not found in family {budget.FamilyId} for budget {budget.BudgetId}");
-                return false;
-            }
-
-            var canAccess = entity.Members.Any(m => m.Uid == userId);
-            Console.WriteLine($"User {userId} {(canAccess ? "can" : "cannot")} access budget {budget.BudgetId}");
-            return canAccess;
-        }
-
-        public async Task UpdateImportedTransaction(string docId, string transactionId, bool? matched = null, bool? ignored = null, bool? deleted = null)
-        {
-            var docRef = _firestoreDb.Collection("importedTransactions").Document(docId);
-            var snapshot = await docRef.GetSnapshotAsync();
-            if (!snapshot.Exists) throw new Exception($"Imported transaction document {docId} not found");
-
-            var docData = snapshot.ConvertTo<ImportedTransactionDoc>();
-            var transactions = docData.importedTransactions.ToList();
-            var index = transactions.FindIndex(tx => tx.Id == transactionId);
-            if (index == -1) throw new Exception($"Imported transaction {transactionId} not found in document {docId}");
-
-            var existingTransaction = transactions[index];
-            var updatedTransaction = new ImportedTransaction();
-
-            foreach (var prop in ImportedTransactionProperties)
-            {
-                if (prop.CanWrite)
-                {
-                    var value = prop.GetValue(existingTransaction);
-                    prop.SetValue(updatedTransaction, value);
-                }
-            }
-
-            if (matched.HasValue)
-            {
-                updatedTransaction.Matched = matched.Value;
-            }
-            if (ignored.HasValue)
-            {
-                updatedTransaction.Ignored = ignored.Value;
-            }
-            if (deleted.HasValue)
-            {
-                updatedTransaction.Deleted = deleted.Value;
-            }
-
-            transactions[index] = updatedTransaction;
-            await docRef.SetAsync(new { importedTransactions = transactions }, SetOptions.MergeAll);
-        }
-
-        public async Task<List<ImportedTransactionDoc>> GetImportedTransactionDocs(string userId)
-        {
-            var q = _firestoreDb.Collection("importedTransactions").WhereEqualTo("userId", userId);
-            var snapshot = await q.GetSnapshotAsync();
-            return snapshot.Documents.Select(doc => doc.ConvertTo<ImportedTransactionDoc>()).ToList();
-        }
-
-        public async Task UpdateSharedBudgets(string ownerUid, string sharedUid, List<string> newBudgetIds)
-        {
-            var q = _firestoreDb.Collection("sharedBudgets").WhereEqualTo("userId", sharedUid).WhereEqualTo("ownerUid", ownerUid);
-            var snapshot = await q.GetSnapshotAsync();
-            if (snapshot.Count == 0)
-            {
-                var docRef = _firestoreDb.Collection("sharedBudgets").Document();
-                await docRef.SetAsync(new SharedBudget { UserId = sharedUid, OwnerUid = ownerUid, BudgetIds = newBudgetIds }, SetOptions.Overwrite);
-            }
-            else
-            {
-                var docRef = snapshot.Documents[0].Reference;
-                var doc = snapshot.Documents[0].ConvertTo<SharedBudget>();
-                doc.BudgetIds = doc.BudgetIds.Union(newBudgetIds).Distinct().ToList();
-                await docRef.SetAsync(doc, SetOptions.MergeAll);
+                    Name = catReader.IsDBNull(0) ? null : catReader.GetString(0),
+                    Target = catReader.IsDBNull(1) ? 0 : (double)catReader.GetDecimal(1),
+                    IsFund = catReader.IsDBNull(2) ? false : catReader.GetBoolean(2),
+                    Group = catReader.IsDBNull(3) ? null : catReader.GetString(3),
+                    Carryover = catReader.IsDBNull(4) ? null : (double?)catReader.GetDecimal(4)
+                });
             }
         }
 
-        public async Task BatchReconcileTransactions(string budgetId, List<ReconcileRequest> requests, string userId, string userEmail)
+        const string sqlMerchants = "SELECT name, usage_count FROM merchants WHERE budget_id=@id";
+        await using (var merchCmd = new NpgsqlCommand(sqlMerchants, conn))
         {
-            var startTime = DateTime.UtcNow;
-            Console.WriteLine($"Starting batch reconcile for {requests.Count} transactions");
-
-            var budget = await GetBudget(budgetId) ?? throw new Exception($"Budget {budgetId} not found");
-            var importedDocs = await GetImportedTransactions(userId);
-
-            var importedTxIndex = new Dictionary<string, (ImportedTransactionDoc doc, int index)>();
-            foreach (var doc in importedDocs)
+            merchCmd.Parameters.AddWithValue("id", budget.BudgetId);
+            await using var merchReader = await merchCmd.ExecuteReaderAsync();
+            while (await merchReader.ReadAsync())
             {
-                for (int i = 0; i < doc.importedTransactions.Length; i++)
+                budget.Merchants.Add(new Merchant
                 {
-                    var tx = doc.importedTransactions[i];
-                    importedTxIndex[tx.Id] = (doc, i);
-                }
+                    Name = merchReader.GetString(0),
+                    UsageCount = merchReader.IsDBNull(1) ? 0 : merchReader.GetInt32(1)
+                });
             }
-
-            const int batchSize = 50;
-            var requestBatches = requests.Select((req, index) => new { req, index })
-                                         .GroupBy(x => x.index / batchSize)
-                                         .Select(g => g.Select(x => x.req).ToList());
-
-            var batch = _firestoreDb.StartBatch();
-            foreach (var requestBatch in requestBatches)
-            {
-                var updatedDocs = new Dictionary<string, ImportedTransactionDoc>();
-
-                foreach (var req in requestBatch)
-                {
-                    var budgetTxIndex = budget.Transactions.FindIndex(t => t.Id == req.BudgetTransactionId);
-                    if (budgetTxIndex < 0)
-                    {
-                        var knownIds = string.Join(",", budget.Transactions.Take(5).Select(t => t.Id));
-                        Console.WriteLine($"BatchReconcileTransactions: transaction {req.BudgetTransactionId} not found in budget {budgetId}. Known IDs sample: {knownIds}");
-                        throw new Exception($"Budget transaction {req.BudgetTransactionId} not found in budget {budgetId}");
-                    }
-
-                    var budgetTx = budget.Transactions[budgetTxIndex];
-
-                    if (!importedTxIndex.TryGetValue(req.ImportedTransactionId, out var targetEntry))
-                    {
-                        Console.WriteLine($"ImportedTransactionDoc not found for ImportedTxId: {req.ImportedTransactionId}");
-                        continue;
-                    }
-
-                    var docId = targetEntry.doc.Id;
-                    if (!updatedDocs.ContainsKey(docId)) updatedDocs[docId] = targetEntry.doc;
-
-                    var transactions = updatedDocs[docId].importedTransactions.ToList();
-                    var importedTx = transactions[targetEntry.index];
-
-                    if (req.Match)
-                    {
-                        foreach (var importedProp in ImportedTransactionProperties)
-                        {
-                            if (TransactionPropertyMap.TryGetValue(importedProp.Name, out var budgetProp) && budgetProp.CanWrite)
-                            {
-                                var value = importedProp.GetValue(importedTx);
-                                if (value != null)
-                                {
-                                    if (importedProp.Name == "Payee" && budgetProp.Name == "ImportedMerchant")
-                                        budgetProp.SetValue(budgetTx, value);
-                                    else if (importedProp.Name == budgetProp.Name)
-                                        budgetProp.SetValue(budgetTx, value);
-                                }
-                            }
-                        }
-                        budgetTx.Status = "C";
-                    }
-
-                    if (req.Match) importedTx.Matched = true;
-                    if (req.Ignore) importedTx.Ignored = true;
-
-                    transactions[targetEntry.index] = importedTx;
-                    updatedDocs[docId].importedTransactions = transactions.ToArray();
-                    batch.Set(_firestoreDb.Collection("importedTransactions").Document(docId),
-                        new { importedTransactions = transactions }, SetOptions.MergeAll);
-                }
-            }
-
-            var budgetRef = _firestoreDb.Collection("budgets").Document(budgetId);
-            var budgetUpdate = new Dictionary<string, object>
-            {
-                { "transactions", budget.Transactions }
-            };
-            batch.Set(budgetRef, budgetUpdate, SetOptions.MergeAll);
-            await batch.CommitAsync();
-            await LogEditEvent(budgetId, userId, userEmail, "update_budget");
-
-            Console.WriteLine($"Batch reconcile completed in {(DateTime.UtcNow - startTime).TotalMilliseconds}ms");
         }
     }
+
+    /// <summary>
+    /// Fetch a budget and its transactions from Supabase.
+    /// </summary>
+    public async Task<Budget?> GetBudget(string budgetId)
+    {
+        _logger.LogInformation("Fetching budget {BudgetId}", budgetId);
+        await using var conn = await _db.GetOpenConnectionAsync();
+        const string sqlBudget = "SELECT id, family_id, entity_id, month, label, income_target, original_budget_id FROM budgets WHERE id=@id";
+        await using var cmd = new NpgsqlCommand(sqlBudget, conn);
+        cmd.Parameters.AddWithValue("id", budgetId);
+        await using var reader = await cmd.ExecuteReaderAsync();
+        if (!await reader.ReadAsync())
+        {
+            _logger.LogWarning("Budget {BudgetId} not found", budgetId);
+            return null;
+        }
+
+        var budget = new Budget
+        {
+            BudgetId = reader.GetString(0),
+            FamilyId = reader.IsDBNull(1) ? string.Empty : reader.GetGuid(1).ToString(),
+            EntityId = reader.IsDBNull(2) ? null : reader.GetGuid(2).ToString(),
+            Month = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
+            Label = reader.IsDBNull(4) ? null : reader.GetString(4),
+            IncomeTarget = reader.IsDBNull(5) ? 0 : (double)reader.GetDecimal(5),
+            OriginalBudgetId = reader.IsDBNull(6) ? null : reader.GetString(6),
+            Transactions = new List<Transaction>(),
+            Categories = new List<BudgetCategory>(),
+            Merchants = new List<Merchant>()
+        };
+        await reader.CloseAsync();
+
+        await LoadBudgetDetails(conn, budget);
+
+        _logger.LogInformation("Loaded budget {BudgetId} with {TxCount} transactions, {CatCount} categories and {MerchCount} merchants", budgetId, budget.Transactions.Count, budget.Categories.Count, budget.Merchants.Count);
+        return budget;
+    }
+
+    /// <summary>
+    /// Upsert a budget and its transactions into Supabase.
+    /// </summary>
+    public async Task SaveBudget(string budgetId, Budget budget, string userId, string userEmail)
+    {
+        _logger.LogInformation("Saving budget {BudgetId}", budgetId);
+        await using var conn = await _db.GetOpenConnectionAsync();
+        const string sql = @"INSERT INTO budgets (id, family_id, entity_id, month, label, income_target, original_budget_id, created_at, updated_at)
+VALUES (@id,@family_id,@entity_id,@month,@label,@income_target,@original_budget_id, now(), now())
+ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.entity_id, month=EXCLUDED.month, label=EXCLUDED.label, income_target=EXCLUDED.income_target, original_budget_id=EXCLUDED.original_budget_id, updated_at=now();";
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("id", budgetId);
+        cmd.Parameters.AddWithValue("family_id", Guid.Parse(budget.FamilyId));
+        cmd.Parameters.AddWithValue("entity_id", string.IsNullOrEmpty(budget.EntityId) ? (object)DBNull.Value : Guid.Parse(budget.EntityId));
+        cmd.Parameters.AddWithValue("month", budget.Month);
+        cmd.Parameters.AddWithValue("label", (object?)budget.Label ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("income_target", (decimal)budget.IncomeTarget);
+        cmd.Parameters.AddWithValue("original_budget_id", (object?)budget.OriginalBudgetId ?? DBNull.Value);
+        await cmd.ExecuteNonQueryAsync();
+
+        if (budget.Transactions != null && budget.Transactions.Count > 0)
+        {
+            foreach (var tx in budget.Transactions)
+            {
+                await SaveTransaction(budgetId, tx, userId, userEmail);
+            }
+        }
+        await LogEdit(conn, budgetId, userId, userEmail, "save-budget");
+        _logger.LogInformation("Budget {BudgetId} saved with {TxCount} transactions", budgetId, budget.Transactions?.Count ?? 0);
+    }
+
+    private DateTime? ParseDate(string? input) =>
+        DateTime.TryParse(input, out var dt) ? dt : (DateTime?)null;
+
+    private async Task LogEdit(NpgsqlConnection conn, string budgetId, string userId, string userEmail, string action)
+    {
+        const string sql = "INSERT INTO budget_edit_history (budget_id, user_id, user_email, timestamp, action) VALUES (@bid,@uid,@email, now(), @action)";
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("bid", budgetId);
+        cmd.Parameters.AddWithValue("uid", (object?)userId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("email", (object?)userEmail ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("action", action);
+        try { await cmd.ExecuteNonQueryAsync(); } catch { /* ignore if table missing */ }
+    }
+
+    private void BindTransactionParameters(NpgsqlCommand cmd, string budgetId, Transaction tx)
+    {
+        cmd.Parameters.AddWithValue("id", tx.Id);
+        cmd.Parameters.AddWithValue("budget_id", budgetId);
+        cmd.Parameters.AddWithValue("date", (object?)ParseDate(tx.Date) ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("budget_month", (object?)tx.BudgetMonth ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("merchant", (object?)tx.Merchant ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("amount", (decimal)tx.Amount);
+        cmd.Parameters.AddWithValue("notes", (object?)tx.Notes ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("recurring", tx.Recurring);
+        cmd.Parameters.AddWithValue("recurring_interval", (object?)tx.RecurringInterval ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("user_id", (object?)tx.UserId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("is_income", tx.IsIncome);
+        cmd.Parameters.AddWithValue("account_number", (object?)tx.AccountNumber ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("account_source", (object?)tx.AccountSource ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("posted_date", (object?)ParseDate(tx.PostedDate) ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("imported_merchant", (object?)tx.ImportedMerchant ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("status", (object?)tx.Status ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("check_number", (object?)tx.CheckNumber ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("deleted", tx.Deleted.HasValue ? (object)tx.Deleted.Value : DBNull.Value);
+        cmd.Parameters.AddWithValue("entity_id", string.IsNullOrEmpty(tx.EntityId) ? (object)DBNull.Value : Guid.Parse(tx.EntityId));
+    }
+
+    private async Task SaveCategories(NpgsqlConnection conn, string txId, List<TransactionCategory>? categories)
+    {
+        const string delSql = "DELETE FROM transaction_categories WHERE transaction_id=@id";
+        await using (var delCmd = new NpgsqlCommand(delSql, conn))
+        {
+            delCmd.Parameters.AddWithValue("id", txId);
+            await delCmd.ExecuteNonQueryAsync();
+        }
+
+        if (categories == null) return;
+
+        const string insSql = "INSERT INTO transaction_categories (transaction_id, category_name, amount) VALUES (@id,@name,@amount)";
+        foreach (var cat in categories)
+        {
+            await using var insCmd = new NpgsqlCommand(insSql, conn);
+            insCmd.Parameters.AddWithValue("id", txId);
+            insCmd.Parameters.AddWithValue("name", cat.Category ?? string.Empty);
+            insCmd.Parameters.AddWithValue("amount", (decimal)cat.Amount);
+            await insCmd.ExecuteNonQueryAsync();
+        }
+    }
+
+    public async Task DeleteBudget(string budgetId, string userId, string userEmail)
+    {
+        _logger.LogInformation("Deleting budget {BudgetId}", budgetId);
+        await using var conn = await _db.GetOpenConnectionAsync();
+        const string sql = @"DELETE FROM transaction_categories WHERE transaction_id IN (SELECT id FROM transactions WHERE budget_id=@bid);
+                             DELETE FROM transactions WHERE budget_id=@bid;
+                             DELETE FROM budget_categories WHERE budget_id=@bid;
+                             DELETE FROM merchants WHERE budget_id=@bid;
+                             DELETE FROM shared_budgets WHERE budget_id=@bid;
+                             DELETE FROM budgets WHERE id=@bid;";
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("bid", budgetId);
+        await cmd.ExecuteNonQueryAsync();
+        await LogEdit(conn, budgetId, userId, userEmail, "delete-budget");
+    }
+
+    public async Task<List<EditEvent>> GetEditHistory(string budgetId, DateTime since)
+    {
+        _logger.LogInformation("Getting edit history for budget {BudgetId} since {Since}", budgetId, since);
+        await using var conn = await _db.GetOpenConnectionAsync();
+        const string sql = "SELECT user_id, user_email, timestamp, action FROM budget_edit_history WHERE budget_id=@bid AND timestamp>=@since ORDER BY timestamp";
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("bid", budgetId);
+        cmd.Parameters.AddWithValue("since", since);
+        var results = new List<EditEvent>();
+        try
+        {
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                results.Add(new EditEvent
+                {
+                    UserId = reader.IsDBNull(0) ? null : reader.GetString(0),
+                    UserEmail = reader.IsDBNull(1) ? null : reader.GetString(1),
+                    Timestamp = reader.GetDateTime(2),
+                    Action = reader.IsDBNull(3) ? null : reader.GetString(3)
+                });
+            }
+        }
+        catch { /* table might not exist */ }
+        return results;
+    }
+
+    public async Task AddTransaction(string budgetId, Transaction transaction, string userId, string userEmail)
+    {
+        await SaveTransaction(budgetId, transaction, userId, userEmail);
+    }
+
+
+    public async Task SaveTransaction(string budgetId, Transaction transaction, string userId, string userEmail)
+    {
+        if (string.IsNullOrEmpty(transaction.Id))
+            transaction.Id = Guid.NewGuid().ToString();
+        await using var conn = await _db.GetOpenConnectionAsync();
+        const string sql = @"INSERT INTO transactions (id, budget_id, date, budget_month, merchant, amount, notes, recurring, recurring_interval, user_id, is_income, account_number, account_source, posted_date, imported_merchant, status, check_number, deleted, entity_id, created_at, updated_at)
+VALUES (@id,@budget_id,@date,@budget_month,@merchant,@amount,@notes,@recurring,@recurring_interval,@user_id,@is_income,@account_number,@account_source,@posted_date,@imported_merchant,@status,@check_number,@deleted,@entity_id, now(), now())
+ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date, budget_month=EXCLUDED.budget_month, merchant=EXCLUDED.merchant, amount=EXCLUDED.amount, notes=EXCLUDED.notes, recurring=EXCLUDED.recurring, recurring_interval=EXCLUDED.recurring_interval, user_id=EXCLUDED.user_id, is_income=EXCLUDED.is_income, account_number=EXCLUDED.account_number, account_source=EXCLUDED.account_source, posted_date=EXCLUDED.posted_date, imported_merchant=EXCLUDED.imported_merchant, status=EXCLUDED.status, check_number=EXCLUDED.check_number, deleted=EXCLUDED.deleted, entity_id=EXCLUDED.entity_id, updated_at=now();";
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        BindTransactionParameters(cmd, budgetId, transaction);
+        await cmd.ExecuteNonQueryAsync();
+        await SaveCategories(conn, transaction.Id, transaction.Categories);
+        await LogEdit(conn, budgetId, userId, userEmail, "save-transaction");
+    }
+
+    public async Task DeleteTransaction(string budgetId, string transactionId, string userId, string userEmail)
+    {
+        await using var conn = await _db.GetOpenConnectionAsync();
+        const string sql = "DELETE FROM transaction_categories WHERE transaction_id=@id; DELETE FROM transactions WHERE id=@id AND budget_id=@bid";
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("id", transactionId);
+        cmd.Parameters.AddWithValue("bid", budgetId);
+        await cmd.ExecuteNonQueryAsync();
+        await LogEdit(conn, budgetId, userId, userEmail, "delete-transaction");
+    }
+
+    public async Task BatchSaveTransactions(string budgetId, List<Transaction> transactions, string userId, string userEmail)
+    {
+        foreach (var tx in transactions)
+        {
+            await SaveTransaction(budgetId, tx, userId, userEmail);
+        }
+    }
+
+    public async Task<string> SaveImportedTransactions(string userId, ImportedTransactionDoc doc)
+    {
+        await using var conn = await _db.GetOpenConnectionAsync();
+        var docId = Guid.TryParse(doc.Id, out var parsed) ? parsed : Guid.NewGuid();
+        doc.Id = docId.ToString();
+        var fid = Guid.Parse(doc.FamilyId);
+
+        const string sqlDoc = "INSERT INTO imported_transaction_docs (id, family_id, user_id, created_at) VALUES (@id,@fid,@uid, now())";
+        await using var docCmd = new NpgsqlCommand(sqlDoc, conn);
+        docCmd.Parameters.AddWithValue("id", docId);
+        docCmd.Parameters.AddWithValue("fid", fid);
+        docCmd.Parameters.AddWithValue("uid", userId);
+        await docCmd.ExecuteNonQueryAsync();
+
+        const string sqlTx = @"INSERT INTO imported_transactions (id, document_id, account_id, account_number, account_source, payee, posted_date, amount, status, debit_amount, credit_amount, check_number, deleted, matched, ignored)
+                                 VALUES (@id,@doc,@account_id,@acct_num,@acct_src,@payee,@posted,@amount,@status,@debit,@credit,@check,@deleted,@matched,@ignored)";
+        foreach (var tx in doc.importedTransactions)
+        {
+            if (string.IsNullOrEmpty(tx.Id)) tx.Id = Guid.NewGuid().ToString();
+            await using var txCmd = new NpgsqlCommand(sqlTx, conn);
+            txCmd.Parameters.AddWithValue("id", tx.Id);
+            txCmd.Parameters.AddWithValue("doc", docId);
+            txCmd.Parameters.AddWithValue("account_id", Guid.Parse(tx.AccountId));
+            txCmd.Parameters.AddWithValue("acct_num", (object?)tx.AccountNumber ?? DBNull.Value);
+            txCmd.Parameters.AddWithValue("acct_src", (object?)tx.AccountSource ?? DBNull.Value);
+            txCmd.Parameters.AddWithValue("payee", (object?)tx.Payee ?? DBNull.Value);
+            txCmd.Parameters.AddWithValue("posted", (object?)ParseDate(tx.PostedDate) ?? DBNull.Value);
+            txCmd.Parameters.AddWithValue("amount", (object?)tx.Amount ?? DBNull.Value);
+            txCmd.Parameters.AddWithValue("status", (object?)tx.Status ?? DBNull.Value);
+            txCmd.Parameters.AddWithValue("debit", (object?)tx.DebitAmount ?? DBNull.Value);
+            txCmd.Parameters.AddWithValue("credit", (object?)tx.CreditAmount ?? DBNull.Value);
+            txCmd.Parameters.AddWithValue("check", (object?)tx.CheckNumber ?? DBNull.Value);
+            txCmd.Parameters.AddWithValue("deleted", tx.Deleted.HasValue ? (object)tx.Deleted.Value : DBNull.Value);
+            txCmd.Parameters.AddWithValue("matched", tx.Matched);
+            txCmd.Parameters.AddWithValue("ignored", tx.Ignored);
+            await txCmd.ExecuteNonQueryAsync();
+        }
+
+        return doc.Id;
+    }
+
+    public async Task UpdateImportedTransaction(string docId, string transactionId, bool? matched, bool? ignored, bool? deleted)
+    {
+        await using var conn = await _db.GetOpenConnectionAsync();
+        var updates = new List<string>();
+        var cmd = new NpgsqlCommand();
+        cmd.Connection = conn;
+        if (matched.HasValue) { updates.Add("matched=@matched"); cmd.Parameters.AddWithValue("matched", matched.Value); }
+        if (ignored.HasValue) { updates.Add("ignored=@ignored"); cmd.Parameters.AddWithValue("ignored", ignored.Value); }
+        if (deleted.HasValue) { updates.Add("deleted=@deleted"); cmd.Parameters.AddWithValue("deleted", deleted.Value); }
+        if (updates.Count == 0) return;
+        cmd.CommandText = $"UPDATE imported_transactions SET {string.Join(",", updates)} WHERE document_id=@doc AND id=@id";
+        cmd.Parameters.AddWithValue("doc", Guid.Parse(docId));
+        cmd.Parameters.AddWithValue("id", transactionId);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    public async Task<List<ImportedTransactionDoc>> GetImportedTransactions(string userId)
+    {
+        await using var conn = await _db.GetOpenConnectionAsync();
+        const string sql = @"SELECT d.id, d.family_id, d.user_id, t.id, t.account_id, t.account_number, t.account_source, t.payee, t.posted_date, t.amount, t.status, t.debit_amount, t.credit_amount, t.check_number, t.deleted, t.matched, t.ignored
+                              FROM imported_transaction_docs d
+                              LEFT JOIN imported_transactions t ON d.id = t.document_id
+                              WHERE d.user_id=@uid";
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("uid", userId);
+        await using var reader = await cmd.ExecuteReaderAsync();
+        var map = new Dictionary<Guid, ImportedTransactionDoc>();
+        while (await reader.ReadAsync())
+        {
+            var docId = reader.GetGuid(0);
+            if (!map.TryGetValue(docId, out var doc))
+            {
+                doc = new ImportedTransactionDoc
+                {
+                    Id = docId.ToString(),
+                    FamilyId = reader.GetGuid(1).ToString(),
+                    UserId = reader.GetString(2),
+                    importedTransactions = Array.Empty<ImportedTransaction>()
+                };
+                map[docId] = doc;
+            }
+
+            if (!reader.IsDBNull(3))
+            {
+                var list = doc.importedTransactions.ToList();
+                list.Add(new ImportedTransaction
+                {
+                    Id = reader.GetString(3),
+                    AccountId = reader.IsDBNull(4) ? string.Empty : reader.GetGuid(4).ToString(),
+                    AccountNumber = reader.IsDBNull(5) ? null : reader.GetString(5),
+                    AccountSource = reader.IsDBNull(6) ? null : reader.GetString(6),
+                    Payee = reader.IsDBNull(7) ? null : reader.GetString(7),
+                    PostedDate = reader.IsDBNull(8) ? null : reader.GetDateTime(8).ToString("yyyy-MM-dd"),
+                    Amount = reader.IsDBNull(9) ? null : (double?)reader.GetDecimal(9),
+                    Status = reader.IsDBNull(10) ? null : reader.GetString(10),
+                    DebitAmount = reader.IsDBNull(11) ? null : (double?)reader.GetDecimal(11),
+                    CreditAmount = reader.IsDBNull(12) ? null : (double?)reader.GetDecimal(12),
+                    CheckNumber = reader.IsDBNull(13) ? null : reader.GetString(13),
+                    Deleted = reader.IsDBNull(14) ? (bool?)null : reader.GetBoolean(14),
+                    Matched = reader.IsDBNull(15) ? false : reader.GetBoolean(15),
+                    Ignored = reader.IsDBNull(16) ? false : reader.GetBoolean(16)
+                });
+                doc.importedTransactions = list.ToArray();
+            }
+        }
+        return map.Values.ToList();
+    }
+
+    public async Task DeleteImportedTransactionDoc(string id)
+    {
+        await using var conn = await _db.GetOpenConnectionAsync();
+        const string sql = "DELETE FROM imported_transactions WHERE document_id=@id; DELETE FROM imported_transaction_docs WHERE id=@id";
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("id", Guid.Parse(id));
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    public async Task<List<ImportedTransaction>> GetImportedTransactionsByAccountId(string accountId)
+    {
+        await using var conn = await _db.GetOpenConnectionAsync();
+        const string sql = "SELECT id, account_id, account_number, account_source, payee, posted_date, amount, status, debit_amount, credit_amount, check_number, deleted, matched, ignored FROM imported_transactions WHERE account_id=@aid";
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("aid", Guid.Parse(accountId));
+        await using var reader = await cmd.ExecuteReaderAsync();
+        var list = new List<ImportedTransaction>();
+        while (await reader.ReadAsync())
+        {
+            list.Add(new ImportedTransaction
+            {
+                Id = reader.GetString(0),
+                AccountId = reader.GetGuid(1).ToString(),
+                AccountNumber = reader.IsDBNull(2) ? null : reader.GetString(2),
+                AccountSource = reader.IsDBNull(3) ? null : reader.GetString(3),
+                Payee = reader.IsDBNull(4) ? null : reader.GetString(4),
+                PostedDate = reader.IsDBNull(5) ? null : reader.GetDateTime(5).ToString("yyyy-MM-dd"),
+                Amount = reader.IsDBNull(6) ? null : (double?)reader.GetDecimal(6),
+                Status = reader.IsDBNull(7) ? null : reader.GetString(7),
+                DebitAmount = reader.IsDBNull(8) ? null : (double?)reader.GetDecimal(8),
+                CreditAmount = reader.IsDBNull(9) ? null : (double?)reader.GetDecimal(9),
+                CheckNumber = reader.IsDBNull(10) ? null : reader.GetString(10),
+                Deleted = reader.IsDBNull(11) ? (bool?)null : reader.GetBoolean(11),
+                Matched = reader.IsDBNull(12) ? false : reader.GetBoolean(12),
+                Ignored = reader.IsDBNull(13) ? false : reader.GetBoolean(13)
+            });
+        }
+        return list;
+    }
+
+    public async Task BatchUpdateImportedTransactions(List<ImportedTransaction> transactions)
+    {
+        await using var conn = await _db.GetOpenConnectionAsync();
+        const string sql = "UPDATE imported_transactions SET account_number=@acct_num, account_source=@acct_src WHERE id=@id";
+        foreach (var tx in transactions)
+        {
+            await using var cmd = new NpgsqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("acct_num", (object?)tx.AccountNumber ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("acct_src", (object?)tx.AccountSource ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("id", tx.Id!);
+            await cmd.ExecuteNonQueryAsync();
+        }
+    }
+
+    public async Task<List<TransactionWithBudgetId>> GetBudgetTransactionsMatchedToImported(string accountId, string userId)
+    {
+        await using var conn = await _db.GetOpenConnectionAsync();
+        const string sqlAccount = "SELECT account_number FROM accounts WHERE id=@id";
+        await using var accCmd = new NpgsqlCommand(sqlAccount, conn);
+        accCmd.Parameters.AddWithValue("id", Guid.Parse(accountId));
+        var acctNumObj = await accCmd.ExecuteScalarAsync();
+        if (acctNumObj is not string acctNum)
+            return new List<TransactionWithBudgetId>();
+
+        const string sql = @"SELECT budget_id, id, date, budget_month, merchant, amount, notes, recurring, recurring_interval, user_id, is_income, account_number, account_source, posted_date, imported_merchant, status, check_number, deleted, entity_id
+                             FROM transactions WHERE account_number=@acct";
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("acct", acctNum);
+        await using var reader = await cmd.ExecuteReaderAsync();
+        var list = new List<TransactionWithBudgetId>();
+        while (await reader.ReadAsync())
+        {
+            var tx = new Transaction
+            {
+                Id = reader.GetString(1),
+                BudgetId = reader.GetString(0),
+                Date = reader.IsDBNull(2) ? null : reader.GetDateTime(2).ToString("yyyy-MM-dd"),
+                BudgetMonth = reader.IsDBNull(3) ? null : reader.GetString(3),
+                Merchant = reader.IsDBNull(4) ? null : reader.GetString(4),
+                Amount = (double)reader.GetDecimal(5),
+                Notes = reader.IsDBNull(6) ? null : reader.GetString(6),
+                Recurring = reader.GetBoolean(7),
+                RecurringInterval = reader.IsDBNull(8) ? null : reader.GetString(8),
+                UserId = reader.IsDBNull(9) ? null : reader.GetString(9),
+                IsIncome = reader.GetBoolean(10),
+                AccountNumber = reader.IsDBNull(11) ? null : reader.GetString(11),
+                AccountSource = reader.IsDBNull(12) ? null : reader.GetString(12),
+                PostedDate = reader.IsDBNull(13) ? null : reader.GetDateTime(13).ToString("yyyy-MM-dd"),
+                ImportedMerchant = reader.IsDBNull(14) ? null : reader.GetString(14),
+                Status = reader.IsDBNull(15) ? null : reader.GetString(15),
+                CheckNumber = reader.IsDBNull(16) ? null : reader.GetString(16),
+                Deleted = reader.IsDBNull(17) ? (bool?)null : reader.GetBoolean(17),
+                EntityId = reader.IsDBNull(18) ? null : reader.GetGuid(18).ToString()
+            };
+            list.Add(new TransactionWithBudgetId { BudgetId = reader.GetString(0), Transaction = tx });
+        }
+        return list;
+    }
+
+    public async Task BatchUpdateBudgetTransactions(List<TransactionWithBudgetId> transactions, string userId, string userEmail)
+    {
+        foreach (var item in transactions)
+        {
+            var tx = item.Transaction;
+            if (string.IsNullOrEmpty(tx.Id)) tx.Id = Guid.NewGuid().ToString();
+            await SaveTransaction(item.BudgetId, tx, userId, userEmail);
+            if (!string.IsNullOrEmpty(item.OldId) && item.OldId != tx.Id)
+            {
+                await DeleteTransaction(item.BudgetId, item.OldId, userId, userEmail);
+            }
+        }
+    }
+
+    public async Task BatchReconcileTransactions(string budgetId, List<ReconcileRequest> reconciliations, string userId, string userEmail)
+    {
+        await using var conn = await _db.GetOpenConnectionAsync();
+        foreach (var rec in reconciliations)
+        {
+            const string sql = "UPDATE imported_transactions SET matched=@match, ignored=@ignore WHERE id=@id";
+            await using var cmd = new NpgsqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("match", rec.Match);
+            cmd.Parameters.AddWithValue("ignore", rec.Ignore);
+            cmd.Parameters.AddWithValue("id", rec.ImportedTransactionId);
+            await cmd.ExecuteNonQueryAsync();
+        }
+        await LogEdit(conn, budgetId, userId, userEmail, "batch-reconcile");
+    }
 }
+

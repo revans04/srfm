@@ -74,14 +74,13 @@ builder.Services.AddControllers()
     });
 
 // Register application services
+builder.Services.AddSingleton<SupabaseDbService>();
 builder.Services.AddSingleton<FamilyService>();
 builder.Services.AddSingleton<BudgetService>();
 builder.Services.AddSingleton<UserService>();
 builder.Services.AddSingleton<AccountService>();
 builder.Services.AddSingleton<BrevoService>();
 builder.Services.AddSingleton<StatementService>();
-
-// Register SyncService for Firestore → Supabase synchronization
 builder.Services.AddSingleton<SyncService>();
 
 // Configure CORS policies
