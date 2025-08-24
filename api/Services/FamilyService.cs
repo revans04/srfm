@@ -103,7 +103,7 @@ public class FamilyService
         _logger.LogInformation("Creating family {FamilyId}", familyId);
         await using var conn = await _db.GetOpenConnectionAsync();
 
-        const string sql = "INSERT INTO families (id, name, owner_uid) VALUES (@id, @name, @owner)";
+        const string sql = "INSERT INTO families (id, name, owner_uid, created_at, updated_at) VALUES (@id, @name, @owner, now(), now())";
         await using var cmd = new Npgsql.NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("id", Guid.Parse(familyId));
         cmd.Parameters.AddWithValue("name", family.Name);
@@ -162,7 +162,7 @@ public class FamilyService
     {
         _logger.LogInformation("Creating entity {EntityId} for family {FamilyId}", entity.Id, familyId);
         await using var conn = await _db.GetOpenConnectionAsync();
-        const string sql = "INSERT INTO entities (id, family_id, name, type) VALUES (@id, @fid, @name, @type)";
+        const string sql = "INSERT INTO entities (id, family_id, name, type, created_at, updated_at) VALUES (@id, @fid, @name, @type, now(), now())";
         await using var cmd = new Npgsql.NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("id", Guid.Parse(entity.Id));
         cmd.Parameters.AddWithValue("fid", Guid.Parse(familyId));
@@ -252,8 +252,8 @@ public class FamilyService
             InviterEmail = reader.GetString(1),
             InviteeEmail = reader.GetString(2),
             Token = reader.GetString(3),
-            CreatedAt = Timestamp.FromDateTime(reader.GetDateTime(4).ToUniversalTime()),
-            ExpiresAt = Timestamp.FromDateTime(reader.GetDateTime(5).ToUniversalTime())
+            CreatedAt = Timestamp.FromDateTime(reader.IsDBNull(4) ? DateTime.UtcNow : reader.GetDateTime(4).ToUniversalTime()),
+            ExpiresAt = Timestamp.FromDateTime(reader.IsDBNull(5) ? DateTime.UtcNow : reader.GetDateTime(5).ToUniversalTime())
         };
     }
 
@@ -285,8 +285,8 @@ public class FamilyService
                 InviterEmail = reader.GetString(1),
                 InviteeEmail = reader.GetString(2),
                 Token = reader.GetString(3),
-                CreatedAt = Timestamp.FromDateTime(reader.GetDateTime(4).ToUniversalTime()),
-                ExpiresAt = Timestamp.FromDateTime(reader.GetDateTime(5).ToUniversalTime())
+                CreatedAt = Timestamp.FromDateTime(reader.IsDBNull(4) ? DateTime.UtcNow : reader.GetDateTime(4).ToUniversalTime()),
+                ExpiresAt = Timestamp.FromDateTime(reader.IsDBNull(5) ? DateTime.UtcNow : reader.GetDateTime(5).ToUniversalTime())
             });
         }
         return list;

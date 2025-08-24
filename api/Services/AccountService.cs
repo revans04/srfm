@@ -2,6 +2,7 @@ using FamilyBudgetApi.Models;
 using Google.Cloud.Firestore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using System;
 
 namespace FamilyBudgetApi.Services;
 
@@ -195,7 +196,7 @@ public class AccountService
                     Id = sid.ToString(),
                     Date = Timestamp.FromDateTime(reader.IsDBNull(1) ? DateTime.UtcNow : reader.GetDateTime(1).ToUniversalTime()),
                     NetWorth = reader.IsDBNull(2) ? 0 : (double)reader.GetDecimal(2),
-                    CreatedAt = Timestamp.FromDateTime(reader.GetDateTime(3).ToUniversalTime()),
+                    CreatedAt = Timestamp.FromDateTime(reader.IsDBNull(3) ? DateTime.UtcNow : reader.GetDateTime(3).ToUniversalTime()),
                     Accounts = new List<SnapshotAccount>()
                 };
                 map[sid] = snap;
@@ -358,8 +359,10 @@ public class AccountService
                 MaturityDate = reader.IsDBNull(10) ? null : reader.GetDateTime(10).ToString("yyyy-MM-dd"),
                 Address = reader.IsDBNull(11) ? null : reader.GetString(11)
             },
-            CreatedAt = Google.Cloud.Firestore.Timestamp.FromDateTime(reader.GetDateTime(12).ToUniversalTime()),
-            UpdatedAt = Google.Cloud.Firestore.Timestamp.FromDateTime(reader.GetDateTime(13).ToUniversalTime())
+            CreatedAt = Google.Cloud.Firestore.Timestamp.FromDateTime(
+                reader.IsDBNull(12) ? DateTime.UtcNow : reader.GetDateTime(12).ToUniversalTime()),
+            UpdatedAt = Google.Cloud.Firestore.Timestamp.FromDateTime(
+                reader.IsDBNull(13) ? DateTime.UtcNow : reader.GetDateTime(13).ToUniversalTime())
         };
         return account;
     }

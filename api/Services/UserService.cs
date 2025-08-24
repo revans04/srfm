@@ -53,9 +53,9 @@ public class UserService
     {
         _logger.LogInformation("Saving user {UserId}", userId);
         await using var conn = await _db.GetOpenConnectionAsync();
-        const string sql = @"INSERT INTO users (uid, email)
-            VALUES (@uid,@email)
-            ON CONFLICT (uid) DO UPDATE SET email=EXCLUDED.email";
+        const string sql = @"INSERT INTO users (uid, email, created_at, updated_at)
+            VALUES (@uid,@email, now(), now())
+            ON CONFLICT (uid) DO UPDATE SET email=EXCLUDED.email, updated_at=now()";
         await using var cmd = new Npgsql.NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("uid", userId);
         cmd.Parameters.AddWithValue("email", userData.Email ?? string.Empty);
