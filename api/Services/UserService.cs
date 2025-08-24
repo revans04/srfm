@@ -1,59 +1,67 @@
 using FamilyBudgetApi.Models;
-using Google.Cloud.Firestore;
-using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 
-namespace FamilyBudgetApi.Services
+namespace FamilyBudgetApi.Services;
+
+/// <summary>
+/// User operations backed by Supabase/PostgreSQL.
+/// </summary>
+public class UserService
 {
+    private readonly SupabaseDbService _db;
+    private readonly ILogger<UserService> _logger;
 
-    public class UserService
+    public UserService(SupabaseDbService db, ILogger<UserService> logger)
     {
-        private readonly FirestoreDb _db;
-
-        public UserService(FirestoreDb db)
-        {
-            _db = db;
-        }
-
-        public async Task<UserData?> GetUser(string userId)
-        {
-            var userRef = _db.Collection("users").Document(userId);
-            var snapshot = await userRef.GetSnapshotAsync();
-            if (!snapshot.Exists) return null;
-
-            return snapshot.ConvertTo<UserData>();
-        }
-
-        public async Task<UserData?> GetUserByEmail(string email)
-        {
-            var q = _db.Collection("users").WhereEqualTo("email", email);
-            var snapshot = await q.GetSnapshotAsync();
-            if (snapshot.Count == 0) return null;
-
-            return snapshot.Documents[0].ConvertTo<UserData>();
-        }
-
-        public async Task SaveUser(string userId, UserData userData)
-        {
-            var userRef = _db.Collection("users").Document(userId);
-            await userRef.SetAsync(userData, Google.Cloud.Firestore.SetOptions.MergeAll);
-        }
-
-        public async Task CreatePendingInvite(PendingInvite invite)
-        {
-            var docRef = _db.Collection("pendingInvites").Document();
-            invite.CreatedAt = Timestamp.FromDateTime(DateTime.UtcNow.ToUniversalTime());
-            await docRef.SetAsync(invite, SetOptions.Overwrite);
-        }
-
-        public async Task CreatePendingInviteAsync(PendingInvite invite, string authenticatedUserId)
-        {
-            if (authenticatedUserId != invite.InviterUid)
-                throw new Exception("Unauthorized: Inviter UID does not match authenticated user");
-
-            var docRef = _db.Collection("pendingInvites").Document();
-            invite.CreatedAt = Timestamp.FromDateTime(DateTime.UtcNow.ToUniversalTime());
-            await docRef.SetAsync(invite, SetOptions.Overwrite);
-        }
-
+        _db = db;
+        _logger = logger;
     }
+
+    public async Task<UserData?> GetUser(string userId)
+    {
+        _logger.LogInformation("Fetching user {UserId}", userId);
+        await using var conn = await _db.GetOpenConnectionAsync();
+        const string sql = "SELECT uid, email FROM users WHERE uid=@uid";
+        await using var cmd = new Npgsql.NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("uid", userId);
+        await using var reader = await cmd.ExecuteReaderAsync();
+        if (!await reader.ReadAsync())
+        {
+            _logger.LogWarning("User {UserId} not found", userId);
+            return null;
+        }
+        return new UserData { Uid = reader.GetString(0), Email = reader.GetString(1) };
+    }
+
+    public async Task<UserData?> GetUserByEmail(string email)
+    {
+        _logger.LogInformation("Fetching user by email {Email}", email);
+        await using var conn = await _db.GetOpenConnectionAsync();
+        const string sql = "SELECT uid, email FROM users WHERE email=@e";
+        await using var cmd = new Npgsql.NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("e", email);
+        await using var reader = await cmd.ExecuteReaderAsync();
+        if (!await reader.ReadAsync())
+        {
+            _logger.LogWarning("User with email {Email} not found", email);
+            return null;
+        }
+        return new UserData { Uid = reader.GetString(0), Email = reader.GetString(1) };
+    }
+
+    public async Task SaveUser(string userId, UserData userData)
+    {
+        _logger.LogInformation("Saving user {UserId}", userId);
+        await using var conn = await _db.GetOpenConnectionAsync();
+        const string sql = @"INSERT INTO users (uid, email)
+            VALUES (@uid,@email)
+            ON CONFLICT (uid) DO UPDATE SET email=EXCLUDED.email";
+        await using var cmd = new Npgsql.NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("uid", userId);
+        cmd.Parameters.AddWithValue("email", userData.Email ?? string.Empty);
+        await cmd.ExecuteNonQueryAsync();
+        _logger.LogInformation("User {UserId} saved", userId);
+    }
+
 }
+

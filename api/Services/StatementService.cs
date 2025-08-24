@@ -1,122 +1,43 @@
-using Google.Cloud.Firestore;
 using FamilyBudgetApi.Models;
 using Microsoft.Extensions.Logging;
 
-namespace FamilyBudgetApi.Services
+namespace FamilyBudgetApi.Services;
+
+/// <summary>
+/// Statement service placeholder for Supabase migration.
+/// </summary>
+public class StatementService
 {
-    public class StatementService
+    private readonly SupabaseDbService _db;
+    private readonly BudgetService _budgetService;
+    private readonly ILogger<StatementService> _logger;
+
+    public StatementService(SupabaseDbService db, BudgetService budgetService, ILogger<StatementService> logger)
     {
-        private readonly FirestoreDb _db;
-        private readonly BudgetService _budgetService;
-        private readonly ILogger<StatementService> _logger;
+        _db = db;
+        _budgetService = budgetService;
+        _logger = logger;
+    }
 
-        public StatementService(FirestoreDb db, BudgetService budgetService, ILogger<StatementService> logger)
-        {
-            _db = db;
-            _budgetService = budgetService;
-            _logger = logger;
-        }
-
-        public async Task<List<Statement>> GetStatements(string familyId, string accountNumber)
-        {
-            var colRef = _db.Collection("families").Document(familyId)
-                .Collection("accounts").Document(accountNumber)
-                .Collection("statements");
-            var snap = await colRef.GetSnapshotAsync();
-            return snap.Documents.Select(d =>
-            {
-                var st = d.ConvertTo<Statement>();
-                return st;
-            }).OrderBy(s => s.StartDate).ToList();
-        }
-
-        public async Task SaveStatement(string familyId, string accountNumber, Statement statement, List<(string budgetId, string transactionId)> txRefs, string userId, string userEmail)
-        {
-            var docRef = _db.Collection("families").Document(familyId)
-                .Collection("accounts").Document(accountNumber)
-                .Collection("statements").Document(statement.Id);
-            await docRef.SetAsync(statement, SetOptions.MergeAll);
-
-            if (txRefs == null || txRefs.Count == 0) return;
-
-            var grouped = txRefs.GroupBy(t => t.budgetId);
-            foreach (var group in grouped)
-            {
-                var budget = await _budgetService.GetBudget(group.Key);
-                if (budget == null) continue;
-
-                var list = budget.Transactions ?? new List<Models.Transaction>();
-                foreach (var txRef in group)
-                {
-                    var idx = list.FindIndex(t => t.Id == txRef.transactionId);
-                    if (idx >= 0)
-                    {
-                        list[idx].Status = "R";
-                    }
-                }
-                budget.Transactions = list;
-                await _budgetService.SaveBudget(group.Key, budget, userId, userEmail);
-            }
-        }
-
-        public async Task DeleteStatement(string familyId, string accountNumber, string statementId, List<(string budgetId, string transactionId)> txRefs, string userId, string userEmail)
-        {
-            var docRef = _db.Collection("families").Document(familyId)
-                .Collection("accounts").Document(accountNumber)
-                .Collection("statements").Document(statementId);
-            await docRef.DeleteAsync();
-
-            if (txRefs == null || txRefs.Count == 0) return;
-
-            var grouped = txRefs.GroupBy(t => t.budgetId);
-            foreach (var group in grouped)
-            {
-                var budget = await _budgetService.GetBudget(group.Key);
-                if (budget == null) continue;
-
-                var list = budget.Transactions ?? new List<Models.Transaction>();
-                foreach (var txRef in group)
-                {
-                    var idx = list.FindIndex(t => t.Id == txRef.transactionId);
-                    if (idx >= 0)
-                    {
-                        if (list[idx].Status == "R")
-                            list[idx].Status = "C";
-                    }
-                }
-                budget.Transactions = list;
-                await _budgetService.SaveBudget(group.Key, budget, userId, userEmail);
-            }
-        }
-
-        public async Task UnreconcileStatement(string familyId, string accountNumber, string statementId, List<(string budgetId, string transactionId)> txRefs, string userId, string userEmail)
-        {
-            var docRef = _db.Collection("families").Document(familyId)
-                .Collection("accounts").Document(accountNumber)
-                .Collection("statements").Document(statementId);
-            await docRef.SetAsync(new { reconciled = false }, SetOptions.MergeAll);
-
-            if (txRefs == null || txRefs.Count == 0) return;
-
-            var grouped = txRefs.GroupBy(t => t.budgetId);
-            foreach (var group in grouped)
-            {
-                var budget = await _budgetService.GetBudget(group.Key);
-                if (budget == null) continue;
-
-                var list = budget.Transactions ?? new List<Models.Transaction>();
-                foreach (var txRef in group)
-                {
-                    var idx = list.FindIndex(t => t.Id == txRef.transactionId);
-                    if (idx >= 0)
-                    {
-                        if (list[idx].Status == "R")
-                            list[idx].Status = "C";
-                    }
-                }
-                budget.Transactions = list;
-                await _budgetService.SaveBudget(group.Key, budget, userId, userEmail);
-            }
-        }
+    public Task<List<Statement>> GetStatements(string familyId, string accountNumber)
+    {
+        _logger.LogInformation("GetStatements called for family {FamilyId} account {Account}", familyId, accountNumber);
+        throw new NotImplementedException();
+    }
+    public Task SaveStatement(string familyId, string accountNumber, Statement statement, List<(string budgetId, string transactionId)> txRefs, string userId, string userEmail)
+    {
+        _logger.LogInformation("SaveStatement called for family {FamilyId} account {Account}", familyId, accountNumber);
+        throw new NotImplementedException();
+    }
+    public Task DeleteStatement(string familyId, string accountNumber, string statementId, List<(string budgetId, string transactionId)> txRefs, string userId, string userEmail)
+    {
+        _logger.LogInformation("DeleteStatement called for family {FamilyId} account {Account} statement {StatementId}", familyId, accountNumber, statementId);
+        throw new NotImplementedException();
+    }
+    public Task UnreconcileStatement(string familyId, string accountNumber, string statementId, List<(string budgetId, string transactionId)> txRefs, string userId, string userEmail)
+    {
+        _logger.LogInformation("UnreconcileStatement called for family {FamilyId} account {Account} statement {StatementId}", familyId, accountNumber, statementId);
+        throw new NotImplementedException();
     }
 }
+
