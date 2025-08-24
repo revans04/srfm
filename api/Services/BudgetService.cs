@@ -65,6 +65,13 @@ public class BudgetService
                 IsOwner = true
             });
         }
+        await reader.DisposeAsync();
+
+        foreach (var b in budgets)
+        {
+            await LoadBudgetDetails(conn, b);
+        }
+
         _logger.LogInformation("Loaded {Count} budgets for user {UserId}", budgets.Count, userId);
         return budgets;
     }
@@ -95,6 +102,75 @@ public class BudgetService
         }
         _logger.LogInformation("User {UserId} has access to {Count} shared budgets", userId, map.Count);
         return map.Values.ToList();
+    }
+
+    private async Task LoadBudgetDetails(NpgsqlConnection conn, Budget budget)
+    {
+        const string sqlTx = "SELECT id, date, budget_month, merchant, amount, notes, recurring, recurring_interval, user_id, is_income, account_number, account_source, posted_date, imported_merchant, status, check_number, deleted, entity_id FROM transactions WHERE budget_id=@id";
+        await using (var txCmd = new NpgsqlCommand(sqlTx, conn))
+        {
+            txCmd.Parameters.AddWithValue("id", budget.BudgetId);
+            await using var txReader = await txCmd.ExecuteReaderAsync();
+            while (await txReader.ReadAsync())
+            {
+                var tx = new Transaction
+                {
+                    Id = txReader.GetString(0),
+                    BudgetId = budget.BudgetId,
+                    Date = txReader.IsDBNull(1) ? null : txReader.GetDateTime(1).ToString("yyyy-MM-dd"),
+                    BudgetMonth = txReader.IsDBNull(2) ? null : txReader.GetString(2),
+                    Merchant = txReader.IsDBNull(3) ? null : txReader.GetString(3),
+                    Amount = (double)txReader.GetDecimal(4),
+                    Notes = txReader.IsDBNull(5) ? null : txReader.GetString(5),
+                    Recurring = txReader.GetBoolean(6),
+                    RecurringInterval = txReader.IsDBNull(7) ? null : txReader.GetString(7),
+                    UserId = txReader.IsDBNull(8) ? null : txReader.GetString(8),
+                    IsIncome = txReader.GetBoolean(9),
+                    AccountNumber = txReader.IsDBNull(10) ? null : txReader.GetString(10),
+                    AccountSource = txReader.IsDBNull(11) ? null : txReader.GetString(11),
+                    PostedDate = txReader.IsDBNull(12) ? null : txReader.GetDateTime(12).ToString("yyyy-MM-dd"),
+                    ImportedMerchant = txReader.IsDBNull(13) ? null : txReader.GetString(13),
+                    Status = txReader.IsDBNull(14) ? null : txReader.GetString(14),
+                    CheckNumber = txReader.IsDBNull(15) ? null : txReader.GetString(15),
+                    Deleted = txReader.IsDBNull(16) ? (bool?)null : txReader.GetBoolean(16),
+                    EntityId = txReader.IsDBNull(17) ? null : txReader.GetGuid(17).ToString()
+                };
+                budget.Transactions.Add(tx);
+            }
+        }
+
+        const string sqlCats = "SELECT name, target, is_fund, \"group\", carryover FROM budget_categories WHERE budget_id=@id";
+        await using (var catCmd = new NpgsqlCommand(sqlCats, conn))
+        {
+            catCmd.Parameters.AddWithValue("id", budget.BudgetId);
+            await using var catReader = await catCmd.ExecuteReaderAsync();
+            while (await catReader.ReadAsync())
+            {
+                budget.Categories.Add(new BudgetCategory
+                {
+                    Name = catReader.IsDBNull(0) ? null : catReader.GetString(0),
+                    Target = catReader.IsDBNull(1) ? 0 : (double)catReader.GetDecimal(1),
+                    IsFund = catReader.IsDBNull(2) ? false : catReader.GetBoolean(2),
+                    Group = catReader.IsDBNull(3) ? null : catReader.GetString(3),
+                    Carryover = catReader.IsDBNull(4) ? null : (double?)catReader.GetDecimal(4)
+                });
+            }
+        }
+
+        const string sqlMerchants = "SELECT name, usage_count FROM merchants WHERE budget_id=@id";
+        await using (var merchCmd = new NpgsqlCommand(sqlMerchants, conn))
+        {
+            merchCmd.Parameters.AddWithValue("id", budget.BudgetId);
+            await using var merchReader = await merchCmd.ExecuteReaderAsync();
+            while (await merchReader.ReadAsync())
+            {
+                budget.Merchants.Add(new Merchant
+                {
+                    Name = merchReader.GetString(0),
+                    UsageCount = merchReader.IsDBNull(1) ? 0 : merchReader.GetInt32(1)
+                });
+            }
+        }
     }
 
     /// <summary>
@@ -129,71 +205,7 @@ public class BudgetService
         };
         await reader.CloseAsync();
 
-        const string sqlTx = "SELECT id, date, budget_month, merchant, amount, notes, recurring, recurring_interval, user_id, is_income, account_number, account_source, posted_date, imported_merchant, status, check_number, deleted, entity_id FROM transactions WHERE budget_id=@id";
-        await using var txCmd = new NpgsqlCommand(sqlTx, conn);
-        txCmd.Parameters.AddWithValue("id", budgetId);
-        await using var txReader = await txCmd.ExecuteReaderAsync();
-        while (await txReader.ReadAsync())
-        {
-            var tx = new Transaction
-            {
-                Id = txReader.GetString(0),
-                BudgetId = budgetId,
-                Date = txReader.IsDBNull(1) ? null : txReader.GetDateTime(1).ToString("yyyy-MM-dd"),
-                BudgetMonth = txReader.IsDBNull(2) ? null : txReader.GetString(2),
-                Merchant = txReader.IsDBNull(3) ? null : txReader.GetString(3),
-                Amount = (double)txReader.GetDecimal(4),
-                Notes = txReader.IsDBNull(5) ? null : txReader.GetString(5),
-                Recurring = txReader.GetBoolean(6),
-                RecurringInterval = txReader.IsDBNull(7) ? null : txReader.GetString(7),
-                UserId = txReader.IsDBNull(8) ? null : txReader.GetString(8),
-                IsIncome = txReader.GetBoolean(9),
-                AccountNumber = txReader.IsDBNull(10) ? null : txReader.GetString(10),
-                AccountSource = txReader.IsDBNull(11) ? null : txReader.GetString(11),
-                PostedDate = txReader.IsDBNull(12) ? null : txReader.GetDateTime(12).ToString("yyyy-MM-dd"),
-                ImportedMerchant = txReader.IsDBNull(13) ? null : txReader.GetString(13),
-                Status = txReader.IsDBNull(14) ? null : txReader.GetString(14),
-                CheckNumber = txReader.IsDBNull(15) ? null : txReader.GetString(15),
-                Deleted = txReader.IsDBNull(16) ? (bool?)null : txReader.GetBoolean(16),
-                EntityId = txReader.IsDBNull(17) ? null : txReader.GetGuid(17).ToString()
-            };
-            budget.Transactions.Add(tx);
-        }
-
-        await txReader.CloseAsync();
-
-        // Load categories
-        const string sqlCats = "SELECT name, target, is_fund, \"group\", carryover FROM budget_categories WHERE budget_id=@id";
-        await using var catCmd = new NpgsqlCommand(sqlCats, conn);
-        catCmd.Parameters.AddWithValue("id", budgetId);
-        await using var catReader = await catCmd.ExecuteReaderAsync();
-        while (await catReader.ReadAsync())
-        {
-            budget.Categories.Add(new BudgetCategory
-            {
-                Name = catReader.IsDBNull(0) ? null : catReader.GetString(0),
-                Target = catReader.IsDBNull(1) ? 0 : (double)catReader.GetDecimal(1),
-                IsFund = catReader.IsDBNull(2) ? false : catReader.GetBoolean(2),
-                Group = catReader.IsDBNull(3) ? null : catReader.GetString(3),
-                Carryover = catReader.IsDBNull(4) ? null : (double?)catReader.GetDecimal(4)
-            });
-        }
-        await catReader.CloseAsync();
-
-        // Load merchants
-        const string sqlMerchants = "SELECT name, usage_count FROM merchants WHERE budget_id=@id";
-        await using var merchCmd = new NpgsqlCommand(sqlMerchants, conn);
-        merchCmd.Parameters.AddWithValue("id", budgetId);
-        await using var merchReader = await merchCmd.ExecuteReaderAsync();
-        while (await merchReader.ReadAsync())
-        {
-            budget.Merchants.Add(new Merchant
-            {
-                Name = merchReader.GetString(0),
-                UsageCount = merchReader.IsDBNull(1) ? 0 : merchReader.GetInt32(1)
-            });
-        }
-        await merchReader.CloseAsync();
+        await LoadBudgetDetails(conn, budget);
 
         _logger.LogInformation("Loaded budget {BudgetId} with {TxCount} transactions, {CatCount} categories and {MerchCount} merchants", budgetId, budget.Transactions.Count, budget.Categories.Count, budget.Merchants.Count);
         return budget;
