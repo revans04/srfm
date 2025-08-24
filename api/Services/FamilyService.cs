@@ -44,7 +44,7 @@ public class FamilyService
     }
 
     /// <summary>
-    /// Fetch a family by its identifier including member list.
+    /// Fetch a family by its identifier including members, accounts, snapshots, and entities.
     /// </summary>
     public async Task<Family?> GetFamilyById(string familyId)
     {
@@ -57,44 +57,153 @@ public class FamilyService
             return null;
         }
 
-        const string sqlFamily =
-            "SELECT id, name, owner_uid FROM families WHERE id=@id";
-        await using var familyCmd = new Npgsql.NpgsqlCommand(sqlFamily, conn);
-        familyCmd.Parameters.AddWithValue("id", fid);
-        await using var reader = await familyCmd.ExecuteReaderAsync();
-        if (!await reader.ReadAsync())
-        {
-            _logger.LogWarning("Family {FamilyId} not found", familyId);
-            return null;
-        }
+        Family family;
 
-        var family = new Family
+        const string sqlFamily =
+            "SELECT id, name, owner_uid, created_at, updated_at FROM families WHERE id=@id";
+        await using (var familyCmd = new Npgsql.NpgsqlCommand(sqlFamily, conn))
         {
-            Id = reader.GetGuid(0).ToString(),
-            Name = reader.GetString(1),
-            OwnerUid = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
-            Members = new List<UserRef>(),
-            MemberUids = new List<string>()
-        };
-        await reader.CloseAsync();
+            familyCmd.Parameters.AddWithValue("id", fid);
+            await using var reader = await familyCmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync())
+            {
+                _logger.LogWarning("Family {FamilyId} not found", familyId);
+                return null;
+            }
+
+            family = new Family
+            {
+                Id = reader.GetGuid(0).ToString(),
+                Name = reader.GetString(1),
+                OwnerUid = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+                Members = new List<UserRef>(),
+                MemberUids = new List<string>(),
+                Accounts = new List<Account>(),
+                Snapshots = new List<Snapshot>(),
+                Entities = new List<Entity>(),
+                CreatedAt = Timestamp.FromDateTime(reader.IsDBNull(3) ? DateTime.UtcNow : reader.GetDateTime(3).ToUniversalTime()),
+                UpdatedAt = Timestamp.FromDateTime(reader.IsDBNull(4) ? DateTime.UtcNow : reader.GetDateTime(4).ToUniversalTime())
+            };
+        }
 
         const string sqlMembers =
             "SELECT user_id, role FROM family_members WHERE family_id=@id";
-        await using var memCmd = new Npgsql.NpgsqlCommand(sqlMembers, conn);
-        memCmd.Parameters.AddWithValue("id", fid);
-        await using var memReader = await memCmd.ExecuteReaderAsync();
-        while (await memReader.ReadAsync())
+        await using (var memCmd = new Npgsql.NpgsqlCommand(sqlMembers, conn))
         {
-            var member = new UserRef
+            memCmd.Parameters.AddWithValue("id", fid);
+            await using var memReader = await memCmd.ExecuteReaderAsync();
+            while (await memReader.ReadAsync())
             {
-                Uid = memReader.GetString(0),
-                Role = memReader.IsDBNull(1) ? null : memReader.GetString(1)
-            };
-            family.Members.Add(member);
-            if (member.Uid != null) family.MemberUids.Add(member.Uid);
+                var member = new UserRef
+                {
+                    Uid = memReader.GetString(0),
+                    Role = memReader.IsDBNull(1) ? null : memReader.GetString(1)
+                };
+                family.Members.Add(member);
+                if (member.Uid != null) family.MemberUids.Add(member.Uid);
+            }
         }
 
-        _logger.LogInformation("Loaded family {FamilyId} with {MemberCount} members", familyId, family.Members.Count);
+        // Load accounts
+        const string sqlAccounts =
+            @"SELECT id, user_id, name, type, category, account_number, institution,
+                     balance, interest_rate, appraised_value, maturity_date, address,
+                     created_at, updated_at
+              FROM accounts WHERE family_id=@fid";
+        await using (var accCmd = new Npgsql.NpgsqlCommand(sqlAccounts, conn))
+        {
+            accCmd.Parameters.AddWithValue("fid", fid);
+            await using var accReader = await accCmd.ExecuteReaderAsync();
+            while (await accReader.ReadAsync())
+            {
+                var account = new Account
+                {
+                    Id = accReader.GetGuid(0).ToString(),
+                    UserId = accReader.IsDBNull(1) ? null : accReader.GetString(1),
+                    Name = accReader.GetString(2),
+                    Type = accReader.GetString(3),
+                    Category = accReader.GetString(4),
+                    AccountNumber = accReader.IsDBNull(5) ? null : accReader.GetString(5),
+                    Institution = accReader.IsDBNull(6) ? string.Empty : accReader.GetString(6),
+                    Balance = accReader.IsDBNull(7) ? null : (double?)accReader.GetDecimal(7),
+                    Details = new AccountDetails
+                    {
+                        InterestRate = accReader.IsDBNull(8) ? null : (double?)accReader.GetDecimal(8),
+                        AppraisedValue = accReader.IsDBNull(9) ? null : (double?)accReader.GetDecimal(9),
+                        MaturityDate = accReader.IsDBNull(10) ? null : accReader.GetDateTime(10).ToString("yyyy-MM-dd"),
+                        Address = accReader.IsDBNull(11) ? null : accReader.GetString(11)
+                    },
+                    CreatedAt = Timestamp.FromDateTime(accReader.IsDBNull(12) ? DateTime.UtcNow : accReader.GetDateTime(12).ToUniversalTime()),
+                    UpdatedAt = Timestamp.FromDateTime(accReader.IsDBNull(13) ? DateTime.UtcNow : accReader.GetDateTime(13).ToUniversalTime())
+                };
+                family.Accounts.Add(account);
+            }
+        }
+
+        // Load entities
+        const string sqlEntities =
+            "SELECT id, name, type, created_at, updated_at FROM entities WHERE family_id=@fid";
+        await using (var entCmd = new Npgsql.NpgsqlCommand(sqlEntities, conn))
+        {
+            entCmd.Parameters.AddWithValue("fid", fid);
+            await using var entReader = await entCmd.ExecuteReaderAsync();
+            while (await entReader.ReadAsync())
+            {
+                family.Entities.Add(new Entity
+                {
+                    Id = entReader.GetGuid(0).ToString(),
+                    Name = entReader.GetString(1),
+                    Type = entReader.GetString(2),
+                    CreatedAt = Timestamp.FromDateTime(entReader.IsDBNull(3) ? DateTime.UtcNow : entReader.GetDateTime(3).ToUniversalTime()),
+                    UpdatedAt = Timestamp.FromDateTime(entReader.IsDBNull(4) ? DateTime.UtcNow : entReader.GetDateTime(4).ToUniversalTime()),
+                    Members = new List<UserRef>()
+                });
+            }
+        }
+
+        // Load snapshots and their accounts
+        const string sqlSnapshots =
+            "SELECT id, snapshot_date, net_worth, created_at FROM snapshots WHERE family_id=@fid";
+        await using (var snapCmd = new Npgsql.NpgsqlCommand(sqlSnapshots, conn))
+        {
+            snapCmd.Parameters.AddWithValue("fid", fid);
+            await using var snapReader = await snapCmd.ExecuteReaderAsync();
+            while (await snapReader.ReadAsync())
+            {
+                var snapshotId = snapReader.GetGuid(0);
+                var snapshot = new Snapshot
+                {
+                    Id = snapshotId.ToString(),
+                    Date = Timestamp.FromDateTime(snapReader.IsDBNull(1) ? DateTime.UtcNow : snapReader.GetDateTime(1).ToUniversalTime()),
+                    NetWorth = snapReader.IsDBNull(2) ? 0 : (double)snapReader.GetDecimal(2),
+                    CreatedAt = Timestamp.FromDateTime(snapReader.IsDBNull(3) ? DateTime.UtcNow : snapReader.GetDateTime(3).ToUniversalTime()),
+                    Accounts = new List<SnapshotAccount>()
+                };
+
+                const string sqlSnapshotAccounts =
+                    "SELECT account_id, account_name, value, account_type FROM snapshot_accounts WHERE snapshot_id=@sid";
+                await using (var saCmd = new Npgsql.NpgsqlCommand(sqlSnapshotAccounts, conn))
+                {
+                    saCmd.Parameters.AddWithValue("sid", snapshotId);
+                    await using var saReader = await saCmd.ExecuteReaderAsync();
+                    while (await saReader.ReadAsync())
+                    {
+                        snapshot.Accounts.Add(new SnapshotAccount
+                        {
+                            AccountId = saReader.GetGuid(0).ToString(),
+                            AccountName = saReader.GetString(1),
+                            Value = saReader.IsDBNull(2) ? 0 : (double)saReader.GetDecimal(2),
+                            Type = saReader.GetString(3)
+                        });
+                    }
+                }
+                family.Snapshots.Add(snapshot);
+            }
+        }
+
+        _logger.LogInformation(
+            "Loaded family {FamilyId} with {MemberCount} members, {AccountCount} accounts, {SnapshotCount} snapshots, {EntityCount} entities",
+            familyId, family.Members.Count, family.Accounts.Count, family.Snapshots.Count, family.Entities.Count);
         return family;
     }
 
