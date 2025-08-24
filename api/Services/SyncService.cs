@@ -26,13 +26,14 @@ namespace FamilyBudgetApi.Services
         }
 
         /// <summary>
-        /// Perform a full synchronization of budgets and transactions from Firestore into the PostgreSQL database.
+        /// Perform a full synchronization of budgets (including their transactions)
+        /// and imported transactions from Firestore into the PostgreSQL database.
         /// </summary>
         public async Task FullSyncFirestoreToSupabaseAsync()
         {
             _logger.LogInformation("Starting full Firestore → Supabase sync.");
             await SyncBudgetsAsync(null);
-            await SyncTransactionsAsync(null);
+            await SyncImportedTransactionsAsync(null);
             _logger.LogInformation("Completed full Firestore → Supabase sync.");
         }
 
@@ -45,7 +46,7 @@ namespace FamilyBudgetApi.Services
         {
             _logger.LogInformation("Starting incremental Firestore → Supabase sync since {Since}.", since);
             await SyncBudgetsAsync(since);
-            await SyncTransactionsAsync(since);
+            await SyncImportedTransactionsAsync(since);
             _logger.LogInformation("Completed incremental Firestore → Supabase sync.");
         }
 
@@ -60,6 +61,7 @@ namespace FamilyBudgetApi.Services
 
             var snapshot = await query.GetSnapshotAsync();
             var supabaseBudgets = new List<PgBudget>();
+            var supabaseTransactions = new List<PgTransaction>();
 
             foreach (var doc in snapshot.Documents)
             {
@@ -77,6 +79,35 @@ namespace FamilyBudgetApi.Services
                     UpdatedAt = doc.UpdateTime?.ToDateTime()
                 };
                 supabaseBudgets.Add(pgBudget);
+
+                foreach (var tx in budget.Transactions)
+                {
+                    var pgTransaction = new PgTransaction
+                    {
+                        Id = tx.Id ?? Guid.NewGuid().ToString(),
+                        BudgetId = budget.BudgetId,
+                        Date = TryParseDate(tx.Date),
+                        BudgetMonth = tx.BudgetMonth,
+                        Merchant = tx.Merchant,
+                        Amount = (decimal)tx.Amount,
+                        Notes = tx.Notes,
+                        Recurring = tx.Recurring,
+                        RecurringInterval = tx.RecurringInterval,
+                        UserId = tx.UserId,
+                        IsIncome = tx.IsIncome,
+                        AccountNumber = tx.AccountNumber,
+                        AccountSource = tx.AccountSource,
+                        PostedDate = TryParseDate(tx.PostedDate),
+                        ImportedMerchant = tx.ImportedMerchant,
+                        Status = tx.Status,
+                        CheckNumber = tx.CheckNumber,
+                        Deleted = tx.Deleted,
+                        EntityId = TryParseGuid(tx.EntityId),
+                        CreatedAt = doc.CreateTime?.ToDateTime(),
+                        UpdatedAt = doc.UpdateTime?.ToDateTime()
+                    };
+                    supabaseTransactions.Add(pgTransaction);
+                }
             }
 
             if (supabaseBudgets.Count == 0)
@@ -117,58 +148,14 @@ namespace FamilyBudgetApi.Services
                 await cmd.ExecuteNonQueryAsync();
             }
             await transaction.CommitAsync();
-        }
-
-        private async Task SyncTransactionsAsync(DateTime? updatedSince)
-        {
-            Query query = _firestoreDb.Collection("transactions");
-            if (updatedSince.HasValue)
-            {
-                query = query.WhereGreaterThanOrEqualTo("updatedAt", updatedSince.Value);
-            }
-            var snapshot = await query.GetSnapshotAsync();
-            var supabaseTransactions = new List<PgTransaction>();
-
-            foreach (var doc in snapshot.Documents)
-            {
-                var firestoreTransaction = doc.ConvertTo<FamilyBudgetApi.Models.Transaction>();
-                var pgTransaction = new PgTransaction
-                {
-                    Id = firestoreTransaction.Id ?? doc.Id,
-                    BudgetId = firestoreTransaction.BudgetId,
-                    Date = TryParseDate(firestoreTransaction.Date),
-                    BudgetMonth = firestoreTransaction.BudgetMonth,
-                    Merchant = firestoreTransaction.Merchant,
-                    Amount = (decimal)firestoreTransaction.Amount,
-                    Notes = firestoreTransaction.Notes,
-                    Recurring = firestoreTransaction.Recurring,
-                    RecurringInterval = firestoreTransaction.RecurringInterval,
-                    UserId = firestoreTransaction.UserId,
-                    IsIncome = firestoreTransaction.IsIncome,
-                    AccountNumber = firestoreTransaction.AccountNumber,
-                    AccountSource = firestoreTransaction.AccountSource,
-                    PostedDate = TryParseDate(firestoreTransaction.PostedDate),
-                    ImportedMerchant = firestoreTransaction.ImportedMerchant,
-                    Status = firestoreTransaction.Status,
-                    CheckNumber = firestoreTransaction.CheckNumber,
-                    Deleted = firestoreTransaction.Deleted,
-                    EntityId = TryParseGuid(firestoreTransaction.EntityId),
-                    CreatedAt = doc.CreateTime?.ToDateTime(),
-                    UpdatedAt = doc.UpdateTime?.ToDateTime()
-                };
-                supabaseTransactions.Add(pgTransaction);
-            }
 
             if (supabaseTransactions.Count == 0)
             {
-                _logger.LogInformation("No transactions to upsert into Supabase.");
+                _logger.LogInformation("No budget transactions to upsert into Supabase.");
                 return;
             }
 
-            await using var conn = CreateNpgsqlConnection();
-            await conn.OpenAsync();
-
-            const string sql = @"INSERT INTO transactions
+            const string txSql = @"INSERT INTO transactions
                 (id, budget_id, date, budget_month, merchant, amount, notes, recurring, recurring_interval, user_id,
                  is_income, account_number, account_source, posted_date, imported_merchant, status, check_number,
                  deleted, entity_id, created_at, updated_at)
@@ -197,10 +184,10 @@ namespace FamilyBudgetApi.Services
                     created_at = EXCLUDED.created_at,
                     updated_at = EXCLUDED.updated_at;";
 
-            await using var dbTransaction = await conn.BeginTransactionAsync();
+            await using var txTransaction = await conn.BeginTransactionAsync();
             foreach (var t in supabaseTransactions)
             {
-                await using var cmd = new NpgsqlCommand(sql, conn, dbTransaction);
+                await using var cmd = new NpgsqlCommand(txSql, conn, txTransaction);
                 cmd.Parameters.AddWithValue("id", t.Id);
                 cmd.Parameters.AddWithValue("budget_id", t.BudgetId);
                 cmd.Parameters.AddWithValue("date", (object?)t.Date ?? DBNull.Value);
@@ -220,6 +207,110 @@ namespace FamilyBudgetApi.Services
                 cmd.Parameters.AddWithValue("check_number", (object?)t.CheckNumber ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("deleted", (object?)t.Deleted ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("entity_id", (object?)t.EntityId ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("created_at", (object?)t.CreatedAt ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("updated_at", (object?)t.UpdatedAt ?? DBNull.Value);
+                await cmd.ExecuteNonQueryAsync();
+            }
+            await txTransaction.CommitAsync();
+        }
+
+        private async Task SyncImportedTransactionsAsync(DateTime? updatedSince)
+        {
+            Query query = _firestoreDb.Collection("importedtransactions");
+            if (updatedSince.HasValue)
+            {
+                query = query.WhereGreaterThanOrEqualTo("updatedAt", updatedSince.Value);
+            }
+
+            var snapshot = await query.GetSnapshotAsync();
+            var supabaseImported = new List<PgImportedTransaction>();
+
+            foreach (var doc in snapshot.Documents)
+            {
+                var importedDoc = doc.ConvertTo<ImportedTransactionDoc>();
+                foreach (var tx in importedDoc.importedTransactions)
+                {
+                    var pgImported = new PgImportedTransaction
+                    {
+                        Id = tx.Id ?? Guid.NewGuid().ToString(),
+                        DocumentId = importedDoc.Id,
+                        AccountId = tx.AccountId,
+                        AccountNumber = tx.AccountNumber,
+                        AccountSource = tx.AccountSource,
+                        Payee = tx.Payee,
+                        PostedDate = TryParseDate(tx.PostedDate),
+                        Amount = (decimal?)tx.Amount ?? 0m,
+                        Status = tx.Status,
+                        Matched = tx.Matched,
+                        Ignored = tx.Ignored,
+                        DebitAmount = (decimal?)tx.DebitAmount,
+                        CreditAmount = (decimal?)tx.CreditAmount,
+                        CheckNumber = tx.CheckNumber,
+                        Deleted = tx.Deleted,
+                        FamilyId = TryParseGuid(importedDoc.FamilyId),
+                        UserId = importedDoc.UserId,
+                        CreatedAt = doc.CreateTime?.ToDateTime(),
+                        UpdatedAt = doc.UpdateTime?.ToDateTime()
+                    };
+                    supabaseImported.Add(pgImported);
+                }
+            }
+
+            if (supabaseImported.Count == 0)
+            {
+                _logger.LogInformation("No imported transactions to upsert into Supabase.");
+                return;
+            }
+
+            await using var conn = CreateNpgsqlConnection();
+            await conn.OpenAsync();
+
+            const string sql = @"INSERT INTO imported_transactions
+                (id, document_id, account_id, account_number, account_source, payee, posted_date, amount, status, matched,
+                 ignored, debit_amount, credit_amount, check_number, deleted, family_id, user_id, created_at, updated_at)
+                VALUES (@id, @document_id, @account_id, @account_number, @account_source, @payee, @posted_date, @amount, @status, @matched,
+                        @ignored, @debit_amount, @credit_amount, @check_number, @deleted, @family_id, @user_id, @created_at, @updated_at)
+                ON CONFLICT (id) DO UPDATE SET
+                    document_id = EXCLUDED.document_id,
+                    account_id = EXCLUDED.account_id,
+                    account_number = EXCLUDED.account_number,
+                    account_source = EXCLUDED.account_source,
+                    payee = EXCLUDED.payee,
+                    posted_date = EXCLUDED.posted_date,
+                    amount = EXCLUDED.amount,
+                    status = EXCLUDED.status,
+                    matched = EXCLUDED.matched,
+                    ignored = EXCLUDED.ignored,
+                    debit_amount = EXCLUDED.debit_amount,
+                    credit_amount = EXCLUDED.credit_amount,
+                    check_number = EXCLUDED.check_number,
+                    deleted = EXCLUDED.deleted,
+                    family_id = EXCLUDED.family_id,
+                    user_id = EXCLUDED.user_id,
+                    created_at = EXCLUDED.created_at,
+                    updated_at = EXCLUDED.updated_at;";
+
+            await using var dbTransaction = await conn.BeginTransactionAsync();
+            foreach (var t in supabaseImported)
+            {
+                await using var cmd = new NpgsqlCommand(sql, conn, dbTransaction);
+                cmd.Parameters.AddWithValue("id", t.Id);
+                cmd.Parameters.AddWithValue("document_id", t.DocumentId);
+                cmd.Parameters.AddWithValue("account_id", t.AccountId);
+                cmd.Parameters.AddWithValue("account_number", (object?)t.AccountNumber ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("account_source", (object?)t.AccountSource ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("payee", (object?)t.Payee ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("posted_date", (object?)t.PostedDate ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("amount", t.Amount);
+                cmd.Parameters.AddWithValue("status", (object?)t.Status ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("matched", t.Matched);
+                cmd.Parameters.AddWithValue("ignored", t.Ignored);
+                cmd.Parameters.AddWithValue("debit_amount", (object?)t.DebitAmount ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("credit_amount", (object?)t.CreditAmount ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("check_number", (object?)t.CheckNumber ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("deleted", (object?)t.Deleted ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("family_id", (object?)t.FamilyId ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("user_id", (object?)t.UserId ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("created_at", (object?)t.CreatedAt ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("updated_at", (object?)t.UpdatedAt ?? DBNull.Value);
                 await cmd.ExecuteNonQueryAsync();
@@ -291,6 +382,32 @@ namespace FamilyBudgetApi.Services
         public string? CheckNumber { get; set; }
         public bool? Deleted { get; set; }
         public Guid? EntityId { get; set; }
+        public DateTime? CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+    }
+
+    /// <summary>
+    /// Represents the 'imported_transactions' table.
+    /// </summary>
+    public class PgImportedTransaction
+    {
+        public string Id { get; set; } = string.Empty;
+        public string DocumentId { get; set; } = string.Empty;
+        public string AccountId { get; set; } = string.Empty;
+        public string? AccountNumber { get; set; }
+        public string? AccountSource { get; set; }
+        public string? Payee { get; set; }
+        public DateTime? PostedDate { get; set; }
+        public decimal Amount { get; set; }
+        public string? Status { get; set; }
+        public bool Matched { get; set; }
+        public bool Ignored { get; set; }
+        public decimal? DebitAmount { get; set; }
+        public decimal? CreditAmount { get; set; }
+        public string? CheckNumber { get; set; }
+        public bool? Deleted { get; set; }
+        public Guid? FamilyId { get; set; }
+        public string? UserId { get; set; }
         public DateTime? CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
     }
