@@ -117,19 +117,19 @@ namespace FamilyBudgetApi.Services
                         @appraised_value, @maturity_date, @address, @created_at, @updated_at)
                 ON CONFLICT (id) DO UPDATE SET
                     family_id = EXCLUDED.family_id,
-                    user_id = EXCLUDED.user_id,
-                    name = EXCLUDED.name,
-                    type = EXCLUDED.type,
-                    category = EXCLUDED.category,
-                    account_number = EXCLUDED.account_number,
-                    institution = EXCLUDED.institution,
-                    balance = EXCLUDED.balance,
-                    interest_rate = EXCLUDED.interest_rate,
-                    appraised_value = EXCLUDED.appraised_value,
-                    maturity_date = EXCLUDED.maturity_date,
-                    address = EXCLUDED.address,
-                    created_at = EXCLUDED.created_at,
-                    updated_at = EXCLUDED.updated_at;";
+                    user_id = COALESCE(EXCLUDED.user_id, accounts.user_id),
+                    name = COALESCE(EXCLUDED.name, accounts.name),
+                    type = COALESCE(EXCLUDED.type, accounts.type),
+                    category = COALESCE(EXCLUDED.category, accounts.category),
+                    account_number = COALESCE(EXCLUDED.account_number, accounts.account_number),
+                    institution = COALESCE(EXCLUDED.institution, accounts.institution),
+                    balance = COALESCE(EXCLUDED.balance, accounts.balance),
+                    interest_rate = COALESCE(EXCLUDED.interest_rate, accounts.interest_rate),
+                    appraised_value = COALESCE(EXCLUDED.appraised_value, accounts.appraised_value),
+                    maturity_date = COALESCE(EXCLUDED.maturity_date, accounts.maturity_date),
+                    address = COALESCE(EXCLUDED.address, accounts.address),
+                    created_at = COALESCE(EXCLUDED.created_at, accounts.created_at),
+                    updated_at = COALESCE(EXCLUDED.updated_at, accounts.updated_at);";
 
             await using var transaction = await conn.BeginTransactionAsync();
             foreach (var a in supabaseAccounts)
@@ -214,10 +214,10 @@ namespace FamilyBudgetApi.Services
                 (id, family_id, snapshot_date, net_worth, created_at)
                 VALUES (@id, @family_id, @snapshot_date, @net_worth, @created_at)
                 ON CONFLICT (id) DO UPDATE SET
-                    family_id = EXCLUDED.family_id,
-                    snapshot_date = EXCLUDED.snapshot_date,
-                    net_worth = EXCLUDED.net_worth,
-                    created_at = EXCLUDED.created_at;";
+                    family_id = COALESCE(EXCLUDED.family_id, snapshots.family_id),
+                    snapshot_date = COALESCE(EXCLUDED.snapshot_date, snapshots.snapshot_date),
+                    net_worth = COALESCE(EXCLUDED.net_worth, snapshots.net_worth),
+                    created_at = COALESCE(EXCLUDED.created_at, snapshots.created_at);";
 
             await using var transaction = await conn.BeginTransactionAsync();
             foreach (var s in supabaseSnapshots)
@@ -358,14 +358,14 @@ namespace FamilyBudgetApi.Services
                 (id, family_id, entity_id, month, label, income_target, original_budget_id, created_at, updated_at)
                 VALUES (@id, @family_id, @entity_id, @month, @label, @income_target, @original_budget_id, @created_at, @updated_at)
                 ON CONFLICT (id) DO UPDATE SET
-                    family_id = EXCLUDED.family_id,
-                    entity_id = EXCLUDED.entity_id,
-                    month = EXCLUDED.month,
-                    label = EXCLUDED.label,
-                    income_target = EXCLUDED.income_target,
-                    original_budget_id = EXCLUDED.original_budget_id,
-                    created_at = EXCLUDED.created_at,
-                    updated_at = EXCLUDED.updated_at;";
+                    family_id = COALESCE(EXCLUDED.family_id, budgets.family_id),
+                    entity_id = COALESCE(EXCLUDED.entity_id, budgets.entity_id),
+                    month = COALESCE(EXCLUDED.month, budgets.month),
+                    label = COALESCE(EXCLUDED.label, budgets.label),
+                    income_target = COALESCE(EXCLUDED.income_target, budgets.income_target),
+                    original_budget_id = COALESCE(EXCLUDED.original_budget_id, budgets.original_budget_id),
+                    created_at = COALESCE(EXCLUDED.created_at, budgets.created_at),
+                    updated_at = COALESCE(EXCLUDED.updated_at, budgets.updated_at);";
 
             await using var transaction = await conn.BeginTransactionAsync();
             foreach (var b in supabaseBudgets)
@@ -394,26 +394,26 @@ namespace FamilyBudgetApi.Services
                         @is_income, @account_number, @account_source, @posted_date, @imported_merchant, @status, @check_number,
                         @deleted, @entity_id, @created_at, @updated_at)
                 ON CONFLICT (id) DO UPDATE SET
-                    budget_id = EXCLUDED.budget_id,
-                    date = EXCLUDED.date,
-                    budget_month = EXCLUDED.budget_month,
-                    merchant = EXCLUDED.merchant,
-                    amount = EXCLUDED.amount,
-                    notes = EXCLUDED.notes,
-                    recurring = EXCLUDED.recurring,
-                    recurring_interval = EXCLUDED.recurring_interval,
-                    user_id = EXCLUDED.user_id,
-                    is_income = EXCLUDED.is_income,
-                    account_number = EXCLUDED.account_number,
-                    account_source = EXCLUDED.account_source,
-                    posted_date = EXCLUDED.posted_date,
-                    imported_merchant = EXCLUDED.imported_merchant,
-                    status = EXCLUDED.status,
-                    check_number = EXCLUDED.check_number,
-                    deleted = EXCLUDED.deleted,
-                    entity_id = EXCLUDED.entity_id,
-                    created_at = EXCLUDED.created_at,
-                    updated_at = EXCLUDED.updated_at;";
+                    budget_id = COALESCE(EXCLUDED.budget_id, transactions.budget_id),
+                    date = COALESCE(EXCLUDED.date, transactions.date),
+                    budget_month = COALESCE(EXCLUDED.budget_month, transactions.budget_month),
+                    merchant = COALESCE(EXCLUDED.merchant, transactions.merchant),
+                    amount = COALESCE(EXCLUDED.amount, transactions.amount),
+                    notes = COALESCE(EXCLUDED.notes, transactions.notes),
+                    recurring = COALESCE(EXCLUDED.recurring, transactions.recurring),
+                    recurring_interval = COALESCE(EXCLUDED.recurring_interval, transactions.recurring_interval),
+                    user_id = COALESCE(EXCLUDED.user_id, transactions.user_id),
+                    is_income = COALESCE(EXCLUDED.is_income, transactions.is_income),
+                    account_number = COALESCE(EXCLUDED.account_number, transactions.account_number),
+                    account_source = COALESCE(EXCLUDED.account_source, transactions.account_source),
+                    posted_date = COALESCE(EXCLUDED.posted_date, transactions.posted_date),
+                    imported_merchant = COALESCE(EXCLUDED.imported_merchant, transactions.imported_merchant),
+                    status = COALESCE(EXCLUDED.status, transactions.status),
+                    check_number = COALESCE(EXCLUDED.check_number, transactions.check_number),
+                    deleted = COALESCE(EXCLUDED.deleted, transactions.deleted),
+                    entity_id = COALESCE(EXCLUDED.entity_id, transactions.entity_id),
+                    created_at = COALESCE(EXCLUDED.created_at, transactions.created_at),
+                    updated_at = COALESCE(EXCLUDED.updated_at, transactions.updated_at);";
                 await using var txTransaction = await conn.BeginTransactionAsync();
                 foreach (var t in supabaseTransactions)
                 {
@@ -551,24 +551,24 @@ namespace FamilyBudgetApi.Services
                 VALUES (@id, @document_id, @account_id, @account_number, @account_source, @payee, @posted_date, @amount, @status, @matched,
                         @ignored, @debit_amount, @credit_amount, @check_number, @deleted, @family_id, @user_id, @created_at, @updated_at)
                 ON CONFLICT (id) DO UPDATE SET
-                    document_id = EXCLUDED.document_id,
-                    account_id = EXCLUDED.account_id,
-                    account_number = EXCLUDED.account_number,
-                    account_source = EXCLUDED.account_source,
-                    payee = EXCLUDED.payee,
-                    posted_date = EXCLUDED.posted_date,
-                    amount = EXCLUDED.amount,
-                    status = EXCLUDED.status,
-                    matched = EXCLUDED.matched,
-                    ignored = EXCLUDED.ignored,
-                    debit_amount = EXCLUDED.debit_amount,
-                    credit_amount = EXCLUDED.credit_amount,
-                    check_number = EXCLUDED.check_number,
-                    deleted = EXCLUDED.deleted,
-                    family_id = EXCLUDED.family_id,
-                    user_id = EXCLUDED.user_id,
-                    created_at = EXCLUDED.created_at,
-                    updated_at = EXCLUDED.updated_at;";
+                    document_id = COALESCE(EXCLUDED.document_id, imported_transactions.document_id),
+                    account_id = COALESCE(EXCLUDED.account_id, imported_transactions.account_id),
+                    account_number = COALESCE(EXCLUDED.account_number, imported_transactions.account_number),
+                    account_source = COALESCE(EXCLUDED.account_source, imported_transactions.account_source),
+                    payee = COALESCE(EXCLUDED.payee, imported_transactions.payee),
+                    posted_date = COALESCE(EXCLUDED.posted_date, imported_transactions.posted_date),
+                    amount = COALESCE(EXCLUDED.amount, imported_transactions.amount),
+                    status = COALESCE(EXCLUDED.status, imported_transactions.status),
+                    matched = COALESCE(EXCLUDED.matched, imported_transactions.matched),
+                    ignored = COALESCE(EXCLUDED.ignored, imported_transactions.ignored),
+                    debit_amount = COALESCE(EXCLUDED.debit_amount, imported_transactions.debit_amount),
+                    credit_amount = COALESCE(EXCLUDED.credit_amount, imported_transactions.credit_amount),
+                    check_number = COALESCE(EXCLUDED.check_number, imported_transactions.check_number),
+                    deleted = COALESCE(EXCLUDED.deleted, imported_transactions.deleted),
+                    family_id = COALESCE(EXCLUDED.family_id, imported_transactions.family_id),
+                    user_id = COALESCE(EXCLUDED.user_id, imported_transactions.user_id),
+                    created_at = COALESCE(EXCLUDED.created_at, imported_transactions.created_at),
+                    updated_at = COALESCE(EXCLUDED.updated_at, imported_transactions.updated_at);";
 
             await using var dbTransaction = await conn.BeginTransactionAsync();
             foreach (var t in supabaseImported)
