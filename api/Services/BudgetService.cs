@@ -139,6 +139,27 @@ public class BudgetService
             }
         }
 
+        if (budget.Transactions.Count > 0)
+        {
+            var ids = budget.Transactions.Select(t => t.Id).ToArray();
+            const string sqlTxCats = "SELECT transaction_id, category_name, amount FROM transaction_categories WHERE transaction_id = ANY(@ids)";
+            await using var catCmd = new NpgsqlCommand(sqlTxCats, conn);
+            catCmd.Parameters.AddWithValue("ids", ids);
+            await using var catReader = await catCmd.ExecuteReaderAsync();
+            var txMap = budget.Transactions.ToDictionary(t => t.Id!);
+            while (await catReader.ReadAsync())
+            {
+                var txId = catReader.GetString(0);
+                if (!txMap.TryGetValue(txId, out var tx)) continue;
+                tx.Categories ??= new List<TransactionCategory>();
+                tx.Categories.Add(new TransactionCategory
+                {
+                    Category = catReader.IsDBNull(1) ? null : catReader.GetString(1),
+                    Amount = catReader.IsDBNull(2) ? 0 : (double)catReader.GetDecimal(2)
+                });
+            }
+        }
+
         const string sqlCats = "SELECT name, target, is_fund, \"group\", carryover FROM budget_categories WHERE budget_id=@id";
         await using (var catCmd = new NpgsqlCommand(sqlCats, conn))
         {
