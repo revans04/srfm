@@ -16,7 +16,7 @@ using System.IO;
 var builder = WebApplication.CreateBuilder(args);
 
 // Declare projectId so it's available after initialization
-string projectId = null!;
+string? projectId = null;
 
 // Firebase setup (pre-build logging using Console temporarily)
 var credentialsJson = Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS_JSON");

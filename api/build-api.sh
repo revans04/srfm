@@ -10,6 +10,7 @@ echo "Build API..."
 
 docker run -d -p 8080:8080 \
   --name family-budget-api \
+  --env-file .env \
   -e GOOGLE_APPLICATION_CREDENTIALS_JSON="$(cat firebase-service-account.json)" \
   family-budget-api
 echo "Running new Docker container..."

@@ -64,6 +64,9 @@ namespace FamilyBudgetApi.Models
         [FirestoreProperty("id")]
         public string? Id { get; set; }
 
+        [FirestoreProperty("budgetId")]
+        public string? BudgetId { get; set; }
+
         [FirestoreProperty("date")]
         public string? Date { get; set; }
 
