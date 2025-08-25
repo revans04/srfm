@@ -510,7 +510,7 @@ const catTransactions = computed(() => {
     const totalTarget = target + (catTransactions[i].isFund ? carryover : 0);
     budget.value.transactions?.forEach((t) => {
       if (!t.deleted) {
-        t.categories.forEach((tc) => {
+        t.categories?.forEach((tc) => {
           if (tc.category == catTransactions[i].name) {
             if (!catTransactions[i].transactions) catTransactions[i].transactions = [];
 
@@ -519,7 +519,7 @@ const catTransactions = computed(() => {
               date: t.date,
               merchant: t.merchant,
               category: tc.category,
-              isSplit: t.categories.length > 1,
+              isSplit: t.categories && t.categories.length > 1,
               amount: tc.amount,
               isIncome: t.isIncome,
             });
@@ -579,7 +579,7 @@ const incomeItems = computed(() => {
   for (let i = 0; i < incTrx.length; i++) {
     budget.value.transactions?.forEach((t) => {
       if (!t.deleted && t.categories && t.categories.length > 0) {
-        t.categories.forEach((c) => {
+        t.categories?.forEach((c) => {
           if (incTrx[i].name == c.category) {
             incTrx[i].received += c.amount;
           }
@@ -1313,7 +1313,7 @@ async function saveInlineEdit() {
     budget.value.categories[idx].name = newName;
     item.name = newName;
     budget.value.transactions?.forEach((t) => {
-      t.categories.forEach((c) => {
+      t.categories?.forEach((c) => {
         if (c.category === oldName) c.category = newName;
       });
     });
