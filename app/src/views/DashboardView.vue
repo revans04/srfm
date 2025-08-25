@@ -602,12 +602,35 @@ function monthExists(month: string) {
   return availableBudgets.value.filter((b) => b.month == month && b.entityId === familyStore.selectedEntityId).length > 0;
 }
 
-function onIncomeRowClick(item: IncomeTarget) {
+async function loadBudgetTransactions() {
+  if (!budgetId.value) return;
+  try {
+    const fullBudget = await dataAccess.getBudget(budgetId.value);
+    if (fullBudget) {
+      budget.value = { ...fullBudget, budgetId: budgetId.value };
+      categoryOptions.value = fullBudget.categories.map((cat) => cat.name);
+      if (!categoryOptions.value.includes("Income")) {
+        categoryOptions.value.push("Income");
+      }
+      budgetStore.updateBudget(budgetId.value, fullBudget);
+    }
+  } catch (error: any) {
+    console.error("Error loading transactions:", error);
+  }
+}
+
+async function onIncomeRowClick(item: IncomeTarget) {
+  if (!budget.value.transactions.length) {
+    await loadBudgetTransactions();
+  }
   const t = getCategoryInfo(item.name);
   selectedCategory.value = t;
 }
 
-function onCategoryRowClick(item: BudgetCategoryTrx) {
+async function onCategoryRowClick(item: BudgetCategoryTrx) {
+  if (!budget.value.transactions.length) {
+    await loadBudgetTransactions();
+  }
   selectedCategory.value = getCategoryInfo(item.name);
 }
 
@@ -673,12 +696,8 @@ const updateBudgetForMonth = debounce(async () => {
       console.error("No family found for user");
       ownerUid.value = userId.value;
     }
-
     budget.value = { ...defaultBudget, budgetId: budgetId.value };
-    categoryOptions.value = defaultBudget.categories.map((cat) => cat.name);
-    if (!categoryOptions.value.includes("Income")) {
-      categoryOptions.value.push("Income");
-    }
+    await loadBudgetTransactions();
   } else if (isInitialLoad.value && budgets.value.length > 0) {
     const sortedBudgets = budgets.value
       .filter((b) => b.entityId === familyStore.selectedEntityId)
@@ -699,11 +718,7 @@ const updateBudgetForMonth = debounce(async () => {
         console.error("No family found for user");
         ownerUid.value = userId.value;
       }
-
-      categoryOptions.value = mostRecentBudget.categories.map((cat) => cat.name);
-      if (!categoryOptions.value.includes("Income")) {
-        categoryOptions.value.push("Income");
-      }
+      await loadBudgetTransactions();
     }
   }
 }, 300);
