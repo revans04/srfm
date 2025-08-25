@@ -241,7 +241,7 @@ public class AccountService
         await using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("id", sid);
         cmd.Parameters.AddWithValue("fid", fid);
-        cmd.Parameters.AddWithValue("date", snapshot.Date.ToDateTime());
+        cmd.Parameters.AddWithValue("date", snapshot.Date?.ToDateTime() ?? DateTime.UtcNow);
         cmd.Parameters.AddWithValue("net_worth", (decimal)snapshot.NetWorth);
         await cmd.ExecuteNonQueryAsync();
 
