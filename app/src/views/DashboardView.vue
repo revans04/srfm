@@ -724,15 +724,14 @@ const updateBudgetForMonth = debounce(async () => {
 }, 300);
 
 watch(
-  () => budgetStore.budgets,
+  budgetStore.budgets,
   (newBudgets) => {
     budgets.value = Array.from(newBudgets.values());
     availableBudgets.value = budgets.value;
     if (budgets.value.length > 0) {
       updateBudgetForMonth();
     }
-  },
-  { deep: true }
+  }
 );
 
 watch(currentMonth, () => {
