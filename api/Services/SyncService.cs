@@ -5,10 +5,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-
 using Npgsql;
-
 using FamilyBudgetApi.Models;
+using NpgsqlTypes;
 
 namespace FamilyBudgetApi.Services
 {
@@ -264,12 +263,13 @@ namespace FamilyBudgetApi.Services
                 {
                     await using var cmd = new NpgsqlCommand(@"INSERT INTO snapshot_accounts
                         (snapshot_id, account_id, account_name, value, account_type)
-                        VALUES (@snapshot_id, @account_id, @account_name, @value, @account_type)", conn, accountTx);
+                        VALUES (@snapshot_id, @account_id, @account_name, @value, @account_type::account_type)", conn, accountTx);
                     cmd.Parameters.AddWithValue("snapshot_id", a.SnapshotId);
                     cmd.Parameters.AddWithValue("account_id", a.AccountId);
                     cmd.Parameters.AddWithValue("account_name", a.AccountName);
                     cmd.Parameters.AddWithValue("value", a.Value);
-                    cmd.Parameters.AddWithValue("account_type", a.AccountType);
+                    var acctTypeParam = cmd.Parameters.Add("account_type", NpgsqlDbType.Unknown);
+                    acctTypeParam.Value = a.AccountType;
                     await cmd.ExecuteNonQueryAsync();
                 }
             }
