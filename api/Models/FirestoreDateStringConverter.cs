@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Google.Cloud.Firestore;
 
 namespace FamilyBudgetApi.Models
@@ -24,6 +25,13 @@ namespace FamilyBudgetApi.Models
             return value switch
             {
                 Timestamp ts => ts.ToDateTime().ToString("yyyy-MM-dd"),
+                Dictionary<string, object> map when map.TryGetValue("seconds", out var sec) &&
+                                               map.TryGetValue("nanoseconds", out var nano) =>
+                    DateTimeOffset
+                        .FromUnixTimeSeconds(Convert.ToInt64(sec))
+                        .AddTicks(Convert.ToInt64(nano) / 100)
+                        .UtcDateTime
+                        .ToString("yyyy-MM-dd"),
                 string s => s,
                 _ => null
             };
