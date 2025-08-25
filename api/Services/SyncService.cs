@@ -456,7 +456,7 @@ namespace FamilyBudgetApi.Services
                     foreach (var c in group)
                     {
                         await using var cmd = new NpgsqlCommand(@"INSERT INTO budget_categories
-                            (budget_id, name, \"group\", carryover, target, is_fund)
+                            (budget_id, name, ""group"", carryover, target, is_fund)
                             VALUES (@budget_id, @name, @group, @carryover, @target, @is_fund)", conn, catTx);
                         cmd.Parameters.AddWithValue("budget_id", c.BudgetId);
                         cmd.Parameters.AddWithValue("name", (object?)c.Name ?? DBNull.Value);
