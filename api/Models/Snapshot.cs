@@ -7,35 +7,35 @@ namespace FamilyBudgetApi.Models
    [FirestoreData]
     public class Snapshot
     {
-        [FirestoreProperty("id")]
-        public string Id { get; set; } = string.Empty;
+        [FirestoreProperty]
+        public string Id { get; set; }
 
-        [FirestoreProperty("date", ConverterType = typeof(FirestoreDateStringConverter))]
+        [FirestoreProperty("Date", ConverterType = typeof(FirestoreDateStringConverter))]
         public string? Date { get; set; }
 
-        [FirestoreProperty("accounts")]
+        [FirestoreProperty("Accounts")]
         public List<SnapshotAccount> Accounts { get; set; } = new();
 
-        [FirestoreProperty("netWorth")]
+        [FirestoreProperty]
         public double NetWorth { get; set; }
 
-        [FirestoreProperty("createdAt", ConverterType = typeof(FirestoreDateStringConverter))]
+        [FirestoreProperty("CreatedAt", ConverterType = typeof(FirestoreDateStringConverter))]
         public string? CreatedAt { get; set; }
     }
 
     [FirestoreData]
     public class SnapshotAccount
     {
-        [FirestoreProperty("accountId")]
+        [FirestoreProperty]
         public string AccountId { get; set; } = string.Empty;
 
-        [FirestoreProperty("accountName")]
+        [FirestoreProperty]
         public string AccountName { get; set; } = string.Empty;
 
-        [FirestoreProperty("value")]
+        [FirestoreProperty]
         public double Value { get; set; }
 
-        [FirestoreProperty("type")]
+        [FirestoreProperty]
         public string Type { get; set; } = string.Empty;
     }
 }

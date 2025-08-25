@@ -163,23 +163,27 @@ namespace FamilyBudgetApi.Services
             // Firestore stores snapshots as a subcollection under each family document.
             // Enumerate families explicitly so we don't miss any snapshots if collection
             // group queries fail due to missing indexes or security rules.
+
             var familyDocs = await _firestoreDb.Collection("families").GetSnapshotAsync();
-            foreach (var familyDoc in familyDocs.Documents)
+            var families = familyDocs.Documents.Select(doc => doc.ConvertTo<Family>());
+            foreach (var familyDoc in families)
             {
+                // Console.WriteLine("Family JSON: " + System.Text.Json.JsonSerializer.Serialize(familyDoc));
+                var snapshots = familyDoc.Snapshots ?? new List<Snapshot>();
                 var familyId = TryParseGuid(familyDoc.Id);
-                var snapsQuery = familyDoc.Reference.Collection("snapshots");
                 if (updatedSince.HasValue)
                 {
-                    snapsQuery = snapsQuery.WhereGreaterThanOrEqualTo("createdAt", updatedSince.Value);
+                    snapshots = snapshots.Where(s => DateTime.TryParse(s.CreatedAt, out var dt) && dt >= updatedSince.Value).ToList();
                 }
 
-                var snapDocs = await snapsQuery.GetSnapshotAsync();
-                foreach (var doc in snapDocs.Documents)
+                // log snapshot count for this family
+                // Console.WriteLine($"Found {snapshots.Count} snapshots for family {familyDoc.Id}");
+                foreach (var snap in snapshots)
                 {
-                    var snap = doc.ConvertTo<Snapshot>();
+                    // Console.WriteLine("snap JSON: " + System.Text.Json.JsonSerializer.Serialize(snap));
                     var snapId = TryParseGuid(snap.Id) ?? Guid.NewGuid();
-                    var snapshotDate = DateTime.TryParse(snap.Date, out var sd) ? sd : (DateTime?)null;
-                    var createdAt = DateTime.TryParse(snap.CreatedAt, out var ca) ? ca : (doc.CreateTime?.ToDateTime() ?? DateTime.UtcNow);
+                    var snapshotDate = snap.Date != null ? TryParseDate(snap.Date) : null;
+                    var createdAt = DateTime.TryParse(snap.CreatedAt, out var ca) ? ca : DateTime.UtcNow;
 
                     supabaseSnapshots.Add(new PgSnapshot
                     {
@@ -189,6 +193,8 @@ namespace FamilyBudgetApi.Services
                         NetWorth = (decimal)snap.NetWorth,
                         CreatedAt = createdAt
                     });
+                    // write out json for debugging
+                    // Console.WriteLine("PgSnapshot JSON: " + System.Text.Json.JsonSerializer.Serialize(supabaseSnapshots[supabaseSnapshots.Count - 1]));
 
                     if (snap.Accounts != null)
                     {

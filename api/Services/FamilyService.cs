@@ -182,7 +182,7 @@ public class FamilyService
                     snap = new Snapshot
                     {
                         Id = sid.ToString(),
-                        Date = snapReader.IsDBNull(1) ? null : snapReader.GetDateTime(1).ToString("yyyy-MM-dd"),
+                        Date = snapReader.IsDBNull(1) ? DateTime.Now.ToString("yyyy-MM-dd") : snapReader.GetDateTime(1).ToUniversalTime().ToString("yyyy-MM-dd"),
                         NetWorth = snapReader.IsDBNull(2) ? 0 : (double)snapReader.GetDecimal(2),
                         CreatedAt = snapReader.IsDBNull(3) ? null : snapReader.GetDateTime(3).ToString("yyyy-MM-dd"),
                         Accounts = new List<SnapshotAccount>()
