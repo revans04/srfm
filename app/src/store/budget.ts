@@ -15,7 +15,8 @@ export const useBudgetStore = defineStore("budgets", () => {
       const newBudgets = new Map<string, Budget>();
       for (const b of accessibleBudgets) {
         if (b) {
-          newBudgets.set(b.budgetId, b);
+          const { transactions, ...budgetSummary } = b;
+          newBudgets.set(b.budgetId, { ...budgetSummary, transactions: [] } as Budget);
         }
       }
       budgets.value = newBudgets;
@@ -35,7 +36,8 @@ export const useBudgetStore = defineStore("budgets", () => {
   }
 
   function updateBudget(budgetId: string, budget: Budget) {
-    budgets.value.set(budgetId, budget);
+    const { transactions, ...budgetSummary } = budget;
+    budgets.value.set(budgetId, { ...budgetSummary, transactions: [] } as Budget);
   }
 
   function removeBudget(budgetId: string) {
