@@ -37,7 +37,8 @@ export class DataAccess {
     const url = entityId ? `${this.apiBaseUrl}/budget/accessible?entityId=${entityId}` : `${this.apiBaseUrl}/budget/accessible`;
     const response = await fetch(url, { headers });
     if (!response.ok) throw new Error(`Failed to load accessible budgets: ${response.statusText}`);
-    return await response.json();
+    const budgets: BudgetInfo[] = await response.json();
+    return budgets.map((b) => ({ ...b, transactions: [] }));
   }
 
   async getBudget(budgetId: string): Promise<Budget | null> {
@@ -101,7 +102,6 @@ export class DataAccess {
 
   async saveTransaction(budget: Budget, transaction: Transaction, futureBudgetsExist = true): Promise<Transaction> {
     const headers = await this.getAuthHeaders();
-    const budgetStore = useBudgetStore();
     let retValue = null;
     if (!transaction.id) {
       const response = await fetch(`${this.apiBaseUrl}/budget/${budget.budgetId}/transactions`, {
@@ -129,8 +129,6 @@ export class DataAccess {
       } else {
         budget.transactions.push(retValue);
       }
-      budgetStore.updateBudget(budget.budgetId, { ...budget });
-
       if (budget && futureBudgetsExist && (await this.hasFundCategory(transaction, budget))) {
         const [uid, entityId, budgetMonth] = budget.budgetId.split("_"); // Updated to parse new ID format
         await this.recalculateCarryoverForFutureBudgets(uid, entityId, budgetMonth, transaction.categories);
@@ -141,7 +139,6 @@ export class DataAccess {
 
   async batchSaveTransactions(budgetId: string, budget: Budget, transactions: Transaction[]): Promise<void> {
     const headers = await this.getAuthHeaders();
-    const budgetStore = useBudgetStore();
 
     const response = await fetch(`${this.apiBaseUrl}/budget/${budgetId}/transactions/batch`, {
       method: "POST",
@@ -152,7 +149,6 @@ export class DataAccess {
 
     if (budget.budgetId) {
       budget.transactions = [...budget.transactions, ...transactions];
-      budgetStore.updateBudget(budget.budgetId, budget);
 
       for (const transaction of transactions) {
         if (await this.hasFundCategory(transaction, budget)) {
@@ -165,7 +161,6 @@ export class DataAccess {
 
   async deleteTransaction(budget: Budget, transactionId: string, futureBudgetsExist = true): Promise<void> {
     const headers = await this.getAuthHeaders();
-    const budgetStore = useBudgetStore();
 
     const transactionToDelete = budget.transactions?.find((t) => t.id === transactionId);
     if (!transactionToDelete) throw new Error(`Transaction ${transactionId} not found in budget ${budget.budgetId}`);
@@ -180,7 +175,6 @@ export class DataAccess {
 
     if (budget.budgetId) {
       budget.transactions = budget.transactions.map((t) => (t.id === transactionId ? updatedTransaction : t));
-      budgetStore.updateBudget(budget.budgetId, budget);
 
       if (futureBudgetsExist && (await this.hasFundCategory(transactionToDelete, budget))) {
         const [uid, entityId, budgetMonth] = budget.budgetId.split("_"); // Updated to parse new ID format
@@ -191,7 +185,6 @@ export class DataAccess {
 
   async restoreTransaction(budget: Budget, transactionId: string, futureBudgetsExist = true): Promise<void> {
     const headers = await this.getAuthHeaders();
-    const budgetStore = useBudgetStore();
 
     const transactionToRestore = budget.transactions?.find((t) => t.id === transactionId);
     if (!transactionToRestore) throw new Error(`Transaction ${transactionId} not found in budget ${budget.budgetId}`);
@@ -207,7 +200,6 @@ export class DataAccess {
 
     if (budget.budgetId) {
       budget.transactions = budget.transactions.map((t) => (t.id === transactionId ? updatedTransaction : t));
-      budgetStore.updateBudget(budget.budgetId, budget);
 
       if (futureBudgetsExist && (await this.hasFundCategory(transactionToRestore, budget))) {
         const [uid, entityId, budgetMonth] = budget.budgetId.split("_"); // Updated to parse new ID format
@@ -218,7 +210,6 @@ export class DataAccess {
 
   async permanentlyDeleteTransaction(budget: Budget, transactionId: string, futureBudgetsExist = true): Promise<void> {
     const headers = await this.getAuthHeaders();
-    const budgetStore = useBudgetStore();
 
     const transactionToDelete = budget.transactions?.find((t) => t.id === transactionId);
     if (!transactionToDelete) throw new Error(`Transaction ${transactionId} not found in budget ${budget.budgetId}`);
@@ -231,7 +222,6 @@ export class DataAccess {
 
     if (budget.budgetId) {
       budget.transactions = budget.transactions.filter((t) => t.id !== transactionId);
-      budgetStore.updateBudget(budget.budgetId, budget);
 
       if (futureBudgetsExist && (await this.hasFundCategory(transactionToDelete, budget))) {
         const [uid, entityId, budgetMonth] = budget.budgetId.split("_"); // Updated to parse new ID format
@@ -622,9 +612,6 @@ export class DataAccess {
       console.error("batchReconcileTransactions failed", response.status, text);
       throw new Error(`Failed to batch reconcile transactions: ${response.statusText}`);
     }
-
-    const budgetStore = useBudgetStore();
-    budgetStore.updateBudget(budgetId, budget);
   }
 
   unsubscribeAll(): void {

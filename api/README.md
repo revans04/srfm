@@ -9,3 +9,5 @@ To deploy to Google Cloud Run
 
 To build, run
 ./build-api.sh
+
+Supabase: set the SUPABASE_DB_CONNECTION environment variable with your PostgreSQL connection string before running the API.

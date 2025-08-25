@@ -167,19 +167,22 @@ const spent = computed(() => {
   let spent = 0;
   if (props.transactions) {
     for (let i = 0; i < props.transactions.length; i++) {
-      if (props.transactions[i].deleted) continue; // Skip deleted transactions
-      if (props.transactions[i].categories.filter((c) => c.category === props.category.name).length > 0) {
+      const tx = props.transactions[i];
+      if (tx.deleted) continue; // Skip deleted transactions
+
+      const hasCategory = tx.categories?.some((c) => c.category === props.category.name);
+      if (hasCategory) {
         if (isIncome.value) {
-          props.transactions[i].categories.forEach((c) => {
+          tx.categories?.forEach((c) => {
             spent += c.amount;
           });
         } else {
-          if (props.transactions[i].isIncome) {
-            props.transactions[i].categories.forEach((c) => {
+          if (tx.isIncome) {
+            tx.categories?.forEach((c) => {
               if (c.category === props.category.name) spent -= c.amount;
             });
           } else {
-            props.transactions[i].categories.forEach((c) => {
+            tx.categories?.forEach((c) => {
               if (c.category === props.category.name) spent += c.amount;
             });
           }

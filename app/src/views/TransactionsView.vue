@@ -663,7 +663,7 @@ async function loadTransactions() {
 
   try {
     for (const budgetId of selectedBudgetIds.value) {
-      const budget = budgetStore.getBudget(budgetId) || (await dataAccess.getBudget(budgetId));
+      const budget = await dataAccess.getBudget(budgetId);
       if (budget) {
         budgetStore.updateBudget(budgetId, budget);
         const budgetTransactions = (budget.transactions || [])

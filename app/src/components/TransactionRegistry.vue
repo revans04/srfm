@@ -880,9 +880,24 @@ async function loadData() {
     // Load family to get entities
     await familyStore.loadFamily(user.uid);
 
-    // Load budgets
+    // Load budgets and fetch their transactions
     await budgetStore.loadBudgets(user.uid);
-    budgets.value = Array.from(budgetStore.budgets.values());
+    const summaries = Array.from(budgetStore.budgets.values()).sort(
+      (a, b) => b.month.localeCompare(a.month)
+    );
+    budgets.value = [];
+    const startMonth = filterStartDate.value
+      ? filterStartDate.value.slice(0, 7)
+      : null;
+    for (const b of summaries) {
+      if (startMonth && b.month < startMonth) {
+        break;
+      }
+      if (b.budgetId) {
+        const full = await dataAccess.getBudget(b.budgetId);
+        if (full) budgets.value.push(full);
+      }
+    }
 
     // Load imported transactions
     importedTransactions.value = await dataAccess.getImportedTransactions();

@@ -67,7 +67,7 @@ namespace FamilyBudgetApi.Models
         [FirestoreProperty("budgetId")]
         public string? BudgetId { get; set; }
 
-        [FirestoreProperty("date")]
+        [FirestoreProperty("date", ConverterType = typeof(FirestoreDateStringConverter))]
         public string? Date { get; set; }
 
         [FirestoreProperty("budgetMonth")]
@@ -103,7 +103,7 @@ namespace FamilyBudgetApi.Models
         [FirestoreProperty("accountSource")]
         public string? AccountSource { get; set; }
 
-        [FirestoreProperty("postedDate")]
+        [FirestoreProperty("postedDate", ConverterType = typeof(FirestoreDateStringConverter))]
         public string? PostedDate { get; set; }
 
         [FirestoreProperty("importedMerchant")]

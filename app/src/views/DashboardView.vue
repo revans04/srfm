@@ -371,14 +371,14 @@ import { DEFAULT_BUDGET_TEMPLATES } from "../constants/budgetTemplates";
 const budgetStore = useBudgetStore();
 const merchantStore = useMerchantStore();
 const familyStore = useFamilyStore();
-const budgets = ref<Budget[]>([]);
+const budgets = computed<Budget[]>(() => Array.from(budgetStore.budgets.values()));
 
 const appVersion = version;
 
 const currentMonth = ref(currentMonthISO());
 const initialMonth = ref(currentMonth.value);
 const isInitialLoad = ref(true);
-const availableBudgets = ref<Budget[]>([]);
+const availableBudgets = computed(() => budgets.value);
 const budget = ref<Budget>({
   familyId: "",
   month: currentMonthISO(),
@@ -508,9 +508,9 @@ const catTransactions = computed(() => {
     const carryover = catTransactions[i].carryover || 0;
     const target = catTransactions[i].target || 0;
     const totalTarget = target + (catTransactions[i].isFund ? carryover : 0);
-    budget.value.transactions.forEach((t) => {
+    budget.value.transactions?.forEach((t) => {
       if (!t.deleted) {
-        t.categories.forEach((tc) => {
+        t.categories?.forEach((tc) => {
           if (tc.category == catTransactions[i].name) {
             if (!catTransactions[i].transactions) catTransactions[i].transactions = [];
 
@@ -519,7 +519,7 @@ const catTransactions = computed(() => {
               date: t.date,
               merchant: t.merchant,
               category: tc.category,
-              isSplit: t.categories.length > 1,
+              isSplit: t.categories && t.categories.length > 1,
               amount: tc.amount,
               isIncome: t.isIncome,
             });
@@ -577,9 +577,9 @@ const incomeItems = computed(() => {
   }
 
   for (let i = 0; i < incTrx.length; i++) {
-    budget.value.transactions.forEach((t) => {
+    budget.value.transactions?.forEach((t) => {
       if (!t.deleted && t.categories && t.categories.length > 0) {
-        t.categories.forEach((c) => {
+        t.categories?.forEach((c) => {
           if (incTrx[i].name == c.category) {
             incTrx[i].received += c.amount;
           }
@@ -602,12 +602,34 @@ function monthExists(month: string) {
   return availableBudgets.value.filter((b) => b.month == month && b.entityId === familyStore.selectedEntityId).length > 0;
 }
 
-function onIncomeRowClick(item: IncomeTarget) {
+async function loadBudgetTransactions() {
+  if (!budgetId.value) return;
+  try {
+    const fullBudget = await dataAccess.getBudget(budgetId.value);
+    if (fullBudget) {
+      budget.value = { ...fullBudget, budgetId: budgetId.value, transactions: fullBudget.transactions || [] };
+      categoryOptions.value = fullBudget.categories.map((cat) => cat.name);
+      if (!categoryOptions.value.includes("Income")) {
+        categoryOptions.value.push("Income");
+      }
+    }
+  } catch (error: any) {
+    console.error("Error loading transactions:", error);
+  }
+}
+
+async function onIncomeRowClick(item: IncomeTarget) {
+  if (!budget.value.transactions?.length) {
+    await loadBudgetTransactions();
+  }
   const t = getCategoryInfo(item.name);
   selectedCategory.value = t;
 }
 
-function onCategoryRowClick(item: BudgetCategoryTrx) {
+async function onCategoryRowClick(item: BudgetCategoryTrx) {
+  if (!budget.value.transactions?.length) {
+    await loadBudgetTransactions();
+  }
   selectedCategory.value = getCategoryInfo(item.name);
 }
 
@@ -673,12 +695,8 @@ const updateBudgetForMonth = debounce(async () => {
       console.error("No family found for user");
       ownerUid.value = userId.value;
     }
-
-    budget.value = { ...defaultBudget, budgetId: budgetId.value };
-    categoryOptions.value = defaultBudget.categories.map((cat) => cat.name);
-    if (!categoryOptions.value.includes("Income")) {
-      categoryOptions.value.push("Income");
-    }
+    budget.value = { ...defaultBudget, budgetId: budgetId.value, transactions: defaultBudget.transactions || [] };
+    await loadBudgetTransactions();
   } else if (isInitialLoad.value && budgets.value.length > 0) {
     const sortedBudgets = budgets.value
       .filter((b) => b.entityId === familyStore.selectedEntityId)
@@ -690,7 +708,7 @@ const updateBudgetForMonth = debounce(async () => {
     const mostRecentBudget = sortedBudgets[0];
     if (mostRecentBudget) {
       currentMonth.value = mostRecentBudget.month;
-      budget.value = { ...mostRecentBudget, budgetId: budgetId.value };
+      budget.value = { ...mostRecentBudget, budgetId: budgetId.value, transactions: mostRecentBudget.transactions || [] };
 
       const family = await familyStore.getFamily();
       if (family) {
@@ -699,26 +717,16 @@ const updateBudgetForMonth = debounce(async () => {
         console.error("No family found for user");
         ownerUid.value = userId.value;
       }
-
-      categoryOptions.value = mostRecentBudget.categories.map((cat) => cat.name);
-      if (!categoryOptions.value.includes("Income")) {
-        categoryOptions.value.push("Income");
-      }
+      await loadBudgetTransactions();
     }
   }
 }, 300);
 
-watch(
-  () => budgetStore.budgets,
-  (newBudgets) => {
-    budgets.value = Array.from(newBudgets.values());
-    availableBudgets.value = budgets.value;
-    if (budgets.value.length > 0) {
-      updateBudgetForMonth();
-    }
-  },
-  { deep: true }
-);
+watch(budgets, (newBudgets) => {
+  if (newBudgets.length > 0) {
+    updateBudgetForMonth();
+  }
+});
 
 watch(currentMonth, () => {
   updateBudgetForMonth();
@@ -798,7 +806,6 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
 
     await dataAccess.saveBudget(budgetId, newBudget);
     budgetStore.updateBudget(budgetId, newBudget);
-    budgets.value.push(newBudget);
     return newBudget;
   }
 
@@ -822,19 +829,18 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
 
     await dataAccess.saveBudget(budgetId, newBudget);
     budgetStore.updateBudget(budgetId, newBudget);
-    budgets.value.push(newBudget);
     return newBudget;
   }
 
   // Fallback: Copy most recent previous budget or earliest future budget
-  const availableBudgets = Array.from(budgetStore.budgets.values()).sort((a, b) => a.month.localeCompare(b.month));
+  const allBudgets = Array.from(budgetStore.budgets.values()).sort((a, b) => a.month.localeCompare(b.month));
   let sourceBudget: Budget | undefined;
 
-  const previousBudgets = availableBudgets.filter((b) => b.month < month && b.entityId === entityId);
+  const previousBudgets = allBudgets.filter((b) => b.month < month && b.entityId === entityId);
   if (previousBudgets.length > 0) {
     sourceBudget = previousBudgets[previousBudgets.length - 1]; // Most recent previous
   } else {
-    const futureBudgets = availableBudgets.filter((b) => b.month > month && b.entityId === entityId);
+    const futureBudgets = allBudgets.filter((b) => b.month > month && b.entityId === entityId);
     if (futureBudgets.length > 0) {
       sourceBudget = futureBudgets[0]; // Earliest future
     }
@@ -897,7 +903,6 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
     newBudget.transactions = recurringTransactions;
     await dataAccess.saveBudget(budgetId, newBudget);
     budgetStore.updateBudget(budgetId, newBudget);
-    budgets.value.push(newBudget);
     return newBudget;
   }
 
@@ -956,7 +961,7 @@ async function refreshBudget() {
   try {
     const freshBudget = await dataAccess.getBudget(budgetId.value);
     if (freshBudget) {
-      budget.value = { ...freshBudget, budgetId: budgetId.value };
+      budget.value = { ...freshBudget, budgetId: budgetId.value, transactions: freshBudget.transactions || [] };
       budgetStore.updateBudget(budgetId.value, freshBudget);
       categoryOptions.value = freshBudget.categories.map((cat) => cat.name);
       if (!categoryOptions.value.includes("Income")) {
@@ -969,7 +974,7 @@ async function refreshBudget() {
 }
 
 function updateMerchants() {
-  merchantStore.updateMerchants(budget.value.transactions);
+  merchantStore.updateMerchants(budget.value.transactions || []);
 }
 
 async function onTransactionSaved(transaction: Transaction) {
@@ -1307,8 +1312,8 @@ async function saveInlineEdit() {
     }
     budget.value.categories[idx].name = newName;
     item.name = newName;
-    budget.value.transactions.forEach((t) => {
-      t.categories.forEach((c) => {
+    budget.value.transactions?.forEach((t) => {
+      t.categories?.forEach((c) => {
         if (c.category === oldName) c.category = newName;
       });
     });
