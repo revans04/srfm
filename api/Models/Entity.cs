@@ -31,10 +31,10 @@ namespace FamilyBudgetApi.Models
             set => Type = value.ToString();
         }
 
-        [FirestoreProperty("createdAt")]
+        [FirestoreProperty]
         public Timestamp CreatedAt { get; set; }
 
-        [FirestoreProperty("updatedAt")]
+        [FirestoreProperty]
         public Timestamp UpdatedAt { get; set; }
 
         [FirestoreProperty("members")]
