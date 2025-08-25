@@ -157,44 +157,54 @@ namespace FamilyBudgetApi.Services
 
         private async Task SyncSnapshotsAsync(DateTime? updatedSince)
         {
-            Query query = _firestoreDb.CollectionGroup("snapshots");
-            if (updatedSince.HasValue)
-            {
-                query = query.WhereGreaterThanOrEqualTo("createdAt", updatedSince.Value);
-            }
-
-            var snapshot = await query.GetSnapshotAsync();
             var supabaseSnapshots = new List<PgSnapshot>();
             var supabaseSnapshotAccounts = new List<PgSnapshotAccount>();
 
-            foreach (var doc in snapshot.Documents)
+            // Firestore stores snapshots as a subcollection under each family document.
+            // Enumerate families explicitly so we don't miss any snapshots if collection
+            // group queries fail due to missing indexes or security rules.
+            var familyDocs = await _firestoreDb.Collection("families").GetSnapshotAsync();
+            foreach (var familyDoc in familyDocs.Documents)
             {
-                var snap = doc.ConvertTo<Snapshot>();
-                var familyId = TryParseGuid(doc.Reference.Parent.Parent?.Id);
-                var snapId = TryParseGuid(snap.Id) ?? Guid.NewGuid();
-                var snapshotDate = DateTime.TryParse(snap.Date, out var sd) ? sd : (DateTime?)null;
-                var createdAt = DateTime.TryParse(snap.CreatedAt, out var ca) ? ca : (doc.CreateTime?.ToDateTime() ?? DateTime.UtcNow);
-
-                supabaseSnapshots.Add(new PgSnapshot
+                var familyId = TryParseGuid(familyDoc.Id);
+                var snapsQuery = familyDoc.Reference.Collection("snapshots");
+                if (updatedSince.HasValue)
                 {
-                    Id = snapId,
-                    FamilyId = familyId,
-                    SnapshotDate = snapshotDate,
-                    NetWorth = (decimal)snap.NetWorth,
-                    CreatedAt = createdAt
-                });
+                    snapsQuery = snapsQuery.WhereGreaterThanOrEqualTo("createdAt", updatedSince.Value);
+                }
 
-                foreach (var acct in snap.Accounts)
+                var snapDocs = await snapsQuery.GetSnapshotAsync();
+                foreach (var doc in snapDocs.Documents)
                 {
-                    var acctId = TryParseGuid(acct.AccountId) ?? Guid.NewGuid();
-                    supabaseSnapshotAccounts.Add(new PgSnapshotAccount
+                    var snap = doc.ConvertTo<Snapshot>();
+                    var snapId = TryParseGuid(snap.Id) ?? Guid.NewGuid();
+                    var snapshotDate = DateTime.TryParse(snap.Date, out var sd) ? sd : (DateTime?)null;
+                    var createdAt = DateTime.TryParse(snap.CreatedAt, out var ca) ? ca : (doc.CreateTime?.ToDateTime() ?? DateTime.UtcNow);
+
+                    supabaseSnapshots.Add(new PgSnapshot
                     {
-                        SnapshotId = snapId,
-                        AccountId = acctId,
-                        AccountName = acct.AccountName,
-                        Value = (decimal)acct.Value,
-                        AccountType = acct.Type
+                        Id = snapId,
+                        FamilyId = familyId,
+                        SnapshotDate = snapshotDate,
+                        NetWorth = (decimal)snap.NetWorth,
+                        CreatedAt = createdAt
                     });
+
+                    if (snap.Accounts != null)
+                    {
+                        foreach (var acct in snap.Accounts)
+                        {
+                            var acctId = TryParseGuid(acct.AccountId) ?? Guid.NewGuid();
+                            supabaseSnapshotAccounts.Add(new PgSnapshotAccount
+                            {
+                                SnapshotId = snapId,
+                                AccountId = acctId,
+                                AccountName = acct.AccountName,
+                                Value = (decimal)acct.Value,
+                                AccountType = acct.Type
+                            });
+                        }
+                    }
                 }
             }
 
@@ -203,6 +213,8 @@ namespace FamilyBudgetApi.Services
                 _logger.LogInformation("No snapshots to upsert into Supabase.");
                 return;
             }
+
+            _logger.LogInformation("Upserting {SnapshotCount} snapshots and {AccountCount} snapshot accounts", supabaseSnapshots.Count, supabaseSnapshotAccounts.Count);
 
             await using var conn = CreateNpgsqlConnection();
             await conn.OpenAsync();
