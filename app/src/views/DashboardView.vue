@@ -371,14 +371,14 @@ import { DEFAULT_BUDGET_TEMPLATES } from "../constants/budgetTemplates";
 const budgetStore = useBudgetStore();
 const merchantStore = useMerchantStore();
 const familyStore = useFamilyStore();
-const budgets = ref<Budget[]>([]);
+const budgets = computed<Budget[]>(() => Array.from(budgetStore.budgets.values()));
 
 const appVersion = version;
 
 const currentMonth = ref(currentMonthISO());
 const initialMonth = ref(currentMonth.value);
 const isInitialLoad = ref(true);
-const availableBudgets = ref<Budget[]>([]);
+const availableBudgets = computed(() => budgets.value);
 const budget = ref<Budget>({
   familyId: "",
   month: currentMonthISO(),
@@ -722,17 +722,11 @@ const updateBudgetForMonth = debounce(async () => {
   }
 }, 300);
 
-watch(
-  budgetStore.budgets,
-  (newBudgets) => {
-    budgets.value = Array.from(newBudgets.values());
-    availableBudgets.value = budgets.value;
-    if (budgets.value.length > 0) {
-      updateBudgetForMonth();
-    }
-  },
-  { deep: false }
-);
+watch(budgets, (newBudgets) => {
+  if (newBudgets.length > 0) {
+    updateBudgetForMonth();
+  }
+});
 
 watch(currentMonth, () => {
   updateBudgetForMonth();
@@ -812,7 +806,6 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
 
     await dataAccess.saveBudget(budgetId, newBudget);
     budgetStore.updateBudget(budgetId, newBudget);
-    budgets.value.push(newBudget);
     return newBudget;
   }
 
@@ -836,19 +829,18 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
 
     await dataAccess.saveBudget(budgetId, newBudget);
     budgetStore.updateBudget(budgetId, newBudget);
-    budgets.value.push(newBudget);
     return newBudget;
   }
 
   // Fallback: Copy most recent previous budget or earliest future budget
-  const availableBudgets = Array.from(budgetStore.budgets.values()).sort((a, b) => a.month.localeCompare(b.month));
+  const allBudgets = Array.from(budgetStore.budgets.values()).sort((a, b) => a.month.localeCompare(b.month));
   let sourceBudget: Budget | undefined;
 
-  const previousBudgets = availableBudgets.filter((b) => b.month < month && b.entityId === entityId);
+  const previousBudgets = allBudgets.filter((b) => b.month < month && b.entityId === entityId);
   if (previousBudgets.length > 0) {
     sourceBudget = previousBudgets[previousBudgets.length - 1]; // Most recent previous
   } else {
-    const futureBudgets = availableBudgets.filter((b) => b.month > month && b.entityId === entityId);
+    const futureBudgets = allBudgets.filter((b) => b.month > month && b.entityId === entityId);
     if (futureBudgets.length > 0) {
       sourceBudget = futureBudgets[0]; // Earliest future
     }
@@ -911,7 +903,6 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
     newBudget.transactions = recurringTransactions;
     await dataAccess.saveBudget(budgetId, newBudget);
     budgetStore.updateBudget(budgetId, newBudget);
-    budgets.value.push(newBudget);
     return newBudget;
   }
 
