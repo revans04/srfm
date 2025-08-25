@@ -10,8 +10,8 @@ namespace FamilyBudgetApi.Models
         [FirestoreProperty("id")]
         public string Id { get; set; } = string.Empty;
 
-        [FirestoreProperty("date")]
-        public Timestamp? Date { get; set; }
+        [FirestoreProperty("date", ConverterType = typeof(FirestoreDateStringConverter))]
+        public string? Date { get; set; }
 
         [FirestoreProperty("accounts")]
         public List<SnapshotAccount> Accounts { get; set; } = new();
@@ -19,8 +19,8 @@ namespace FamilyBudgetApi.Models
         [FirestoreProperty("netWorth")]
         public double NetWorth { get; set; }
 
-        [FirestoreProperty("createdAt")]
-        public Timestamp? CreatedAt { get; set; }
+        [FirestoreProperty("createdAt", ConverterType = typeof(FirestoreDateStringConverter))]
+        public string? CreatedAt { get; set; }
     }
 
     [FirestoreData]

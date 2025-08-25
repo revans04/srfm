@@ -172,8 +172,8 @@ namespace FamilyBudgetApi.Services
                 var snap = doc.ConvertTo<Snapshot>();
                 var familyId = TryParseGuid(doc.Reference.Parent.Parent?.Id);
                 var snapId = TryParseGuid(snap.Id) ?? Guid.NewGuid();
-                var snapshotDate = snap.Date?.ToDateTime();
-                var createdAt = snap.CreatedAt?.ToDateTime() ?? doc.CreateTime?.ToDateTime() ?? DateTime.UtcNow;
+                var snapshotDate = DateTime.TryParse(snap.Date, out var sd) ? sd : (DateTime?)null;
+                var createdAt = DateTime.TryParse(snap.CreatedAt, out var ca) ? ca : (doc.CreateTime?.ToDateTime() ?? DateTime.UtcNow);
 
                 supabaseSnapshots.Add(new PgSnapshot
                 {

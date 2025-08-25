@@ -194,9 +194,9 @@ public class AccountService
                 snap = new Snapshot
                 {
                     Id = sid.ToString(),
-                    Date = Timestamp.FromDateTime(reader.IsDBNull(1) ? DateTime.UtcNow : reader.GetDateTime(1).ToUniversalTime()),
+                    Date = reader.IsDBNull(1) ? null : reader.GetDateTime(1).ToString("yyyy-MM-dd"),
                     NetWorth = reader.IsDBNull(2) ? 0 : (double)reader.GetDecimal(2),
-                    CreatedAt = Timestamp.FromDateTime(reader.IsDBNull(3) ? DateTime.UtcNow : reader.GetDateTime(3).ToUniversalTime()),
+                    CreatedAt = reader.IsDBNull(3) ? null : reader.GetDateTime(3).ToString("yyyy-MM-dd"),
                     Accounts = new List<SnapshotAccount>()
                 };
                 map[sid] = snap;
@@ -241,7 +241,7 @@ public class AccountService
         await using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("id", sid);
         cmd.Parameters.AddWithValue("fid", fid);
-        cmd.Parameters.AddWithValue("date", snapshot.Date?.ToDateTime() ?? DateTime.UtcNow);
+        cmd.Parameters.AddWithValue("date", DateTime.TryParse(snapshot.Date, out var d) ? d : DateTime.UtcNow);
         cmd.Parameters.AddWithValue("net_worth", (decimal)snapshot.NetWorth);
         await cmd.ExecuteNonQueryAsync();
 
