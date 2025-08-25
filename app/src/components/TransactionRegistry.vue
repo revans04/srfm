@@ -886,7 +886,13 @@ async function loadData() {
       (a, b) => b.month.localeCompare(a.month)
     );
     budgets.value = [];
+    const startMonth = filterStartDate.value
+      ? filterStartDate.value.slice(0, 7)
+      : null;
     for (const b of summaries) {
+      if (startMonth && b.month < startMonth) {
+        break;
+      }
       if (b.budgetId) {
         const full = await dataAccess.getBudget(b.budgetId);
         if (full) budgets.value.push(full);
