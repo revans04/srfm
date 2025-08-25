@@ -882,7 +882,9 @@ async function loadData() {
 
     // Load budgets and fetch their transactions
     await budgetStore.loadBudgets(user.uid);
-    const summaries = Array.from(budgetStore.budgets.values());
+    const summaries = Array.from(budgetStore.budgets.values()).sort(
+      (a, b) => b.month.localeCompare(a.month)
+    );
     budgets.value = [];
     for (const b of summaries) {
       if (b.budgetId) {
