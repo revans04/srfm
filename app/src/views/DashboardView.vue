@@ -508,7 +508,7 @@ const catTransactions = computed(() => {
     const carryover = catTransactions[i].carryover || 0;
     const target = catTransactions[i].target || 0;
     const totalTarget = target + (catTransactions[i].isFund ? carryover : 0);
-    budget.value.transactions.forEach((t) => {
+    budget.value.transactions?.forEach((t) => {
       if (!t.deleted) {
         t.categories.forEach((tc) => {
           if (tc.category == catTransactions[i].name) {
@@ -577,7 +577,7 @@ const incomeItems = computed(() => {
   }
 
   for (let i = 0; i < incTrx.length; i++) {
-    budget.value.transactions.forEach((t) => {
+    budget.value.transactions?.forEach((t) => {
       if (!t.deleted && t.categories && t.categories.length > 0) {
         t.categories.forEach((c) => {
           if (incTrx[i].name == c.category) {
@@ -607,12 +607,11 @@ async function loadBudgetTransactions() {
   try {
     const fullBudget = await dataAccess.getBudget(budgetId.value);
     if (fullBudget) {
-      budget.value = { ...fullBudget, budgetId: budgetId.value };
+      budget.value = { ...fullBudget, budgetId: budgetId.value, transactions: fullBudget.transactions || [] };
       categoryOptions.value = fullBudget.categories.map((cat) => cat.name);
       if (!categoryOptions.value.includes("Income")) {
         categoryOptions.value.push("Income");
       }
-      budgetStore.updateBudget(budgetId.value, fullBudget);
     }
   } catch (error: any) {
     console.error("Error loading transactions:", error);
@@ -620,7 +619,7 @@ async function loadBudgetTransactions() {
 }
 
 async function onIncomeRowClick(item: IncomeTarget) {
-  if (!budget.value.transactions.length) {
+  if (!budget.value.transactions?.length) {
     await loadBudgetTransactions();
   }
   const t = getCategoryInfo(item.name);
@@ -628,7 +627,7 @@ async function onIncomeRowClick(item: IncomeTarget) {
 }
 
 async function onCategoryRowClick(item: BudgetCategoryTrx) {
-  if (!budget.value.transactions.length) {
+  if (!budget.value.transactions?.length) {
     await loadBudgetTransactions();
   }
   selectedCategory.value = getCategoryInfo(item.name);
@@ -696,7 +695,7 @@ const updateBudgetForMonth = debounce(async () => {
       console.error("No family found for user");
       ownerUid.value = userId.value;
     }
-    budget.value = { ...defaultBudget, budgetId: budgetId.value };
+    budget.value = { ...defaultBudget, budgetId: budgetId.value, transactions: defaultBudget.transactions || [] };
     await loadBudgetTransactions();
   } else if (isInitialLoad.value && budgets.value.length > 0) {
     const sortedBudgets = budgets.value
@@ -709,7 +708,7 @@ const updateBudgetForMonth = debounce(async () => {
     const mostRecentBudget = sortedBudgets[0];
     if (mostRecentBudget) {
       currentMonth.value = mostRecentBudget.month;
-      budget.value = { ...mostRecentBudget, budgetId: budgetId.value };
+      budget.value = { ...mostRecentBudget, budgetId: budgetId.value, transactions: mostRecentBudget.transactions || [] };
 
       const family = await familyStore.getFamily();
       if (family) {
@@ -731,7 +730,8 @@ watch(
     if (budgets.value.length > 0) {
       updateBudgetForMonth();
     }
-  }
+  },
+  { deep: false }
 );
 
 watch(currentMonth, () => {
@@ -970,7 +970,7 @@ async function refreshBudget() {
   try {
     const freshBudget = await dataAccess.getBudget(budgetId.value);
     if (freshBudget) {
-      budget.value = { ...freshBudget, budgetId: budgetId.value };
+      budget.value = { ...freshBudget, budgetId: budgetId.value, transactions: freshBudget.transactions || [] };
       budgetStore.updateBudget(budgetId.value, freshBudget);
       categoryOptions.value = freshBudget.categories.map((cat) => cat.name);
       if (!categoryOptions.value.includes("Income")) {
@@ -983,7 +983,7 @@ async function refreshBudget() {
 }
 
 function updateMerchants() {
-  merchantStore.updateMerchants(budget.value.transactions);
+  merchantStore.updateMerchants(budget.value.transactions || []);
 }
 
 async function onTransactionSaved(transaction: Transaction) {
@@ -1321,7 +1321,7 @@ async function saveInlineEdit() {
     }
     budget.value.categories[idx].name = newName;
     item.name = newName;
-    budget.value.transactions.forEach((t) => {
+    budget.value.transactions?.forEach((t) => {
       t.categories.forEach((c) => {
         if (c.category === oldName) c.category = newName;
       });
