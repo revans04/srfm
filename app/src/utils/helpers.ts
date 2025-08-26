@@ -28,14 +28,25 @@ export function formatDate(date: string | Date): string {
   });
 }
 
-// Format a Timestamp to a readable string
+// Format a Timestamp or date string to a readable string
 export function formatTimestamp(timestamp: any) {
-  if (!timestamp || typeof timestamp !== "object" || !timestamp.seconds) {
+  if (!timestamp) {
     return "Invalid timestamp";
   }
 
-  const date = new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate();
-  
+  let date: Date;
+  if (typeof timestamp === "string") {
+    const d = new Date(timestamp);
+    if (isNaN(d.getTime())) return "Invalid timestamp";
+    date = d;
+  } else if (timestamp instanceof Timestamp) {
+    date = timestamp.toDate();
+  } else if (typeof timestamp === "object" && "seconds" in timestamp) {
+    date = new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate();
+  } else {
+    return "Invalid timestamp";
+  }
+
   return date.toLocaleDateString("en-US", {
     month: "2-digit",
     day: "2-digit",
@@ -43,16 +54,28 @@ export function formatTimestamp(timestamp: any) {
   });
 }
 
-export function timestampToDate(t: Timestamp): Date {
+export function timestampToDate(t: Timestamp | { seconds: number; nanoseconds: number } | string): Date {
   if (!t) return new Date();
-  const milliseconds = t.seconds * 1000 + t.nanoseconds / 1e6;
-  return new Date(milliseconds)
+  if (typeof t === "string") {
+    return new Date(t);
+  }
+  if (t instanceof Timestamp) {
+    return t.toDate();
+  }
+  if (typeof t === "object" && "seconds" in t) {
+    return new Timestamp(t.seconds, t.nanoseconds).toDate();
+  }
+  return new Date();
 }
 
 export function timestampToMillis(t: any): number {
   if (!t) return 0;
   if (t instanceof Timestamp) {
     return t.toMillis();
+  }
+  if (typeof t === "string") {
+    const d = new Date(t);
+    return isNaN(d.getTime()) ? 0 : d.getTime();
   }
   if (typeof t === "object" && "seconds" in t) {
     const seconds = (t as any).seconds ?? 0;

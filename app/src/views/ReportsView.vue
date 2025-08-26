@@ -199,9 +199,8 @@ import { Doughnut, Line } from "vue-chartjs";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, LineElement, PointElement, LinearScale, TimeScale, Filler } from "chart.js";
 import { useBudgetStore } from "../store/budget";
 import { useUIStore } from "../store/ui";
-import { Timestamp } from "firebase/firestore";
 import "chartjs-adapter-date-fns";
-import { timestampToDate, currentMonthISO } from "../utils/helpers";
+import { timestampToDate, currentMonthISO, timestampToMillis } from "../utils/helpers";
 
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend, LineElement, PointElement, LinearScale, TimeScale, Filler);
@@ -307,7 +306,7 @@ function linearRegression(dates: Date[], values: number[]): { slope: number; int
 const netWorthData = computed(() => {
   try {
     if (!snapshots.value || !snapshots.value.length) return { labels: [], datasets: [] };
-    const sortedSnapshots = [...snapshots.value].sort((a, b) => a.date.seconds - b.date.seconds);
+    const sortedSnapshots = [...snapshots.value].sort((a, b) => timestampToMillis(a.date) - timestampToMillis(b.date));
     const dates = sortedSnapshots.map((s) => {
       if (s && s.date) return timestampToDate(s.date);
       return new Date();
@@ -408,7 +407,7 @@ const netWorthChartOptions = ref({
 const assetDebtData = computed(() => {
   try {
     if (!snapshots.value || !snapshots.value.length) return { labels: [], datasets: [] };
-    const sortedSnapshots = [...snapshots.value].sort((a, b) => a.date.seconds - b.date.seconds);
+    const sortedSnapshots = [...snapshots.value].sort((a, b) => timestampToMillis(a.date) - timestampToMillis(b.date));
     const dates = sortedSnapshots.map((s) => {
       if (s && s.date) return timestampToDate(s.date);
       return new Date();
