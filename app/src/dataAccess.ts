@@ -675,8 +675,14 @@ export class DataAccess {
       const data = await response.json();
       return data.map((s: any) => ({
         ...s,
-        date: new Timestamp(s.date.seconds, s.date.nanoseconds),
-        createdAt: new Timestamp(s.createdAt.seconds, s.createdAt.nanoseconds),
+        date:
+          typeof s.date === "string"
+            ? Timestamp.fromDate(new Date(s.date))
+            : new Timestamp(s.date.seconds, s.date.nanoseconds),
+        createdAt:
+          typeof s.createdAt === "string"
+            ? Timestamp.fromDate(new Date(s.createdAt))
+            : new Timestamp(s.createdAt.seconds, s.createdAt.nanoseconds),
       }));
     } catch (error) {
       console.error("Error fetching snapshots:", error);
