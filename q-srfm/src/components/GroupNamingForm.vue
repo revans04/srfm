@@ -52,7 +52,7 @@ async function createFamily() {
       family = await familyStore.loadFamily();
     }
     emit("family-created", family?.id);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error creating family:", error);
   } finally {
     creating.value = false;

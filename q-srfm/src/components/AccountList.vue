@@ -54,7 +54,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineProps, defineEmits } from "vue";
+import { computed, defineProps } from "vue";
 import type { Account, ImportedTransaction } from "../types";
 import { formatCurrency } from "../utils/helpers";
 import { auth } from "../firebase/init";

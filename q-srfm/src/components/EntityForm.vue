@@ -291,12 +291,12 @@ onMounted(async () => {
 
 function normalizeTimestamp(t: unknown): Timestamp {
   if (t instanceof Timestamp) return t;
-  if (t && typeof t === 'object' && 'seconds' in (t as any) && 'nanoseconds' in (t as any)) {
+  if (t && typeof t === 'object' && 'seconds' in t && 'nanoseconds' in t) {
     const { seconds, nanoseconds } = t as { seconds: number; nanoseconds: number };
     return new Timestamp(Number(seconds || 0), Number(nanoseconds || 0));
   }
   if (typeof t === 'string' || t instanceof Date) {
-    const d = new Date(t as any);
+    const d = new Date(t as string | Date);
     if (!isNaN(d.getTime())) return Timestamp.fromDate(d);
   }
   return Timestamp.fromDate(new Date());
@@ -323,9 +323,10 @@ function importCategories() {
       showSnackbar('No budgets or default categories found for this entity.', 'info');
     }
     showImportDialog.value = false;
-  } catch (error: any) {
-    console.error('Error importing categories:', error.message);
-    showSnackbar(`Error importing categories: ${error.message}`, 'error');
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error('Error importing categories:', err.message);
+    showSnackbar(`Error importing categories: ${err.message}`, 'error');
   } finally {
     importing.value = false;
   }
@@ -382,9 +383,10 @@ async function save() {
 
     showSnackbar(`${isEditing.value ? 'Updated' : 'Created'} entity successfully`, 'success');
     emit('save');
-  } catch (error: any) {
-    console.error('Error saving entity:', error);
-    showSnackbar(`Error saving entity: ${error.message}`, 'error');
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error('Error saving entity:', err);
+    showSnackbar(`Error saving entity: ${err.message}`, 'error');
   } finally {
     saving.value = false;
   }

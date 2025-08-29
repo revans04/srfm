@@ -150,7 +150,6 @@ const emit = defineEmits<{
 const search = ref('');
 const budgetStore = useBudgetStore();
 const $q = useQuasar();
-const loading = ref(false);
 const showEditDialog = ref(false);
 const transactionToEdit = ref<Transaction | null>(null);
 const showDeleteDialog = ref(false);
@@ -290,7 +289,7 @@ async function executeDelete() {
     if (updatedTransactions) {
       emit('update-transactions', updatedTransactions);
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error moving transaction to trash:', error);
   } finally {
     $q.loading.hide();
@@ -299,7 +298,7 @@ async function executeDelete() {
   }
 }
 
-function onTransactionSaved(savedTransaction: Transaction) {
+function onTransactionSaved() {
   showEditDialog.value = false;
 }
 
@@ -307,7 +306,7 @@ function updateTransactions(updatedTransactions: Transaction[]) {
   emit('update-transactions', updatedTransactions);
 }
 
-onMounted(async () => {
+onMounted(() => {
   const budget = budgetStore.getBudget(props.budgetId);
   if (!budget) {
     console.error(`Budget ${props.budgetId} not found in store`);
