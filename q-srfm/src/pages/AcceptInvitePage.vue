@@ -27,7 +27,7 @@ const error = ref<string | null>(null);
 const accepted = ref(false);
 const user = ref(auth.currentUser);
 
-onMounted(async () => {
+onMounted(() => {
   const token = route.query.token as string;
   if (!token) {
     error.value = "No invite token provided";
@@ -35,26 +35,39 @@ onMounted(async () => {
     return;
   }
 
-  auth.onAuthStateChanged(async (currentUser) => {
+  auth.onAuthStateChanged((currentUser) => {
     user.value = currentUser;
     if (currentUser) {
-      try {
-        await dataAccess.acceptInvite(token);
-        accepted.value = true;
-        setTimeout(() => router.push("/"), 2000);
-      } catch (err: any) {
-        error.value = err.message;
-      }
+      void (async () => {
+        try {
+          await dataAccess.acceptInvite(token);
+          accepted.value = true;
+          setTimeout(() => {
+            void router.push("/");
+          }, 2000);
+        } catch (err: unknown) {
+          error.value = err instanceof Error ? err.message : JSON.stringify(err);
+        } finally {
+          loading.value = false;
+        }
+      })();
+    } else {
+      loading.value = false;
     }
-    loading.value = false;
   });
 });
 
 function login() {
-  router.push(`/login?redirect=/accept-invite?token=${route.query.token}`);
+  void router.push({
+    path: "/login",
+    query: { redirect: "/accept-invite", token: typeof route.query.token === "string" ? route.query.token : "" },
+  });
 }
 
 function signup() {
-  router.push(`/signup?redirect=/accept-invite?token=${route.query.token}`);
+  void router.push({
+    path: "/signup",
+    query: { redirect: "/accept-invite", token: typeof route.query.token === "string" ? route.query.token : "" },
+  });
 }
 </script>
