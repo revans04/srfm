@@ -117,12 +117,12 @@ watch(
         // Fill required fields while preserving provided values
         id: newAccount.id || localAccount.value.id,
         name: newAccount.name || "",
-        type: normalizeType((newAccount.type as any) || localAccount.value.type),
-        category: (newAccount.category as any) || localAccount.value.category,
+        type: normalizeType(newAccount.type ?? localAccount.value.type),
+        category: newAccount.category ?? localAccount.value.category,
         accountNumber: newAccount.accountNumber,
         institution: newAccount.institution,
-        createdAt: (newAccount.createdAt as any) || Timestamp.now(),
-        updatedAt: (newAccount.updatedAt as any) || Timestamp.now(),
+        createdAt: newAccount.createdAt ?? Timestamp.now(),
+        updatedAt: newAccount.updatedAt ?? Timestamp.now(),
         balance: newAccount.balance,
         details: { ...(newAccount.details || {}) },
       };

@@ -451,7 +451,9 @@ const selectedSmartMatchesInternal = computed({
   },
   set(rows: SmartMatchRow[]) {
     selectedSmartMatchIds.value = Array.isArray(rows)
-      ? rows.map((r) => r.importedTransaction?.id).filter(Boolean) as string[]
+      ? rows
+          .map((r) => r.importedTransaction?.id)
+          .filter((id): id is string => Boolean(id))
       : [];
   },
 });
@@ -620,10 +622,7 @@ async function confirmSmartMatches() {
       const budget = budgetStore.getBudget(budgetId);
       if (!budget) throw new Error(`Budget ${budgetId} not found`);
 
-      const reconcileData = {
-        budgetId,
-        reconciliations: matchesByBudget[budgetId]!,
-      } as {
+      const reconcileData: {
         budgetId: string;
         reconciliations: {
           budgetTransactionId: string;
@@ -631,6 +630,9 @@ async function confirmSmartMatches() {
           match: boolean;
           ignore: boolean;
         }[];
+      } = {
+        budgetId,
+        reconciliations: matchesByBudget[budgetId]!,
       };
 
       await dataAccess.batchReconcileTransactions(budgetId, budget, reconcileData);
@@ -642,9 +644,10 @@ async function confirmSmartMatches() {
     emit("transactions-updated");
     computeSmartMatchesLocal(matchesToConfirm);
     updateRemainingTransactions();
-  } catch (error: any) {
-    console.error("Error confirming smart matches:", error);
-    showSnackbar(`Error confirming smart matches: ${error.message}`, "error");
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error("Error confirming smart matches:", err);
+    showSnackbar(`Error confirming smart matches: ${err.message}`, "error");
   } finally {
     emit("update:matching", false);
   }
@@ -684,7 +687,12 @@ async function matchBankTransaction(budgetTransaction: Transaction) {
       taxMetadata: budgetTransaction.taxMetadata || [],
     };
 
-    const targetBudgetIdToUse = (budgetTransaction as any).budgetId || `${user.uid}_${updatedTransaction.entityId}_${updatedTransaction.budgetMonth}`;
+    const existingBudgetId =
+      'budgetId' in budgetTransaction && typeof (budgetTransaction as { budgetId?: unknown }).budgetId === 'string'
+        ? (budgetTransaction as { budgetId: string }).budgetId
+        : undefined;
+    const targetBudgetIdToUse =
+      existingBudgetId || `${user.uid}_${updatedTransaction.entityId}_${updatedTransaction.budgetMonth}`;
     let budget = budgetStore.getBudget(targetBudgetIdToUse);
     if (!budget) {
       const fam = await familyStore.getFamily();
@@ -699,7 +707,6 @@ async function matchBankTransaction(budgetTransaction: Transaction) {
     await dataAccess.saveTransaction(budget, updatedTransaction, false);
 
     const parts = importedTx.id.split("-");
-    const txId = parts[parts.length - 1];
     const docId = parts.slice(0, -1).join("-");
     await dataAccess.updateImportedTransaction(docId, importedTx.id, true);
 
@@ -707,9 +714,10 @@ async function matchBankTransaction(budgetTransaction: Transaction) {
     emit("transactions-updated");
     updateRemainingTransactions();
     skipBankTransaction();
-  } catch (error: any) {
-    console.log(error);
-    showSnackbar(`Error matching transaction: ${error.message}`, "error");
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.log(err);
+    showSnackbar(`Error matching transaction: ${err.message}`, "error");
   } finally {
     emit("update:matching", false);
   }
@@ -728,15 +736,15 @@ async function ignoreBankTransaction() {
     if (!user) throw new Error("User not authenticated");
 
     const parts = importedTx.id.split("-");
-    const txId = parts[parts.length - 1];
     const docId = parts.slice(0, -1).join("-");
     await dataAccess.updateImportedTransaction(docId, importedTx.id, undefined, true);
 
     showSnackbar("Bank transaction ignored");
     updateRemainingTransactions();
     skipBankTransaction();
-  } catch (error: any) {
-    showSnackbar(`Error ignoring transaction: ${error.message}`, "error");
+  } catch (error: unknown) {
+    const err = error as Error;
+    showSnackbar(`Error ignoring transaction: ${err.message}`, "error");
   } finally {
     emit("update:matching", false);
   }
@@ -820,9 +828,7 @@ async function saveSplitTransaction() {
     for (const budgetId in transactionsByBudget) {
       let budget = budgetStore.getBudget(budgetId);
       if (!budget) {
-        const parts = budgetId.split("_") as [string, string, string];
-        const entityId = parts[1]!;
-        const month = parts[2]!;
+        const [, entityId, month] = budgetId.split("_");
         budget = await createBudgetForMonth(month, family.id, user.uid, entityId);
       }
 
@@ -832,7 +838,6 @@ async function saveSplitTransaction() {
     }
 
     const parts = importedTx.id.split("-");
-    const txId = parts[parts.length - 1];
     const docId = parts.slice(0, -1).join("-");
     await dataAccess.updateImportedTransaction(docId, importedTx.id, true);
 
@@ -850,8 +855,9 @@ async function saveSplitTransaction() {
     showSnackbar("Split transaction saved successfully");
     emit("transactions-updated");
     resetSplitForm();
-  } catch (error: any) {
-    showSnackbar(`Error saving split transaction: ${error.message}`, "error");
+  } catch (error: unknown) {
+    const err = error as Error;
+    showSnackbar(`Error saving split transaction: ${err.message}`, "error");
   } finally {
     emit("update:matching", false);
   }
@@ -881,7 +887,6 @@ async function handleTransactionAdded(savedTransaction: Transaction) {
     });
 
     const parts = importedTx.id.split("-");
-    const txId = parts[parts.length - 1];
     const docId = parts.slice(0, -1).join("-");
     await dataAccess.updateImportedTransaction(docId, importedTx.id, true);
 
@@ -898,15 +903,16 @@ async function handleTransactionAdded(savedTransaction: Transaction) {
 
     showSnackbar("Transaction added and matched successfully");
     emit("transactions-updated");
-  } catch (error: any) {
-    showSnackbar(`Error adding transaction: ${error.message}`, "error");
+  } catch (error: unknown) {
+    const err = error as Error;
+    showSnackbar(`Error adding transaction: ${err.message}`, "error");
   } finally {
     emit("update:matching", false);
     showTransactionDialog.value = false;
   }
 }
 
-async function addNewTransaction() {
+function addNewTransaction() {
   if (!selectedBankTransaction.value) {
     showSnackbar("No bank transaction selected to add", "error");
     return;
@@ -1054,7 +1060,7 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
     const bankAmount = importedTx.debitAmount || importedTx.creditAmount || 0;
     const bankDate = new Date(importedTx.postedDate);
     const bankDateStr = bankDate.toISOString().split("T")[0];
-    const normalizedBankDate = new Date(bankDateStr as string);
+    const normalizedBankDate = new Date(bankDateStr);
 
     const startDate = new Date(normalizedBankDate);
     startDate.setDate(normalizedBankDate.getDate() - dateRangeDays);
@@ -1064,7 +1070,7 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
     props.transactions.forEach((tx) => {
       const txDate = new Date(tx.date);
       const txDateStr = txDate.toISOString().split("T")[0];
-      const normalizedTxDate = new Date(txDateStr as string);
+      const normalizedTxDate = new Date(txDateStr);
       const txAmount = tx.amount;
       const typeMatch = tx.isIncome === !!importedTx.creditAmount;
       if (
@@ -1078,7 +1084,10 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
         potentialMatches.push({
           importedTx,
           budgetTx: tx,
-          budgetId: (tx as any).budgetId || `${props.userId}_${tx.entityId}_${toBudgetMonth(importedTx.postedDate)}`,
+          budgetId:
+            ('budgetId' in tx && typeof (tx as { budgetId?: unknown }).budgetId === 'string'
+              ? (tx as { budgetId: string }).budgetId
+              : `${props.userId}_${tx.entityId}_${toBudgetMonth(importedTx.postedDate)}`),
           bankAmount,
           bankType: importedTx.debitAmount ? "Debit" : "Credit",
           merchantMatch: !!importedTx.payee && importedTx.payee.toLowerCase().includes(tx.merchant.toLowerCase()),

@@ -20,7 +20,6 @@ import { useFamilyStore } from '../store/family';
 const emit = defineEmits<{ (e: 'change', value: string): void }>();
 
 const familyStore = useFamilyStore();
-const isMobile = computed(() => window.innerWidth < 960);
 
 const menuOpen = ref(false);
 const entities = computed(() => familyStore.family?.entities || []);
