@@ -40,88 +40,101 @@ export class DataAccess {
       const d = new Date(input);
       return isNaN(d.getTime()) ? undefined : Timestamp.fromDate(d);
     }
-    if (typeof input === 'object' && ('seconds' in input || 'nanoseconds' in input)) {
-      const seconds = Number(input.seconds ?? 0);
-      const nanos = Number(input.nanoseconds ?? input.nanosecond ?? 0);
+    if (
+      typeof input === 'object' &&
+      input !== null &&
+      ('seconds' in input || 'nanoseconds' in input || 'nanosecond' in input)
+    ) {
+      const obj = input as {
+        seconds?: unknown;
+        nanoseconds?: unknown;
+        nanosecond?: unknown;
+      };
+      const seconds = Number(obj.seconds ?? 0);
+      const nanos = Number(obj.nanoseconds ?? obj.nanosecond ?? 0);
       return new Timestamp(seconds, nanos);
     }
     return undefined;
   }
 
-  private mapTransaction(apiTx: Record<string, unknown>, budgetId?: string): Transaction {
-    const categories = Array.isArray(apiTx?.categories)
-      ? (apiTx.categories as unknown[]).map((c) => ({
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          category: String((c as any)?.category ?? ''),
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          amount: Number((c as any)?.amount ?? 0),
-        }))
+  private mapTransaction(apiTx: unknown, budgetId?: string): Transaction {
+    const tx = (apiTx ?? {}) as Record<string, unknown>;
+    const categories = Array.isArray(tx.categories)
+      ? (tx.categories as unknown[]).map((c) => {
+          const cat = c as Record<string, unknown>;
+          return {
+            category: typeof cat.category === 'string' ? cat.category : '',
+            amount: Number(cat.amount ?? 0),
+          };
+        })
       : [];
 
     return {
-      id: String(apiTx?.id ?? ''),
-      budgetId: apiTx?.budgetId ?? budgetId,
-      date: String(apiTx?.date ?? ''),
-      budgetMonth: apiTx?.budgetMonth ?? undefined,
-      merchant: String(apiTx?.merchant ?? ''),
+      id: typeof tx.id === 'string' ? tx.id : '',
+      budgetId: typeof tx.budgetId === 'string' ? tx.budgetId : budgetId,
+      date: typeof tx.date === 'string' ? tx.date : '',
+      budgetMonth: typeof tx.budgetMonth === 'string' ? tx.budgetMonth : undefined,
+      merchant: typeof tx.merchant === 'string' ? tx.merchant : '',
       categories,
-      amount: Number(apiTx?.amount ?? 0),
-      notes: String(apiTx?.notes ?? ''),
-      recurring: Boolean(apiTx?.recurring ?? false),
-      recurringInterval: (apiTx?.recurringInterval as Transaction['recurringInterval']) ?? 'Monthly',
-      userId: String(apiTx?.userId ?? ''),
-      isIncome: Boolean(apiTx?.isIncome ?? false),
-      accountNumber: apiTx?.accountNumber ?? undefined,
-      accountSource: apiTx?.accountSource ?? undefined,
-      postedDate: apiTx?.postedDate ?? undefined,
-      importedMerchant: apiTx?.importedMerchant ?? undefined,
-      status: apiTx?.status ?? undefined,
-      checkNumber: apiTx?.checkNumber ?? undefined,
-      deleted: apiTx?.deleted ?? false,
-      entityId: apiTx?.entityId ?? undefined,
-      taxMetadata: Array.isArray(apiTx?.taxMetadata) ? apiTx.taxMetadata : [],
-      receiptUrl: apiTx?.receiptUrl ?? undefined,
+      amount: Number(tx.amount ?? 0),
+      notes: typeof tx.notes === 'string' ? tx.notes : '',
+      recurring: Boolean(tx.recurring ?? false),
+      recurringInterval: (tx.recurringInterval as Transaction['recurringInterval']) ?? 'Monthly',
+      userId: typeof tx.userId === 'string' ? tx.userId : '',
+      isIncome: Boolean(tx.isIncome ?? false),
+      accountNumber: typeof tx.accountNumber === 'string' ? tx.accountNumber : undefined,
+      accountSource: typeof tx.accountSource === 'string' ? tx.accountSource : undefined,
+      postedDate: typeof tx.postedDate === 'string' ? tx.postedDate : undefined,
+      importedMerchant: typeof tx.importedMerchant === 'string' ? tx.importedMerchant : undefined,
+      status: typeof tx.status === 'string' ? (tx.status as Transaction['status']) : undefined,
+      checkNumber: typeof tx.checkNumber === 'string' ? tx.checkNumber : undefined,
+      deleted: Boolean(tx.deleted ?? false),
+      entityId: typeof tx.entityId === 'string' ? tx.entityId : undefined,
+      taxMetadata: Array.isArray(tx.taxMetadata)
+        ? (tx.taxMetadata as Transaction['taxMetadata'])
+        : [],
+      receiptUrl: typeof tx.receiptUrl === 'string' ? tx.receiptUrl : undefined,
     };
   }
 
-  private mapBudget(apiBudget: Record<string, unknown>): Budget {
-    const budgetId: string | undefined = apiBudget?.budgetId ?? undefined;
-    const categories = Array.isArray(apiBudget?.categories)
-      ? (apiBudget.categories as unknown[]).map((c) => ({
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          name: String((c as any)?.name ?? ''),
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          target: Number((c as any)?.target ?? 0),
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          isFund: Boolean((c as any)?.isFund ?? false),
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          group: String((c as any)?.group ?? ''),
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          carryover: (((c as any)?.carryover ?? undefined) as number | undefined),
-        }))
+  private mapBudget(apiBudget: unknown): Budget {
+    const b = (apiBudget ?? {}) as Record<string, unknown>;
+    const budgetId = typeof b.budgetId === 'string' ? b.budgetId : undefined;
+    const categories = Array.isArray(b.categories)
+      ? (b.categories as unknown[]).map((c) => {
+          const cat = c as Record<string, unknown>;
+          return {
+            name: typeof cat.name === 'string' ? cat.name : '',
+            target: Number(cat.target ?? 0),
+            isFund: Boolean(cat.isFund ?? false),
+            group: typeof cat.group === 'string' ? cat.group : '',
+            carryover: typeof cat.carryover === 'number' ? cat.carryover : undefined,
+          };
+        })
       : [];
 
-    const transactions = Array.isArray(apiBudget?.transactions)
-      ? (apiBudget.transactions as unknown[]).map((t) => this.mapTransaction(t as Record<string, unknown>, budgetId))
+    const transactions = Array.isArray(b.transactions)
+      ? (b.transactions as unknown[]).map((t) => this.mapTransaction(t, budgetId))
       : [];
 
     return {
       budgetId,
-      familyId: String(apiBudget?.familyId ?? ''),
-      entityId: apiBudget?.entityId ?? undefined,
-      label: String(apiBudget?.label ?? ''),
-      month: String(apiBudget?.month ?? ''),
-      incomeTarget: Number(apiBudget?.incomeTarget ?? 0),
+      familyId: typeof b.familyId === 'string' ? b.familyId : '',
+      entityId: typeof b.entityId === 'string' ? b.entityId : undefined,
+      label: typeof b.label === 'string' ? b.label : '',
+      month: typeof b.month === 'string' ? b.month : '',
+      incomeTarget: Number(b.incomeTarget ?? 0),
       categories,
       transactions,
-      originalBudgetId: apiBudget?.originalBudgetId ?? undefined,
-      merchants: Array.isArray(apiBudget?.merchants)
-        ? (apiBudget.merchants as unknown[]).map((m) => ({
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-            name: String((m as any)?.name ?? ''),
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-            usageCount: Number((m as any)?.usageCount ?? 0),
-          }))
+      originalBudgetId: typeof b.originalBudgetId === 'string' ? b.originalBudgetId : undefined,
+      merchants: Array.isArray(b.merchants)
+        ? (b.merchants as unknown[]).map((m) => {
+            const merch = m as Record<string, unknown>;
+            return {
+              name: typeof merch.name === 'string' ? merch.name : '',
+              usageCount: Number(merch.usageCount ?? 0),
+            };
+          })
         : [],
     };
   }
