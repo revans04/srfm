@@ -150,7 +150,7 @@ const selectedImportedInternal = computed({
   get() {
     return props.unmatchedImportedTransactions.filter((t) => selectedImportedTransaction.value.includes(t.id));
   },
-  set(rows: any[]) {
+  set(rows: ImportedTransaction[]) {
     selectedImportedTransaction.value = Array.isArray(rows) ? rows.map((r) => r.id) : [];
   },
 });

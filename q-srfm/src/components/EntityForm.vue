@@ -296,7 +296,7 @@ function normalizeTimestamp(t: unknown): Timestamp {
     return new Timestamp(Number(seconds || 0), Number(nanoseconds || 0));
   }
   if (typeof t === 'string' || t instanceof Date) {
-    const d = new Date(t as string | Date);
+    const d = new Date(t);
     if (!isNaN(d.getTime())) return Timestamp.fromDate(d);
   }
   return Timestamp.fromDate(new Date());

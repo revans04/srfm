@@ -492,7 +492,7 @@ import { useFamilyStore } from "../store/family";
 import { useStatementStore } from "../store/statements";
 import { useUIStore } from "../store/ui";
 import type { Transaction, ImportedTransaction, Budget, Account, ImportedTransactionDoc, Statement, BudgetCategory } from "../types";
-import { formatCurrency, toBudgetMonth, adjustTransactionDate, todayISO } from "../utils/helpers";
+import { formatCurrency, adjustTransactionDate, todayISO } from "../utils/helpers";
 import { QForm } from "quasar";
 import { v4 as uuidv4 } from "uuid";
 import { DEFAULT_BUDGET_TEMPLATES } from "../constants/budgetTemplates";
@@ -546,7 +546,7 @@ const statementOptions = computed(() => [
 ]);
 const selectedStatementId = ref<string | null>(null);
 const showActionDialog = ref(false);
-const transactionToAction = ref<any | null>(null);
+const transactionToAction = ref<DisplayTransaction | null>(null);
 const transactionAction = ref("");
 const showBalanceAdjustmentDialog = ref(false);
 const adjustmentAmount = ref<number>(0);
@@ -620,7 +620,7 @@ const columns = [
   { name: 'date', label: 'Date', field: 'date', sortable: true },
   { name: 'merchant', label: 'Merchant', field: 'merchant', sortable: true },
   { name: 'category', label: 'Category', field: 'category', sortable: true },
-  { name: 'entity', label: 'Entity', field: (row: any) => row.entityId || row.budgetId },
+  { name: 'entity', label: 'Entity', field: (row: DisplayTransaction) => row.entityId || row.budgetId },
   { name: 'amount', label: 'Amount', field: 'amount', sortable: true },
   { name: 'status', label: 'Status', field: 'status', sortable: true },
   { name: 'notes', label: 'Notes', field: 'notes' },
@@ -641,13 +641,6 @@ const selectedRowsInternal = computed({
     }
   },
 });
-
-const reconcileHeaders = [
-  { title: "Date", key: "date" },
-  { title: "Merchant", key: "merchant" },
-  { title: "Amount", key: "amount" },
-  { title: "Status", key: "status" },
-];
 
 // Combined transactions for display
 const displayTransactions = computed((): DisplayTransaction[] => {
@@ -676,11 +669,11 @@ const displayTransactions = computed((): DisplayTransaction[] => {
       isIncome: tx.isIncome || false,
       status: tx.status || "C",
       notes: tx.notes || "",
-      ...(tx.entityId || budget.entityId ? { entityId: (tx.entityId || budget.entityId)! } : {}),
+      ...(tx.entityId || budget.entityId ? { entityId: tx.entityId ?? budget.entityId } : {}),
       ...(budget.budgetId ? { budgetId: budget.budgetId } : {}),
     }));
 
-  let baseUnmatchedTxs: (DisplayTransaction & { ignored?: boolean })[] = importedTransactions.value
+  const baseUnmatchedTxs: (DisplayTransaction & { ignored?: boolean })[] = importedTransactions.value
     .filter(
       (tx) =>
         tx.accountNumber === selectedAccount.value &&
@@ -748,7 +741,7 @@ const displayTransactions = computed((): DisplayTransaction[] => {
     );
   }
 
-  const allTxs = [...matchedTxs, ...baseUnmatchedTxs].sort((a, b) => {
+  const allTxs = [...matchedTxs, ...unmatchedTxs].sort((a, b) => {
     const dateA = new Date(a.date);
     const dateB = new Date(b.date);
     if (dateA.getTime() == dateB.getTime()) return b.merchant.localeCompare(a.merchant);
@@ -762,7 +755,7 @@ const displayTransactions = computed((): DisplayTransaction[] => {
     balance += tx.amount;
     order += 1;
     return { ...tx, balance, order };
-  }).filter((t) => !(t as any).ignored);
+  });
 
   if (filterMerchant.value) {
     const merchantFilter = filterMerchant.value.toLowerCase();
@@ -881,14 +874,16 @@ async function loadData() {
     // Extract unique account numbers and names
     const budgetAccounts = budgets.value
       .flatMap((budget) => budget.transactions || [])
-      .filter((tx) => !tx.deleted && tx.accountNumber)
-      .map((tx) => tx.accountNumber!);
+      .filter((tx): tx is Transaction & { accountNumber: string } => !tx.deleted && !!tx.accountNumber)
+      .map((tx) => tx.accountNumber);
 
     const importedAccounts = importedTransactions.value
       .filter((tx): tx is ImportedTransaction & { accountNumber: string } => !!tx.accountNumber)
       .map((tx) => tx.accountNumber);
 
-    const uniqueAccountNumbers = [...new Set([...budgetAccounts, ...importedAccounts])].filter(Boolean) as string[];
+    const uniqueAccountNumbers = [...new Set([...budgetAccounts, ...importedAccounts])].filter(
+      (num): num is string => !!num
+    );
 
     // Create account options with name and number
     accountOptions.value = uniqueAccountNumbers
@@ -903,12 +898,13 @@ async function loadData() {
 
     // Default to first account if available
     if (accountOptions.value.length > 0) {
-      selectedAccount.value = accountOptions.value[0]!.value;
+      selectedAccount.value = accountOptions.value[0].value;
       await loadTransactions();
     }
-  } catch (error: any) {
-    console.error("Error loading data:", error);
-    showSnackbar(`Error loading data: ${error.message}`, "error");
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error("Error loading data:", err);
+    showSnackbar(`Error loading data: ${err.message}`, "error");
   } finally {
     loading.value = false;
   }
@@ -924,13 +920,15 @@ async function loadTransactions() {
     await statementStore.loadStatements(familyId.value, selectedAccount.value);
     statements.value = statementStore.getStatements(familyId.value, selectedAccount.value);
     if (statements.value.length > 0) {
-      selectedStatementId.value = statements.value[statements.value.length - 1]!.id;
+      const lastStatement = statements.value[statements.value.length - 1];
+      selectedStatementId.value = lastStatement ? lastStatement.id : "ALL";
     } else {
       selectedStatementId.value = "ALL";
     }
-  } catch (error: any) {
-    console.error("Error loading transactions:", error);
-    showSnackbar(`Error loading transactions: ${error.message}`, "error");
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error("Error loading transactions:", err);
+    showSnackbar(`Error loading transactions: ${err.message}`, "error");
   } finally {
     loading.value = false;
   }
@@ -978,7 +976,6 @@ async function executeAction() {
     let updatedBudgetTx: Transaction;
 
     const parts = id.split("-");
-    const txId = parts[parts.length - 1];
     const docId = parts.slice(0, -1).join("-");
 
     if (transactionAction.value == "Disconnect" || budgetId) {
@@ -1008,7 +1005,12 @@ async function executeAction() {
           (tx.debitAmount == budgetTx.amount || tx.creditAmount == budgetTx.amount)
       );
 
-      const { accountNumber, accountSource, postedDate, importedMerchant, checkNumber, ...rest } = budgetTx;
+      const rest: Partial<Transaction> = { ...budgetTx };
+      delete rest.accountNumber;
+      delete rest.accountSource;
+      delete rest.postedDate;
+      delete rest.importedMerchant;
+      delete rest.checkNumber;
       updatedBudgetTx = {
         ...rest,
         status: "U",
@@ -1019,14 +1021,19 @@ async function executeAction() {
 
       const budgetIndex = budgets.value.findIndex((b) => b.budgetId === budgetId);
       if (budgetIndex !== -1) {
-        budgets.value[budgetIndex]!.transactions = budgets.value[budgetIndex]!.transactions.map((tx) => (tx.id === id ? updatedBudgetTx : tx));
-        budgetStore.updateBudget(budgetId, budgets.value[budgetIndex]!);
+        const budgetRef = budgets.value[budgetIndex];
+        if (budgetRef) {
+          budgetRef.transactions = budgetRef.transactions.map((tx) => (tx.id === id ? updatedBudgetTx : tx));
+          budgetStore.updateBudget(budgetId, budgetRef);
+        }
       }
 
       if (importedTxIndex !== -1) {
-        const itx = importedTransactions.value[importedTxIndex]!;
-        itx.matched = false;
-        await dataAccess.updateImportedTransaction(docId, itx.id, false, false);
+        const itx = importedTransactions.value[importedTxIndex];
+        if (itx) {
+          itx.matched = false;
+          await dataAccess.updateImportedTransaction(docId, itx.id, false, false);
+        }
       }
     }
 
@@ -1034,21 +1041,28 @@ async function executeAction() {
       await dataAccess.deleteImportedTransaction(docId, id);
       const importedTxIndex = importedTransactions.value.findIndex((tx) => tx.id === id);
       if (importedTxIndex !== -1) {
-        importedTransactions.value[importedTxIndex]!.deleted = true;
+        const itx = importedTransactions.value[importedTxIndex];
+        if (itx) {
+          itx.deleted = true;
+        }
       }
     } else if (!budgetId && transactionAction.value == "Ignore") {
       await dataAccess.updateImportedTransaction(docId, id, false, true);
       const importedTxIndex = importedTransactions.value.findIndex((tx) => tx.id === id);
       if (importedTxIndex !== -1) {
-        importedTransactions.value[importedTxIndex]!.matched = false;
-        importedTransactions.value[importedTxIndex]!.ignored = true;
+        const itx = importedTransactions.value[importedTxIndex];
+        if (itx) {
+          itx.matched = false;
+          itx.ignored = true;
+        }
       }
     }
 
     showSnackbar(`${transactionAction.value} action completed successfully`, "success");
-  } catch (error: any) {
-    console.error(`Error performing ${transactionAction.value} action:`, error);
-    showSnackbar(`Error performing ${transactionAction.value} action: ${error.message}`, "error");
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error(`Error performing ${transactionAction.value} action:`, err);
+    showSnackbar(`Error performing ${transactionAction.value} action: ${err.message}`, "error");
   } finally {
     loading.value = false;
     showActionDialog.value = false;
@@ -1183,9 +1197,11 @@ async function executeBatchMatch() {
       // Update local budgets
       const budgetIndex = budgets.value.findIndex((b) => b.budgetId === budgetId);
       if (budgetIndex !== -1) {
-        const b = budgets.value[budgetIndex]!;
-        b.transactions = [...(b.transactions || []), newTransaction];
-        budgetStore.updateBudget(budgetId, b);
+        const b = budgets.value[budgetIndex];
+        if (b) {
+          b.transactions = [...(b.transactions || []), newTransaction];
+          budgetStore.updateBudget(budgetId, b);
+        }
       } else {
         budgets.value.push({ ...targetBudget, transactions: [newTransaction] });
         budgetStore.updateBudget(budgetId, { ...targetBudget, transactions: [newTransaction] });
@@ -1198,7 +1214,10 @@ async function executeBatchMatch() {
       // Update local imported transactions
       const importedTxIndex = importedTransactions.value.findIndex((tx) => tx.id === id);
       if (importedTxIndex !== -1) {
-        importedTransactions.value[importedTxIndex]!.matched = true;
+        const itx = importedTransactions.value[importedTxIndex];
+        if (itx) {
+          itx.matched = true;
+        }
       }
     }
 
@@ -1210,9 +1229,10 @@ async function executeBatchMatch() {
     const acct = selectedAccount.value;
     await loadData(); // Refresh data to reflect changes
     selectedAccount.value = acct;
-  } catch (error: any) {
-    console.error("Error performing batch match:", error);
-    showSnackbar(`Error performing batch match: ${error.message}`, "error");
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error("Error performing batch match:", err);
+    showSnackbar(`Error performing batch match: ${err.message}`, "error");
   } finally {
     saving.value = false;
   }
@@ -1253,7 +1273,10 @@ async function executeBatchAction() {
       } else if (batchAction.value === "Ignore") {
         await dataAccess.updateImportedTransaction(docId, tx.id, false, true);
         const index = importedTransactions.value.findIndex((itx) => itx.id === tx.id);
-        if (index !== -1) importedTransactions.value[index]!.ignored = true;
+        if (index !== -1) {
+          const itx = importedTransactions.value[index];
+          if (itx) itx.ignored = true;
+        }
       }
     }
     showSnackbar(
@@ -1261,9 +1284,10 @@ async function executeBatchAction() {
       "success"
     );
     selectedRows.value = [];
-  } catch (error: any) {
-    console.error("Error performing batch action:", error);
-    showSnackbar(`Error performing batch action: ${error.message}`, "error");
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error("Error performing batch action:", err);
+    showSnackbar(`Error performing batch action: ${err.message}`, "error");
   } finally {
     saving.value = false;
     showBatchActionDialog.value = false;
@@ -1505,9 +1529,10 @@ async function saveBalanceAdjustment() {
 
     showSnackbar("Balance adjustment saved successfully", "success");
     closeBalanceAdjustmentDialog();
-  } catch (error: any) {
-    console.error("Error saving balance adjustment:", error);
-    showSnackbar(`Error saving balance adjustment: ${error.message}`, "error");
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error("Error saving balance adjustment:", err);
+    showSnackbar(`Error saving balance adjustment: ${err.message}`, "error");
   } finally {
     saving.value = false;
   }
@@ -1538,7 +1563,8 @@ async function refreshData() {
 function openStatementDialog() {
   showStatementDialog.value = true;
   if (statements.value.length > 0) {
-    newStatement.value.startDate = statements.value[statements.value.length - 1]!.endDate;
+    const last = statements.value[statements.value.length - 1];
+    if (last) newStatement.value.startDate = last.endDate;
   }
 }
 
@@ -1564,9 +1590,10 @@ async function saveStatement() {
     selectedStatementId.value = st.id;
     showSnackbar("Statement saved successfully", "success");
     closeStatementDialog();
-  } catch (error: any) {
-    console.error("Error saving statement:", error);
-    showSnackbar(`Error saving statement: ${error.message}`, "error");
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error("Error saving statement:", err);
+    showSnackbar(`Error saving statement: ${err.message}`, "error");
   } finally {
     saving.value = false;
   }
@@ -1596,12 +1623,14 @@ async function markStatementReconciled() {
       for (const tx of budget.transactions) {
         if (selectedRows.value.includes(tx.id)) {
           tx.status = "R";
-          txRefs.push({ budgetId: budget.budgetId!, transactionId: tx.id });
-          updated = true;
+          if (budget.budgetId) {
+            txRefs.push({ budgetId: budget.budgetId, transactionId: tx.id });
+            updated = true;
+          }
         }
       }
-      if (updated) {
-        budgetStore.updateBudget(budget.budgetId!, budget);
+      if (updated && budget.budgetId) {
+        budgetStore.updateBudget(budget.budgetId, budget);
       }
     }
 
@@ -1610,10 +1639,12 @@ async function markStatementReconciled() {
       if (idx !== -1) {
         const parts = id.split("-");
         const docId = parts.slice(0, -1).join("-");
-        const baseItx = importedTransactions.value[idx]! as ImportedTransaction;
-        const updatedTx: ImportedTransaction = { ...baseItx, status: "R" };
-        importedTransactions.value[idx]!.status = "R";
-        await dataAccess.updateImportedTransaction(docId, updatedTx);
+        const baseItx = importedTransactions.value[idx];
+        if (baseItx) {
+          const updatedTx: ImportedTransaction = { ...baseItx, status: "R" };
+          importedTransactions.value[idx].status = "R";
+          await dataAccess.updateImportedTransaction(docId, updatedTx);
+        }
       }
     }
 
@@ -1623,9 +1654,10 @@ async function markStatementReconciled() {
     showSnackbar("Statement reconciled", "success");
     reconciling.value = false;
     selectedRows.value = [];
-  } catch (error: any) {
-    console.error("Error reconciling statement:", error);
-    showSnackbar(`Error reconciling statement: ${error.message}`, "error");
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error("Error reconciling statement:", err);
+    showSnackbar(`Error reconciling statement: ${err.message}`, "error");
   } finally {
     saving.value = false;
   }
@@ -1647,11 +1679,13 @@ async function unreconcileStatement() {
           tx.status === "R"
         ) {
           tx.status = "C";
-          txRefs.push({ budgetId: budget.budgetId!, transactionId: tx.id });
-          updated = true;
+          if (budget.budgetId) {
+            txRefs.push({ budgetId: budget.budgetId, transactionId: tx.id });
+            updated = true;
+          }
         }
       }
-      if (updated) budgetStore.updateBudget(budget.budgetId!, budget);
+      if (updated && budget.budgetId) budgetStore.updateBudget(budget.budgetId, budget);
     }
 
     for (const itx of importedTransactions.value) {
@@ -1680,9 +1714,10 @@ async function unreconcileStatement() {
       selectedAccount.value
     );
     showSnackbar("Statement unreconciled", "success");
-  } catch (error: any) {
-    console.error("Error unreconciling statement:", error);
-    showSnackbar(`Error unreconciling statement: ${error.message}`, "error");
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error("Error unreconciling statement:", err);
+    showSnackbar(`Error unreconciling statement: ${err.message}`, "error");
   } finally {
     saving.value = false;
   }
@@ -1705,11 +1740,13 @@ async function deleteStatement() {
           tx.status === "R"
         ) {
           tx.status = "C";
-          txRefs.push({ budgetId: budget.budgetId!, transactionId: tx.id });
-          updated = true;
+          if (budget.budgetId) {
+            txRefs.push({ budgetId: budget.budgetId, transactionId: tx.id });
+            updated = true;
+          }
         }
       }
-      if (updated) budgetStore.updateBudget(budget.budgetId!, budget);
+      if (updated && budget.budgetId) budgetStore.updateBudget(budget.budgetId, budget);
     }
 
     for (const itx of importedTransactions.value) {
@@ -1739,14 +1776,16 @@ async function deleteStatement() {
       selectedAccount.value
     );
     if (statements.value.length > 0) {
-      selectedStatementId.value = statements.value[statements.value.length - 1]!.id;
+      const lastStatement = statements.value[statements.value.length - 1];
+      selectedStatementId.value = lastStatement ? lastStatement.id : "ALL";
     } else {
       selectedStatementId.value = "ALL";
     }
     showSnackbar("Statement deleted", "success");
-  } catch (error: any) {
-    console.error("Error deleting statement:", error);
-    showSnackbar(`Error deleting statement: ${error.message}`, "error");
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error("Error deleting statement:", err);
+    showSnackbar(`Error deleting statement: ${err.message}`, "error");
   } finally {
     saving.value = false;
   }
