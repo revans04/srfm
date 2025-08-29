@@ -222,7 +222,7 @@ import { dataAccess } from "../dataAccess";
 import { useFamilyStore } from "../store/family";
 import AccountList from "../components/AccountList.vue";
 import AccountForm from "../components/AccountForm.vue"; // Import AccountForm directly
-import type { Account, Snapshot, ImportedTransaction, Transaction } from "../types";
+import type { Account, Snapshot, ImportedTransaction } from "../types";
 import { AccountType } from "../types";
 import { formatCurrency, formatTimestamp, todayISO, timestampToMillis } from "../utils/helpers";
 import { useQuasar, QSpinner } from 'quasar';
@@ -363,7 +363,7 @@ onMounted(async () => {
     familyId.value = family.id;
     await loadData();
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : String(error);
+    const msg = error instanceof Error ? error.message : JSON.stringify(error);
     showSnackbar(`Error loading data: ${msg}`, "error");
     console.error("Error during onMounted:", error);
   } finally {
@@ -379,7 +379,7 @@ async function loadData() {
     snapshots.value = await dataAccess.getSnapshots(familyId.value);
   } catch (error: unknown) {
     console.error("Error loading data:", error);
-    const msg = error instanceof Error ? error.message : String(error);
+    const msg = error instanceof Error ? error.message : JSON.stringify(error);
     showSnackbar(`Error loading data: ${msg}`, "error");
   }
 }
@@ -500,7 +500,7 @@ async function saveAccount(account: Account, isPersonal: boolean) {
     showSnackbar(`${accountType.value} account saved successfully`, "success");
     closeAccountDialog();
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : String(error);
+    const msg = error instanceof Error ? error.message : JSON.stringify(error);
     showSnackbar(`Error saving account: ${msg}`, "error");
     console.error("Error saving account:", error);
   } finally {
@@ -525,8 +525,9 @@ async function confirmUpdateBudgetTransactions() {
       await dataAccess.updateBudgetTransactions(updatedBudgetTxs);
       showSnackbar(`${budgetTxsWithBudgetId.length} budget transactions updated successfully`, "success");
     }
-  } catch (error: any) {
-    showSnackbar(`Error updating budget transactions: ${error.message}`, "error");
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : JSON.stringify(error);
+    showSnackbar(`Error updating budget transactions: ${msg}`, "error");
     console.error("Error updating budget transactions:", error);
   } finally {
     showUpdateBudgetTransactionsDialog.value = false;
@@ -563,8 +564,9 @@ async function executeDeleteAccount() {
     await dataAccess.deleteAccount(familyId.value, accountToDelete.value);
     accounts.value = accounts.value.filter((acc) => acc.id !== accountToDelete.value);
     showSnackbar("Account deleted successfully", "success");
-  } catch (error: any) {
-    showSnackbar(`Error deleting account: ${error.message}`, "error");
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : JSON.stringify(error);
+    showSnackbar(`Error deleting account: ${msg}`, "error");
   } finally {
     showDeleteAccountDialog.value = false;
     accountToDelete.value = null;
@@ -615,7 +617,7 @@ async function saveSnapshot() {
     showSnackbar("Snapshot saved successfully", "success");
     showSnapshotDialog.value = false;
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : String(error);
+    const msg = error instanceof Error ? error.message : JSON.stringify(error);
     showSnackbar(`Error saving snapshot: ${msg}`, "error");
     console.log(error);
   } finally {
@@ -638,7 +640,7 @@ async function executeDeleteSnapshot() {
     updateSelectAll();
     showSnackbar("Snapshot deleted successfully", "success");
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : String(error);
+    const msg = error instanceof Error ? error.message : JSON.stringify(error);
     showSnackbar(`Error deleting snapshot: ${msg}`, "error");
   } finally {
     showDeleteSnapshotDialog.value = false;
@@ -663,7 +665,7 @@ async function executeBatchDeleteSnapshots() {
     updateSelectAll();
     showSnackbar(`${deletedCount} snapshot(s) deleted successfully`, "success");
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : String(error);
+    const msg = error instanceof Error ? error.message : JSON.stringify(error);
     showSnackbar(`Error deleting snapshots: ${msg}`, "error");
   } finally {
     showBatchDeleteSnapshotDialog.value = false;
