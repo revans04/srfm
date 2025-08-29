@@ -67,10 +67,8 @@ public class BudgetService
         }
         await reader.DisposeAsync();
 
-        foreach (var b in budgets)
-        {
-            await LoadBudgetDetails(conn, b, includeTransactions: false);
-        }
+        // Performance: return thin summaries for list view; 
+        // load full budget details on demand via GetBudget.
 
         _logger.LogInformation("Loaded {Count} budgets for user {UserId}", budgets.Count, userId);
         return budgets;
@@ -645,4 +643,3 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
         await LogEdit(conn, budgetId, userId, userEmail, "batch-reconcile");
     }
 }
-

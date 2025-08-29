@@ -29,18 +29,20 @@ export function formatDate(date: string | Date): string {
 }
 
 // Format a Timestamp to a readable string
-export function formatTimestamp(timestamp: any) {
-  if (!timestamp || typeof timestamp !== 'object' || !timestamp.seconds) {
-    return 'Invalid timestamp';
+export type TimestampLike = Timestamp | { seconds: number; nanoseconds: number } | string | Date | null | undefined;
+
+export function formatTimestamp(timestamp: TimestampLike) {
+  if (!timestamp) return 'Invalid timestamp';
+  let date: Date | null = null;
+  if (timestamp instanceof Timestamp) {
+    date = timestamp.toDate();
+  } else if (typeof timestamp === 'object' && 'seconds' in timestamp && 'nanoseconds' in timestamp) {
+    date = new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate();
+  } else if (typeof timestamp === 'string' || timestamp instanceof Date) {
+    date = new Date(timestamp);
   }
-
-  const date = new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate();
-
-  return date.toLocaleDateString('en-US', {
-    month: '2-digit',
-    day: '2-digit',
-    year: 'numeric',
-  });
+  if (!date || isNaN(date.getTime())) return 'Invalid timestamp';
+  return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
 }
 
 export function timestampToDate(t: Timestamp): Date {
@@ -49,17 +51,16 @@ export function timestampToDate(t: Timestamp): Date {
   return new Date(milliseconds);
 }
 
-export function timestampToMillis(t: any): number {
+export function timestampToMillis(t: TimestampLike): number {
   if (!t) return 0;
-  if (t instanceof Timestamp) {
-    return t.toMillis();
-  }
-  if (typeof t === 'object' && 'seconds' in t) {
-    const seconds = (t as any).seconds ?? 0;
-    const nanos = (t as any).nanoseconds ?? 0;
+  if (t instanceof Timestamp) return t.toMillis();
+  if (typeof t === 'object' && 'seconds' in t && 'nanoseconds' in t) {
+    const seconds = Number(t.seconds ?? 0);
+    const nanos = Number(t.nanoseconds ?? 0);
     return seconds * 1000 + nanos / 1e6;
   }
-  return 0;
+  const d = new Date(t as any);
+  return isNaN(d.getTime()) ? 0 : d.getTime();
 }
 
 export function stringToFirestoreTimestamp(dateString: string): Timestamp {
@@ -183,7 +184,7 @@ export function formatCurrency(amount: number | string): string {
  * @param value - Value to check
  * @returns Boolean indicating if the value is a valid number
  */
-export function isValidNumber(value: any): boolean {
+export function isValidNumber(value: unknown): value is number {
   return typeof value === 'number' && !isNaN(value);
 }
 

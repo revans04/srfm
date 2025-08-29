@@ -58,7 +58,7 @@ onMounted(() => {
   checkGoogle();
 });
 
-const handleCredentialResponse = async (response: any) => {
+const handleCredentialResponse = async (response: { credential: string }) => {
   loading.value = true;
   error.value = '';
 
@@ -79,8 +79,9 @@ const handleCredentialResponse = async (response: any) => {
     await authStore.loginWithCustomToken(token);
     await authStore.user?.reload();
     router.push('/');
-  } catch (err: any) {
-    error.value = err.message || 'Failed to sign in with Google';
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    error.value = msg || 'Failed to sign in with Google';
     console.error('Login error:', err);
   } finally {
     loading.value = false;

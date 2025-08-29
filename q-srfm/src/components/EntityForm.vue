@@ -289,6 +289,19 @@ onMounted(async () => {
   }
 });
 
+function normalizeTimestamp(t: unknown): Timestamp {
+  if (t instanceof Timestamp) return t;
+  if (t && typeof t === 'object' && 'seconds' in (t as any) && 'nanoseconds' in (t as any)) {
+    const { seconds, nanoseconds } = t as { seconds: number; nanoseconds: number };
+    return new Timestamp(Number(seconds || 0), Number(nanoseconds || 0));
+  }
+  if (typeof t === 'string' || t instanceof Date) {
+    const d = new Date(t as any);
+    if (!isNaN(d.getTime())) return Timestamp.fromDate(d);
+  }
+  return Timestamp.fromDate(new Date());
+}
+
 function importCategories() {
   importing.value = true;
   try {
@@ -350,7 +363,7 @@ async function save() {
         isEditing.value && initialEntity.value
           ? initialEntity.value.members
           : [{ uid: auth.currentUser?.uid || '', email: auth.currentUser?.email || '', role: 'Admin' }],
-      createdAt: isEditing.value && initialEntity.value ? initialEntity.value.createdAt : Timestamp.fromDate(new Date()),
+      createdAt: isEditing.value && initialEntity.value ? normalizeTimestamp(initialEntity.value.createdAt) : Timestamp.fromDate(new Date()),
       updatedAt: Timestamp.fromDate(new Date()),
       templateBudget: { categories: budget.value.categories },
       taxFormIds: entityTaxFormIds.value,

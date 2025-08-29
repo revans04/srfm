@@ -223,7 +223,7 @@ import type { Budget, Snapshot } from "../types";
 import { Doughnut, Line } from "vue-chartjs";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, LineElement, PointElement, LinearScale, TimeScale, Filler } from "chart.js";
 import { useBudgetStore } from "../store/budget";
-import { Timestamp } from "firebase/firestore";
+import type { Timestamp } from "firebase/firestore";
 import "chartjs-adapter-date-fns";
 import { timestampToDate, currentMonthISO } from "../utils/helpers";
 
@@ -389,9 +389,9 @@ const netWorthChartOptions = ref({
   maintainAspectRatio: false,
   scales: {
     x: {
-      type: "time",
+      type: "timeseries" as const,
       time: {
-        unit: "month",
+        unit: "month" as const,
         displayFormats: {
           month: "MMM yyyy",
         },
@@ -527,9 +527,9 @@ const assetDebtChartOptions = ref({
   maintainAspectRatio: false,
   scales: {
     x: {
-      type: "time",
+      type: "timeseries" as const,
       time: {
-        unit: "month",
+        unit: "month" as const,
         displayFormats: {
           month: "MMM yyyy",
         },
@@ -601,9 +601,9 @@ const monthlyBudgetChartOptions = ref({
   maintainAspectRatio: false,
   scales: {
     x: {
-      type: "time",
+      type: "timeseries" as const,
       time: {
-        unit: "month",
+        unit: "month" as const,
         displayFormats: {
           month: "MMM yyyy",
         },

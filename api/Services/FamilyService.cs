@@ -104,41 +104,7 @@ public class FamilyService
             }
         }
 
-        // Load accounts
-        const string sqlAccounts =
-            @"SELECT id, user_id, name, type, category, account_number, institution,
-                     balance, interest_rate, appraised_value, maturity_date, address,
-                     created_at, updated_at
-              FROM accounts WHERE family_id=@fid";
-        await using (var accCmd = new Npgsql.NpgsqlCommand(sqlAccounts, conn))
-        {
-            accCmd.Parameters.AddWithValue("fid", fid);
-            await using var accReader = await accCmd.ExecuteReaderAsync();
-            while (await accReader.ReadAsync())
-            {
-                var account = new Account
-                {
-                    Id = accReader.GetGuid(0).ToString(),
-                    UserId = accReader.IsDBNull(1) ? null : accReader.GetString(1),
-                    Name = accReader.GetString(2),
-                    Type = accReader.GetString(3),
-                    Category = accReader.GetString(4),
-                    AccountNumber = accReader.IsDBNull(5) ? null : accReader.GetString(5),
-                    Institution = accReader.IsDBNull(6) ? string.Empty : accReader.GetString(6),
-                    Balance = accReader.IsDBNull(7) ? null : (double?)accReader.GetDecimal(7),
-                    Details = new AccountDetails
-                    {
-                        InterestRate = accReader.IsDBNull(8) ? null : (double?)accReader.GetDecimal(8),
-                        AppraisedValue = accReader.IsDBNull(9) ? null : (double?)accReader.GetDecimal(9),
-                        MaturityDate = accReader.IsDBNull(10) ? null : accReader.GetDateTime(10).ToString("yyyy-MM-dd"),
-                        Address = accReader.IsDBNull(11) ? null : accReader.GetString(11)
-                    },
-                    CreatedAt = Timestamp.FromDateTime(accReader.IsDBNull(12) ? DateTime.UtcNow : accReader.GetDateTime(12).ToUniversalTime()),
-                    UpdatedAt = Timestamp.FromDateTime(accReader.IsDBNull(13) ? DateTime.UtcNow : accReader.GetDateTime(13).ToUniversalTime())
-                };
-                family.Accounts.Add(account);
-            }
-        }
+        // Performance: defer loading accounts to dedicated endpoints
 
         // Load entities
         const string sqlEntities =
@@ -161,47 +127,7 @@ public class FamilyService
             }
         }
 
-        // Load snapshots and their accounts in a single query to avoid nested readers
-        const string sqlSnapshots = @"
-            SELECT s.id, s.snapshot_date, s.net_worth, s.created_at,
-                   sa.account_id, sa.account_name, sa.value, sa.account_type
-            FROM snapshots s
-            LEFT JOIN snapshot_accounts sa ON s.id = sa.snapshot_id
-            WHERE s.family_id=@fid
-            ORDER BY s.snapshot_date";
-        await using (var snapCmd = new Npgsql.NpgsqlCommand(sqlSnapshots, conn))
-        {
-            snapCmd.Parameters.AddWithValue("fid", fid);
-            await using var snapReader = await snapCmd.ExecuteReaderAsync();
-            var snapMap = new Dictionary<Guid, Snapshot>();
-            while (await snapReader.ReadAsync())
-            {
-                var sid = snapReader.GetGuid(0);
-                if (!snapMap.TryGetValue(sid, out var snap))
-                {
-                    snap = new Snapshot
-                    {
-                        Id = sid.ToString(),
-                        Date = snapReader.IsDBNull(1) ? DateTime.Now.ToString("yyyy-MM-dd") : snapReader.GetDateTime(1).ToUniversalTime().ToString("yyyy-MM-dd"),
-                        NetWorth = snapReader.IsDBNull(2) ? 0 : (double)snapReader.GetDecimal(2),
-                        CreatedAt = snapReader.IsDBNull(3) ? null : snapReader.GetDateTime(3).ToString("yyyy-MM-dd"),
-                        Accounts = new List<SnapshotAccount>()
-                    };
-                    snapMap[sid] = snap;
-                    family.Snapshots.Add(snap);
-                }
-                if (!snapReader.IsDBNull(4))
-                {
-                    snap.Accounts.Add(new SnapshotAccount
-                    {
-                        AccountId = snapReader.GetGuid(4).ToString(),
-                        AccountName = snapReader.IsDBNull(5) ? string.Empty : snapReader.GetString(5),
-                        Value = snapReader.IsDBNull(6) ? 0 : (double)snapReader.GetDecimal(6),
-                        Type = snapReader.IsDBNull(7) ? string.Empty : snapReader.GetString(7)
-                    });
-                }
-            }
-        }
+        // Performance: defer loading snapshots to dedicated endpoints
 
         _logger.LogInformation(
             "Loaded family {FamilyId} with {MemberCount} members, {AccountCount} accounts, {SnapshotCount} snapshots, {EntityCount} entities",

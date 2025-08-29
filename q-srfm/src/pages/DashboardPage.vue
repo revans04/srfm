@@ -35,15 +35,9 @@
           <EntitySelector @change="loadBudgets" class="q-mb-sm" />
           <h4>
             {{ formatMonth(currentMonth) }}
-            <q-icon size="xs" name="expand_more">
+            <span class="month-selector no-wrap" :class="{ 'text-white': isMobile }" @click="menuOpen = true">
+              <q-icon size="xs" name="expand_more" />
               <q-menu v-model="menuOpen" :offset="[0, 4]" :close-on-content-click="false">
-                <template v-slot:activator="{ props }">
-                  <div v-bind="props" class="month-selector no-wrap" :class="{ 'text-white': isMobile }">
-                    <h1 class="text-h5 q-my-none">
-                      {{ formatMonth(currentMonth) }}
-                    </h1>
-                  </div>
-                </template>
                 <q-card class="month-menu">
                   <div class="row no-wrap items-center q-px-sm q-py-xs border-bottom">
                     <div class="col-auto">
@@ -70,7 +64,7 @@
                   </div>
                 </q-card>
               </q-menu>
-            </q-icon>
+            </span>
             <q-btn v-if="!isMobile && !isEditing" flat icon="edit" @click="isEditing = true" title="Edit Budget" />
             <q-btn v-if="isEditing" flat icon="close" @click="isEditing = false" title="Cancel" />
             <q-btn v-if="!isMobile && !isEditing" flat icon="delete" color="negative" title="Delete Budget" />
@@ -87,6 +81,10 @@
             {{ formatCurrency(toDollars(toCents(Math.abs(remainingToBudget)))) }}
             {{ remainingToBudget >= 0 ? 'left to budget' : 'over budget' }}
           </div>
+        </div>
+        <!-- Dashboard Tiles -->
+        <div class="col-12">
+          <DashboardTiles :budget-id="budgetId" :family-id="familyId" @open-bills="onOpenBills" @create-goal="onCreateGoal" />
         </div>
         <div v-if="!isMobile || !selectedCategory" class="col-12 sm:col-6">
           <div class="q-my-sm bg-white q-pa-md rounded-borders">
@@ -243,7 +241,7 @@
                       </div>
                       <div v-else-if="!isMobile" class="col-2">
                         <CurrencyInput
-                          v-model.number="inlineEdit.value"
+                          v-model="inlineEditNumber"
                           dense
                           @keydown.enter="saveInlineEdit"
                           @keydown.esc="cancelInlineEdit"
@@ -318,21 +316,22 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick, onUnmounted } from 'vue';
-import { useQuasar } from 'quasar';
+import { useQuasar, QSpinner } from 'quasar';
 import { dataAccess } from '../dataAccess';
 import CurrencyInput from '../components/CurrencyInput.vue';
 import CategoryTransactions from '../components/CategoryTransactions.vue';
 import TransactionForm from '../components/TransactionForm.vue';
 import EntitySelector from '../components/EntitySelector.vue';
+import DashboardTiles from '../components/DashboardTiles.vue';
 import type { Transaction, Budget, IncomeTarget, BudgetCategoryTrx, BudgetCategory } from '../types';
-import { Entity } from '../types';
+import type { Entity } from '../types';
 import version from '../version';
 import { toDollars, toCents, formatCurrency, adjustTransactionDate, todayISO, currentMonthISO } from '../utils/helpers';
 import { useAuthStore } from '../store/auth';
 import { useBudgetStore } from '../store/budget';
 import { useMerchantStore } from '../store/merchants';
 import { useFamilyStore } from '../store/family';
-import { debounce } from 'lodash';
+import debounce from 'lodash/debounce';
 import { v4 as uuidv4 } from 'uuid';
 import { DEFAULT_BUDGET_TEMPLATES } from '../constants/budgetTemplates';
 
@@ -385,6 +384,7 @@ const budgetId = computed(() => {
   return `${ownerUid.value}_${familyStore.selectedEntityId}_${currentMonth.value}`;
 });
 const userId = computed(() => auth.user?.uid || '');
+const familyId = computed(() => familyStore.family?.id || '');
 const selectedCategory = ref<BudgetCategory | null>(null);
 const newMerchantName = ref('');
 const searchInput = ref(null);
@@ -401,6 +401,16 @@ const inlineEdit = ref({
   item: null as BudgetCategoryTrx | null,
   field: null as 'name' | 'target' | null,
   value: '' as string | number,
+});
+
+const inlineEditNumber = computed<number>({
+  get() {
+    const v = inlineEdit.value.value;
+    return typeof v === 'number' ? v : parseFloat(String(v)) || 0;
+  },
+  set(val: number) {
+    inlineEdit.value.value = val;
+  }
 });
 
 const isMobile = computed(() => $q.screen.lt.md);
@@ -740,6 +750,14 @@ onUnmounted(() => {
   if (loadingTimeout) clearTimeout(loadingTimeout);
 });
 
+function onOpenBills() {
+  // Placeholder: navigate to transactions/register or statements page in future
+}
+
+function onCreateGoal() {
+  // Placeholder: open future goals modal/page
+}
+
 async function loadBudgets() {
   const user = auth.user;
   if (!user) {
@@ -868,7 +886,7 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
         {} as Record<string, Transaction[]>,
       );
 
-      Object.values(recurringGroups).forEach((group) => {
+      (Object.values(recurringGroups) as Transaction[][]).forEach((group) => {
         const firstInstance = group.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
         if (firstInstance.recurringInterval === 'Monthly') {
           const newDate = adjustTransactionDate(firstInstance.date, month, 'Monthly');
@@ -1126,6 +1144,7 @@ function addTransaction() {
       userId: userId.value,
       isIncome: false,
       entityId: familyStore.selectedEntityId,
+      taxMetadata: [],
     };
     isIncomeTransaction.value = false;
     showTransactionDialog.value = true;
@@ -1152,6 +1171,7 @@ function addTransactionForCategory(category: string) {
       userId: userId.value,
       isIncome: false,
       entityId: familyStore.selectedEntityId,
+      taxMetadata: [],
     };
     isIncomeTransaction.value = false;
     showTransactionDialog.value = true;
@@ -1197,11 +1217,10 @@ async function duplicateCurrentMonth(month: string) {
 
   $q.loading.show({
     message: 'Duplicating budget...',
-    spinner: 'QSpinner',
+    spinner: QSpinner,
     spinnerColor: 'primary',
-    spinnerSize: '50px',
-    messageClass: 'q-ml-sm',
-    boxClass: 'flex items-center justify-center',
+    spinnerSize: 50,
+    customClass: 'q-ml-sm flex items-center justify-center',
   });
 
   try {

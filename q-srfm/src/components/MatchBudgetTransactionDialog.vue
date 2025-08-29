@@ -44,21 +44,21 @@
               </div>
             </div>
             <q-table
-              :headers="importedTransactionHeaders"
+              :columns="importedTransactionColumns"
               :rows="filteredImportedTransactions"
-              :items-per-page="10"
-              v-model="selectedImportedTransaction"
-              show-select
-              single-select
-              @click:row="selectImportedTransaction"
+              :pagination="{ rowsPerPage: 10 }"
+              row-key="id"
+              selection="single"
+              v-model:selected="selectedImportedInternal"
+              @row-click="selectImportedTransaction"
             >
-              <template v-slot:body-cell-creditAmount="{ row }">
+              <template #body-cell-creditAmount="{ row }">
                 {{ row.creditAmount ? `$${toDollars(toCents(row.creditAmount))}` : "" }}
               </template>
-              <template v-slot:body-cell-debitAmount="{ row }">
+              <template #body-cell-debitAmount="{ row }">
                 {{ row.debitAmount ? `$${toDollars(toCents(row.debitAmount))}` : "" }}
               </template>
-              <template v-slot:body-cell-accountId="{ row }">
+              <template #body-cell-accountId="{ row }">
                 {{ getAccountName(row.accountId) }}
               </template>
             </q-table>
@@ -77,7 +77,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from "vue";
 import { useQuasar } from 'quasar';
-import { Transaction, ImportedTransaction, Account } from "../types";
+import type { Transaction, ImportedTransaction, Account } from "../types";
 import { toDollars, toCents } from "../utils/helpers";
 
 const props = defineProps<{
@@ -135,16 +135,25 @@ const filteredImportedTransactions = computed(() => {
   return results;
 });
 
-const importedTransactionHeaders = [
-  { title: "Posted Date", value: "postedDate" },
-  { title: "Payee", value: "payee" },
-  { title: "Credit Amount", value: "creditAmount" },
-  { title: "Debit Amount", value: "debitAmount" },
-  { title: "Account", value: "accountId" }, // Display the account name
-  { title: "Account Source", value: "accountSource" },
-  { title: "Account #", value: "accountNumber" },
-  { title: "Check Number", value: "checkNumber" },
+const importedTransactionColumns = [
+  { name: 'postedDate', label: 'Posted Date', field: 'postedDate', sortable: true },
+  { name: 'payee', label: 'Payee', field: 'payee', sortable: true },
+  { name: 'creditAmount', label: 'Credit Amount', field: 'creditAmount', sortable: true },
+  { name: 'debitAmount', label: 'Debit Amount', field: 'debitAmount', sortable: true },
+  { name: 'accountId', label: 'Account', field: 'accountId' },
+  { name: 'accountSource', label: 'Account Source', field: 'accountSource' },
+  { name: 'accountNumber', label: 'Account #', field: 'accountNumber' },
+  { name: 'checkNumber', label: 'Check Number', field: 'checkNumber' },
 ];
+
+const selectedImportedInternal = computed({
+  get() {
+    return props.unmatchedImportedTransactions.filter((t) => selectedImportedTransaction.value.includes(t.id));
+  },
+  set(rows: any[]) {
+    selectedImportedTransaction.value = Array.isArray(rows) ? rows.map((r) => r.id) : [];
+  },
+});
 
 // Sync local dialog state with prop
 watch(
@@ -178,8 +187,8 @@ function cancel() {
   handleDialogClose(false);
 }
 
-function selectImportedTransaction(event: any, item: any) {
-  selectedImportedTransaction.value = [item.item.id];
+function selectImportedTransaction(event: MouseEvent, row: ImportedTransaction) {
+  selectedImportedTransaction.value = [row.id];
 }
 
 function matchTransaction() {

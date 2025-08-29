@@ -241,31 +241,31 @@
                       </q-tabs>
                       <q-tab-panels v-model="previewTab">
                         <q-tab-panel name="entities">
-                          <q-table :headers="entityHeaders" :rows="previewData.entities" :items-per-page="5" class="mt-4"></q-table>
+                          <q-table :columns="entityColumns" :rows="previewData.entities" :pagination="{ rowsPerPage: 5 }" class="mt-4"></q-table>
                         </q-tab-panel>
                         <q-tab-panel name="categories">
-                          <q-table :headers="categoryHeaders" :rows="previewData.categories" :items-per-page="5" class="mt-4"></q-table>
+                          <q-table :columns="categoryColumns" :rows="previewData.categories" :pagination="{ rowsPerPage: 5 }" class="mt-4"></q-table>
                         </q-tab-panel>
                         <q-tab-panel name="transactions">
-                          <q-table :headers="transactionHeaders" :rows="previewData.transactions" :items-per-page="5" class="mt-4">
-                            <template v-slot:item.categories="{ item }">
-                              <span>{{ formatCategories(item.categories) }}</span>
+                          <q-table :columns="transactionColumns" :rows="previewData.transactions" :pagination="{ rowsPerPage: 5 }" class="mt-4">
+                            <template #body-cell-categories="slotProps">
+                              <span>{{ formatCategories(slotProps.row.categories) }}</span>
                             </template>
                           </q-table>
                         </q-tab-panel>
                         <q-tab-panel name="bankTransactions">
                           <q-table
-                            :headers="bankTransactionPreviewHeaders"
+                            :columns="bankTransactionPreviewColumns"
                             :rows="previewBankTransactions"
-                            :items-per-page="5"
+                            :pagination="{ rowsPerPage: 5 }"
                             class="mt-4"
                           ></q-table>
                         </q-tab-panel>
                         <q-tab-panel name="accountsAndSnapshots">
                           <q-table
-                            :headers="accountsAndSnapshotsHeaders"
+                            :columns="accountsAndSnapshotsColumns"
                             :rows="previewData.accountsAndSnapshots"
-                            :items-per-page="5"
+                            :pagination="{ rowsPerPage: 5 }"
                             class="mt-4"
                           ></q-table>
                         </q-tab-panel>
@@ -332,7 +332,7 @@
     <!-- Snackbar handled via $q.notify -->
     <!-- Entity Form Dialog -->
     <q-dialog v-model="showEntityForm" max-width="1000px" persistent>
-      <entity-form :initial-entity="null" @save="handleEntitySave" @cancel="showEntityForm = false" />
+      <entity-form :entity-id="''" @save="handleEntitySave" @cancel="showEntityForm = false" />
     </q-dialog>
 
   </q-page>
@@ -340,11 +340,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
-import { useQuasar } from 'quasar';
+import { useQuasar, QSpinner } from 'quasar';
 import { auth } from "../firebase/init";
 import { dataAccess } from "../dataAccess";
 import Papa from "papaparse";
-import { Budget, Transaction, Account, Entity, ImportedTransaction, ImportedTransactionDoc, Snapshot } from "../types";
+import type { Budget, Transaction, Account, Entity, ImportedTransaction, ImportedTransactionDoc, Snapshot } from "../types";
+import { EntityType } from "../types";
 import { useRouter } from "vue-router";
 import { v4 as uuidv4 } from "uuid";
 import { useBudgetStore } from "../store/budget";
@@ -422,61 +423,61 @@ const amountFormatOptions = [
 ];
 const creditTypeValue = ref("Credit");
 const debitTypeValue = ref("Debit");
-const bankTransactionPreviewHeaders = [
-  { title: "Payee", value: "payee" },
-  { title: "Posted Date", value: "postedDate" },
-  { title: "Status", value: "status" },
-  { title: "Credit Amount", value: "creditAmount" },
-  { title: "Debit Amount", value: "debitAmount" },
-  { title: "Check Number", value: "checkNumber" },
+const bankTransactionPreviewColumns = [
+  { name: 'payee', label: 'Payee', field: 'payee' },
+  { name: 'postedDate', label: 'Posted Date', field: 'postedDate' },
+  { name: 'status', label: 'Status', field: 'status' },
+  { name: 'creditAmount', label: 'Credit Amount', field: 'creditAmount' },
+  { name: 'debitAmount', label: 'Debit Amount', field: 'debitAmount' },
+  { name: 'checkNumber', label: 'Check Number', field: 'checkNumber' },
 ];
 
 // Headers for Entity Preview
-const entityHeaders = [
-  { title: "Name", value: "name" },
-  { title: "Type", value: "type" },
-  { title: "Owner Email", value: "ownerEmail" },
+const entityColumns = [
+  { name: 'name', label: 'Name', field: 'name' },
+  { name: 'type', label: 'Type', field: 'type' },
+  { name: 'ownerEmail', label: 'Owner Email', field: 'ownerEmail' },
 ];
 const showEntityForm = ref(false);
 
 // Headers for Accounts/Snapshots Preview
-const accountsAndSnapshotsHeaders = [
-  { title: "Account Name", value: "accountName" },
-  { title: "Type", value: "type" },
-  { title: "Account Number", value: "accountNumber" },
-  { title: "Institution", value: "institution" },
-  { title: "Date", value: "date" },
-  { title: "Balance", value: "balance" },
-  { title: "Interest Rate", value: "interestRate" },
-  { title: "Appraised Value", value: "appraisedValue" },
-  { title: "Address", value: "address" },
+const accountsAndSnapshotsColumns = [
+  { name: 'accountName', label: 'Account Name', field: 'accountName' },
+  { name: 'type', label: 'Type', field: 'type' },
+  { name: 'accountNumber', label: 'Account Number', field: 'accountNumber' },
+  { name: 'institution', label: 'Institution', field: 'institution' },
+  { name: 'date', label: 'Date', field: 'date' },
+  { name: 'balance', label: 'Balance', field: 'balance' },
+  { name: 'interestRate', label: 'Interest Rate', field: 'interestRate' },
+  { name: 'appraisedValue', label: 'Appraised Value', field: 'appraisedValue' },
+  { name: 'address', label: 'Address', field: 'address' },
 ];
 
 // Headers for Budget and Transaction Previews
-const categoryHeaders = [
-  { title: "BudgetId", value: "budgetid" },
-  { title: "Budget Month", value: "budgetmonth" },
-  { title: "Category", value: "category" },
-  { title: "Group", value: "group" },
-  { title: "IsFund", value: "isfund" },
-  { title: "Target", value: "target" },
-  { title: "Carryover", value: "carryover" },
-  { title: "EntityId", value: "entityId" },
-  { title: "EntityName", value: "entityName" },
+const categoryColumns = [
+  { name: 'budgetid', label: 'BudgetId', field: 'budgetid' },
+  { name: 'budgetmonth', label: 'Budget Month', field: 'budgetmonth' },
+  { name: 'category', label: 'Category', field: 'category' },
+  { name: 'group', label: 'Group', field: 'group' },
+  { name: 'isfund', label: 'IsFund', field: 'isfund' },
+  { name: 'target', label: 'Target', field: 'target' },
+  { name: 'carryover', label: 'Carryover', field: 'carryover' },
+  { name: 'entityId', label: 'EntityId', field: 'entityId' },
+  { name: 'entityName', label: 'EntityName', field: 'entityName' },
 ];
-const transactionHeaders = [
-  { title: "BudgetId", value: "budgetid" },
-  { title: "TransactionId", value: "transactionid" },
-  { title: "Transaction Date", value: "transactiondate" },
-  { title: "Categories", value: "categories" },
-  { title: "Merchant", value: "merchant" },
-  { title: "IsIncome", value: "isincome" },
-  { title: "Amount", value: "amount" },
-  { title: "Notes", value: "notes" },
-  { title: "Recurring", value: "recurring" },
-  { title: "RecurringInterval", value: "recurringinterval" },
-  { title: "EntityId", value: "entityId" },
-  { title: "EntityName", value: "entityName" },
+const transactionColumns = [
+  { name: 'budgetid', label: 'BudgetId', field: 'budgetid' },
+  { name: 'transactionid', label: 'TransactionId', field: 'transactionid' },
+  { name: 'transactiondate', label: 'Transaction Date', field: 'transactiondate' },
+  { name: 'categories', label: 'Categories', field: 'categories' },
+  { name: 'merchant', label: 'Merchant', field: 'merchant' },
+  { name: 'isincome', label: 'IsIncome', field: 'isincome' },
+  { name: 'amount', label: 'Amount', field: 'amount' },
+  { name: 'notes', label: 'Notes', field: 'notes' },
+  { name: 'recurring', label: 'Recurring', field: 'recurring' },
+  { name: 'recurringinterval', label: 'RecurringInterval', field: 'recurringinterval' },
+  { name: 'entityId', label: 'EntityId', field: 'entityId' },
+  { name: 'entityName', label: 'EntityName', field: 'entityName' },
 ];
 const importRunning = ref(false);
 
@@ -514,11 +515,10 @@ onMounted(async () => {
 async function loadAllData() {
   $q.loading.show({
     message: 'Loading data...',
-    spinner: 'QSpinner',
+    spinner: QSpinner,
     spinnerColor: 'primary',
-    spinnerSize: '50px',
-    messageClass: 'q-ml-sm',
-    boxClass: 'flex items-center justify-center',
+    spinnerSize: 50,
+    customClass: 'q-ml-sm flex items-center justify-center',
   });
   try {
     const user = auth.currentUser;
@@ -589,11 +589,10 @@ async function handleFileUpload(event: Event) {
 
   $q.loading.show({
     message: 'Importing data...',
-    spinner: 'QSpinner',
+    spinner: QSpinner,
     spinnerColor: 'primary',
-    spinnerSize: '50px',
-    messageClass: 'q-ml-sm',
-    boxClass: 'flex items-center justify-center',
+    spinnerSize: 50,
+    customClass: 'q-ml-sm flex items-center justify-center',
   });
   importError.value = null;
   importSuccess.value = null;
@@ -655,12 +654,11 @@ async function handleEntityImport() {
             id: entityId,
             familyId: familyId.value || "",
             name: entity.name,
-            type: entity.type,
+            type: entity.type as EntityType,
             ownerUid: auth.currentUser?.uid || "",
             members: entity.members || [{ uid: auth.currentUser?.uid || "", email: auth.currentUser?.email || "", role: "Admin" }],
             createdAt: Timestamp.fromDate(new Date()),
             updatedAt: Timestamp.fromDate(new Date()),
-            email: auth.currentUser?.email || "",
           };
           entitiesById.set(entityId, newEntity);
           previewData.value.entities.push({
@@ -690,12 +688,11 @@ async function handleEntityImport() {
           id: entityId,
           familyId: familyId.value || "",
           name: row.name,
-          type: row.type,
+          type: row.type as EntityType,
           ownerUid: auth.currentUser?.uid || "",
           members: row.members ? JSON.parse(row.members) : [{ uid: auth.currentUser?.uid || "", email: auth.currentUser?.email || "", role: "Admin" }],
           createdAt: Timestamp.fromDate(new Date()),
           updatedAt: Timestamp.fromDate(new Date()),
-          email: auth.currentUser?.email || "",
         };
         entitiesById.set(entityId, newEntity);
         previewData.value.entities.push({
@@ -741,6 +738,7 @@ async function handleBudgetTransactionImport() {
         budgetsById.set(budgetId, {
           budgetId: budgetId,
           budgetMonth: jsonData.month,
+          month: jsonData.month,
           incomeTarget: jsonData.incomeTarget || 0,
           categories: jsonData.categories || [],
           transactions: jsonData.transactions || [],
@@ -785,6 +783,7 @@ async function handleBudgetTransactionImport() {
             postedDate: tx.postedDate || "",
             status: tx.status || "U",
             entityId: selectedEntityId.value,
+            taxMetadata: [],
           };
           transactionMap.set(transactionId, transactionData);
           previewData.value.transactions.push({
@@ -851,12 +850,14 @@ async function handleBudgetTransactionImport() {
         budgetsById.set(budgetId, {
           budgetId: budgetId,
           budgetMonth: month,
+          month: month,
           incomeTarget: parseFloat(row.incometarget) || 0,
           categories: [],
           transactions: [],
           familyId: familyId.value || "",
           label: `Imported Budget ${month}`,
           entityId: selectedEntityId.value,
+          merchants: [],
         });
       }
 
@@ -868,7 +869,7 @@ async function handleBudgetTransactionImport() {
       budget.categories.push({
         name: row.category,
         group: row.group || "",
-        isfund: row.isfund === "true" || row.isfund === "1",
+        isFund: row.isfund === "true" || row.isfund === "1",
         target: parseFloat(row.target) || 0,
         carryover: parseFloat(row.carryover) || 0,
       });
@@ -911,12 +912,14 @@ async function handleBudgetTransactionImport() {
         budgetsById.set(budgetId, {
           budgetId: budgetId,
           budgetMonth: month,
+          month: month,
           incomeTarget: 0,
           categories: [],
           transactions: [],
           familyId: familyId.value || "",
           label: `Imported Budget ${month}`,
           entityId: selectedEntityId.value,
+          merchants: [],
         });
       }
 
@@ -969,6 +972,7 @@ async function handleBudgetTransactionImport() {
         postedDate: row.postedDate || "",
         status: row.status || "U",
         entityId: selectedEntityId.value,
+        taxMetadata: [],
       };
 
       transactionMap.set(transactionId, transactionData);
@@ -992,7 +996,7 @@ async function handleBudgetTransactionImport() {
       budgetmonth: budget.budgetMonth,
       category: category.name,
       group: category.group || "",
-      isfund: category.isfund,
+      isfund: (category as any).isFund ?? (category as any).isfund,
       target: category.target || 0,
       carryover: category.carryover || 0,
       entityId: budget.entityId,
@@ -1027,11 +1031,10 @@ async function handleAccountsAndSnapshotsImport(event: Event) {
 
   $q.loading.show({
     message: 'Importing data...',
-    spinner: 'QSpinner',
+    spinner: QSpinner,
     spinnerColor: 'primary',
-    spinnerSize: '50px',
-    messageClass: 'q-ml-sm',
-    boxClass: 'flex items-center justify-center',
+    spinnerSize: 50,
+    customClass: 'q-ml-sm flex items-center justify-center',
   });
   importError.value = null;
   importSuccess.value = null;
@@ -1127,10 +1130,10 @@ async function handleBankTransactionsFileUpload(event: Event) {
 
   $q.loading.show({
     message: 'Importing bank transactions...',
-    spinner: 'QSpinner',
+    spinner: QSpinner,
     spinnerColor: 'primary',
-    spinnerSize: '50px',
-    messageClass: 'q-ml-sm',
+    spinnerSize: 50,
+    customClass: 'q-ml-sm',
     boxClass: 'flex items-center justify-center',
   });
   importError.value = null;
@@ -1302,11 +1305,10 @@ async function confirmImport() {
     try {
       $q.loading.show({
         message: 'Importing entities...',
-        spinner: 'QSpinner',
+        spinner: QSpinner,
         spinnerColor: 'primary',
-        spinnerSize: '50px',
-        messageClass: 'q-ml-sm',
-        boxClass: 'flex items-center justify-center',
+        spinnerSize: 50,
+        customClass: 'q-ml-sm flex items-center justify-center',
       });
       const entitiesById = pendingImportData.value?.entitiesById || new Map();
       for (const [entityId, entity] of entitiesById) {
@@ -1421,6 +1423,7 @@ async function confirmImport() {
             postedDate: "",
             status: "U",
             entityId: selectedEntityId.value,
+            taxMetadata: [],
           };
 
           budget.transactions.push(transactionData);
@@ -1451,7 +1454,7 @@ async function confirmImport() {
         pendingImportData.value = { budgetsById, budgetIdMap, entitiesById: new Map() };
         showOverwriteDialog.value = true;
       } else {
-        await proceedWithImport(budgetsById, budgetIdMap);
+        await proceedWithImport();
       }
     } catch (e: any) {
       console.error("Error during import:", e);
@@ -1463,11 +1466,10 @@ async function confirmImport() {
     try {
       $q.loading.show({
         message: 'Importing transactions...',
-        spinner: 'QSpinner',
+        spinner: QSpinner,
         spinnerColor: 'primary',
-        spinnerSize: '50px',
-        messageClass: 'q-ml-sm',
-        boxClass: 'flex items-center justify-center',
+        spinnerSize: 50,
+        customClass: 'q-ml-sm flex items-center justify-center',
       });
       const accountId = selectedAccountId.value;
       if (!accountId) {
@@ -1615,11 +1617,10 @@ async function confirmImport() {
     try {
       $q.loading.show({
         message: 'Importing accounts...',
-        spinner: 'QSpinner',
+        spinner: QSpinner,
         spinnerColor: 'primary',
-        spinnerSize: '50px',
-        messageClass: 'q-ml-sm',
-        boxClass: 'flex items-center justify-center',
+        spinnerSize: 50,
+        customClass: 'q-ml-sm flex items-center justify-center',
       });
       const entries = pendingImportData.value?.accountsAndSnapshots || [];
       if (entries.length === 0) {
@@ -1739,27 +1740,24 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
   return newBudget;
 }
 
-async function proceedWithImport(budgetsById: Map<string, Budget> = new Map(), budgetIdMap: Map<string, string> = new Map()) {
+async function proceedWithImport() {
   showPreview.value = false;
   showOverwriteDialog.value = false;
   $q.loading.show({
     message: 'Importing data...',
-    spinner: 'QSpinner',
+    spinner: QSpinner,
     spinnerColor: 'primary',
-    spinnerSize: '50px',
-    messageClass: 'q-ml-sm',
-    boxClass: 'flex items-center justify-center',
+    spinnerSize: 50,
+    customClass: 'q-ml-sm flex items-center justify-center',
   });
 
   try {
     const user = auth.currentUser;
     if (!user) throw new Error("User not authenticated");
 
-    if (pendingImportData.value) {
-      budgetsById = pendingImportData.value.budgetsById;
-      budgetIdMap = pendingImportData.value.budgetIdMap;
-      pendingImportData.value = null;
-    }
+    const budgetsById: Map<string, Budget> = pendingImportData.value?.budgetsById ?? new Map();
+    const budgetIdMap: Map<string, string> = pendingImportData.value?.budgetIdMap ?? new Map();
+    pendingImportData.value = null;
 
     for (const [budgetId, budget] of budgetsById) {
       await dataAccess.saveBudget(budgetId, budget);
@@ -1800,11 +1798,10 @@ function formatCategories(categories: { category: string; amount: number }[]) {
 async function exportDataToCSV() {
   $q.loading.show({
     message: 'Exporting data...',
-    spinner: 'QSpinner',
+    spinner: QSpinner,
     spinnerColor: 'primary',
-    spinnerSize: '50px',
-    messageClass: 'q-ml-sm',
-    boxClass: 'flex items-center justify-center',
+    spinnerSize: 50,
+    customClass: 'q-ml-sm flex items-center justify-center',
   });
   try {
     const user = auth.currentUser;
@@ -1909,9 +1906,10 @@ async function exportDataToCSV() {
             debitAmount: tx.debitAmount || 0,
             creditAmount: tx.creditAmount || 0,
             checkNumber: tx.checkNumber || "",
-            entityId: tx.entityId || "",
-          }))
-        );
+          // entityId may be tracked in UI; omit if undefined to match API
+          ...(tx as any).entityId ? { entityId: (tx as any).entityId } : {},
+        }))
+      );
         zip.file(`imported_transactions_${doc.id}.csv`, importedTransactionCsv);
       }
     });

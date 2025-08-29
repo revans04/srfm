@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import { Family, Entity } from "../types";
+import type { Family, Entity } from "../types";
+import { EntityType } from "../types";
 import { dataAccess } from "../dataAccess";
 import { auth } from "../firebase/init";
 
@@ -15,7 +16,7 @@ export const useFamilyStore = defineStore("family", () => {
       if (f) {
         family.value = f;
         if (f.entities?.length) {
-          const defaultEntity = f.entities.find(e => e.type === "Family") || f.entities[0];
+          const defaultEntity = f.entities.find(e => e.type === EntityType.Family) || f.entities[0];
           selectedEntityId.value = defaultEntity.id;
         }
         return f;

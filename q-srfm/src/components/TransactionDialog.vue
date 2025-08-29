@@ -30,7 +30,7 @@
 import { ref, watch, computed } from "vue";
 import { useQuasar } from 'quasar';
 import TransactionForm from "./TransactionForm.vue";
-import { Transaction } from "../types";
+import type { Transaction } from "../types";
 const $q = useQuasar();
 
 const props = defineProps<{

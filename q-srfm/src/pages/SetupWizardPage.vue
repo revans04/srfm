@@ -101,7 +101,7 @@
                   </p>
                   <p v-else class="mb-4">Add your {{ step.accountType?.toLowerCase() }} accounts here. You can add as many as you need.</p>
                   <AccountList
-                    :accounts="getAccountsByType(step.accountType!)"
+                    :accounts="(getAccountsByType(step.accountType!) as any)"
                     :type="step.accountType!"
                     @add="openWizardAccountDialog(step.accountType!)"
                     @edit="editWizardAccount"
@@ -132,7 +132,7 @@
         <q-card-section>
           <AccountForm
             :account-type="newWizardAccount.type as AccountType"
-            :account="editMode ? newWizardAccount : undefined"
+            :account="editMode ? (newWizardAccount as any) : undefined"
             :show-personal-option="false"
             @save="saveWizardAccount"
             @cancel="closeWizardAccountDialog"
@@ -220,8 +220,9 @@ const pendingNavigationArgs = ref<{
 // Account Step State
 const showWizardAccountDialog = ref(false);
 const editMode = ref(false);
-const accountsData = ref<Account[]>([]);
-const newWizardAccount = ref<Partial<Account> & { type: AccountType | string }>({
+type DraftAccount = Partial<Account> & { tempId?: string; familyId?: string };
+const accountsData = ref<DraftAccount[]>([]);
+const newWizardAccount = ref<DraftAccount & { type: AccountType | string }>({
   name: "",
   type: AccountType.Bank,
   accountNumber: "",
@@ -408,7 +409,7 @@ async function saveEntityAndProceed() {
   if (entityFormRef.value) {
     savingEntity.value = true;
     try {
-      await entityFormRef.value.save();
+      await (entityFormRef.value as any)?.save?.();
     } catch (error) {
       showSnackbarMessage("Failed to save entity.", "error");
       cancelPendingNavigation();
@@ -420,11 +421,9 @@ async function saveEntityAndProceed() {
 
 function discardChangesAndProceed() {
   hasUnsavedEntityChanges.value = false;
-  if (entityFormRef.value && typeof entityFormRef.value.resetFormInternal === "function") {
-    entityFormRef.value.resetFormInternal();
-  } else if (entityFormRef.value && typeof entityFormRef.value.resetForm === "function") {
-    entityFormRef.value.resetForm();
-  }
+  const anyRef = entityFormRef.value as any;
+  if (anyRef?.resetFormInternal) anyRef.resetFormInternal();
+  else if (anyRef?.resetForm) anyRef.resetForm();
   showUnsavedEntityDialog.value = false;
   executePendingNavigation();
 }
@@ -445,7 +444,7 @@ function executePendingNavigation() {
 }
 
 // Account Step Functions
-function getAccountsByType(type: AccountType | string | undefined): Account[] {
+function getAccountsByType(type: AccountType | string | undefined): DraftAccount[] {
   if (!type) return [];
   return accountsData.value.filter((acc) => acc.type === type);
 }
@@ -475,9 +474,8 @@ function closeWizardAccountDialog() {
 }
 
 function saveWizardAccount(account: Account, isPersonal: boolean) {
-  const accountToAdd: Account = {
-    id: account.id || account.tempId || uuidv4(),
-    familyId: "",
+  const accountToAdd: DraftAccount = {
+    id: account.id || (newWizardAccount.value.tempId ?? uuidv4()),
     name: account.name,
     type: account.type as AccountType,
     category: account.category,
@@ -486,12 +484,13 @@ function saveWizardAccount(account: Account, isPersonal: boolean) {
     institution: account.institution || "",
     createdAt: account.createdAt instanceof Timestamp ? account.createdAt : Timestamp.fromDate(new Date()),
     updatedAt: Timestamp.fromDate(new Date()),
-    tempId: account.tempId,
+    tempId: newWizardAccount.value.tempId,
     details: account.details || {},
+    userId: isPersonal ? auth.currentUser?.uid : undefined,
   };
 
   if (editMode.value) {
-    const index = accountsData.value.findIndex((acc) => (acc.tempId || acc.id) === (account.tempId || account.id));
+    const index = accountsData.value.findIndex((acc) => (acc.tempId || acc.id) === (newWizardAccount.value.tempId || account.id));
     if (index >= 0) {
       accountsData.value[index] = accountToAdd;
     }
@@ -504,8 +503,8 @@ function saveWizardAccount(account: Account, isPersonal: boolean) {
   closeWizardAccountDialog();
 }
 
-function removeWizardAccount(account: Account) {
-  const keyToRemove = account.tempId || account.id;
+function removeWizardAccount(account: Account | DraftAccount) {
+  const keyToRemove = (account as any).tempId || account.id;
   accountsData.value = accountsData.value.filter((acc) => (acc.tempId || acc.id) !== keyToRemove);
   showSnackbarMessage(messages.accountRemoved(account.name), "info");
 }
@@ -527,11 +526,19 @@ async function finishSetup() {
     for (const accData of accountsData.value) {
       const accountId = accData.id || uuidv4();
       const newAccountToSave: Account = {
-        ...accData,
         id: accountId,
-        familyId: family.value!.id,
+        userId: accData.userId,
+        name: accData.name || '',
+        type: (accData.type as AccountType) || AccountType.Bank,
+        category:
+          (accData.category as any) ||
+          (((accData.type as AccountType) === AccountType.CreditCard || (accData.type as AccountType) === AccountType.Loan) ? 'Liability' : 'Asset'),
+        accountNumber: accData.accountNumber,
+        institution: accData.institution || '',
         createdAt: accData.createdAt instanceof Timestamp ? accData.createdAt : Timestamp.fromDate(new Date()),
         updatedAt: Timestamp.fromDate(new Date()),
+        balance: accData.balance,
+        details: accData.details,
       };
       delete (newAccountToSave as any).tempId;
       await dataAccess.saveAccount(family.value!.id, newAccountToSave);

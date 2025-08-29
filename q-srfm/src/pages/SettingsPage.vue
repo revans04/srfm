@@ -5,7 +5,7 @@
 
     <q-banner v-if="userEmail && !emailVerified" type="warning" class="mb-4">
       Your email ({{ userEmail }}) is not verified. Please check your inbox or resend the verification email.
-      <template v-slot:actions>
+      <template v-slot:action>
         <q-btn variant="plain" @click="sendVerificationEmail" :loading="resending">Resend</q-btn>
       </template>
     </q-banner>
@@ -54,12 +54,12 @@
                     <q-chip v-if="entity.templateBudget" color="success" size="small" class="ml-2">Has Template</q-chip>
                   </div>
                   <div class="col col-auto">
-                    <q-btn variant="plain" color="primary" icon @click="openEditEntityDialog(entity)">
+                    <q-btn variant="plain" color="primary" @click="openEditEntityDialog(entity)">
                         <q-icon name="edit"></q-icon>
                     </q-btn>
                   </div>
                   <div class="col col-auto">
-                    <q-btn variant="plain" icon @click="confirmDeleteEntity(entity)" color="error">
+                    <q-btn variant="plain" @click="confirmDeleteEntity(entity)" color="error">
                         <q-icon name="delete_outline"></q-icon>
                     </q-btn>
                   </div>
@@ -78,20 +78,19 @@
             <q-card>
               <q-card-section>Imported Transaction</q-card-section>
               <q-card-section>
-                <q-table :headers="transactionDocHeaders" :rows="importedTransactionDocs" :items-per-page="10" class="elevation-1">
-                  <template v-slot:item.createdAt="{ item }">
-                    {{ getDateRange(item) }}
+                <q-table :columns="transactionDocColumns" :rows="importedTransactionDocs" :pagination="{ rowsPerPage: 10 }" class="elevation-1">
+                  <template #body-cell-createdAt="props">
+                    {{ getDateRange(props.row) }}
                   </template>
-                  <template v-slot:item.account="{ item }">
-                    {{ getAccountInfo(item) }}
+                  <template #body-cell-account="props">
+                    {{ getAccountInfo(props.row) }}
                   </template>
-                  <template v-slot:item.actions="{ item }">
+                  <template #body-cell-actions="props">
                     <q-btn
-                      icon
                       density="compact"
                       variant="plain"
                       color="error"
-                      @click.stop="confirmDeleteTransactionDoc(item)"
+                      @click.stop="confirmDeleteTransactionDoc(props.row)"
                       title="Delete Transaction Document"
                     >
                         <q-icon name="delete_outline"></q-icon>
@@ -116,15 +115,15 @@
             <q-card>
               <q-card-section>Monthly Budgets</q-card-section>
               <q-card-section>
-                <q-table :headers="budgetHeaders" :rows="budgets" :items-per-page="10" class="elevation-1">
-                  <template v-slot:item.entityName="{ item }">
-                    {{ getEntityName(item.entityId) }}
+                <q-table :columns="budgetColumns" :rows="budgets" :pagination="{ rowsPerPage: 10 }" class="elevation-1">
+                  <template #body-cell-entityName="props">
+                    {{ getEntityName(props.row.entityId) }}
                   </template>
-                  <template v-slot:item.transactionCount="{ item }">
-                    {{ item.transactions?.length || 0 }}
+                  <template #body-cell-transactionCount="props">
+                    {{ props.row.transactions?.length || 0 }}
                   </template>
-                  <template v-slot:item.actions="{ item }">
-                    <q-btn icon density="compact" variant="plain" color="error" @click.stop="confirmDeleteBudget(item)" title="Delete Budget">
+                  <template #body-cell-actions="props">
+                    <q-btn density="compact" variant="plain" color="error" @click.stop="confirmDeleteBudget(props.row)" title="Delete Budget">
                         <q-icon name="delete_outline"></q-icon>
                     </q-btn>
                   </template>
@@ -216,12 +215,12 @@
 import { ref, onMounted, onUnmounted, computed } from "vue";
 import { auth } from "../firebase/init";
 import { dataAccess } from "../dataAccess";
-import { Timestamp } from "firebase/firestore";
-import { Family, PendingInvite, Entity, Budget, ImportedTransactionDoc, Transaction, ImportedTransaction } from "../types";
+import type { Timestamp } from "firebase/firestore";
+import type { Family, PendingInvite, Entity, Budget, ImportedTransactionDoc, Transaction, ImportedTransaction } from "../types";
 import { useFamilyStore } from "../store/family";
 import EntityForm from "../components/EntityForm.vue";
 import { timestampToDate } from "../utils/helpers";
-import { useQuasar } from 'quasar';
+import { useQuasar, QSpinner } from 'quasar';
 import { v4 as uuidv4 } from "uuid";
 
 const familyStore = useFamilyStore();
@@ -252,20 +251,20 @@ const validatingImports = ref(false);
 
 const entities = computed(() => family.value?.entities || []);
 
-const transactionDocHeaders = [
-  { title: "Document ID", value: "id", sortable: true },
-  { title: "Transaction Count", value: "importedTransactions.length", sortable: true },
-  { title: "Account Info", value: "account", sortable: true },
-  { title: "Created At", value: "createdAt", sortable: true },
-  { title: "Actions", value: "actions", sortable: false },
+const transactionDocColumns = [
+  { name: 'id', label: 'Document ID', field: 'id', sortable: true },
+  { name: 'count', label: 'Transaction Count', field: (row: any) => row.importedTransactions?.length || 0, sortable: true },
+  { name: 'account', label: 'Account Info', field: 'account', sortable: false },
+  { name: 'createdAt', label: 'Created At', field: 'createdAt', sortable: true },
+  { name: 'actions', label: 'Actions', field: 'actions', sortable: false },
 ];
 
-const budgetHeaders = [
-  { title: "Budget ID", value: "budgetId", sortable: true },
-  { title: "Month", value: "month", sortable: true },
-  { title: "Entity Name", value: "entityName", sortable: true },
-  { title: "Transaction Count", value: "transactionCount", sortable: true },
-  { title: "Actions", value: "actions", sortable: false },
+const budgetColumns = [
+  { name: 'budgetId', label: 'Budget ID', field: 'budgetId', sortable: true },
+  { name: 'month', label: 'Month', field: 'month', sortable: true },
+  { name: 'entityName', label: 'Entity Name', field: 'entityId', sortable: false },
+  { name: 'transactionCount', label: 'Transaction Count', field: (row: any) => row.transactions?.length || 0, sortable: true },
+  { name: 'actions', label: 'Actions', field: 'actions', sortable: false },
 ];
 
 onMounted(async () => {
@@ -534,11 +533,10 @@ async function deleteBudget() {
 async function validateBudgetTransactions() {
   $q.loading.show({
     message: 'Validating budget transactions...',
-    spinner: 'QSpinner',
+    spinner: QSpinner,
     spinnerColor: 'primary',
-    spinnerSize: '50px',
-    messageClass: 'q-ml-sm',
-    boxClass: 'flex items-center justify-center',
+    spinnerSize: 50,
+    customClass: 'q-ml-sm flex items-center justify-center',
   });
   validatingBudgets.value = true;
   try {
@@ -583,11 +581,10 @@ async function validateBudgetTransactions() {
 async function validateImportedTransactions() {
   $q.loading.show({
     message: 'Validating imported transactions...',
-    spinner: 'QSpinner',
+    spinner: QSpinner,
     spinnerColor: 'primary',
-    spinnerSize: '50px',
-    messageClass: 'q-ml-sm',
-    boxClass: 'flex items-center justify-center',
+    spinnerSize: 50,
+    customClass: 'q-ml-sm flex items-center justify-center',
   });
   validatingImports.value = true;
   try {
@@ -623,8 +620,19 @@ async function validateImportedTransactions() {
   }
 }
 
-function formatDate(timestamp: Timestamp | null) {
-  return timestamp ? timestampToDate(timestamp).toLocaleString() : "N/A";
+function formatDate(timestamp: Timestamp | { seconds: number; nanoseconds: number } | string | Date | null | undefined) {
+  if (!timestamp) return 'N/A';
+  if (typeof timestamp === 'object' && timestamp !== null && 'toDate' in (timestamp as any) && typeof (timestamp as any).toDate === 'function') {
+    try {
+      return (timestamp as any).toDate().toLocaleString();
+    } catch {}
+  }
+  if (typeof timestamp === 'object' && 'seconds' in timestamp && 'nanoseconds' in timestamp) {
+    const ms = Number(timestamp.seconds) * 1000 + Number(timestamp.nanoseconds) / 1e6;
+    return new Date(ms).toLocaleString();
+  }
+  const d = new Date(timestamp as any);
+  return isNaN(d.getTime()) ? 'N/A' : d.toLocaleString();
 }
 
 function showSnackbar(text: string, color = "success") {

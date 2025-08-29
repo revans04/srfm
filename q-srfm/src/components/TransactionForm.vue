@@ -171,7 +171,7 @@
 import { ref, computed, onMounted, watch, reactive } from "vue";
 import { useQuasar } from 'quasar';
 import { dataAccess } from "../dataAccess";
-import { Budget, Transaction } from "../types";
+import type { Budget, Transaction } from "../types";
 import { toCents, toDollars, todayISO, currentMonthISO } from "../utils/helpers";
 import CurrencyInput from "./CurrencyInput.vue";
 import ToggleButton from "./ToggleButton.vue";
@@ -372,7 +372,7 @@ async function save() {
   if (remainingSplit.value !== 0) return;
   if (!form.value) return;
 
-  const { valid } = await form.value.validate();
+  const valid = await form.value.validate();
   if (valid) {
     loading.value = true;
     try {
@@ -394,7 +394,7 @@ async function save() {
       let moved = false;
       let targetBudget = budgetStore.getBudget(targetBudgetId);
       if (!targetBudget) {
-        targetBudget = await dataAccess.getBudget(targetBudgetId);
+        targetBudget = (await dataAccess.getBudget(targetBudgetId)) || undefined;
         if (targetBudget) {
           budgetStore.updateBudget(targetBudgetId, targetBudget);
         }
@@ -402,7 +402,7 @@ async function save() {
 
       if (targetBudget) {
         if (currentBudgetMonth !== targetBudgetMonth && locTrnsx.id) {
-          await dataAccess.deleteTransaction(budget.value, locTrnsx.id, !isLastMonth.value);
+          await dataAccess.deleteTransaction(budget.value!, locTrnsx.id, !isLastMonth.value);
           moved = true;
         }
 
@@ -446,7 +446,7 @@ async function deleteTransaction() {
     if (!budget.value) {
       throw new Error(`Budget ${props.budgetId} not found`);
     }
-    await dataAccess.deleteTransaction(budget.value, locTrnsx.id, !isLastMonth.value);
+    await dataAccess.deleteTransaction(budget.value!, locTrnsx.id, !isLastMonth.value);
 
     transactions.value = transactions.value.filter((t) => t.id !== locTrnsx.id);
     emit("update-transactions", transactions.value);

@@ -24,7 +24,7 @@
           :accounts="bankAccounts"
           :imported-transactions="importedTransactions"
           type="Bank"
-          @add="openAccountDialog('Bank')"
+          @add="openAccountDialog(AccountType.Bank)"
           @edit="editAccount"
           @delete="confirmDeleteAccount"
         />
@@ -34,7 +34,7 @@
           :accounts="creditCardAccounts"
           :imported-transactions="importedTransactions"
           type="CreditCard"
-          @add="openAccountDialog('CreditCard')"
+          @add="openAccountDialog(AccountType.CreditCard)"
           @edit="editAccount"
           @delete="confirmDeleteAccount"
         />
@@ -43,16 +43,16 @@
         <AccountList
           :accounts="investmentAccounts"
           type="Investment"
-          @add="openAccountDialog('Investment')"
+          @add="openAccountDialog(AccountType.Investment)"
           @edit="editAccount"
           @delete="confirmDeleteAccount"
         />
       </q-tab-panel>
       <q-tab-panel name="property">
-        <AccountList :accounts="propertyAccounts" type="Property" @add="openAccountDialog('Property')" @edit="editAccount" @delete="confirmDeleteAccount" />
+        <AccountList :accounts="propertyAccounts" type="Property" @add="openAccountDialog(AccountType.Property)" @edit="editAccount" @delete="confirmDeleteAccount" />
       </q-tab-panel>
       <q-tab-panel name="loan">
-        <AccountList :accounts="loanAccounts" type="Loan" @add="openAccountDialog('Loan')" @edit="editAccount" @delete="confirmDeleteAccount" />
+        <AccountList :accounts="loanAccounts" type="Loan" @add="openAccountDialog(AccountType.Loan)" @edit="editAccount" @delete="confirmDeleteAccount" />
       </q-tab-panel>
       <q-tab-panel name="net-worth">
         <q-card>
@@ -62,23 +62,23 @@
             <q-btn color="error" class="mb-4" @click="confirmBatchDeleteSnapshots" :disabled="selectedSnapshots.length === 0" :loading="deleting">
               Delete Selected
             </q-btn>
-            <q-table :headers="snapshotHeaders" :rows="snapshotsWithSelection" class="elevation-1" :items-per-page="10">
-              <template v-slot:header.select="{ column }">
-                <q-checkbox v-model="selectAll" @update:modelValue="toggleSelectAll" hide-details density="compact" />
+            <q-table :columns="snapshotColumns" :rows="snapshotsWithSelection" class="elevation-1" :pagination="{ rowsPerPage: 10 }">
+              <template #header-cell-select>
+                <q-checkbox v-model="selectAll" @update:modelValue="toggleSelectAll" dense />
               </template>
-              <template v-slot:item.select="{ item }">
-                <q-checkbox v-model="selectedSnapshots" :value="item.id" hide-details density="compact" @update:modelValue="updateSelectAll" />
+              <template #body-cell-select="{ row }">
+                <q-checkbox v-model="selectedSnapshots" :value="row.id" dense @update:modelValue="updateSelectAll" />
               </template>
-              <template v-slot:item.date="{ item }">
-                {{ formatTimestamp(item.date) }}
+              <template #body-cell-date="{ row }">
+                {{ formatTimestamp(row.date) }}
               </template>
-              <template v-slot:item.netWorth="{ item }">
-                {{ formatCurrency(item.netWorth) }}
+              <template #body-cell-netWorth="{ row }">
+                {{ formatCurrency(row.netWorth) }}
               </template>
-              <template v-slot:item.actions="{ item }">
-                <q-btn icon density="compact" variant="plain" color="error" @click="confirmDeleteSnapshot(item.id)">
-                    <q-icon name="delete_outline"></q-icon>
-                </q-btn>
+              <template #body-cell-actions="{ row }">
+            <q-btn dense variant="plain" color="error" @click="confirmDeleteSnapshot(row.id)">
+              <q-icon name="delete_outline"></q-icon>
+            </q-btn>
               </template>
             </q-table>
             <div class="mt-4">
@@ -95,8 +95,16 @@
         <q-card-section>{{ editMode ? "Edit" : "Add" }} {{ accountType }} Account</q-card-section>
         <q-card-section>
           <AccountForm
+            v-if="editMode"
             :account-type="accountType"
-            :account="editMode ? newAccount : undefined"
+            :account="newAccount"
+            :show-personal-option="true"
+            @save="saveAccount"
+            @cancel="closeAccountDialog"
+          />
+          <AccountForm
+            v-else
+            :account-type="accountType"
             :show-personal-option="true"
             @save="saveAccount"
             @cancel="closeAccountDialog"
@@ -113,28 +121,24 @@
           <q-form @submit.prevent="saveSnapshot">
             <q-input v-model="newSnapshot.date" label="Snapshot Date" type="date" variant="outlined" density="compact" required></q-input>
             <q-table
-              :headers="[
-                { title: 'Account', value: 'name' },
-                { title: 'Type', value: 'type' },
-                { title: 'Value', value: 'value' },
-              ]"
+              :columns="snapshotAccountColumns"
               :rows="newSnapshot.accounts"
-              hide-default-footer
-              items-per-page="100"
+              hide-bottom
+              :pagination="{ rowsPerPage: 100 }"
             >
-              <template v-slot:item.name="{ item }">
-                {{ getAccountName(item.accountId) }}
+              <template #body-cell-name="{ row }">
+                {{ getAccountName(row.accountId) }}
               </template>
-              <template v-slot:item.type="{ item }">
-                {{ getAccountType(item.accountId) }}
+              <template #body-cell-type="{ row }">
+                {{ getAccountType(row.accountId) }}
               </template>
-              <template v-slot:item.value="{ item }">
+              <template #body-cell-value="{ row }">
                 <q-input
-                  v-model.number="item.value"
+                  v-model.number="row.value"
                   type="number"
-                  variant="outlined"
-                  density="compact"
-                  :prefix="getAccountCategory(item.accountId) === 'Liability' ? '-' : ''"
+                  outlined
+                  dense
+                  :prefix="getAccountCategory(row.accountId) === 'Liability' ? '-' : ''"
                 ></q-input>
               </template>
             </q-table>
@@ -218,9 +222,10 @@ import { dataAccess } from "../dataAccess";
 import { useFamilyStore } from "../store/family";
 import AccountList from "../components/AccountList.vue";
 import AccountForm from "../components/AccountForm.vue"; // Import AccountForm directly
-import { Account, Snapshot, ImportedTransaction, Transaction } from "../types";
+import type { Account, Snapshot, ImportedTransaction, Transaction } from "../types";
+import { AccountType } from "../types";
 import { formatCurrency, formatTimestamp, todayISO, timestampToMillis } from "../utils/helpers";
-import { useQuasar } from 'quasar';
+import { useQuasar, QSpinner } from 'quasar';
 import { v4 as uuidv4 } from "uuid";
 import { Timestamp } from "firebase/firestore";
 
@@ -239,7 +244,7 @@ const showDeleteAccountDialog = ref(false);
 const showDeleteSnapshotDialog = ref(false);
 const showBatchDeleteSnapshotDialog = ref(false);
 const showUpdateBudgetTransactionsDialog = ref(false);
-const accountType = ref<"Bank" | "CreditCard" | "Investment" | "Property" | "Loan">("Bank");
+const accountType = ref<AccountType>(AccountType.Bank);
 const editMode = ref(false);
 const isPersonalAccount = ref(false);
 const selectAll = ref(false);
@@ -251,16 +256,11 @@ const affectedBudgetTransactionCount = ref(0);
 const newAccount = ref<Account>({
   id: uuidv4(),
   name: "",
-  type: "Bank",
+  type: AccountType.Bank,
   category: "Asset",
   createdAt: Timestamp.now(),
   updatedAt: Timestamp.now(),
-  details: {
-    interestRate: undefined,
-    appraisedValue: undefined,
-    address: undefined,
-    maturityDate: undefined,
-  },
+  details: {},
 });
 
 const newSnapshot = ref<{
@@ -307,12 +307,18 @@ const loanAccounts = computed(() =>
     .sort((a, b) => a.name.localeCompare(b.name))
 );
 
-const snapshotHeaders = ref([
-  { title: "", value: "select", sortable: false },
-  { title: "Date", value: "date" },
-  { title: "Net Worth", value: "netWorth" },
-  { title: "Actions", value: "actions" },
-]);
+const snapshotColumns = [
+  { name: 'select', label: '', field: 'select', sortable: false },
+  { name: 'date', label: 'Date', field: 'date' },
+  { name: 'netWorth', label: 'Net Worth', field: 'netWorth' },
+  { name: 'actions', label: 'Actions', field: 'actions' },
+];
+
+const snapshotAccountColumns = [
+  { name: 'name', label: 'Account', field: 'accountName' },
+  { name: 'type', label: 'Type', field: 'type' },
+  { name: 'value', label: 'Value', field: 'value' },
+];
 
 const snapshotsWithSelection = computed(() => {
   return snapshots.value.map((snapshot) => ({
@@ -343,11 +349,10 @@ onMounted(async () => {
 
   $q.loading.show({
     message: 'Loading data...',
-    spinner: 'QSpinner',
+    spinner: QSpinner,
     spinnerColor: 'primary',
-    spinnerSize: '50px',
-    messageClass: 'q-ml-sm',
-    boxClass: 'flex items-center justify-center',
+    spinnerSize: 50,
+    customClass: 'q-ml-sm flex items-center justify-center',
   });
   try {
     const family = await familyStore.getFamily();
@@ -357,8 +362,9 @@ onMounted(async () => {
     }
     familyId.value = family.id;
     await loadData();
-  } catch (error: any) {
-    showSnackbar(`Error loading data: ${error.message}`, "error");
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    showSnackbar(`Error loading data: ${msg}`, "error");
     console.error("Error during onMounted:", error);
   } finally {
     $q.loading.hide();
@@ -371,13 +377,14 @@ async function loadData() {
     accounts.value = await dataAccess.getAccounts(familyId.value);
     importedTransactions.value = await dataAccess.getImportedTransactions();
     snapshots.value = await dataAccess.getSnapshots(familyId.value);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error loading data:", error);
-    showSnackbar(`Error loading data: ${error.message}`, "error");
+    const msg = error instanceof Error ? error.message : String(error);
+    showSnackbar(`Error loading data: ${msg}`, "error");
   }
 }
 
-function openAccountDialog(type: "Bank" | "CreditCard" | "Investment" | "Property" | "Loan") {
+function openAccountDialog(type: AccountType) {
   accountType.value = type;
   editMode.value = false;
   isPersonalAccount.value = false;
@@ -385,7 +392,7 @@ function openAccountDialog(type: "Bank" | "CreditCard" | "Investment" | "Propert
     id: uuidv4(),
     name: "",
     type,
-    category: type === "CreditCard" || type === "Loan" ? "Liability" : "Asset",
+    category: type === AccountType.CreditCard || type === AccountType.Loan ? "Liability" : "Asset",
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
     details: {},
@@ -394,10 +401,10 @@ function openAccountDialog(type: "Bank" | "CreditCard" | "Investment" | "Propert
 }
 
 function editAccount(account: Account) {
-  accountType.value = account.type;
+  accountType.value = account.type as AccountType;
   editMode.value = true;
   isPersonalAccount.value = !!account.userId;
-  newAccount.value = { ...account, details: { ...account.details } };
+  newAccount.value = { ...account, details: { ...(account.details || {}) } };
   originalAccountNumber.value = account.accountNumber;
   originalAccountName.value = account.name;
   showAccountDialog.value = true;
@@ -406,7 +413,11 @@ function editAccount(account: Account) {
 async function saveAccount(account: Account, isPersonal: boolean) {
   saving.value = true;
   try {
-    account.userId = isPersonal ? userId.value : undefined;
+    if (isPersonal) {
+      account.userId = userId.value;
+    } else {
+      delete account.userId;
+    }
 
     // Detect changes in accountNumber or name (only in edit mode)
     let accountNumberChanged = false;
@@ -429,10 +440,10 @@ async function saveAccount(account: Account, isPersonal: boolean) {
             accountId: account.id,
             accountName: account.name,
             type: account.type,
-            value: account.category === "Liability" && account.balance > 0 ? -account.balance : account.balance || 0,
+            value: (() => { const bal = account.balance ?? 0; return account.category === 'Liability' && bal > 0 ? -bal : bal; })(),
           },
         ],
-        netWorth: account.category === "Liability" && account.balance > 0 ? -account.balance : account.balance || 0,
+        netWorth: (() => { const bal = account.balance ?? 0; return account.category === 'Liability' && bal > 0 ? -bal : bal; })(),
         createdAt: Timestamp.now(),
       };
       await dataAccess.saveSnapshot(familyId.value, snapshot);
@@ -461,8 +472,8 @@ async function saveAccount(account: Account, isPersonal: boolean) {
         // Update ImportedTransactions
         const updatedImportedTxs = importedTxs.map((tx) => ({
           ...tx,
-          accountNumber: accountNumberChanged ? account.accountNumber : tx.accountNumber,
-          accountSource: accountNameChanged ? account.institution || account.name : tx.accountSource,
+          ...(accountNumberChanged && account.accountNumber ? { accountNumber: account.accountNumber } : {}),
+          ...(accountNameChanged ? { accountSource: account.institution || account.name } : {}),
         }));
         await dataAccess.updateImportedTransactions(updatedImportedTxs);
 
@@ -488,8 +499,9 @@ async function saveAccount(account: Account, isPersonal: boolean) {
 
     showSnackbar(`${accountType.value} account saved successfully`, "success");
     closeAccountDialog();
-  } catch (error: any) {
-    showSnackbar(`Error saving account: ${error.message}`, "error");
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    showSnackbar(`Error saving account: ${msg}`, "error");
     console.error("Error saving account:", error);
   } finally {
     saving.value = false;
@@ -506,7 +518,7 @@ async function confirmUpdateBudgetTransactions() {
         budgetId: item.budgetId,
         transaction: {
           ...item.transaction,
-          accountNumber: newAccount.value.accountNumber,
+          ...(newAccount.value.accountNumber ? { accountNumber: newAccount.value.accountNumber } : {}),
           accountSource: newAccount.value.institution || newAccount.value.name,
         },
       }));
@@ -531,7 +543,7 @@ function closeAccountDialog() {
   newAccount.value = {
     id: uuidv4(),
     name: "",
-    type: "Bank",
+    type: AccountType.Bank,
     category: "Asset",
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
@@ -567,12 +579,15 @@ function openSnapshotDialog() {
 
   newSnapshot.value = {
     date: todayISO(),
-    accounts: sortedAccounts.map((account) => ({
-      accountId: account.id,
-      accountName: account.name,
-      type: account.type,
-      value: account.balance || 0,
-    })),
+    accounts: sortedAccounts.map((account) => {
+      const bal = account.balance ?? 0;
+      return {
+        accountId: account.id,
+        accountName: account.name,
+        type: account.type,
+        value: bal,
+      };
+    }),
   };
   showSnapshotDialog.value = true;
 }
@@ -599,8 +614,9 @@ async function saveSnapshot() {
 
     showSnackbar("Snapshot saved successfully", "success");
     showSnapshotDialog.value = false;
-  } catch (error: any) {
-    showSnackbar(`Error saving snapshot: ${error.message}`, "error");
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    showSnackbar(`Error saving snapshot: ${msg}`, "error");
     console.log(error);
   } finally {
     saving.value = false;
@@ -621,8 +637,9 @@ async function executeDeleteSnapshot() {
     selectedSnapshots.value = selectedSnapshots.value.filter((id) => id !== snapshotToDelete.value);
     updateSelectAll();
     showSnackbar("Snapshot deleted successfully", "success");
-  } catch (error: any) {
-    showSnackbar(`Error deleting snapshot: ${error.message}`, "error");
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    showSnackbar(`Error deleting snapshot: ${msg}`, "error");
   } finally {
     showDeleteSnapshotDialog.value = false;
     snapshotToDelete.value = null;
@@ -645,8 +662,9 @@ async function executeBatchDeleteSnapshots() {
     selectedSnapshots.value = [];
     updateSelectAll();
     showSnackbar(`${deletedCount} snapshot(s) deleted successfully`, "success");
-  } catch (error: any) {
-    showSnackbar(`Error deleting snapshots: ${error.message}`, "error");
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    showSnackbar(`Error deleting snapshots: ${msg}`, "error");
   } finally {
     showBatchDeleteSnapshotDialog.value = false;
     deleting.value = false;

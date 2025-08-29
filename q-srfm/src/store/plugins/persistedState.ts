@@ -1,6 +1,6 @@
 import type { PiniaPluginContext } from 'pinia';
 
-function replacer(_key: string, value: any) {
+function replacer(_key: string, value: unknown) {
   if (value instanceof Map) {
     return {
       __type: 'Map',
@@ -10,9 +10,12 @@ function replacer(_key: string, value: any) {
   return value;
 }
 
-function reviver(_key: string, value: any) {
-  if (value && value.__type === 'Map') {
-    return new Map(value.value);
+function reviver(_key: string, value: unknown) {
+  if (value && typeof value === 'object' && '__type' in (value as Record<string, unknown>)) {
+    const v = value as { __type: string; value: unknown };
+    if (v.__type === 'Map' && Array.isArray(v.value)) {
+      return new Map(v.value as [string, unknown][]);
+    }
   }
   return value;
 }

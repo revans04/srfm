@@ -33,7 +33,7 @@ export class DataAccess {
   // -----------------
   // Mapping helpers
   // -----------------
-  private toTimestamp(input: any): Timestamp | undefined {
+  private toTimestamp(input: unknown): Timestamp | undefined {
     if (!input) return undefined;
     if (input instanceof Timestamp) return input;
     if (typeof input === 'string') {
@@ -48,11 +48,13 @@ export class DataAccess {
     return undefined;
   }
 
-  private mapTransaction(apiTx: any, budgetId?: string): Transaction {
+  private mapTransaction(apiTx: Record<string, unknown>, budgetId?: string): Transaction {
     const categories = Array.isArray(apiTx?.categories)
-      ? apiTx.categories.map((c: any) => ({
-          category: String(c?.category ?? ''),
-          amount: Number(c?.amount ?? 0),
+      ? (apiTx.categories as unknown[]).map((c) => ({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          category: String((c as any)?.category ?? ''),
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          amount: Number((c as any)?.amount ?? 0),
         }))
       : [];
 
@@ -82,20 +84,25 @@ export class DataAccess {
     };
   }
 
-  private mapBudget(apiBudget: any): Budget {
+  private mapBudget(apiBudget: Record<string, unknown>): Budget {
     const budgetId: string | undefined = apiBudget?.budgetId ?? undefined;
     const categories = Array.isArray(apiBudget?.categories)
-      ? apiBudget.categories.map((c: any) => ({
-          name: String(c?.name ?? ''),
-          target: Number(c?.target ?? 0),
-          isFund: Boolean(c?.isFund ?? false),
-          group: String(c?.group ?? ''),
-          carryover: (c?.carryover ?? undefined) as number | undefined,
+      ? (apiBudget.categories as unknown[]).map((c) => ({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          name: String((c as any)?.name ?? ''),
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          target: Number((c as any)?.target ?? 0),
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          isFund: Boolean((c as any)?.isFund ?? false),
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          group: String((c as any)?.group ?? ''),
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          carryover: (((c as any)?.carryover ?? undefined) as number | undefined),
         }))
       : [];
 
     const transactions = Array.isArray(apiBudget?.transactions)
-      ? apiBudget.transactions.map((t: any) => this.mapTransaction(t, budgetId))
+      ? (apiBudget.transactions as unknown[]).map((t) => this.mapTransaction(t as Record<string, unknown>, budgetId))
       : [];
 
     return {
@@ -109,7 +116,12 @@ export class DataAccess {
       transactions,
       originalBudgetId: apiBudget?.originalBudgetId ?? undefined,
       merchants: Array.isArray(apiBudget?.merchants)
-        ? apiBudget.merchants.map((m: any) => ({ name: String(m?.name ?? ''), usageCount: Number(m?.usageCount ?? 0) }))
+        ? (apiBudget.merchants as unknown[]).map((m) => ({
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+            name: String((m as any)?.name ?? ''),
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+            usageCount: Number((m as any)?.usageCount ?? 0),
+          }))
         : [],
     };
   }
@@ -480,7 +492,7 @@ export class DataAccess {
   async updateImportedTransaction(docId: string, transactionOrId: ImportedTransaction | string, matched?: boolean, ignored?: boolean): Promise<void> {
     const headers = await this.getAuthHeaders();
     let transactionId: string;
-    let payload: any;
+    let payload: unknown;
 
     if (typeof transactionOrId === 'string') {
       transactionId = transactionOrId;
@@ -735,7 +747,7 @@ export class DataAccess {
     const response = await fetch(`${this.apiBaseUrl}/families/${familyId}/accounts`, { headers });
     if (!response.ok) throw new Error(`Failed to fetch accounts: ${response.statusText}`);
     const raw = await response.json();
-    return (raw as any[]).map((a) => ({
+    return (raw as unknown[]).map((a) => ({
       ...a,
       createdAt: this.toTimestamp(a?.createdAt) ?? Timestamp.fromDate(new Date()),
       updatedAt: this.toTimestamp(a?.updatedAt) ?? Timestamp.fromDate(new Date()),
@@ -778,7 +790,7 @@ export class DataAccess {
     if (!response.ok) throw new Error(`Failed to delete account: ${response.statusText}`);
   }
 
-  async importAccounts(familyId: string, entries: any[]): Promise<void> {
+  async importAccounts(familyId: string, entries: Array<Record<string, unknown>>): Promise<void> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/families/${familyId}/accounts/import`, {
       method: 'POST',

@@ -15,11 +15,11 @@
     <q-card-section>
       <q-table
         v-if="accounts.length > 0"
-        :headers="headers"
+        :columns="columns"
         :rows="accounts"
         class="elevation-1"
-        :items-per-page="100"
-        :hide-default-footer="true"
+        :pagination="{ rowsPerPage: 100 }"
+        hide-bottom
       >
         <template v-slot:body-cell-owner="{ row }">
           {{ row.userId ? 'Personal' : 'Shared' }}
@@ -55,7 +55,7 @@
 
 <script setup lang="ts">
 import { computed, defineProps, defineEmits } from "vue";
-import { Account, ImportedTransaction } from "../types";
+import type { Account, ImportedTransaction } from "../types";
 import { formatCurrency } from "../utils/helpers";
 import { auth } from "../firebase/init";
 
@@ -78,18 +78,19 @@ const accountValue = computed(() => {
   return val;
 });
 
-const headers = computed(() => [
-  { title: "Name", value: "name" },
-  ...(props.type !== "Property" ? [{ title: "Institution", value: "institution" }] : []),
-  { title: "Balance", value: "balance" },
-  ...(props.type === "Bank" || props.type === "CreditCard"
-    ? [{ title: "Account Number", value: "accountNumber" }]
+const columns = computed(() => [
+  { name: 'name', label: 'Name', field: 'name' },
+  ...(props.type !== 'Property' ? [{ name: 'institution', label: 'Institution', field: 'institution' }] : []),
+  { name: 'balance', label: 'Balance', field: 'balance' },
+  ...(props.type === 'Bank' || props.type === 'CreditCard'
+    ? [{ name: 'accountNumber', label: 'Account Number', field: 'accountNumber' }]
     : []),
-  ...(props.type === "Property" ? [{ title: "Address", value: "details.address" }] : []),
-  ...(props.type === "Loan" || props.type === "CreditCard"
-    ? [{ title: "Interest Rate", value: "details.interestRate" }]
+  ...(props.type === 'Property' ? [{ name: 'address', label: 'Address', field: (row: Account) => row.details?.address }] : []),
+  ...(props.type === 'Loan' || props.type === 'CreditCard'
+    ? [{ name: 'interestRate', label: 'Interest Rate', field: (row: Account) => row.details?.interestRate }]
     : []),
-  { title: "Actions", value: "actions" },
+  { name: 'owner', label: 'Owner', field: 'userId' },
+  { name: 'actions', label: 'Actions', field: 'actions' },
 ]);
 
 </script>

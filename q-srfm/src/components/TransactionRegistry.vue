@@ -192,32 +192,31 @@
         </q-btn>
       </q-card-section>
       <q-table
-        v-model="selectedRows"
-        :headers="headers"
+        :columns="columns"
         :rows="displayTransactions"
         class="elevation-1"
-        items-per-page="0"
-        :hide-default-footer="true"
-        show-select
-        :item-selectable="(item: DisplayTransaction) => item.status === 'U'"
-        item-value="id"
+        :pagination="{ rowsPerPage: 0 }"
+        hide-bottom
+        selection="multiple"
+        row-key="id"
+        v-model:selected="selectedRowsInternal"
         fixed-header
         fixed-footer
         height="600"
-        :item-class="getRowClass"
+        :row-class="getRowClass"
       >
-        <template v-slot:body-cell-amount="{ row }">
+        <template #body-cell-amount="{ row }">
           <span :class="row.isIncome ? 'text-success' : 'text-error'">
             {{ formatCurrency(row.amount) }}
           </span>
         </template>
-        <template v-slot:body-cell-balance="{ row }">
+        <template #body-cell-balance="{ row }">
           {{ formatCurrency(row.balance) }}
         </template>
-        <template v-slot:body-cell-entity="{ row }">
+        <template #body-cell-entity="{ row }">
           {{ getEntityName(row.entityId || row.budgetId) }}
         </template>
-        <template v-slot:body-cell-actions="{ row }">
+        <template #body-cell-actions="{ row }">
           <q-btn
             v-if="row.status === 'C'"
             density="compact"
@@ -492,7 +491,7 @@ import { useBudgetStore } from "../store/budget";
 import { useFamilyStore } from "../store/family";
 import { useStatementStore } from "../store/statements";
 import { useUIStore } from "../store/ui";
-import { Transaction, ImportedTransaction, Budget, Account, ImportedTransactionDoc, Statement } from "../types";
+import type { Transaction, ImportedTransaction, Budget, Account, ImportedTransactionDoc, Statement, BudgetCategory } from "../types";
 import { formatCurrency, toBudgetMonth, adjustTransactionDate, todayISO } from "../utils/helpers";
 import { QForm } from "quasar";
 import { v4 as uuidv4 } from "uuid";
@@ -606,27 +605,42 @@ const currentBalance = computed(() => {
 });
 
 const latestTransactionBalance = computed(() => {
-  if (!displayTransactions.value?.length) return 0;
+  const first = displayTransactions.value?.[0];
+  if (!first) return 0;
   if (selectedAccount.value && accounts.value) {
-    const aInfo = accounts.value.filter((a) => (a.accountNumber ?? "") == selectedAccount.value);
-    if (aInfo && aInfo.length > 0 && (aInfo[0].type == "CreditCard" || aInfo[0].type == "Loan")) {
-      return Math.abs(displayTransactions.value[0]?.balance ?? 0);
+    const [acc] = accounts.value.filter((a) => (a.accountNumber ?? "") === selectedAccount.value);
+    if (acc && (acc.type === "CreditCard" || acc.type === "Loan")) {
+      return Math.abs(first.balance ?? 0);
     }
   }
-  return displayTransactions.value[0]?.balance ?? 0;
+  return first.balance ?? 0;
 });
 
-const headers = [
-  { title: "Date", value: "date" },
-  { title: "Merchant", value: "merchant" },
-  { title: "Category", value: "category" },
-  { title: "Entity", value: "entity" },
-  { title: "Amount", value: "amount" },
-  { title: "Status", value: "status" },
-  { title: "Notes", value: "notes" },
-  { title: "Balance", value: "balance" },
-  { title: "Actions", value: "actions" },
+const columns = [
+  { name: 'date', label: 'Date', field: 'date', sortable: true },
+  { name: 'merchant', label: 'Merchant', field: 'merchant', sortable: true },
+  { name: 'category', label: 'Category', field: 'category', sortable: true },
+  { name: 'entity', label: 'Entity', field: (row: any) => row.entityId || row.budgetId },
+  { name: 'amount', label: 'Amount', field: 'amount', sortable: true },
+  { name: 'status', label: 'Status', field: 'status', sortable: true },
+  { name: 'notes', label: 'Notes', field: 'notes' },
+  { name: 'balance', label: 'Balance', field: 'balance', sortable: true },
+  { name: 'actions', label: 'Actions', field: 'actions' },
 ];
+
+// Bridge selection (rows vs ids)
+const selectedRowsInternal = computed({
+  get() {
+    return displayTransactions.value.filter((t) => selectedRows.value.includes(t.id));
+  },
+  set(rows: DisplayTransaction[]) {
+    if (Array.isArray(rows)) {
+      selectedRows.value = rows.map((r) => r.id);
+    } else {
+      selectedRows.value = [];
+    }
+  },
+});
 
 const reconcileHeaders = [
   { title: "Date", key: "date" },
@@ -658,12 +672,12 @@ const displayTransactions = computed((): DisplayTransaction[] => {
       date: tx.date,
       merchant: tx.importedMerchant || tx.merchant || "N/A",
       category: tx.categories?.[0]?.category ?? "N/A",
-      entityId: tx.entityId || budget.entityId,
       amount: tx.isIncome || false ? tx.amount : -1 * tx.amount,
       isIncome: tx.isIncome || false,
       status: tx.status || "C",
       notes: tx.notes || "",
-      budgetId: budget.budgetId,
+      ...(tx.entityId || budget.entityId ? { entityId: (tx.entityId || budget.entityId)! } : {}),
+      ...(budget.budgetId ? { budgetId: budget.budgetId } : {}),
     }));
 
   let baseUnmatchedTxs: (DisplayTransaction & { ignored?: boolean })[] = importedTransactions.value
@@ -686,7 +700,7 @@ const displayTransactions = computed((): DisplayTransaction[] => {
       isIncome: (tx.creditAmount ?? 0) > 0,
       status: tx.status || "U",
       notes: "",
-      ignored: tx.ignored,
+      ignored: !!tx.ignored,
     }));
 
   let unmatchedTxs: DisplayTransaction[] = baseUnmatchedTxs.filter((tx) => !tx.ignored);
@@ -799,7 +813,7 @@ const statementTransactions = computed((): DisplayTransaction[] => {
       merchant: tx.importedMerchant || tx.merchant || "N/A",
       amount: tx.isIncome ? tx.amount : -1 * tx.amount,
       status: tx.status || "U",
-      budgetId: budget.budgetId,
+      ...(budget.budgetId ? { budgetId: budget.budgetId } : {}),
     }));
 
   const importedTxs: DisplayTransaction[] = importedTransactions.value
@@ -941,7 +955,7 @@ function getRowClass(item: DisplayTransaction) {
   return "";
 }
 
-function confirmAction(transaction: any, action: string) {
+function confirmAction(transaction: DisplayTransaction, action: string) {
   transactionToAction.value = transaction;
   transactionAction.value = action;
   showActionDialog.value = true;
@@ -994,16 +1008,12 @@ async function executeAction() {
           (tx.debitAmount == budgetTx.amount || tx.creditAmount == budgetTx.amount)
       );
 
+      const { accountNumber, accountSource, postedDate, importedMerchant, checkNumber, ...rest } = budgetTx;
       updatedBudgetTx = {
-        ...budgetTx,
-        accountNumber: undefined,
-        accountSource: undefined,
-        postedDate: undefined,
-        importedMerchant: undefined,
-        checkNumber: undefined,
+        ...rest,
         status: "U",
         taxMetadata: budgetTx.taxMetadata || [],
-      };
+      } as Transaction;
 
       await dataAccess.saveTransaction(budget, updatedBudgetTx, false);
 
@@ -1014,8 +1024,9 @@ async function executeAction() {
       }
 
       if (importedTxIndex !== -1) {
-        importedTransactions.value[importedTxIndex].matched = false;
-        await dataAccess.updateImportedTransaction(docId, importedTransactions.value[importedTxIndex].id, false, false);
+        const itx = importedTransactions.value[importedTxIndex]!;
+        itx.matched = false;
+        await dataAccess.updateImportedTransaction(docId, itx.id, false, false);
       }
     }
 
@@ -1023,14 +1034,14 @@ async function executeAction() {
       await dataAccess.deleteImportedTransaction(docId, id);
       const importedTxIndex = importedTransactions.value.findIndex((tx) => tx.id === id);
       if (importedTxIndex !== -1) {
-        importedTransactions.value[importedTxIndex].deleted = true;
+        importedTransactions.value[importedTxIndex]!.deleted = true;
       }
     } else if (!budgetId && transactionAction.value == "Ignore") {
       await dataAccess.updateImportedTransaction(docId, id, false, true);
       const importedTxIndex = importedTransactions.value.findIndex((tx) => tx.id === id);
       if (importedTxIndex !== -1) {
-        importedTransactions.value[importedTxIndex].matched = false;
-        importedTransactions.value[importedTxIndex].ignored = true;
+        importedTransactions.value[importedTxIndex]!.matched = false;
+        importedTransactions.value[importedTxIndex]!.ignored = true;
       }
     }
 
@@ -1079,7 +1090,7 @@ function openBatchMatchDialog() {
 async function executeBatchMatch() {
   if (!batchMatchForm.value) return;
 
-  const { valid } = await batchMatchForm.value.validate();
+  const valid = await batchMatchForm.value.validate();
   if (!valid) {
     showSnackbar("Please fill in all required fields", "error");
     return;
@@ -1155,7 +1166,7 @@ async function executeBatchMatch() {
         recurring: false,
         recurringInterval: "Monthly",
         userId: user.uid,
-        isIncome: isIncome,
+        isIncome: !!isIncome,
         accountSource: importedTx.accountSource || "",
         accountNumber: importedTx.accountNumber || "",
         postedDate: importedTx.postedDate || "",
@@ -1172,8 +1183,9 @@ async function executeBatchMatch() {
       // Update local budgets
       const budgetIndex = budgets.value.findIndex((b) => b.budgetId === budgetId);
       if (budgetIndex !== -1) {
-        budgets.value[budgetIndex].transactions = [...(budgets.value[budgetIndex].transactions || []), newTransaction];
-        budgetStore.updateBudget(budgetId, budgets.value[budgetIndex]);
+        const b = budgets.value[budgetIndex]!;
+        b.transactions = [...(b.transactions || []), newTransaction];
+        budgetStore.updateBudget(budgetId, b);
       } else {
         budgets.value.push({ ...targetBudget, transactions: [newTransaction] });
         budgetStore.updateBudget(budgetId, { ...targetBudget, transactions: [newTransaction] });
@@ -1186,7 +1198,7 @@ async function executeBatchMatch() {
       // Update local imported transactions
       const importedTxIndex = importedTransactions.value.findIndex((tx) => tx.id === id);
       if (importedTxIndex !== -1) {
-        importedTransactions.value[importedTxIndex].matched = true;
+        importedTransactions.value[importedTxIndex]!.matched = true;
       }
     }
 
@@ -1241,7 +1253,7 @@ async function executeBatchAction() {
       } else if (batchAction.value === "Ignore") {
         await dataAccess.updateImportedTransaction(docId, tx.id, false, true);
         const index = importedTransactions.value.findIndex((itx) => itx.id === tx.id);
-        if (index !== -1) importedTransactions.value[index].ignored = true;
+        if (index !== -1) importedTransactions.value[index]!.ignored = true;
       }
     }
     showSnackbar(
@@ -1280,7 +1292,7 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
       entityId: entityId,
       month: month,
       incomeTarget: 0, // Use template's incomeTarget or default to 0
-      categories: templateBudget.categories.map((cat) => ({
+      categories: templateBudget.categories.map((cat: BudgetCategory) => ({
         ...cat,
         carryover: cat.isFund ? 0 : 0, // Initialize carryover as 0 for new budgets
       })),
@@ -1304,7 +1316,7 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
       entityId: entityId,
       month: month,
       incomeTarget: 0,
-      categories: predefinedTemplate?.categories.map((cat) => ({
+      categories: (predefinedTemplate?.categories ?? []).map((cat: BudgetCategory) => ({
         ...cat,
         carryover: cat.isFund ? 0 : 0, // Initialize carryover as 0
       })),
@@ -1372,7 +1384,7 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
     entityId: entityId,
     month: month,
     incomeTarget: sourceBudget.incomeTarget,
-    categories: sourceBudget.categories.map((cat) => ({
+    categories: sourceBudget.categories.map((cat: BudgetCategory) => ({
       ...cat,
       carryover: cat.isFund ? newCarryover[cat.name] || 0 : 0,
     })),
@@ -1439,7 +1451,7 @@ function cancelReconcile() {
 async function saveBalanceAdjustment() {
   if (!adjustmentForm.value || !selectedAccount.value) return;
 
-  const { valid } = await adjustmentForm.value.validate();
+  const valid = await adjustmentForm.value.validate();
   if (!valid) {
     showSnackbar("Please fill in all required fields", "error");
     return;
@@ -1533,7 +1545,7 @@ function openStatementDialog() {
 async function saveStatement() {
   if (!statementForm.value || !selectedAccount.value) return;
 
-  const { valid } = await statementForm.value.validate();
+  const valid = await statementForm.value.validate();
   if (!valid) {
     showSnackbar("Please fill in all required fields", "error");
     return;
@@ -1598,8 +1610,9 @@ async function markStatementReconciled() {
       if (idx !== -1) {
         const parts = id.split("-");
         const docId = parts.slice(0, -1).join("-");
-        const updatedTx: ImportedTransaction = { ...importedTransactions.value[idx], status: "R" };
-        importedTransactions.value[idx].status = "R";
+        const baseItx = importedTransactions.value[idx]! as ImportedTransaction;
+        const updatedTx: ImportedTransaction = { ...baseItx, status: "R" };
+        importedTransactions.value[idx]!.status = "R";
         await dataAccess.updateImportedTransaction(docId, updatedTx);
       }
     }
@@ -1726,7 +1739,7 @@ async function deleteStatement() {
       selectedAccount.value
     );
     if (statements.value.length > 0) {
-      selectedStatementId.value = statements.value[statements.value.length - 1].id;
+      selectedStatementId.value = statements.value[statements.value.length - 1]!.id;
     } else {
       selectedStatementId.value = "ALL";
     }

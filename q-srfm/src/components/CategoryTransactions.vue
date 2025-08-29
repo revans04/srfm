@@ -126,7 +126,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { useQuasar } from 'quasar';
+import { useQuasar, QSpinner } from 'quasar';
 import { dataAccess } from '../dataAccess';
 import TransactionForm from './TransactionForm.vue';
 import type { BudgetCategory, Transaction } from '../types';
@@ -276,11 +276,10 @@ async function executeDelete() {
   }
   $q.loading.show({
     message: 'Deleting transaction...',
-    spinner: 'QSpinner',
+    spinner: QSpinner,
     spinnerColor: 'primary',
-    spinnerSize: '50px',
-    messageClass: 'q-ml-sm',
-    boxClass: 'flex items-center justify-center',
+    spinnerSize: 50,
+    customClass: 'q-ml-sm flex items-center justify-center',
   });
   try {
     const targetBudget = budgetStore.getBudget(props.budgetId);

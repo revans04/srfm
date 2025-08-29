@@ -33,6 +33,8 @@ export enum EntityType {
 
 export interface Transaction {
   id: string;
+  // Optional in app/frontend; backend may include this
+  budgetId?: string;
   date: string;
   budgetMonth?: string;
   merchant: string;
@@ -63,6 +65,8 @@ export interface Transaction {
   entityId?: string;
   taxMetadata: TaxMetadata[]; // Array to support multiple forms/entities
   receiptUrl?: string; // Firebase Storage link for receipts
+  // Local-only metadata to track previous id during de-duplication workflows
+  originalId?: string;
 }
 
 export interface ImportedTransaction {
@@ -80,6 +84,7 @@ export interface ImportedTransaction {
   status: "U" | "C" | "R";
   deleted?: boolean;
   taxMetadata?: TaxMetadata[]; // Optional, for manual tagging before matching
+  entityId?: string; // Frontend convenience (not persisted by API)
 }
 
 export interface ImportedTransactionDoc {
@@ -87,6 +92,7 @@ export interface ImportedTransactionDoc {
   userId: string;
   familyId: string;
   importedTransactions: ImportedTransaction[];
+  createdAt?: Timestamp;
 }
 
 export interface BudgetCategory {
@@ -103,6 +109,8 @@ export interface Budget {
   entityId?: string; // Added to link to an entity (null for primary family budget)
   label: string;
   month: string;
+  // For import flows we sometimes track the original month separately
+  budgetMonth?: string;
   incomeTarget: number;
   categories: BudgetCategory[];
   transactions: Transaction[];

@@ -29,7 +29,7 @@
       density="compact"
     ></q-input>
     <q-input
-      v-if="localAccount.type === AccountType.Property"
+      v-if="localAccount.type === 'Property'"
       v-model.number="localAccount.details.appraisedValue"
       label="Original Value"
       type="number"
@@ -37,14 +37,14 @@
       density="compact"
     ></q-input>
     <q-input
-      v-if="localAccount.type === AccountType.Property"
+      v-if="localAccount.type === 'Property'"
       v-model="localAccount.details.address"
-      :label="localAccount.type === AccountType.Property ? 'Address' : 'Description'"
+      :label="localAccount.type === 'Property' ? 'Address' : 'Description'"
       variant="outlined"
       density="compact"
     ></q-input>
     <q-input
-      v-if="localAccount.type === AccountType.Investment || localAccount.type === AccountType.Loan"
+      v-if="localAccount.type === 'Investment' || localAccount.type === 'Loan'"
       v-model="localAccount.details.maturityDate"
       label="Maturity Date"
       type="date"
@@ -69,13 +69,17 @@
 
 <script setup lang="ts">
 import { ref, watch, defineProps, defineEmits } from "vue";
-import { Account, AccountType } from "../types";
+import type { Account, AccountType } from "../types";
 import { Timestamp } from "firebase/firestore";
 import { v4 as uuidv4 } from "uuid";
 
+type AccountTypeLiteral = Account["type"]; // "Bank" | "CreditCard" | ...
+
 const props = defineProps<{
-  accountType: AccountType;
-  account?: Account;
+  // Accept either the string literal union or the enum value
+  accountType: AccountType | AccountTypeLiteral;
+  // Allow partial Account for callers that build drafts before persisting
+  account?: Partial<Account>;
   showPersonalOption?: boolean;
 }>();
 
@@ -90,11 +94,16 @@ const isPersonalAccount = ref(false);
 
 type AccountWithDetails = Account & { details: NonNullable<Account["details"]> };
 
+function normalizeType(t: AccountType | AccountTypeLiteral): AccountTypeLiteral {
+  // AccountType is a string enum, so a straight cast to the literal union is fine
+  return t as unknown as AccountTypeLiteral;
+}
+
 const localAccount = ref<AccountWithDetails>({
   id: uuidv4(),
   name: "",
-  type: props.accountType,
-  category: props.accountType === AccountType.CreditCard || props.accountType === AccountType.Loan ? "Liability" : "Asset",
+  type: normalizeType(props.accountType),
+  category: normalizeType(props.accountType) === "CreditCard" || normalizeType(props.accountType) === "Loan" ? "Liability" : "Asset",
   createdAt: Timestamp.now(),
   updatedAt: Timestamp.now(),
   details: {},
@@ -105,7 +114,16 @@ watch(
   (newAccount) => {
     if (newAccount) {
       localAccount.value = {
-        ...newAccount,
+        // Fill required fields while preserving provided values
+        id: newAccount.id || localAccount.value.id,
+        name: newAccount.name || "",
+        type: normalizeType((newAccount.type as any) || localAccount.value.type),
+        category: (newAccount.category as any) || localAccount.value.category,
+        accountNumber: newAccount.accountNumber,
+        institution: newAccount.institution,
+        createdAt: (newAccount.createdAt as any) || Timestamp.now(),
+        updatedAt: (newAccount.updatedAt as any) || Timestamp.now(),
+        balance: newAccount.balance,
         details: { ...(newAccount.details || {}) },
       };
       isPersonalAccount.value = !!newAccount.userId;
@@ -117,8 +135,9 @@ watch(
 watch(
   () => props.accountType,
   (newType) => {
-    localAccount.value.type = newType;
-    localAccount.value.category = newType === AccountType.CreditCard || newType === AccountType.Loan ? "Liability" : "Asset";
+    const t = normalizeType(newType);
+    localAccount.value.type = t;
+    localAccount.value.category = t === "CreditCard" || t === "Loan" ? "Liability" : "Asset";
   }
 );
 

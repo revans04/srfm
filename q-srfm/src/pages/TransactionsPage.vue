@@ -246,7 +246,6 @@
                       <div class="col text-right">
                         <q-btn
                           v-if="transaction.status !== 'C' && !transaction.deleted"
-                          icon
                           small
                           @click.stop="selectBudgetTransactionToMatch(transaction)"
                           title="Match Transaction"
@@ -353,7 +352,7 @@ import MatchBankTransactionsDialog from '../components/MatchBankTransactionsDial
 import MatchBudgetTransactionDialog from '../components/MatchBudgetTransactionDialog.vue';
 import TransactionRegistry from '../components/TransactionRegistry.vue';
 import EntitySelector from '../components/EntitySelector.vue';
-import { Transaction, BudgetInfo, ImportedTransaction, Account, Entity } from '../types';
+import type { Transaction, BudgetInfo, ImportedTransaction, Account, Entity } from '../types';
 import { formatDateLong, toDollars, toCents, formatCurrency, toBudgetMonth, todayISO } from '../utils/helpers';
 import { useBudgetStore } from '../store/budget';
 import { useFamilyStore } from '../store/family';

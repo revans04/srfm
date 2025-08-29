@@ -10,8 +10,8 @@ export const useAuthStore = defineStore('auth', () => {
   const avatarSrc = ref('https://via.placeholder.com/36');
   const authError = ref<string | null>(null);
 
-  function initializeAuth() {
-    return new Promise((resolve, reject) => {
+  function initializeAuth(): Promise<User | null> {
+    return new Promise<User | null>((resolve, reject) => {
       console.log('Initializing Firebase auth');
       const unsubscribe = auth.onAuthStateChanged(
         (firebaseUser) => {

@@ -66,20 +66,20 @@
                 </div>
 
                 <q-table
-                  :headers="smartMatchHeaders"
+                  :columns="smartMatchColumns"
                   :rows="sortedSmartMatches"
-                  v-model="selectedSmartMatchIds"
-                  show-select
-                  item-value="importedTransaction.id"
+                  row-key="importedTransaction.id"
+                  selection="multiple"
+                  v-model:selected="selectedSmartMatchesInternal"
                   class="mt-4"
-                  hide-default-footer
-                  items-per-page="50"
+                  hide-bottom
+                  :pagination="{ rowsPerPage: 50 }"
                 >
-                  <template v-slot:body-cell-bankAmount="{ row }"> ${{ toDollars(toCents(row.bankAmount)) }} </template>
-                  <template v-slot:body-cell-bankType="{ row }"> {{ row.bankType }} </template>
-                  <template v-slot:body-cell-budgetAmount="{ row }"> ${{ toDollars(toCents(row.budgetTransaction.amount)) }} </template>
-                  <template v-slot:body-cell-budgetType="{ row }"> {{ row.budgetTransaction.isIncome ? "Income" : "Expense" }} </template>
-                  <template v-slot:body-cell-actions="{ row }">
+                  <template #body-cell-bankAmount="{ row }"> ${{ toDollars(toCents(row.bankAmount)) }} </template>
+                  <template #body-cell-bankType="{ row }"> {{ row.bankType }} </template>
+                  <template #body-cell-budgetAmount="{ row }"> ${{ toDollars(toCents(row.budgetTransaction.amount)) }} </template>
+                  <template #body-cell-budgetType="{ row }"> {{ row.budgetTransaction.isIncome ? "Income" : "Expense" }} </template>
+                  <template #body-cell-actions="{ row }">
                       <q-icon
                         v-if="isBudgetTxMatchedMultiple(row.budgetTransaction.id)"
                         color="warning"
@@ -232,18 +232,18 @@
 
                 <q-table
                   v-if="potentialMatches.length > 0 && !showSplitForm"
-                  :headers="budgetTransactionHeaders"
+                  :columns="budgetTransactionColumns"
                   :rows="sortedPotentialMatches"
-                  :items-per-page="5"
-                  v-model="selectedBudgetTransactionForMatch"
-                  show-select
-                  single-select
+                  :pagination="{ rowsPerPage: 5 }"
+                  row-key="id"
+                  selection="single"
+                  v-model:selected="selectedBudgetTransactionForMatch"
                 >
-                  <template v-slot:body-cell-amount="{ row }"> ${{ toDollars(toCents(row.amount)) }} </template>
-                  <template v-slot:body-cell-type="{ row }">
+                  <template #body-cell-amount="{ row }"> ${{ toDollars(toCents(row.amount)) }} </template>
+                  <template #body-cell-type="{ row }">
                     {{ row.isIncome ? "Income" : "Expense" }}
                   </template>
-                  <template v-slot:body-cell-actions="{ row }">
+                  <template #body-cell-actions="{ row }">
                     <q-btn
                       color="primary"
                       small
@@ -298,7 +298,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, nextTick } from "vue";
-import { Transaction, ImportedTransaction, Budget } from "../types";
+import type { Transaction, ImportedTransaction, Budget } from "../types";
 import { useQuasar } from 'quasar';
 import { toDollars, toCents, toBudgetMonth, adjustTransactionDate, todayISO } from "../utils/helpers";
 import { dataAccess } from "../dataAccess";
@@ -413,26 +413,48 @@ const remainingSplitAmount = computed(() => {
   return Math.round((totalAmount - allocated) * 100) / 100;
 });
 
-const smartMatchHeaders = ref([
-  { title: "Bank Date", value: "importedTransaction.postedDate" },
-  { title: "Bank Amount", value: "bankAmount" },
-  { title: "Bank Type", value: "bankType" },
-  { title: "Payee", value: "importedTransaction.payee" },
-  { title: "Merchant", value: "budgetTransaction.merchant" },
-  { title: "Budget Date", value: "budgetTransaction.date" },
-  { title: "Budget Amount", value: "budgetAmount" },
-  { title: "Budget Type", value: "budgetType" },
-  { title: "Actions", value: "actions" },
-]);
+type SmartMatchRow = {
+  importedTransaction: ImportedTransaction;
+  budgetTransaction: Transaction;
+  budgetId: string;
+  bankAmount: number;
+  bankType: string;
+};
 
-const budgetTransactionHeaders = ref([
-  { title: "Date", value: "date" },
-  { title: "Merchant", value: "merchant" },
-  { title: "Amount", value: "amount" },
-  { title: "Type", value: "type" },
-  { title: "Categories", value: "categories" },
-  { title: "Actions", value: "actions" },
-]);
+const smartMatchColumns = [
+  { name: 'importedDate', label: 'Bank Date', field: (row: SmartMatchRow) => row.importedTransaction.postedDate, sortable: true },
+  { name: 'bankAmount', label: 'Bank Amount', field: 'bankAmount', sortable: true },
+  { name: 'bankType', label: 'Bank Type', field: 'bankType', sortable: true },
+  { name: 'payee', label: 'Payee', field: (row: SmartMatchRow) => row.importedTransaction.payee, sortable: true },
+  { name: 'merchant', label: 'Merchant', field: (row: SmartMatchRow) => row.budgetTransaction.merchant, sortable: true },
+  { name: 'budgetDate', label: 'Budget Date', field: (row: SmartMatchRow) => row.budgetTransaction.date, sortable: true },
+  { name: 'budgetAmount', label: 'Budget Amount', field: (row: SmartMatchRow) => row.budgetTransaction.amount, sortable: true },
+  { name: 'budgetType', label: 'Budget Type', field: (row: SmartMatchRow) => (row.budgetTransaction.isIncome ? 'Income' : 'Expense') },
+  { name: 'actions', label: 'Actions', field: 'actions' },
+];
+
+type TxRow = Transaction;
+const budgetTransactionColumns = [
+  { name: 'date', label: 'Date', field: 'date', sortable: true },
+  { name: 'merchant', label: 'Merchant', field: 'merchant', sortable: true },
+  { name: 'amount', label: 'Amount', field: 'amount', sortable: true },
+  { name: 'type', label: 'Type', field: (row: TxRow) => (row.isIncome ? 'Income' : 'Expense') },
+  { name: 'categories', label: 'Categories', field: (row: TxRow) => row.categories?.map((c) => c.category).join(', ') },
+  { name: 'actions', label: 'Actions', field: 'actions' },
+];
+
+// Bridge selection to ids
+const selectedSmartMatchesInternal = computed({
+  get() {
+    // Return selected rows as-is; template only needs length
+    return smartMatches.value.filter((m) => selectedSmartMatchIds.value.includes(m.importedTransaction.id));
+  },
+  set(rows: SmartMatchRow[]) {
+    selectedSmartMatchIds.value = Array.isArray(rows)
+      ? rows.map((r) => r.importedTransaction?.id).filter(Boolean) as string[]
+      : [];
+  },
+});
 
 // Computed properties
 const sortedSmartMatches = computed(() => {
@@ -745,7 +767,7 @@ async function saveSplitTransaction() {
 
   if (!splitForm.value) return;
 
-  const { valid } = await splitForm.value.validate();
+  const valid = await splitForm.value.validate();
   if (!valid) {
     showSnackbar("Please fill in all required fields", "error");
     return;
@@ -765,7 +787,7 @@ async function saveSplitTransaction() {
     for (const split of transactionSplits.value) {
       const budgetMonth = toBudgetMonth(importedTx.postedDate || todayISO());
       const budgetId = `${user.uid}_${split.entityId}_${budgetMonth}`;
-      const transaction: Transaction = {
+      const baseTx = {
         id: uuidv4(),
         budgetMonth,
         date: importedTx.postedDate || todayISO(),
@@ -774,18 +796,21 @@ async function saveSplitTransaction() {
         amount: split.amount,
         notes: "",
         recurring: false,
-        recurringInterval: "Monthly",
+        recurringInterval: "Monthly" as const,
         userId: props.userId,
         isIncome: !!importedTx.creditAmount,
-        postedDate: importedTx.postedDate,
-        importedMerchant: importedTx.payee,
-        accountSource: importedTx.accountSource,
-        accountNumber: importedTx.accountNumber,
-        checkNumber: importedTx.checkNumber,
-      status: "C",
-      entityId: split.entityId,
-      taxMetadata: [],
-    };
+        status: "C" as const,
+        entityId: split.entityId,
+        taxMetadata: [] as Transaction['taxMetadata'],
+      };
+      const transaction: Transaction = {
+        ...baseTx,
+        ...(importedTx.postedDate ? { postedDate: importedTx.postedDate } : {}),
+        ...(importedTx.payee ? { importedMerchant: importedTx.payee } : {}),
+        ...(importedTx.accountSource ? { accountSource: importedTx.accountSource } : {}),
+        ...(importedTx.accountNumber ? { accountNumber: importedTx.accountNumber } : {}),
+        ...(importedTx.checkNumber ? { checkNumber: importedTx.checkNumber } : {}),
+      };
 
       if (!transactionsByBudget[budgetId]) transactionsByBudget[budgetId] = [];
       transactionsByBudget[budgetId].push(transaction);
@@ -795,8 +820,10 @@ async function saveSplitTransaction() {
     for (const budgetId in transactionsByBudget) {
       let budget = budgetStore.getBudget(budgetId);
       if (!budget) {
-        const [, entityId, budgetMonth] = budgetId.split("_");
-        budget = await createBudgetForMonth(budgetMonth!, family.id, user.uid, entityId);
+        const parts = budgetId.split("_") as [string, string, string];
+        const entityId = parts[1]!;
+        const month = parts[2]!;
+        budget = await createBudgetForMonth(month, family.id, user.uid, entityId);
       }
 
       await dataAccess.batchSaveTransactions(budgetId, budget, transactionsByBudget[budgetId]!);
@@ -898,7 +925,7 @@ async function addNewTransaction() {
     console.log(`Budget month ${toBudgetMonth(postedDate)} not found, falling back to ${budgetMonth}`);
   }
 
-  newTransaction.value = {
+  const baseTx = {
     id: "",
     budgetMonth,
     date: selectedBankTransaction.value.postedDate || todayISO(),
@@ -912,18 +939,21 @@ async function addNewTransaction() {
     amount: selectedBankTransaction.value.debitAmount || selectedBankTransaction.value.creditAmount || 0,
     notes: "",
     recurring: false,
-    recurringInterval: "Monthly",
+    recurringInterval: "Monthly" as const,
     userId: props.userId,
     isIncome: !!selectedBankTransaction.value.creditAmount,
-    postedDate: selectedBankTransaction.value.postedDate,
-    importedMerchant: selectedBankTransaction.value.payee,
-    accountSource: selectedBankTransaction.value.accountSource,
-    accountNumber: selectedBankTransaction.value.accountNumber,
-    checkNumber: selectedBankTransaction.value.checkNumber,
-    status: "C",
-    entityId: familyStore.selectedEntityId,
-    taxMetadata: [],
+    status: "C" as const,
+    entityId: familyStore.selectedEntityId || "",
+    taxMetadata: [] as Transaction['taxMetadata'],
   };
+  newTransaction.value = {
+    ...baseTx,
+    ...(selectedBankTransaction.value.postedDate ? { postedDate: selectedBankTransaction.value.postedDate } : {}),
+    ...(selectedBankTransaction.value.payee ? { importedMerchant: selectedBankTransaction.value.payee } : {}),
+    ...(selectedBankTransaction.value.accountSource ? { accountSource: selectedBankTransaction.value.accountSource } : {}),
+    ...(selectedBankTransaction.value.accountNumber ? { accountNumber: selectedBankTransaction.value.accountNumber } : {}),
+    ...(selectedBankTransaction.value.checkNumber ? { checkNumber: selectedBankTransaction.value.checkNumber } : {}),
+  } as Transaction;
   newTransactionBudgetId.value = `${props.userId}_${familyStore.selectedEntityId}_${budgetMonth}`;
   showTransactionDialog.value = true;
 }

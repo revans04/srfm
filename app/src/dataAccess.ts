@@ -288,10 +288,12 @@ export class DataAccess {
       })
       .sort((a, b) => a.month.localeCompare(b.month));
 
+    // Ensure category data is available; load budget details when missing
     const budgetList: Budget[] = [];
     for (const b of futureBudgets) {
-      if (b && b.categories.some((cat) => cat.isFund && affectedCategoryNames.includes(cat.name))) {
-        budgetList.push(b);
+      const budgetWithCats = b.categories && b.categories.length > 0 ? b : (await this.getBudget(b.budgetId!))!;
+      if (budgetWithCats && budgetWithCats.categories.some((cat) => cat.isFund && affectedCategoryNames.includes(cat.name))) {
+        budgetList.push(budgetWithCats);
       }
     }
 
