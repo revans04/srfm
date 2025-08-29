@@ -87,16 +87,16 @@
           <q-item v-for="(category, index) in budget.categories" :key="index">
             <div class="row dense">
               <div class="col px-2 col-12 col-sm-3">
-                <q-input v-model="budget.categories[index].name" label="Category" required density="compact"></q-input>
+                <q-input v-model="category.name" label="Category" required density="compact"></q-input>
               </div>
               <div class="col px-2 col-12 col-sm-3">
-                <q-input v-model="budget.categories[index].group" label="Group" required density="compact"></q-input>
+                <q-input v-model="category.group" label="Group" required density="compact"></q-input>
               </div>
               <div class="col px-2 col-12 col-sm-3">
-                <Currency-Input v-model.number="budget.categories[index].target" label="Target" class="text-right" density="compact" required></Currency-Input>
+                <Currency-Input v-model.number="category.target" label="Target" class="text-right" density="compact" required></Currency-Input>
               </div>
               <div class="col px-2 col-12 col-sm-2">
-                <q-checkbox v-model="budget.categories[index].isFund" label="Is Fund?" density="compact"></q-checkbox>
+                <q-checkbox v-model="category.isFund" label="Is Fund?" density="compact"></q-checkbox>
               </div>
               <div class="col px-2 col-12 col-sm-1">
                 <q-btn icon="delete" variant="plain" @click="removeCategory(index)" color="error"> </q-btn>
@@ -300,7 +300,7 @@ function importCategories() {
     } else if (DEFAULT_BUDGET_TEMPLATES[entityType.value]) {
       const predefinedTemplate = DEFAULT_BUDGET_TEMPLATES[entityType.value];
       if (predefinedTemplate) {
-        budget.value.categories = predefinedTemplate.categories.map((cat) => ({
+        budget.value.categories = predefinedTemplate.categories.map((cat: BudgetCategory) => ({
           ...cat,
           carryover: cat.isFund ? 0 : 0,
         }));
