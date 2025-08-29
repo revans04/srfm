@@ -2,9 +2,9 @@
 <template>
   <div v-if="isInitialized && locTrnsx?.categories">
       <div class="row pa-0" >
-        <div class="col col-6"> <q-btn variant="text" type="submit" color="primary" :loading="loading" @click="save()">Save</q-btn></div>
+        <div class="col col-6"> <q-btn variant="text" type="submit" color="primary" :loading="isLoading" @click="save()">Save</q-btn></div>
         <div class="col text-right col-6" >
-          <q-btn v-if="showCancel" @click="emit('cancel')" variant="text" type="submit" color="primary" :loading="loading">Cancel</q-btn></div>
+          <q-btn v-if="showCancel" @click="emit('cancel')" variant="text" type="submit" color="primary" :loading="isLoading">Cancel</q-btn></div>
       </div>
     <q-form ref="form" @submit.prevent="save">
       <div class="row form-row" >
@@ -153,13 +153,13 @@
         </div>
         <div class="row form-row" >
           <div class="col">
-            <q-btn variant="text" color="warning" :loading="loading" @click="resetMatch">Reset Match</q-btn>
+            <q-btn variant="text" color="warning" :loading="isLoading" @click="resetMatch">Reset Match</q-btn>
           </div>
         </div>
       </div>
 
       <div class="text-center">
-        <q-btn v-if="locTrnsx.id" variant="text" color="error" :loading="loading" @click="deleteTransaction"> Delete Transaction </q-btn>
+        <q-btn v-if="locTrnsx.id" variant="text" color="error" :loading="isLoading" @click="deleteTransaction"> Delete Transaction </q-btn>
       </div>
     </q-form>
   </div>
@@ -168,7 +168,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, reactive } from "vue";
+import { ref, computed, onMounted, reactive } from "vue";
 import { useQuasar } from 'quasar';
 import { dataAccess } from "../dataAccess";
 import type { Budget, Transaction } from "../types";
@@ -231,7 +231,7 @@ const locTrnsx = reactive<Transaction>(
 const isInitialized = ref(false);
 const budget = ref<Budget | null>(null);
 const transactions = ref<Transaction[]>([]);
-const loading = ref(false);
+const isLoading = ref(false);
 const intervals = ref(["Daily", "Weekly", "Bi-Weekly", "Monthly", "Quarterly", "Bi-Annually", "Yearly"]);
 const isMobile = computed(() => $q.screen.lt.md);
 
@@ -242,7 +242,7 @@ const availableMonths = computed(() => {
 });
 
 const isLastMonth = computed(() => {
-  return availableMonths.value.sort((a, b) => b.localeCompare(a))[0] == locTrnsx.budgetMonth;
+  return [...availableMonths.value].sort((a, b) => b.localeCompare(a))[0] == locTrnsx.budgetMonth;
 });
 
 const remainingCategories = computed(() => {
@@ -319,14 +319,15 @@ function removeSplit(index: number) {
     locTrnsx.categories.splice(index, 1);
   }
   if (locTrnsx.categories.length === 1) {
-    locTrnsx.categories[0]!.amount = locTrnsx.amount;
+    const firstCategory = locTrnsx.categories[0];
+    if (firstCategory) firstCategory.amount = locTrnsx.amount;
   }
 }
 
 async function resetMatch() {
   if (!locTrnsx.id) return;
 
-  loading.value = true;
+  isLoading.value = true;
   try {
     // Update local transaction to reset imported fields
     locTrnsx.status = "U";
@@ -341,7 +342,7 @@ async function resetMatch() {
       throw new Error(`Budget ${props.budgetId} not found`);
     }
 
-    const [currentUserId, entityId, currentBudgetMonth] = props.budgetId.split("_");
+    const [, entityId, currentBudgetMonth] = props.budgetId.split("_");
     const targetBudgetMonth = locTrnsx.budgetMonth;
     const targetBudgetId = currentBudgetMonth === targetBudgetMonth ? props.budgetId : `${props.userId}_${entityId}_${targetBudgetMonth}`;
 
@@ -360,11 +361,12 @@ async function resetMatch() {
     } else {
       showSnackbar("Could not reset match, Budget does not exist!", "error");
     }
-  } catch (error: any) {
-    console.error("Error resetting transaction match:", error.message);
-    showSnackbar(`Error resetting transaction match: ${error.message}`, "error");
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error("Error resetting transaction match:", err.message);
+    showSnackbar(`Error resetting transaction match: ${err.message}`, "error");
   } finally {
-    loading.value = false;
+    isLoading.value = false;
   }
 }
 
@@ -374,10 +376,11 @@ async function save() {
 
   const valid = await form.value.validate();
   if (valid) {
-    loading.value = true;
+    isLoading.value = true;
     try {
       if (locTrnsx.categories.length === 1 && locTrnsx.categories[0]?.amount === 0) {
-        locTrnsx.categories[0]!.amount = locTrnsx.amount;
+        const firstCategory = locTrnsx.categories[0];
+        if (firstCategory) firstCategory.amount = locTrnsx.amount;
       }
       locTrnsx.userId = props.userId;
       if (!locTrnsx.status) {
@@ -387,7 +390,7 @@ async function save() {
         throw new Error(`Budget ${props.budgetId} not found`);
       }
 
-      const [currentUserId, entityId, currentBudgetMonth] = props.budgetId.split("_");
+      const [, entityId, currentBudgetMonth] = props.budgetId.split("_");
       const targetBudgetMonth = locTrnsx.budgetMonth;
       const targetBudgetId = currentBudgetMonth === targetBudgetMonth ? props.budgetId : `${props.userId}_${entityId}_${targetBudgetMonth}`;
 
@@ -402,7 +405,7 @@ async function save() {
 
       if (targetBudget) {
         if (currentBudgetMonth !== targetBudgetMonth && locTrnsx.id) {
-          await dataAccess.deleteTransaction(budget.value!, locTrnsx.id, !isLastMonth.value);
+          await dataAccess.deleteTransaction(budget.value, locTrnsx.id, !isLastMonth.value);
           moved = true;
         }
 
@@ -426,11 +429,12 @@ async function save() {
       } else {
         showSnackbar("Could not save Transaction, Budget does not exist!", "error");
       }
-    } catch (error: any) {
-      console.error("Error saving transaction:", error.message);
-      showSnackbar(`Error saving transaction: ${error.message}`, "error");
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error("Error saving transaction:", err.message);
+      showSnackbar(`Error saving transaction: ${err.message}`, "error");
     } finally {
-      loading.value = false;
+      isLoading.value = false;
     }
   } else {
     console.log("Form validation failed");
@@ -441,21 +445,22 @@ async function save() {
 async function deleteTransaction() {
   if (!locTrnsx.id) return;
 
-  loading.value = true;
+  isLoading.value = true;
   try {
     if (!budget.value) {
       throw new Error(`Budget ${props.budgetId} not found`);
     }
-    await dataAccess.deleteTransaction(budget.value!, locTrnsx.id, !isLastMonth.value);
+    await dataAccess.deleteTransaction(budget.value, locTrnsx.id, !isLastMonth.value);
 
     transactions.value = transactions.value.filter((t) => t.id !== locTrnsx.id);
     emit("update-transactions", transactions.value);
 
     emit("cancel");
-  } catch (error: any) {
-    console.error("Error deleting transaction:", error.message);
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error("Error deleting transaction:", err.message);
   } finally {
-    loading.value = false;
+    isLoading.value = false;
   }
 }
 

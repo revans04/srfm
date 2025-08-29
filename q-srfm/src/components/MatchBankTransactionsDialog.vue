@@ -632,7 +632,7 @@ async function confirmSmartMatches() {
         }[];
       } = {
         budgetId,
-        reconciliations: matchesByBudget[budgetId]!,
+        reconciliations: matchesByBudget[budgetId] || [],
       };
 
       await dataAccess.batchReconcileTransactions(budgetId, budget, reconcileData);
@@ -697,7 +697,7 @@ async function matchBankTransaction(budgetTransaction: Transaction) {
     if (!budget) {
       const fam = await familyStore.getFamily();
       budget = await createBudgetForMonth(
-        updatedTransaction.budgetMonth!,
+        updatedTransaction.budgetMonth,
         fam?.id ?? "",
         user.uid,
         updatedTransaction.entityId || ""
@@ -832,7 +832,7 @@ async function saveSplitTransaction() {
         budget = await createBudgetForMonth(month, family.id, user.uid, entityId);
       }
 
-      await dataAccess.batchSaveTransactions(budgetId, budget, transactionsByBudget[budgetId]!);
+      await dataAccess.batchSaveTransactions(budgetId, budget, transactionsByBudget[budgetId] || []);
       const updatedBudget = await dataAccess.getBudget(budgetId);
       if (updatedBudget) budgetStore.updateBudget(budgetId, updatedBudget);
     }
@@ -878,7 +878,7 @@ async function handleTransactionAdded(savedTransaction: Transaction) {
     const targetBudgetId = `${user.uid}_${savedTransaction.entityId}_${savedTransaction.budgetMonth}`;
     let budget = budgetStore.getBudget(targetBudgetId);
     if (!budget) {
-      budget = await createBudgetForMonth(savedTransaction.budgetMonth!, family.id, user.uid, savedTransaction.entityId || "");
+      budget = await createBudgetForMonth(savedTransaction.budgetMonth, family.id, user.uid, savedTransaction.entityId || "");
     }
 
     budgetStore.updateBudget(targetBudgetId, {
@@ -1104,7 +1104,7 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
   const matchesByBank: Record<string, typeof potentialMatches> = {};
   potentialMatches.forEach((m) => {
     if (!matchesByBank[m.importedTx.id]) matchesByBank[m.importedTx.id] = [];
-    matchesByBank[m.importedTx.id]!.push(m);
+    matchesByBank[m.importedTx.id].push(m);
   });
 
   Object.values(matchesByBank).forEach((cands) => {

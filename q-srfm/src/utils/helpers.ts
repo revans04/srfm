@@ -59,7 +59,7 @@ export function timestampToMillis(t: TimestampLike): number {
     const nanos = Number(t.nanoseconds ?? 0);
     return seconds * 1000 + nanos / 1e6;
   }
-  const d = new Date(t as any);
+  const d = new Date(t as string | number | Date);
   return isNaN(d.getTime()) ? 0 : d.getTime();
 }
 
