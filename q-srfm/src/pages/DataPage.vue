@@ -1685,7 +1685,7 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
 
   let newCarryover: Record<string, number> = {};
   if (isFutureMonth) {
-    newCarryover = await dataAccess.calculateCarryOver(sourceBudget);
+    newCarryover = dataAccess.calculateCarryOver(sourceBudget);
   }
 
   const newBudget: Budget = {
