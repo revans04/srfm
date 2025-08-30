@@ -1009,10 +1009,29 @@ function applyFilters() {
 /* Desktop aligned grid for entries */
 .trx-grid {
   display: grid;
-  grid-template-columns: 160px 1fr 160px 140px 1.5fr 100px;
-  align-items: center;
+  width: 100%;
+  grid-template-columns: 160px 1fr 160px 140px minmax(200px, 1.5fr) 100px;
+  align-items: start;
   column-gap: 12px;
 }
-.trx-grid .cell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.trx-grid .meta { white-space: normal; }
+.trx-grid .cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trx-grid .meta {
+  white-space: normal;
+}
+
+@media (max-width: 1500px) {
+  .trx-grid {
+    grid-template-columns: 140px 1fr 140px 120px minmax(180px, 1.5fr) 80px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .trx-grid {
+    grid-template-columns: 120px 1fr 120px 110px minmax(160px, 1fr) 60px;
+  }
+}
 </style>
