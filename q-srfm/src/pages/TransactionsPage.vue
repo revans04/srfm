@@ -37,17 +37,19 @@
               <div class="col col-12 col-md-4">
                 <q-select
                   v-model="selectedBudgetIds"
-                  :items="budgetOptions"
+                  :options="budgetOptions"
                   density="compact"
                   label="Select Budgets"
-                  item-title="month"
-                  item-value="budgetId"
+                  option-label="month"
+                  option-value="budgetId"
+                  emit-value
+                  map-options
                   variant="outlined"
                   multiple
                   clearable
                   :disabled="budgetOptions.length === 0"
                   @update:modelValue="loadTransactions"
-                ></q-select>
+                />
               </div>
             </div>
             <div class="row" v-if="budgetOptions.length === 0">
@@ -84,22 +86,25 @@
                 <div class="col col-12 col-md-2">
                   <q-select
                     v-model="entriesFilterAccount"
-                    :items="availableAccounts"
-                    item-title="name"
-                    item-value="id"
+                    :options="availableAccounts"
+                    option-label="name"
+                    option-value="id"
+                    emit-value
+                    map-options
                     label="Account"
                     variant="outlined"
                     density="compact"
                     clearable
                     @update:modelValue="applyFilters"
-                  ></q-select>
+                  />
                 </div>
               </div>
             </template>
             <template v-else>
-              <q-expansion-panels>
-                <q-expansion-item label="More Filters">
-                  <div class="row">
+              <q-expansion-item label="More Filters">
+                <q-card flat bordered>
+                  <q-card-section>
+                    <div class="row">
                       <div class="col col-12 col-md-2">
                         <q-input v-model="entriesFilterMerchant" label="Merchant" variant="outlined" density="compact" @input="applyFilters"></q-input>
                       </div>
@@ -133,19 +138,22 @@
                       <div class="col col-12 col-md-2">
                         <q-select
                           v-model="entriesFilterAccount"
-                          :items="availableAccounts"
-                          item-title="name"
-                          item-value="id"
+                          :options="availableAccounts"
+                          option-label="name"
+                          option-value="id"
+                          emit-value
+                          map-options
                           label="Account"
                           variant="outlined"
                           density="compact"
                           clearable
                           @update:modelValue="applyFilters"
-                        ></q-select>
+                        />
                       </div>
                     </div>
-                  </q-expansion-item>
-              </q-expansion-panels>
+                  </q-card-section>
+                </q-card>
+              </q-expansion-item>
             </template>
           </q-card-section>
         </q-card>
@@ -162,34 +170,25 @@
             >
               <!-- Desktop Layout -->
               <template v-if="!isMobile">
-                <div class="row pa-2 align-center">
-                  <div class="col text-center col-2">
-                    {{ formatDateLong(transaction.date) }}
-                  </div>
-                  <div class="col col-2">
-                    <div class="merchant">{{ transaction.merchant }}</div>
-                  </div>
-                  <div class="col col-2">
-                    <div>{{ getEntityName(transaction.entityId || transaction.budgetId) }}</div>
-                  </div>
-                  <div class="col text-right col-2">
-                    <div class="total" :class="transaction.isIncome ? 'text-success' : ''">${{ toDollars(toCents(transaction.amount)) }}</div>
-                  </div>
-                  <div class="col text-center col-1">
+                <div class="trx-grid q-pa-sm">
+                  <div class="cell date text-center">{{ formatDateLong(transaction.date) }}</div>
+                  <div class="cell merchant">{{ transaction.merchant }}</div>
+                  <div class="cell entity">{{ getEntityName(transaction.entityId || transaction.budgetId) }}</div>
+                  <div class="cell amount text-right" :class="transaction.isIncome ? 'text-success' : ''">
+                    {{ formatCurrency(toDollars(toCents(transaction.amount))) }}
                     <span v-if="transaction.status === 'C'" class="text-success font-weight-bold" title="Cleared"> C </span>
                   </div>
-                  <div class="col col-2">
-                    <div v-if="transaction.notes" class="text-caption text-grey">Notes: {{ transaction.notes }}</div>
-                    <div v-if="transaction.categories.length > 1" class="text-caption text-grey">Split: {{ formatCategories(transaction.categories) }}</div>
-                    <div v-if="transaction.status === 'C'" class="text-caption text-grey">
-                      Imported: {{ transaction.accountSource || 'N/A' }}
-                      {{ getAccountName(transaction.accountNumber) }}
+                  <div class="cell meta text-grey text-caption">
+                    <div v-if="transaction.notes">Notes: {{ transaction.notes }}</div>
+                    <div v-if="transaction.categories.length > 1">Split: {{ formatCategories(transaction.categories) }}</div>
+                    <div v-if="transaction.status === 'C'">
+                      Imported: {{ transaction.accountSource || 'N/A' }} {{ getAccountName(transaction.accountNumber) }}
                       {{ transaction.postedDate ? `@ ${transaction.postedDate}` : '' }}
                       {{ transaction.importedMerchant ? ` ${transaction.importedMerchant}` : '' }}
                     </div>
-                    <div v-if="transaction.recurring" class="text-caption text-primary">Repeats: {{ transaction.recurringInterval }}</div>
+                    <div v-if="transaction.recurring" class="text-primary">Repeats: {{ transaction.recurringInterval }}</div>
                   </div>
-                  <div class="col text-right col-1">
+                  <div class="cell actions text-right">
                     <q-icon
                       v-if="transaction.status !== 'C' && !transaction.deleted"
                       color="primary"
@@ -197,25 +196,25 @@
                       @click.stop="selectBudgetTransactionToMatch(transaction)"
                       title="Match Transaction"
                       name="link"
-                    ></q-icon>
+                    />
                     <q-icon
                       v-if="!transaction.deleted"
                       small
                       @click.stop="deleteTransaction(transaction.id)"
                       title="Delete Entry"
                       color="error"
-                      class="ml-2"
+                      class="q-ml-sm"
                       name="delete_outline"
-                    ></q-icon>
+                    />
                     <q-icon
                       v-else
                       small
                       @click.stop="restoreTransaction(transaction.id)"
                       title="Restore Entry"
                       color="primary"
-                      class="ml-2"
+                      class="q-ml-sm"
                       name="restore"
-                    ></q-icon>
+                    />
                   </div>
                 </div>
               </template>
@@ -644,16 +643,23 @@ async function loadTransactions() {
 
   try {
     for (const budgetId of selectedBudgetIds.value) {
-      const budget = budgetStore.getBudget(budgetId) || (await dataAccess.getBudget(budgetId));
+      let budget = budgetStore.getBudget(budgetId);
+      // Hydrate thin budgets (no categories/transactions) from API
+      if (!budget || !Array.isArray(budget.categories) || budget.categories.length === 0 || !Array.isArray(budget.transactions)) {
+        const full = await dataAccess.getBudget(budgetId);
+        if (full) {
+          budget = full;
+          budgetStore.updateBudget(budgetId, full);
+        }
+      }
       if (budget) {
-        budgetStore.updateBudget(budgetId, budget);
         const budgetTransactions = (budget.transactions || []).map((tx) => ({
           ...tx,
           budgetId,
           entityId: tx.entityId || budget.entityId || '',
         }));
         allTransactions.push(...budgetTransactions);
-        budget.categories.forEach((cat) => allCategories.add(cat.name));
+        (budget.categories || []).forEach((cat) => allCategories.add(cat.name));
       }
     }
 
@@ -997,18 +1003,16 @@ function applyFilters() {
 </script>
 
 <style scoped>
-.transaction-item {
-  border-bottom: 1px solid #e0e0e0;
-}
-.deleted-transaction {
-  background-color: #f5f5f5;
-}
-.entity-selector {
-  cursor: pointer;
-  display: inline-flex;
+.transaction-item { border-bottom: 1px solid #e0e0e0; }
+.deleted-transaction { background-color: #f5f5f5; }
+
+/* Desktop aligned grid for entries */
+.trx-grid {
+  display: grid;
+  grid-template-columns: 160px 1fr 160px 140px 1.5fr 100px;
   align-items: center;
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: rgb(var(--v-theme-primary));
+  column-gap: 12px;
 }
+.trx-grid .cell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trx-grid .meta { white-space: normal; }
 </style>
