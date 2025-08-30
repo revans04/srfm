@@ -298,7 +298,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, nextTick } from "vue";
-import type { Transaction, ImportedTransaction, Budget } from "../types";
+import type { Transaction, ImportedTransaction } from "../types";
 import { useQuasar } from 'quasar';
 import { toDollars, toCents, toBudgetMonth, todayISO } from "../utils/helpers";
 import { dataAccess } from "../dataAccess";
