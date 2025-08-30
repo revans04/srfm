@@ -36,8 +36,8 @@ onMounted(async () => {
       throw new Error(await response.text());
     }
     loading.value = false;
-  } catch (err: any) {
-    error.value = err.message || 'Verification failed';
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Verification failed';
     loading.value = false;
   }
 });
