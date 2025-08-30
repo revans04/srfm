@@ -219,7 +219,6 @@ import type { Timestamp } from "firebase/firestore";
 import type { Family, PendingInvite, Entity, Budget, ImportedTransactionDoc, Transaction, ImportedTransaction } from "../types";
 import { useFamilyStore } from "../store/family";
 import EntityForm from "../components/EntityForm.vue";
-import { timestampToDate } from "../utils/helpers";
 import { useQuasar, QSpinner } from 'quasar';
 import { v4 as uuidv4 } from "uuid";
 
@@ -251,9 +250,22 @@ const validatingImports = ref(false);
 
 const entities = computed(() => family.value?.entities || []);
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : typeof error === 'string'
+    ? error
+    : JSON.stringify(error);
+}
+
 const transactionDocColumns = [
   { name: 'id', label: 'Document ID', field: 'id', sortable: true },
-  { name: 'count', label: 'Transaction Count', field: (row: any) => row.importedTransactions?.length || 0, sortable: true },
+  {
+    name: 'count',
+    label: 'Transaction Count',
+    field: (row: ImportedTransactionDoc) => row.importedTransactions?.length || 0,
+    sortable: true,
+  },
   { name: 'account', label: 'Account Info', field: 'account', sortable: false },
   { name: 'createdAt', label: 'Created At', field: 'createdAt', sortable: true },
   { name: 'actions', label: 'Actions', field: 'actions', sortable: false },
@@ -263,7 +275,12 @@ const budgetColumns = [
   { name: 'budgetId', label: 'Budget ID', field: 'budgetId', sortable: true },
   { name: 'month', label: 'Month', field: 'month', sortable: true },
   { name: 'entityName', label: 'Entity Name', field: 'entityId', sortable: false },
-  { name: 'transactionCount', label: 'Transaction Count', field: (row: any) => row.transactions?.length || 0, sortable: true },
+  {
+    name: 'transactionCount',
+    label: 'Transaction Count',
+    field: (row: Budget) => row.transactions?.length || 0,
+    sortable: true,
+  },
   { name: 'actions', label: 'Actions', field: 'actions', sortable: false },
 ];
 
@@ -312,8 +329,8 @@ async function loadAllData() {
     // Load budgets and imported transaction docs
     budgets.value = await dataAccess.loadAccessibleBudgets(user.uid);
     importedTransactionDocs.value = await dataAccess.getImportedTransactionDocs();
-  } catch (error: any) {
-    showSnackbar(`Error loading data: ${error.message}`, "error");
+  } catch (error: unknown) {
+    showSnackbar(`Error loading data: ${errorMessage(error)}`, "error");
   }
 }
 
@@ -379,8 +396,8 @@ async function inviteMember() {
     showSnackbar(`Invitation sent to ${normalizedEmail}`);
     inviteEmail.value = "";
     await loadAllData();
-  } catch (error: any) {
-    showSnackbar(`Error inviting user: ${error.message}`, "error");
+  } catch (error: unknown) {
+    showSnackbar(`Error inviting user: ${errorMessage(error)}`, "error");
   } finally {
     inviting.value = false;
   }
@@ -397,8 +414,8 @@ async function removeMember(uid: string) {
     await dataAccess.removeFamilyMember(family.value.id, uid);
     showSnackbar("Member removed");
     await loadAllData();
-  } catch (error: any) {
-    showSnackbar(`Error removing member: ${error.message}`, "error");
+  } catch (error: unknown) {
+    showSnackbar(`Error removing member: ${errorMessage(error)}`, "error");
   }
 }
 
@@ -413,8 +430,8 @@ async function sendVerificationEmail() {
   try {
     await dataAccess.resendVerificationEmail();
     showSnackbar("Verification email sent. Please check your inbox.", "success");
-  } catch (error: any) {
-    showSnackbar(`Error sending verification email: ${error.message}`, "error");
+  } catch (error: unknown) {
+    showSnackbar(`Error sending verification email: ${errorMessage(error)}`, "error");
   } finally {
     resending.value = false;
   }
@@ -465,9 +482,9 @@ async function deleteEntity() {
     await familyStore.deleteEntity(family.value.id, entityToDelete.value.id);
     showSnackbar(`Entity "${entityToDelete.value.name}" deleted successfully`, "success");
     await loadAllData();
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error deleting entity:", error);
-    showSnackbar(`Error deleting entity: ${error.message}`, "error");
+    showSnackbar(`Error deleting entity: ${errorMessage(error)}`, "error");
   } finally {
     showDeleteEntityDialog.value = false;
     entityToDelete.value = null;
@@ -491,9 +508,9 @@ async function deleteTransactionDoc() {
     await dataAccess.deleteImportedTransactionDoc(docId);
     importedTransactionDocs.value = importedTransactionDocs.value.filter((doc) => doc.id !== docId);
     showSnackbar(`Transaction document ${docId} deleted successfully`, "success");
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error deleting transaction document:", error);
-    showSnackbar(`Error deleting transaction document: ${error.message}`, "error");
+    showSnackbar(`Error deleting transaction document: ${errorMessage(error)}`, "error");
   } finally {
     showDeleteDialog.value = false;
     transactionDocToDelete.value = null;
@@ -521,9 +538,9 @@ async function deleteBudget() {
     await dataAccess.deleteBudget(budgetId);
     budgets.value = budgets.value.filter((budget) => budget.budgetId !== budgetId);
     showSnackbar(`Budget ${budgetId} deleted successfully`, "success");
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error deleting budget:", error);
-    showSnackbar(`Error deleting budget: ${error.message}`, "error");
+    showSnackbar(`Error deleting budget: ${errorMessage(error)}`, "error");
   } finally {
     showDeleteBudgetDialog.value = false;
     budgetToDelete.value = null;
@@ -569,9 +586,9 @@ async function validateBudgetTransactions() {
     budgets.value = await dataAccess.loadAccessibleBudgets(currentUser.uid);
 
     showSnackbar(`Validation complete. Updated ${budgetUpdates.length} budget transactions`, 'success');
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error validating budgets:', error);
-    showSnackbar(`Error validating budgets: ${error.message}`, 'error');
+    showSnackbar(`Error validating budgets: ${errorMessage(error)}`, 'error');
   } finally {
     $q.loading.hide();
     validatingBudgets.value = false;
@@ -611,27 +628,33 @@ async function validateImportedTransactions() {
     importedTransactionDocs.value = await dataAccess.getImportedTransactionDocs();
 
     showSnackbar(`Validation complete. Updated ${importedUpdates.length} imported transactions`, 'success');
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error validating imported transactions:', error);
-    showSnackbar(`Error validating imported transactions: ${error.message}`, 'error');
+    showSnackbar(`Error validating imported transactions: ${errorMessage(error)}`, 'error');
   } finally {
     $q.loading.hide();
     validatingImports.value = false;
   }
 }
 
-function formatDate(timestamp: Timestamp | { seconds: number; nanoseconds: number } | string | Date | null | undefined) {
+function formatDate(
+  timestamp: Timestamp | { seconds: number; nanoseconds: number } | string | Date | null | undefined,
+): string {
   if (!timestamp) return 'N/A';
-  if (typeof timestamp === 'object' && timestamp !== null && 'toDate' in (timestamp as any) && typeof (timestamp as any).toDate === 'function') {
-    try {
-      return (timestamp as any).toDate().toLocaleString();
-    } catch {}
+  if (typeof timestamp === 'object') {
+    if (timestamp instanceof Timestamp) {
+      try {
+        return timestamp.toDate().toLocaleString();
+      } catch (err) {
+        console.error('Failed to convert timestamp:', err);
+      }
+    }
+    if ('seconds' in timestamp && 'nanoseconds' in timestamp) {
+      const ms = Number(timestamp.seconds) * 1000 + Number(timestamp.nanoseconds) / 1e6;
+      return new Date(ms).toLocaleString();
+    }
   }
-  if (typeof timestamp === 'object' && 'seconds' in timestamp && 'nanoseconds' in timestamp) {
-    const ms = Number(timestamp.seconds) * 1000 + Number(timestamp.nanoseconds) / 1e6;
-    return new Date(ms).toLocaleString();
-  }
-  const d = new Date(timestamp as any);
+  const d = new Date(timestamp as string | number | Date);
   return isNaN(d.getTime()) ? 'N/A' : d.toLocaleString();
 }
 
