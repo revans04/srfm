@@ -10,12 +10,12 @@
 
     <!-- Tabs -->
     <q-tabs v-model="tab" color="primary" :disabled="!familyId">
-      <q-tab value="bank">Bank Accounts</q-tab>
-      <q-tab value="credit">Credit Cards</q-tab>
-      <q-tab value="investment">Investments</q-tab>
-      <q-tab value="property">Properties</q-tab>
-      <q-tab value="loan">Loans</q-tab>
-      <q-tab value="net-worth">Snapshots</q-tab>
+      <q-tab name="bank" label="Bank Accounts" />
+      <q-tab name="credit" label="Credit Cards" />
+      <q-tab name="investment" label="Investments" />
+      <q-tab name="property" label="Properties" />
+      <q-tab name="loan" label="Loans" />
+      <q-tab name="net-worth" label="Snapshots" />
     </q-tabs>
 
     <q-tab-panels v-model="tab">
