@@ -98,9 +98,8 @@
             </template>
             <template v-else>
               <q-expansion-panels>
-                <q-expansion-panel title="More Filters">
-                  <q-expansion-panel-text>
-                    <div class="row">
+                <q-expansion-item label="More Filters">
+                  <div class="row">
                       <div class="col col-12 col-md-2">
                         <q-input v-model="entriesFilterMerchant" label="Merchant" variant="outlined" density="compact" @input="applyFilters"></q-input>
                       </div>
@@ -145,8 +144,7 @@
                         ></q-select>
                       </div>
                     </div>
-                  </q-expansion-panel-text>
-                </q-expansion-panel>
+                  </q-expansion-item>
               </q-expansion-panels>
             </template>
           </q-card-section>
@@ -225,7 +223,7 @@
               <!-- Mobile Layout -->
               <template v-else>
                 <q-card>
-                  <q-card-item>
+                  <q-card-section>
                     <div class="row no-gutters">
                       <div class="col font-weight-bold">
                         {{ transaction.merchant }}
@@ -279,7 +277,7 @@
                     <div class="row text-primary text-caption no-gutters" v-if="transaction.recurring">
                       <div class="col col-12">Repeats: {{ transaction.recurringInterval }}</div>
                     </div>
-                  </q-card-item>
+                  </q-card-section>
                 </q-card>
               </template>
             </q-item>
