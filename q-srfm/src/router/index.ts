@@ -53,5 +53,11 @@ export default defineRouter(function (ctx /* { store, ssrContext } */) {
     }
   });
 
+  Router.afterEach((to) => {
+    const baseTitle = 'Steady Rise';
+    const pageTitle = (to.meta.title as string | undefined) ?? '';
+    document.title = pageTitle ? `${baseTitle} - ${pageTitle}` : baseTitle;
+  });
+
   return Router;
 });
