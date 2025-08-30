@@ -156,3 +156,7 @@ export async function createBudgetForMonth(
   return defaultBudget;
 }
 
+export function sortBudgetsByMonthDesc(budgets: Budget[]): Budget[] {
+  return budgets.slice().sort((a, b) => b.month.localeCompare(a.month));
+}
+

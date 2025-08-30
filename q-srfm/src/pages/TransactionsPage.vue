@@ -145,6 +145,7 @@ import { useBudgetStore } from 'src/store/budget';
 import { useFamilyStore } from 'src/store/family';
 import { useUIStore } from 'src/store/ui';
 import { useAuthStore } from 'src/store/auth';
+import { sortBudgetsByMonthDesc } from 'src/utils/budget';
 
 const tab = ref<'budget' | 'register' | 'match'>('budget');
 const globalSearch = ref('');
@@ -164,9 +165,11 @@ const formatLongMonth = (month: string) => {
 };
 
 const budgetOptions = computed(() =>
-  Array.from(budgetStore.budgets.values())
-    .filter((b) => !selectedEntityId.value || b.entityId === selectedEntityId.value)
-    .map((b) => ({ label: formatLongMonth(b.month), value: b.budgetId || '' })),
+  sortBudgetsByMonthDesc(
+    Array.from(budgetStore.budgets.values()).filter(
+      (b) => !selectedEntityId.value || b.entityId === selectedEntityId.value,
+    ),
+  ).map((b) => ({ label: formatLongMonth(b.month), value: b.budgetId || '' })),
 );
 
 function setCurrentBudgetSelection() {
@@ -176,7 +179,7 @@ function setCurrentBudgetSelection() {
     return;
   }
   const currentMonth = new Date().toISOString().slice(0, 7);
-  const sorted = budgetsArr.sort((a, b) => b.month.localeCompare(a.month));
+  const sorted = sortBudgetsByMonthDesc(budgetsArr);
   const current = sorted.find((b) => b.month === currentMonth) || sorted[0];
   selectedBudgetIds.value = current?.budgetId ? [current.budgetId] : [];
 }
