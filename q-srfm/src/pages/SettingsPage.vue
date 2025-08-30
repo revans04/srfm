@@ -723,6 +723,14 @@ function showSnackbar(text: string, color = "success") {
   });
 }
 
+function toErrorMessage(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : typeof error === 'string'
+      ? error
+      : JSON.stringify(error);
+}
+
 async function syncNow() {
   syncing.value = true;
   try {
@@ -730,7 +738,7 @@ async function syncNow() {
     showSnackbar(msg || 'Sync completed successfully', 'positive');
   } catch (error: unknown) {
     console.error('Sync error:', error);
-    const msg = error instanceof Error ? error.message : String(error);
+    const msg = toErrorMessage(error);
     showSnackbar(`Sync failed: ${msg}`, 'negative');
   } finally {
     syncing.value = false;
@@ -753,7 +761,7 @@ async function syncIncrementalNow() {
     showSnackbar(label, 'positive');
   } catch (error: unknown) {
     console.error('Incremental sync error:', error);
-    const msg = error instanceof Error ? error.message : String(error);
+    const msg = toErrorMessage(error);
     showSnackbar(`Incremental sync failed: ${msg}`, 'negative');
   } finally {
     syncingIncremental.value = false;
