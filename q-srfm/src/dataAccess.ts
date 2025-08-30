@@ -620,6 +620,27 @@ export class DataAccess {
       throw new Error(`Failed to update budget transactions: ${response.statusText}`);
     }
     console.log(`Budget transactions updated successfully`);
+
+    const budgetStore = useBudgetStore();
+    for (const { budgetId, transaction } of transactions) {
+      const budget =
+        budgetStore.getBudget(budgetId) || (await this.getBudget(budgetId));
+      if (!budget || !budget.budgetId) continue;
+
+      const [uid, entityId, budgetMonth] = budget.budgetId.split('_');
+      const futureBudgetsExist = budgetStore.availableBudgetMonths.some(
+        (m) => m > budgetMonth,
+      );
+
+      if (futureBudgetsExist && this.hasFundCategory(transaction, budget)) {
+        await this.recalculateCarryoverForFutureBudgets(
+          uid,
+          entityId,
+          budgetMonth,
+          transaction.categories,
+        );
+      }
+    }
   }
 
   async getUserFamily(uid: string): Promise<Family | null> {
