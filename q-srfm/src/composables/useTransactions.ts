@@ -119,16 +119,12 @@ export function useTransactions() {
   async function hydrateBudgets(budgetIds: string[]) {
     const out: LedgerRow[] = [];
     for (const id of budgetIds) {
-      let b = budgetStore.getBudget(id);
-      if (!b || !Array.isArray(b.categories) || !Array.isArray(b.transactions)) {
-        const full = await dataAccess.getBudget(id);
-        if (full) {
-          b = full;
-          budgetStore.updateBudget(id, full);
-        }
-      }
-      if (b) {
-        const mapped = (b.transactions || []).filter(t => !t.deleted).map(t => mapTxToRow(t, b));
+      const full = await dataAccess.getBudget(id);
+      if (full) {
+        budgetStore.updateBudget(id, full);
+        const mapped = (full.transactions || [])
+          .filter((t) => !t.deleted)
+          .map((t) => mapTxToRow(t, full));
         out.push(...mapped);
       }
     }
@@ -140,9 +136,6 @@ export function useTransactions() {
   async function loadInitial(budgetIdOrIds: string | string[]) {
     loading.value = true;
     try {
-      const user = auth.currentUser;
-      if (!user) return;
-      await familyStore.loadFamily(user.uid);
       const ids = Array.isArray(budgetIdOrIds) ? budgetIdOrIds : [budgetIdOrIds];
       rows.value = await hydrateBudgets(ids);
       registerRows.value = rows.value; // Placeholder: same data until register wired
