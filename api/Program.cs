@@ -74,7 +74,9 @@ builder.Services.AddControllers()
     });
 
 // Register application services
-builder.Services.AddSingleton<SupabaseDbService>();
+var supabaseDbService = new SupabaseDbService(builder.Configuration);
+builder.Services.AddSingleton(supabaseDbService);
+builder.Logging.AddProvider(new SupabaseLoggerProvider(supabaseDbService));
 builder.Services.AddSingleton<FamilyService>();
 builder.Services.AddSingleton<BudgetService>();
 builder.Services.AddSingleton<UserService>();
