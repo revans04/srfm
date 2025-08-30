@@ -1,1037 +1,194 @@
-<!-- src/views/TransactionsPage.vue -->
+<!--
+README
+======
+TransactionsPage.vue demonstrates the new Pro Mode ledger UI. It uses
+LedgerTable for virtualized infinite scrolling. Filters are reactive but
+for demo purposes only filter the locally seeded mock data.
+
+Key props/usage:
+- uses `useTransactions` composable which seeds ~1000 rows on first load
+- `fetchMore` loads the next page (50 rows) when the table scrolls to end
+- `scrollToDate` (via Jump to Date control) scrolls to first row >= date
+-->
 <template>
-  <q-page :class="isMobile ? 'ps-0' : ''">
-    <h1>Transaction and Registry</h1>
+  <q-page class="bg-grey-2">
+    <!-- Sticky header: title, tabs, global search -->
+    <div class="top-bar bg-grey-2 q-px-md q-pt-md">
+      <div class="row items-center q-gutter-md">
+        <div class="col-auto text-h5">Transactions</div>
+        <q-tabs v-model="tab" dense class="col">
+          <q-tab name="budget" label="Budget Transactions" />
+          <q-tab name="register" label="Register" />
+          <q-tab name="match" label="Match Bank Transactions" />
+        </q-tabs>
+        <q-input
+          v-model="globalSearch"
+          placeholder="Search"
+          dense
+          outlined
+          debounce="300"
+          class="col-3"
+        >
+          <template #append>
+            <q-icon name="search" />
+          </template>
+        </q-input>
+      </div>
+    </div>
 
-    <!-- Tabs -->
-    <q-tabs v-model="tab" color="primary">
-      <q-tab name="entries">Budget Entries</q-tab>
-      <q-tab name="register">Transaction Register</q-tab>
-    </q-tabs>
-
-    <q-tab-panels v-model="tab">
-      <!-- Budget Entries -->
-      <q-tab-panel name="entries">
-        <!-- Add Transaction Button -->
-        <q-btn color="primary" variant="plain" class="mb-4 mr-2" @click="showTransactionDialog = true"> Add Transaction </q-btn>
-        <q-btn color="primary" variant="plain" class="mb-4 mr-2" @click="openMatchBankTransactionsDialog"> Match Bank Transactions </q-btn>
-
-        <q-card class="mb-4">
-          <q-card-section>
-            <div class="row mt-2">
-              <div class="col col-auto">Filters</div>
-              <div class="col">
-                <q-checkbox v-model="entriesFilterDuplicates" label="Look for Duplicates" density="compact" hide-details @update:modelValue="applyFilters" />
-                <q-checkbox v-model="entriesIncludeDeleted" label="Include Deleted" density="compact" hide-details @update:modelValue="applyFilters" />
-              </div>
-            </div>
-          </q-card-section>
-          <q-card-section>
-            <div class="row">
-              <div class="col col-12 col-md-4">
-                <EntitySelector @change="loadBudgets" />
-              </div>
-              <div class="col col-12 col-md-4">
-                <q-input append-inner-icon="search" density="compact" label="Search" variant="outlined" single-line v-model="entriesSearch"></q-input>
-              </div>
-              <div class="col col-12 col-md-4">
-                <q-select
-                  v-model="selectedBudgetIds"
-                  :options="budgetOptions"
-                  density="compact"
-                  label="Select Budgets"
-                  option-label="month"
-                  option-value="budgetId"
-                  emit-value
-                  map-options
-                  variant="outlined"
-                  multiple
-                  clearable
-                  :disabled="budgetOptions.length === 0"
-                  @update:modelValue="loadTransactions"
-                />
-              </div>
-            </div>
-            <div class="row" v-if="budgetOptions.length === 0">
-              <div class="col col-12">
-                <q-banner type="info" class="mt-4"> No budgets available. Create a budget in the Dashboard to start tracking transactions. </q-banner>
-              </div>
-            </div>
-
-            <template v-if="!isMobile">
-              <div class="row">
-                <div class="col col-12 col-md-2">
-                  <q-input v-model="entriesFilterMerchant" label="Merchant" variant="outlined" density="compact" @input="applyFilters"></q-input>
-                </div>
-                <div class="col col-12 col-md-2">
-                  <q-input v-model="entriesFilterAmount" label="Amount" type="number" variant="outlined" density="compact" @input="applyFilters"></q-input>
-                </div>
-                <div class="col col-12 col-md-2">
-                  <q-input v-model="entriesFilterNote" label="Note/Memo" variant="outlined" density="compact" @input="applyFilters"></q-input>
-                </div>
-                <div class="col col-12 col-md-2">
-                  <q-input
-                    v-model="entriesFilterDate"
-                    label="Date"
-                    type="date"
-                    variant="outlined"
-                    density="compact"
-                    :clearable="true"
-                    @input="applyFilters"
-                  ></q-input>
-                </div>
-                <div class="col col-12 col-md-2">
-                  <q-input v-model="entriesFilterStatus" label="Status" variant="outlined" density="compact" @input="applyFilters"></q-input>
-                </div>
-                <div class="col col-12 col-md-2">
-                  <q-select
-                    v-model="entriesFilterAccount"
-                    :options="availableAccounts"
-                    option-label="name"
-                    option-value="id"
-                    emit-value
-                    map-options
-                    label="Account"
-                    variant="outlined"
-                    density="compact"
-                    clearable
-                    @update:modelValue="applyFilters"
-                  />
-                </div>
-              </div>
-            </template>
-            <template v-else>
-              <q-expansion-item label="More Filters">
-                <q-card flat bordered>
-                  <q-card-section>
-                    <div class="row">
-                      <div class="col col-12 col-md-2">
-                        <q-input v-model="entriesFilterMerchant" label="Merchant" variant="outlined" density="compact" @input="applyFilters"></q-input>
-                      </div>
-                      <div class="col col-12 col-md-2">
-                        <q-input
-                          v-model="entriesFilterAmount"
-                          label="Amount"
-                          type="number"
-                          variant="outlined"
-                          density="compact"
-                          @input="applyFilters"
-                        ></q-input>
-                      </div>
-                      <div class="col col-12 col-md-2">
-                        <q-input v-model="entriesFilterNote" label="Note/Memo" variant="outlined" density="compact" @input="applyFilters"></q-input>
-                      </div>
-                      <div class="col col-12 col-md-2">
-                        <q-input
-                          v-model="entriesFilterDate"
-                          label="Date"
-                          type="date"
-                          variant="outlined"
-                          density="compact"
-                          :clearable="true"
-                          @input="applyFilters"
-                        ></q-input>
-                      </div>
-                      <div class="col col-12 col-md-2">
-                        <q-input v-model="entriesFilterStatus" label="Status" variant="outlined" density="compact" @input="applyFilters"></q-input>
-                      </div>
-                      <div class="col col-12 col-md-2">
-                        <q-select
-                          v-model="entriesFilterAccount"
-                          :options="availableAccounts"
-                          option-label="name"
-                          option-value="id"
-                          emit-value
-                          map-options
-                          label="Account"
-                          variant="outlined"
-                          density="compact"
-                          clearable
-                          @update:modelValue="applyFilters"
-                        />
-                      </div>
-                    </div>
-                  </q-card-section>
-                </q-card>
-              </q-expansion-item>
-            </template>
-          </q-card-section>
-        </q-card>
-
-        <q-card density="compact">
-          <q-card-section>Budget Entries</q-card-section>
-          <q-list dense>
-            <q-item
-              v-for="transaction in expenseTransactions"
-              :key="transaction.id"
-              class="transaction-item"
-              :class="{ 'deleted-transaction': transaction.deleted }"
-              @click="editTransaction(transaction)"
-            >
-              <!-- Desktop Layout -->
-              <template v-if="!isMobile">
-                <div class="trx-grid q-pa-sm">
-                  <div class="cell date text-center">{{ formatDateLong(transaction.date) }}</div>
-                  <div class="cell merchant">{{ transaction.merchant }}</div>
-                  <div class="cell entity">{{ getEntityName(transaction.entityId || transaction.budgetId) }}</div>
-                  <div class="cell amount text-right" :class="transaction.isIncome ? 'text-success' : ''">
-                    {{ formatCurrency(toDollars(toCents(transaction.amount))) }}
-                    <span v-if="transaction.status === 'C'" class="text-success font-weight-bold" title="Cleared"> C </span>
-                  </div>
-                  <div class="cell meta text-grey text-caption">
-                    <div v-if="transaction.notes">Notes: {{ transaction.notes }}</div>
-                    <div v-if="transaction.categories.length > 1">Split: {{ formatCategories(transaction.categories) }}</div>
-                    <div v-if="transaction.status === 'C'">
-                      Imported: {{ transaction.accountSource || 'N/A' }} {{ getAccountName(transaction.accountNumber) }}
-                      {{ transaction.postedDate ? `@ ${transaction.postedDate}` : '' }}
-                      {{ transaction.importedMerchant ? ` ${transaction.importedMerchant}` : '' }}
-                    </div>
-                    <div v-if="transaction.recurring" class="text-primary">Repeats: {{ transaction.recurringInterval }}</div>
-                  </div>
-                  <div class="cell actions text-right">
-                    <q-icon
-                      v-if="transaction.status !== 'C' && !transaction.deleted"
-                      color="primary"
-                      small
-                      @click.stop="selectBudgetTransactionToMatch(transaction)"
-                      title="Match Transaction"
-                      name="link"
-                    />
-                    <q-icon
-                      v-if="!transaction.deleted"
-                      small
-                      @click.stop="deleteTransaction(transaction.id)"
-                      title="Delete Entry"
-                      color="error"
-                      class="q-ml-sm"
-                      name="delete_outline"
-                    />
-                    <q-icon
-                      v-else
-                      small
-                      @click.stop="restoreTransaction(transaction.id)"
-                      title="Restore Entry"
-                      color="primary"
-                      class="q-ml-sm"
-                      name="restore"
-                    />
-                  </div>
-                </div>
+    <q-tab-panels v-model="tab" animated>
+      <!-- Budget Transactions Tab -->
+      <q-tab-panel name="budget">
+        <div class="filter-bar shadow-2 bg-white q-pa-sm">
+          <div class="row q-col-gutter-sm items-center">
+            <q-input v-model="filters.search" dense outlined placeholder="Search" class="col" />
+            <q-select
+              v-model="filters.status"
+              :options="statusOptions"
+              dense
+              outlined
+              placeholder="Status"
+              class="col-2"
+            />
+            <q-input v-model.number="filters.min" type="number" dense outlined placeholder="Min" class="col-1" />
+            <q-input v-model.number="filters.max" type="number" dense outlined placeholder="Max" class="col-1" />
+            <q-input v-model="filters.date" dense outlined placeholder="Date" mask="####-##-##" class="col-2">
+              <template #append>
+                <q-icon name="event" class="cursor-pointer">
+                  <q-popup-proxy transition-show="scale" transition-hide="scale">
+                    <q-date v-model="filters.date" mask="YYYY-MM-DD" />
+                  </q-popup-proxy>
+                </q-icon>
               </template>
-
-              <!-- Mobile Layout -->
-              <template v-else>
-                <q-card>
-                  <q-card-section>
-                    <div class="row no-gutters">
-                      <div class="col font-weight-bold">
-                        {{ transaction.merchant }}
-                      </div>
-                      <div class="col text-right">
-                        <div :class="transaction.isIncome ? 'text-success' : ''">
-                          {{ formatCurrency(toDollars(toCents(transaction.amount))) }}
-                          <span v-if="transaction.status === 'C'" class="text-success font-weight-bold" title="Cleared">
-                            {{ transaction.status }}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="row text-caption no-gutters">
-                      <div class="col">
-                        {{ formatDateLong(transaction.date) }}
-                      </div>
-                      <div class="col text-right">
-                        <q-btn
-                          v-if="transaction.status !== 'C' && !transaction.deleted"
-                          small
-                          @click.stop="selectBudgetTransactionToMatch(transaction)"
-                          title="Match Transaction"
-                        >
-                          <q-icon color="primary" name="link"></q-icon>
-                        </q-btn>
-                        <q-icon
-                          v-if="!transaction.deleted"
-                          small
-                          @click.stop="deleteTransaction(transaction.id)"
-                          title="Delete Entry"
-                          color="error"
-                          name="delete_outline"
-                        ></q-icon>
-                        <q-icon v-else small @click.stop="restoreTransaction(transaction.id)" title="Restore Entry" color="primary" name="restore"></q-icon>
-                      </div>
-                    </div>
-                    <div class="row text-caption text-grey no-gutters" v-if="transaction.notes">
-                      <div class="col col-12">Notes: {{ transaction.notes }}</div>
-                    </div>
-                    <div class="row text-caption text-grey no-gutters" v-if="transaction.categories.length > 1">
-                      <div class="col col-12">Split: {{ formatCategories(transaction.categories) }}</div>
-                    </div>
-                    <div class="row text-caption text-grey no-gutters" v-if="transaction.status === 'C'">
-                      <div class="col col-12">
-                        Imported: {{ transaction.accountSource || 'N/A' }}
-                        {{ getAccountName(transaction.accountNumber) }}
-                        {{ transaction.postedDate ? `@ ${transaction.postedDate}` : '' }}
-                      </div>
-                    </div>
-                    <div class="row text-primary text-caption no-gutters" v-if="transaction.recurring">
-                      <div class="col col-12">Repeats: {{ transaction.recurringInterval }}</div>
-                    </div>
-                  </q-card-section>
-                </q-card>
+            </q-input>
+            <q-date v-model="jumpDate" mask="YYYY-MM-DD" minimal class="col-auto">
+              <template #default>
+                <q-btn dense outline icon="event" @click="jumpMenu = true" aria-label="Jump to date" />
+                <q-menu v-model="jumpMenu" anchor="bottom right" self="top right">
+                  <q-date v-model="jumpDate" @update:model-value="onJump" />
+                </q-menu>
               </template>
-            </q-item>
-            <q-item v-if="expenseTransactions.length === 0">
-              <q-item-label>No transactions found.</q-item-label>
-            </q-item>
-          </q-list>
-        </q-card>
+            </q-date>
+          </div>
+          <!-- Active filter chips -->
+          <div class="q-mt-sm">
+            <q-chip
+              v-for="(val, key) in activeChips"
+              :key="key"
+              dense
+              removable
+              @remove="() => removeChip(key)"
+            >{{ key }}: {{ val }}</q-chip>
+          </div>
+        </div>
+        <ledger-table
+          :rows="transactions"
+          :columns="budgetColumns"
+          :fetch-more="fetchMore"
+          :loading="loading"
+        />
       </q-tab-panel>
 
-      <!-- Transaction Register -->
+      <!-- Register Tab -->
       <q-tab-panel name="register">
-        <TransactionRegistry></TransactionRegistry>
+        <statement-header class="q-mb-sm" />
+        <div class="filter-bar shadow-2 bg-white q-pa-sm">
+          <!-- reuse same filters for demo -->
+          <div class="row q-col-gutter-sm items-center">
+            <q-input v-model="filters.search" dense outlined placeholder="Search" class="col" />
+            <q-checkbox v-model="filters.clearedOnly" label="Cleared Only" class="col-auto" />
+          </div>
+        </div>
+        <ledger-table
+          :rows="registerRows"
+          :columns="registerColumns"
+          :fetch-more="fetchMoreRegister"
+          :loading="loadingRegister"
+        />
+      </q-tab-panel>
+
+      <!-- Match Bank Transactions Tab -->
+      <q-tab-panel name="match">
+        <match-bank-panel />
       </q-tab-panel>
     </q-tab-panels>
-
-    <!-- Transaction Dialog Component -->
-    <TransactionDialog
-      v-if="showTransactionDialog"
-      :show-dialog="showTransactionDialog"
-      :initial-transaction="newTransaction"
-      :edit-mode="editMode"
-      :loading="loading"
-      :category-options="categoryOptions"
-      :budget-id="targetBudgetId"
-      :user-id="userId"
-      @update:showDialog="showTransactionDialog = $event"
-      @save="saveTransaction"
-      @cancel="cancelDialog"
-      @update-transactions="updateTransactions"
-    />
-
-    <!-- Match Bank Transactions Dialog Component -->
-    <MatchBankTransactionsDialog
-      v-if="showMatchBankTransactionsDialog"
-      :show-dialog="showMatchBankTransactionsDialog"
-      :remaining-imported-transactions="remainingImportedTransactions"
-      :selected-bank-transaction="selectedBankTransaction"
-      :transactions="transactions"
-      :budget-id="selectedBudgetIds.length > 0 ? selectedBudgetIds[0] : ''"
-      :matching="matching"
-      :category-options="categoryOptions"
-      :user-id="userId"
-      @update:matching="matching = $event"
-      @update:showDialog="showMatchBankTransactionsDialog = $event"
-      @transactions-updated="loadTransactions"
-    />
-
-    <!-- Match Budget Transaction Dialog Component -->
-    <MatchBudgetTransactionDialog
-      v-if="showMatchBudgetTransactionDialog"
-      :show-dialog="showMatchBudgetTransactionDialog"
-      :selected-budget-transaction="selectedBudgetTransaction"
-      :unmatched-imported-transactions="unmatchedImportedTransactions"
-      :available-accounts="availableAccounts"
-      @update:showDialog="showMatchBudgetTransactionDialog = $event"
-      @match-transaction="matchTransaction"
-    />
   </q-page>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
-import { useQuasar, QSpinner } from 'quasar';
-import { storeToRefs } from 'pinia';
-import { auth } from '../firebase/init';
-import { dataAccess } from '../dataAccess';
-import TransactionDialog from '../components/TransactionDialog.vue';
-import MatchBankTransactionsDialog from '../components/MatchBankTransactionsDialog.vue';
-import MatchBudgetTransactionDialog from '../components/MatchBudgetTransactionDialog.vue';
-import TransactionRegistry from '../components/TransactionRegistry.vue';
-import EntitySelector from '../components/EntitySelector.vue';
-import type { Transaction, ImportedTransaction, Account } from '../types';
-import { formatDateLong, toDollars, toCents, formatCurrency, todayISO } from '../utils/helpers';
-import { useBudgetStore } from '../store/budget';
-import { useFamilyStore } from '../store/family';
-import { useUIStore } from '../store/ui';
-import { v4 as uuidv4 } from 'uuid';
+import { computed, ref } from 'vue';
+import LedgerTable from 'src/components/LedgerTable.vue';
+import StatementHeader from 'src/components/StatementHeader.vue';
+import MatchBankPanel from 'src/components/MatchBankPanel.vue';
+import { useTransactions } from 'src/composables/useTransactions';
 
-const $q = useQuasar();
+const tab = ref<'budget' | 'register' | 'match'>('budget');
+const globalSearch = ref('');
 
-const budgetStore = useBudgetStore();
-const familyStore = useFamilyStore();
-const uiStore = useUIStore();
+// Filters
+const filters = ref({
+  search: '',
+  status: null as null | string,
+  min: null as null | number,
+  max: null as null | number,
+  date: '' as string,
+  clearedOnly: false,
+});
+
+function removeFilter(key: keyof typeof filters.value) {
+  const current = filters.value[key];
+  (filters.value as Record<string, unknown>)[key as string] =
+    typeof current === 'boolean' ? false : null;
+}
+
+const activeChips = computed<Record<string, unknown>>(() => {
+  const res: Record<string, unknown> = {};
+  Object.entries(filters.value).forEach(([k, v]) => {
+    if (v !== null && v !== '' && v !== false) res[k] = v;
+  });
+  return res;
+});
+
+function removeChip(key: string) {
+  removeFilter(key as keyof typeof filters.value);
+}
+
+// Jump to date
+const jumpDate = ref('');
+const jumpMenu = ref(false);
+function onJump(val: string) {
+  jumpMenu.value = false;
+  if (val) scrollToDate(val);
+}
+
+// Data via composable
 const {
-  entriesSearch,
-  entriesFilterMerchant,
-  entriesFilterAmount,
-  entriesFilterNote,
-  entriesFilterStatus,
-  entriesFilterDate,
-  entriesFilterAccount,
-  entriesFilterDuplicates,
-  entriesIncludeDeleted,
-  selectedBudgetIds,
-} = storeToRefs(uiStore);
-
-const tab = ref('entries');
-
-const transactions = ref<Transaction[]>([]);
-const newTransaction = ref<Transaction>({
-  id: uuidv4(),
-  date: todayISO(),
-  merchant: '',
-  categories: [{ category: '', amount: 0 }],
-  amount: 0,
-  notes: '',
-  recurring: false,
-  recurringInterval: 'Monthly',
-  userId: '',
-  isIncome: false,
-  entityId: familyStore.selectedEntityId,
-  taxMetadata: [],
-});
-const availableAccounts = ref<Account[]>([]);
-const categoryOptions = ref<string[]>(['Income']);
-const loading = ref(false);
-const editMode = ref(false);
-const showTransactionDialog = ref(false);
-const showMatchBudgetTransactionDialog = ref(false);
-const showMatchBankTransactionsDialog = ref(false);
-const selectedBudgetTransaction = ref<Transaction | null>(null);
-const importedTransactions = ref<ImportedTransaction[]>([]);
-const currentBankTransactionIndex = ref<number>(0);
-const smartMatches = ref<
-  Array<{
-    importedTransaction: ImportedTransaction;
-    budgetTransaction: Transaction;
-    budgetId: string;
-    bankAmount: number;
-    bankType: string;
-  }>
->([]);
-const selectedBankTransaction = ref<ImportedTransaction | null>(null);
-const matching = ref(false);
-const remainingImportedTransactions = ref<ImportedTransaction[]>([]);
-const pendingImportedTx = ref<ImportedTransaction | null>(null);
-const targetBudgetId = ref<string>('');
-const isMobile = computed(() => $q.screen.lt.md);
-
-const userId = computed(() => auth.currentUser?.uid || '');
-
-const actionQueue: Array<() => Promise<void>> = [];
-let processingQueue = false;
-
-function enqueueAction(action: () => Promise<void>) {
-  actionQueue.push(action);
-  if (!processingQueue) {
-    void processQueue();
-  }
-}
-
-async function processQueue() {
-  if (actionQueue.length === 0) {
-    processingQueue = false;
-    return;
-  }
-  processingQueue = true;
-  const next = actionQueue.shift();
-  if (next) {
-    await next();
-  }
-  void processQueue();
-}
-
-
-const potentialDuplicateIds = computed(() => {
-  const ids = new Set<string>();
-  const txs = transactions.value;
-  for (let i = 0; i < txs.length; i++) {
-    const a = txs[i];
-    if (!a) continue;
-    const merchantA = (a.importedMerchant || a.merchant).toLowerCase();
-    const dateA = new Date(a.date);
-    for (let j = i + 1; j < txs.length; j++) {
-      const b = txs[j];
-      if (!b) continue;
-      if (a.amount !== b.amount) continue;
-      if (a.isIncome !== b.isIncome) continue;
-      const merchantB = (b.importedMerchant || b.merchant).toLowerCase();
-      if (merchantA.includes(merchantB) || merchantB.includes(merchantA)) {
-        const dateB = new Date(b.date);
-        const diffDays = Math.abs(dateA.getTime() - dateB.getTime()) / (1000 * 60 * 60 * 24);
-        if (diffDays <= 3) {
-          ids.add(a.id);
-          ids.add(b.id);
-        }
-      }
-    }
-  }
-  return ids;
-});
-
-const expenseTransactions = computed(() => {
-  let temp = transactions.value;
-  if (!entriesIncludeDeleted.value) {
-    temp = temp.filter((t) => !t.deleted);
-  }
-
-  temp.sort((a, b) => {
-    const dateA = new Date(a.date);
-    const dateB = new Date(b.date);
-    return dateB.getTime() - dateA.getTime();
-  });
-
-  if (entriesFilterMerchant.value) {
-    temp = temp.filter(
-      (t) =>
-        t.merchant.toLowerCase().includes(entriesFilterMerchant.value.toLowerCase()) ||
-        (t.importedMerchant && t.importedMerchant.toLowerCase().includes(entriesFilterMerchant.value.toLowerCase())),
-    );
-  }
-  if (entriesFilterAmount.value) {
-    temp = temp.filter((t) => t.amount.toString().includes(entriesFilterAmount.value.toString()));
-  }
-  if (entriesFilterNote.value) {
-    temp = temp.filter((t) => t.notes && t.notes.toLowerCase().includes(entriesFilterNote.value.toLowerCase()));
-  }
-  if (entriesFilterStatus.value) {
-    temp = temp.filter((t) => t.status && t.status.toLowerCase().includes(entriesFilterStatus.value.toLowerCase()));
-  }
-  if (entriesFilterDate.value) {
-    temp = temp.filter((t) => t.date === entriesFilterDate.value);
-  }
-  if (entriesFilterAccount.value) {
-    temp = temp.filter((t) => t.accountNumber && getAccountId(t.accountNumber) === entriesFilterAccount.value);
-  }
-
-  if (entriesSearch.value && entriesSearch.value !== '') {
-    const searchLower = entriesSearch.value.toLowerCase();
-    temp = temp.filter((t) => {
-      if (t.merchant.toLowerCase().includes(searchLower)) return true;
-      if (t.amount.toString().toLowerCase().includes(searchLower)) return true;
-      if (t.categories && t.categories.some((c) => c.category.toLowerCase().includes(searchLower))) {
-        return true;
-      }
-      const budget = t.budgetId ? budgetStore.getBudget(t.budgetId) : null;
-      if (budget) {
-        for (const cat of t.categories || []) {
-          const matchCat = budget.categories.find((bc) => bc.name === cat.category);
-          if (matchCat && matchCat.group && matchCat.group.toLowerCase().includes(searchLower)) {
-            return true;
-          }
-        }
-      }
-      return false;
-    });
-  }
-
-  if (entriesFilterDuplicates.value) {
-    const dupes = potentialDuplicateIds.value;
-    temp = temp.filter((t) => dupes.has(t.id));
-  }
-
-  return temp;
-});
-
-const unmatchedImportedTransactions = computed(() => {
-  return importedTransactions.value.filter((tx) => !tx.matched && !tx.ignored);
-});
-
-const budgetOptions = computed(() => {
-  return Array.from(budgetStore.budgets.entries())
-    .map(([budgetId, budget]) => ({
-      budgetId,
-      month: budget.month,
-      familyId: budget.familyId,
-    }))
-    .sort((a, b) => b.month.localeCompare(a.month));
-});
-
-onMounted(async () => {
-  const user = auth.currentUser;
-  if (!user) {
-    showSnackbar('Please log in to view transactions', 'error');
-    return;
-  }
-
-  $q.loading.show({
-    message: 'Loading data...',
-    spinner: QSpinner,
-    spinnerColor: 'primary',
-    spinnerSize: 50,
-    customClass: 'q-ml-sm flex items-center justify-center',
-  });
-  try {
-    await familyStore.loadFamily(user.uid);
-    await loadBudgets();
-    if (budgetOptions.value.length > 0) {
-      if (!selectedBudgetIds.value || selectedBudgetIds.value.length === 0) {
-        selectedBudgetIds.value = [budgetOptions.value[0]?.budgetId || ''];
-      }
-      targetBudgetId.value = selectedBudgetIds.value[0] || '';
-      await loadTransactions();
-    } else {
-      showSnackbar('No budgets available. Please create one in the Dashboard.', 'warning');
-    }
-
-    importedTransactions.value = await dataAccess.getImportedTransactions();
-    const family = await familyStore.getFamily();
-    if (family) {
-      availableAccounts.value = await dataAccess.getAccounts(family.id);
-      availableAccounts.value = availableAccounts.value.filter((account) => account.type === 'Bank' || account.type === 'CreditCard');
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    showSnackbar(`Error loading data: ${message}`, 'error');
-  } finally {
-    $q.loading.hide();
-  }
-});
-
-onUnmounted(() => {
-  budgetStore.unsubscribeAll();
-});
-
-watch(showMatchBankTransactionsDialog, (newVal) => {
-  if (!newVal) {
-    smartMatches.value = [];
-    remainingImportedTransactions.value = [];
-    currentBankTransactionIndex.value = 0;
-    selectedBankTransaction.value = null;
-    matching.value = false;
-  }
-});
-
-async function loadBudgets() {
-  const user = auth.currentUser;
-  if (!user) return;
-
-  $q.loading.show({
-    message: 'Loading budgets...',
-    spinner: QSpinner,
-    spinnerColor: 'primary',
-    spinnerSize: 50,
-    customClass: 'q-ml-sm flex items-center justify-center',
-  });
-  try {
-    await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    showSnackbar(`Error loading budgets: ${message}`, 'error');
-  } finally {
-    $q.loading.hide();
-  }
-}
-
-async function loadTransactions() {
-  if (selectedBudgetIds.value.length === 0) {
-    transactions.value = [];
-    categoryOptions.value = ['Income'];
-    return;
-  }
-
-  $q.loading.show({
-    message: 'Loading transactions...',
-    spinner: QSpinner,
-    spinnerColor: 'primary',
-    spinnerSize: 50,
-    customClass: 'q-ml-sm flex items-center justify-center',
-  });
-  const allTransactions: Transaction[] = [];
-  const allCategories = new Set<string>(['Income']);
-
-  try {
-    for (const budgetId of selectedBudgetIds.value) {
-      let budget = budgetStore.getBudget(budgetId);
-      // Hydrate thin budgets (no categories/transactions) from API
-      if (!budget || !Array.isArray(budget.categories) || budget.categories.length === 0 || !Array.isArray(budget.transactions)) {
-        const full = await dataAccess.getBudget(budgetId);
-        if (full) {
-          budget = full;
-          budgetStore.updateBudget(budgetId, full);
-        }
-      }
-      if (budget) {
-        const budgetTransactions = (budget.transactions || []).map((tx) => ({
-          ...tx,
-          budgetId,
-          entityId: tx.entityId || budget.entityId || '',
-        }));
-        allTransactions.push(...budgetTransactions);
-        (budget.categories || []).forEach((cat) => allCategories.add(cat.name));
-      }
-    }
-
-    transactions.value = allTransactions;
-    categoryOptions.value = Array.from(allCategories).sort((a, b) => b.localeCompare(a));
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    showSnackbar(`Error loading transactions: ${message}`, 'error');
-  } finally {
-    $q.loading.hide();
-  }
-}
-
-function isLastMonth(transaction: Transaction) {
-  return transaction.budgetMonth === (budgetOptions.value[0]?.month || '');
-}
-
-async function saveTransaction(transaction: Transaction) {
-  $q.loading.show({
-    message: 'Saving transaction...',
-    spinner: QSpinner,
-    spinnerColor: 'primary',
-    spinnerSize: 50,
-    customClass: 'q-ml-sm flex items-center justify-center',
-  });
-  try {
-    let targetBudgetIdToUse = targetBudgetId.value;
-
-    if (editMode.value && transaction.id) {
-      targetBudgetIdToUse = transaction.budgetId || selectedBudgetIds.value[0] || '';
-    }
-
-    if (!targetBudgetIdToUse) {
-      throw new Error('No budget selected for transaction');
-    }
-
-    transaction.entityId = familyStore.selectedEntityId || transaction.entityId || '';
-    showSnackbar(editMode.value ? 'Transaction updated successfully' : 'Transaction added successfully');
-    resetForm();
-    showTransactionDialog.value = false;
-    await loadTransactions();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    showSnackbar(`Error: ${message}`, 'error');
-  } finally {
-    $q.loading.hide();
-  }
-}
-
-function editTransaction(item: Transaction) {
-  newTransaction.value = { ...item, categories: [...item.categories] };
-  editMode.value = true;
-  targetBudgetId.value = item.budgetId || selectedBudgetIds.value[0] || '';
-  familyStore.selectEntity(item.entityId || '');
-  showTransactionDialog.value = true;
-}
-
-function deleteTransaction(id: string) {
-  enqueueAction(() => processDeleteTransaction(id));
-}
-
-async function processDeleteTransaction(id: string) {
-  if (selectedBudgetIds.value.length === 0) {
-    showSnackbar('Please select at least one budget to delete transactions', 'error');
-    return;
-  }
-
-  $q.loading.show({
-    message: 'Deleting transaction...',
-    spinner: QSpinner,
-    spinnerColor: 'primary',
-    spinnerSize: 50,
-    customClass: 'q-ml-sm flex items-center justify-center',
-  });
-  try {
-    // Select the transaction matching the clicked entry
-    const targetTransaction = transactions.value.find(
-      (tx) => tx.id === id && !tx.deleted,
-    );
-
-    if (!targetTransaction) {
-      showSnackbar('Transaction not found in selected budgets', 'error');
-      return;
-    }
-
-    const targetBudgetIdToUse = targetTransaction.budgetId;
-    const originalId = targetTransaction.originalId ?? targetTransaction.id;
-
-    if (!targetBudgetIdToUse || !originalId) {
-      showSnackbar('Transaction not found in selected budgets', 'error');
-      return;
-    }
-
-    const budget = budgetStore.getBudget(targetBudgetIdToUse);
-    if (!budget) throw new Error('Selected budget not found');
-
-    await dataAccess.deleteTransaction(budget, originalId, !isLastMonth(targetTransaction));
-    showSnackbar('Transaction deleted successfully');
-    await loadTransactions();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    showSnackbar(`Error: ${message}`, 'error');
-  } finally {
-    $q.loading.hide();
-  }
-}
-
-function restoreTransaction(id: string) {
-  enqueueAction(() => processRestoreTransaction(id));
-}
-
-async function processRestoreTransaction(id: string) {
-  if (selectedBudgetIds.value.length === 0) {
-    showSnackbar('Please select at least one budget to restore transactions', 'error');
-    return;
-  }
-
-  $q.loading.show({
-    message: 'Restoring transaction...',
-    spinner: QSpinner,
-    spinnerColor: 'primary',
-    spinnerSize: 50,
-    customClass: 'q-ml-sm flex items-center justify-center',
-  });
-  try {
-    // The restore icon is only shown for deleted transactions, so
-    // locate the deleted entry matching the provided id
-    const targetTransaction = transactions.value.find(
-      (tx) => tx.id === id && tx.deleted,
-    );
-
-    if (!targetTransaction) {
-      showSnackbar('Transaction not found in selected budgets', 'error');
-      return;
-    }
-
-    const targetBudgetIdToUse = targetTransaction.budgetId;
-    const originalId = targetTransaction.originalId ?? targetTransaction.id;
-
-    if (!targetBudgetIdToUse || !originalId) {
-      showSnackbar('Transaction not found in selected budgets', 'error');
-      return;
-    }
-
-    const budget = budgetStore.getBudget(targetBudgetIdToUse);
-    if (!budget) throw new Error('Selected budget not found');
-
-    await dataAccess.restoreTransaction(budget, originalId, !isLastMonth(targetTransaction));
-    showSnackbar('Transaction restored successfully');
-    await loadTransactions();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    showSnackbar(`Error: ${message}`, 'error');
-  } finally {
-    $q.loading.hide();
-  }
-}
-
-function selectBudgetTransactionToMatch(transaction: Transaction) {
-  selectedBudgetTransaction.value = transaction;
-  showMatchBudgetTransactionDialog.value = true;
-}
-
-async function matchTransaction(importedTx: ImportedTransaction) {
-  if (!selectedBudgetTransaction.value) {
-    showSnackbar('No budget transaction selected to match', 'error');
-    return;
-  }
-
-  $q.loading.show({
-    message: 'Matching transaction...',
-    spinner: QSpinner,
-    spinnerColor: 'primary',
-    spinnerSize: 50,
-    customClass: 'q-ml-sm flex items-center justify-center',
-  });
-  try {
-    const budgetTx = selectedBudgetTransaction.value;
-
-    const updatedTransaction: Transaction = {
-      ...budgetTx,
-      accountSource: importedTx.accountSource || '',
-      accountNumber: importedTx.accountNumber || '',
-      postedDate: importedTx.postedDate || '',
-      checkNumber: importedTx.checkNumber || '',
-      importedMerchant: importedTx.payee || '',
-      status: 'C',
-      id: budgetTx.originalId || budgetTx.id,
-      userId: budgetTx.userId || userId.value,
-      budgetMonth: budgetTx.budgetMonth || '',
-      date: budgetTx.date || '',
-      merchant: budgetTx.merchant || '',
-      categories: budgetTx.categories || [],
-      amount: budgetTx.amount || 0,
-      notes: budgetTx.notes || '',
-      recurring: budgetTx.recurring || false,
-      recurringInterval: budgetTx.recurringInterval || 'Monthly',
-      isIncome: budgetTx.isIncome || false,
-      entityId: budgetTx.entityId || '',
-      taxMetadata: budgetTx.taxMetadata || [],
-    };
-
-    let targetBudgetIdToUse = budgetTx.budgetId;
-    if (!targetBudgetIdToUse) {
-      for (const budgetId of selectedBudgetIds.value) {
-        const budget = budgetStore.getBudget(budgetId);
-        if (budget && budget.transactions?.some((tx) => tx.id === (budgetTx.originalId || budgetTx.id))) {
-          targetBudgetIdToUse = budgetId;
-          break;
-        }
-      }
-    }
-
-    if (!targetBudgetIdToUse) {
-      showSnackbar('Transaction not found in selected budgets', 'error');
-      return;
-    }
-
-    const budget = budgetStore.getBudget(targetBudgetIdToUse);
-    if (!budget) throw new Error('Selected budget not found');
-
-    await dataAccess.saveTransaction(budget, updatedTransaction, !isLastMonth(updatedTransaction));
-
-    const parts = importedTx.id.split('-');
-    const docId = parts.slice(0, -1).join('-');
-    await dataAccess.updateImportedTransaction(docId, { ...importedTx, matched: true });
-
-    const txIndex = importedTransactions.value.findIndex((tx) => tx.id === importedTx.id);
-    if (txIndex !== -1) {
-      importedTransactions.value[txIndex] = { ...importedTransactions.value[txIndex], matched: true };
-    }
-
-    showSnackbar('Transaction matched successfully');
-    showMatchBudgetTransactionDialog.value = false;
-    selectedBudgetTransaction.value = null;
-    await loadTransactions();
-  } catch (error) {
-    console.log(error);
-    const message = error instanceof Error ? error.message : String(error);
-    showSnackbar(`Error matching transaction: ${message}`, 'error');
-  } finally {
-    $q.loading.hide();
-  }
-}
-
-function openMatchBankTransactionsDialog() {
-  if (unmatchedImportedTransactions.value.length === 0) {
-    showSnackbar('No unmatched bank transactions to process', 'info');
-    return;
-  }
-
-  remainingImportedTransactions.value = unmatchedImportedTransactions.value.filter(
-    (importedTx) => !smartMatches.value.some((match) => match.importedTransaction.id === importedTx.id),
-  );
-
-  if (remainingImportedTransactions.value.length > 0) {
-    currentBankTransactionIndex.value = 0;
-    selectedBankTransaction.value = remainingImportedTransactions.value[0];
-  } else {
-    currentBankTransactionIndex.value = -1;
-    selectedBankTransaction.value = null;
-  }
-
-  showMatchBankTransactionsDialog.value = true;
-}
-
-function cancelDialog() {
-  showTransactionDialog.value = false;
-  pendingImportedTx.value = null;
-  resetForm();
-}
-
-function resetForm() {
-  newTransaction.value = {
-    id: uuidv4(),
-    date: todayISO(),
-    merchant: '',
-    categories: [{ category: '', amount: 0 }],
-    amount: 0,
-    notes: '',
-    recurring: false,
-    recurringInterval: 'Monthly',
-    userId: '',
-    isIncome: false,
-    entityId: familyStore.selectedEntityId,
-    taxMetadata: [],
-  };
-  editMode.value = false;
-  targetBudgetId.value = selectedBudgetIds.value.length > 0 ? selectedBudgetIds.value[0] : '';
-}
-
-function getAccountId(accountNumber: string): string {
-  const account = availableAccounts.value.find((a) => a.accountNumber === accountNumber);
-  return account ? account.id : '';
-}
-
-function getAccountName(accountNumber: string): string {
-  const account = availableAccounts.value.find((a) => a.accountNumber === accountNumber);
-  return account ? account.name : 'Unknown Account';
-}
-
-function getEntityName(entityId: string): string {
-  if (!entityId) return 'N/A';
-  const entity = familyStore.family?.entities?.find((e) => e.id === entityId);
-  if (entity) return entity.name;
-  const budget = budgetStore.getBudget(entityId);
-  if (budget?.entityId) {
-    const budgetEntity = familyStore.family?.entities?.find((e) => e.id === budget.entityId);
-    return budgetEntity ? budgetEntity.name : 'N/A';
-  }
-  return 'N/A';
-}
-
-function formatCategories(categories: { category: string; amount: number }[] | undefined | null) {
-  if (!categories || !Array.isArray(categories)) {
-    return 'No categories';
-  }
-  if (categories.length === 1) {
-    return categories[0].category;
-  }
-  return categories.map((c) => `${c.category} (${formatCurrency(toDollars(toCents(c.amount)))})`).join(', ');
-}
-
-function showSnackbar(text: string, color = 'success') {
-  $q.notify({
-    message: text,
-    color,
-    position: 'bottom',
-    timeout: 3000,
-    actions: [{ label: 'Close', color: 'white', handler: () => {} }],
-  });
-}
-
-function updateTransactions() {
-  void loadTransactions();
-}
-
-function applyFilters() {
-  // Trigger recomputation of expenseTransactions
-}
+  transactions,
+  registerRows,
+  fetchMore,
+  fetchMoreRegister,
+  loading,
+  loadingRegister,
+  scrollToDate,
+  budgetColumns,
+  registerColumns,
+} = useTransactions();
+
+const statusOptions = [
+  { label: 'Cleared', value: 'C' },
+  { label: 'Unmatched', value: 'U' },
+];
 </script>
 
 <style scoped>
-.transaction-item { border-bottom: 1px solid #e0e0e0; }
-.deleted-transaction { background-color: #f5f5f5; }
-
-/* Desktop aligned grid for entries */
-.trx-grid {
-  display: grid;
-  width: 100%;
-  grid-template-columns: 160px 1fr 160px 140px minmax(200px, 1.5fr) 100px;
-  align-items: start;
-  column-gap: 12px;
+.top-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
-.trx-grid .cell {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.trx-grid .meta {
-  white-space: normal;
-}
-
-@media (max-width: 1500px) {
-  .trx-grid {
-    grid-template-columns: 140px 1fr 140px 120px minmax(180px, 1.5fr) 80px;
-  }
-}
-
-@media (max-width: 1200px) {
-  .trx-grid {
-    grid-template-columns: 120px 1fr 120px 110px minmax(160px, 1fr) 60px;
-  }
+.filter-bar {
+  position: sticky;
+  top: 56px;
+  z-index: 5;
 }
 </style>
