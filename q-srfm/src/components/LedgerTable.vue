@@ -12,31 +12,31 @@
     @virtual-scroll="onVirtualScroll"
   >
     <!-- Amount cell formatting -->
-    <template #body-cell-amount="{ value, props }">
-      <q-td :props="props" class="text-right">
-        <span :class="value < 0 ? 'text-negative' : ''">{{ formatCurrency(value) }}</span>
+    <template #body-cell-amount="slotProps">
+      <q-td :props="slotProps" class="text-right">
+        <span :class="slotProps.value < 0 ? 'text-negative' : ''">{{ formatCurrency(slotProps.value) }}</span>
       </q-td>
     </template>
 
     <!-- Status badge -->
-    <template #body-cell-status="{ row, props }">
-      <q-td :props="props">
+    <template #body-cell-status="slotProps">
+      <q-td :props="slotProps">
         <q-badge
-          v-if="row.status === 'C'"
+          v-if="slotProps.row.status === 'C'"
           color="positive"
           text-color="white"
           dense
           aria-label="Cleared"
         >C</q-badge>
         <q-badge
-          v-else-if="row.status === 'U'"
+          v-else-if="slotProps.row.status === 'U'"
           color="warning"
           text-color="white"
           dense
           aria-label="Unmatched"
         >U</q-badge>
         <q-icon
-          v-if="row.isDuplicate"
+          v-if="slotProps.row.isDuplicate"
           name="warning"
           color="warning"
           size="16px"
