@@ -41,6 +41,19 @@ Key props/usage:
       <q-tab-panel name="budget">
         <div class="filter-bar shadow-2 bg-white q-pa-sm">
           <div class="row q-col-gutter-sm items-center">
+            <EntitySelector @change="loadBudgets" class="col-auto" />
+            <q-select
+              v-model="selectedBudgetIds"
+              :options="budgetOptions"
+              dense
+              outlined
+              multiple
+              use-chips
+              emit-value
+              map-options
+              placeholder="Select Budgets"
+              class="col-3"
+            />
             <q-input v-model="filters.search" dense outlined placeholder="Search" class="col" />
             <q-select
               v-model="filters.status"
@@ -114,14 +127,58 @@ Key props/usage:
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { storeToRefs } from 'pinia';
 import LedgerTable from 'src/components/LedgerTable.vue';
 import StatementHeader from 'src/components/StatementHeader.vue';
 import MatchBankPanel from 'src/components/MatchBankPanel.vue';
+import EntitySelector from 'src/components/EntitySelector.vue';
 import { useTransactions } from 'src/composables/useTransactions';
+import { useBudgetStore } from 'src/store/budget';
+import { useFamilyStore } from 'src/store/family';
+import { useUIStore } from 'src/store/ui';
+import { useAuthStore } from 'src/store/auth';
 
 const tab = ref<'budget' | 'register' | 'match'>('budget');
 const globalSearch = ref('');
+
+const budgetStore = useBudgetStore();
+const familyStore = useFamilyStore();
+const uiStore = useUIStore();
+const auth = useAuthStore();
+
+const { selectedBudgetIds } = storeToRefs(uiStore);
+const { selectedEntityId } = storeToRefs(familyStore);
+
+const formatLongMonth = (month: string) => {
+  const [year, monthNum] = month.split('-');
+  const date = new Date(parseInt(year), parseInt(monthNum) - 1);
+  return date.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+};
+
+const budgetOptions = computed(() =>
+  Array.from(budgetStore.budgets.values())
+    .filter((b) => !selectedEntityId.value || b.entityId === selectedEntityId.value)
+    .map((b) => ({ label: formatLongMonth(b.month), value: b.budgetId || '' })),
+);
+
+async function loadBudgets() {
+  const user = auth.user;
+  if (!user) return;
+  await budgetStore.loadBudgets(user.uid, selectedEntityId.value);
+  const ids = Array.from(budgetStore.budgets.keys());
+  selectedBudgetIds.value = ids;
+}
+
+watch(
+  () => budgetStore.budgets.size,
+  (size) => {
+    if (size > 0 && selectedBudgetIds.value.length === 0) {
+      selectedBudgetIds.value = Array.from(budgetStore.budgets.keys());
+    }
+  },
+  { immediate: true },
+);
 
 // Filters
 const filters = ref({
