@@ -361,10 +361,11 @@ import { v4 as uuidv4 } from "uuid";
 import { useBudgetStore } from "../store/budget";
 import { useFamilyStore } from "../store/family";
 import EntityForm from "../components/EntityForm.vue";
-import { timestampToDate, toBudgetMonth, stringToFirestoreTimestamp, parseAmount, adjustTransactionDate, todayISO } from "../utils/helpers";
+import { timestampToDate, toBudgetMonth, stringToFirestoreTimestamp, parseAmount, todayISO } from "../utils/helpers";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import { Timestamp } from "firebase/firestore";
+import { createBudgetForMonth } from "../utils/budget";
 
 const familyStore = useFamilyStore();
 const budgetStore = useBudgetStore();
@@ -1379,6 +1380,8 @@ async function confirmImport() {
           budgetsById.set(firebaseBudgetId, budget);
         }
 
+        budgets.value = Array.from(budgetStore.budgets.values());
+
         previewData.value.categories.forEach((category) => {
           const originalBudgetId = category.budgetid;
           const firebaseBudgetId = budgetIdMap.get(originalBudgetId);
@@ -1664,102 +1667,6 @@ async function confirmImport() {
   }
 }
 
-async function createBudgetForMonth(month: string, familyId: string, ownerUid: string, entityId: string): Promise<Budget> {
-  const budgetId = `${ownerUid}_${entityId}_${month}`;
-  const existingBudget = await dataAccess.getBudget(budgetId);
-  if (existingBudget) {
-    return existingBudget;
-  }
-
-  const availableBudgets = budgets.value.sort((a, b) => a.month.localeCompare(b.month));
-  let sourceBudget: Budget | undefined;
-
-  const previousBudgets = availableBudgets.filter((b) => b.month < month && b.entityId === entityId);
-  if (previousBudgets.length > 0) {
-    sourceBudget = previousBudgets[previousBudgets.length - 1];
-  } else {
-    const futureBudgets = availableBudgets.filter((b) => b.month > month && b.entityId === entityId);
-    if (futureBudgets.length > 0) {
-      sourceBudget = futureBudgets[0];
-    }
-  }
-
-  if (!sourceBudget) {
-    const defaultBudget: Budget = {
-      familyId: familyId,
-      entityId: entityId,
-      month: month,
-      incomeTarget: 0,
-      categories: [],
-      transactions: [],
-      label: `Default Budget for ${month}`,
-      merchants: [],
-      budgetId: budgetId,
-    };
-    await dataAccess.saveBudget(budgetId, defaultBudget);
-    budgetStore.updateBudget(budgetId, defaultBudget);
-    budgets.value.push(defaultBudget);
-    return defaultBudget;
-  }
-
-  const [newYear, newMonthNum] = month.split("-").map(Number);
-  const [sourceYear, sourceMonthNum] = sourceBudget.month.split("-").map(Number);
-  const isFutureMonth = newYear > sourceYear || (newYear === sourceYear && newMonthNum > sourceMonthNum);
-
-  let newCarryover: Record<string, number> = {};
-  if (isFutureMonth) {
-    newCarryover = dataAccess.calculateCarryOver(sourceBudget);
-  }
-
-  const newBudget: Budget = {
-    familyId: familyId,
-    entityId: entityId,
-    month: month,
-    incomeTarget: sourceBudget.incomeTarget,
-    categories: sourceBudget.categories.map((cat) => ({
-      ...cat,
-      carryover: cat.isFund ? newCarryover[cat.name] || 0 : 0,
-    })),
-    label: "",
-    merchants: sourceBudget.merchants || [],
-    transactions: [],
-    budgetId: budgetId,
-  };
-
-  const recurringTransactions: Transaction[] = [];
-  if (sourceBudget.transactions) {
-    const recurringGroups = sourceBudget.transactions.reduce((groups, trx) => {
-      if (!trx.deleted && trx.recurring) {
-        const key = `${trx.merchant}-${trx.amount}-${trx.recurringInterval}-${trx.userId}-${trx.isIncome}`;
-        if (!groups[key]) {
-          groups[key] = [];
-        }
-        groups[key].push(trx);
-      }
-      return groups;
-    }, {} as Record<string, Transaction[]>);
-
-    Object.values(recurringGroups).forEach((group) => {
-      const firstInstance = group.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
-      if (firstInstance.recurringInterval === "Monthly") {
-        const newDate = adjustTransactionDate(firstInstance.date, month, "Monthly");
-        recurringTransactions.push({
-          ...firstInstance,
-          id: uuidv4(),
-          date: newDate,
-          budgetMonth: month,
-          entityId: entityId,
-        });
-      }
-    });
-  }
-
-  newBudget.transactions = recurringTransactions;
-  await dataAccess.saveBudget(budgetId, newBudget);
-  budgetStore.updateBudget(budgetId, newBudget);
-  budgets.value.push(newBudget);
-  return newBudget;
-}
 
 async function proceedWithImport() {
   showPreview.value = false;
