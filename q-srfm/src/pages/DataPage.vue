@@ -19,7 +19,7 @@
             <q-card>
               <q-card-section>Import Data</q-card-section>
               <q-card-section>
-                <q-select v-model="importType" :items="importTypes" label="Select Import Type" variant="outlined" class="mb-4"></q-select>
+                <q-select v-model="importType" :items="importTypes" label="Select Import Type" outlined class="mb-4"></q-select>
 
                 <!-- Entity Selection or Creation -->
                 <div class="row" v-if="entityOptions.length > 0 && importType !== 'bankTransactions' && importType !== 'accountsAndSnapshots'">
@@ -30,8 +30,8 @@
                       item-title="name"
                       item-value="id"
                       label="Select Entity"
-                      variant="outlined"
-                      density="compact"
+                      outlined
+                      dense
                       clearable
                       :rules="importType !== 'entities' ? [(v) => !!v || 'Entity selection is required'] : []"
                       class="mb-4"
@@ -62,7 +62,7 @@
                         item-title="title"
                         item-value="value"
                         label="Select Account for Transactions"
-                        variant="outlined"
+                        outlined
                         :rules="[(v) => !!v || 'Account selection is required']"
                         :disabled="importing || availableAccounts.length === 0"
                         class="mb-4"
@@ -74,12 +74,12 @@
                   </div>
                   <div class="row">
                     <div class="col col-12 col-md-6">
-                      <q-file-input
+                      <q-file
                         label="Upload Bank/Card Transactions CSV"
                         accept=".csv"
                         @change="handleBankTransactionsFileUpload"
                         :disabled="importing || !selectedAccountId"
-                      ></q-file-input>
+                      ></q-file>
                     </div>
                   </div>
                   <!-- Field Mapping -->
@@ -91,7 +91,7 @@
                           v-model="amountFormat"
                           :items="amountFormatOptions"
                           label="How are Credits/Debits Represented?"
-                          variant="outlined"
+                          outlined
                           class="mb-4"
                         ></q-select>
 
@@ -102,7 +102,7 @@
                               v-model="fieldMapping[field.key]"
                               :items="csvHeaders"
                               :label="field.label"
-                              variant="outlined"
+                              outlined
                               clearable
                               placeholder="Select a column or type a value"
                             ></q-select>
@@ -117,7 +117,7 @@
                                 v-model="fieldMapping.creditAmount"
                                 :items="csvHeaders"
                                 label="Credit Amount"
-                                variant="outlined"
+                                outlined
                                 clearable
                                 placeholder="Select a column or type a value"
                               ></q-select>
@@ -129,7 +129,7 @@
                                 v-model="fieldMapping.debitAmount"
                                 :items="csvHeaders"
                                 label="Debit Amount"
-                                variant="outlined"
+                                outlined
                                 clearable
                                 placeholder="Select a column or type a value"
                               ></q-select>
@@ -143,7 +143,7 @@
                                 v-model="fieldMapping.transactionType"
                                 :items="csvHeaders"
                                 label="Transaction Type Column"
-                                variant="outlined"
+                                outlined
                                 clearable
                                 placeholder="Select a column or type a value"
                               ></q-select>
@@ -154,7 +154,7 @@
                               <q-input
                                 v-model="creditTypeValue"
                                 label="Value for Credit"
-                                variant="outlined"
+                                outlined
                                 placeholder="e.g., 'Credit' or 'CR'"
                               ></q-input>
                             </div>
@@ -164,7 +164,7 @@
                               <q-input
                                 v-model="debitTypeValue"
                                 label="Value for Debit"
-                                variant="outlined"
+                                outlined
                                 placeholder="e.g., 'Debit' or 'DR'"
                               ></q-input>
                             </div>
@@ -175,7 +175,7 @@
                                 v-model="fieldMapping.amount"
                                 :items="csvHeaders"
                                 label="Amount"
-                                variant="outlined"
+                                outlined
                                 clearable
                                 placeholder="Select a column or type a value"
                               ></q-select>
@@ -189,7 +189,7 @@
                                 v-model="fieldMapping.amount"
                                 :items="csvHeaders"
                                 label="Amount (Positive = Credit, Negative = Debit)"
-                                variant="outlined"
+                                outlined
                                 clearable
                                 placeholder="Select a column or type a value"
                               ></q-select>
@@ -207,24 +207,24 @@
                   </div>
                 </div>
                 <div v-else-if="importType === 'entities'">
-                  <q-file-input label="Upload Entities CSV/JSON" accept=".csv,.json" @change="handleFileUpload" :disabled="importing"></q-file-input>
+                  <q-file label="Upload Entities CSV/JSON" accept=".csv,.json" @change="handleFileUpload" :disabled="importing"></q-file>
                 </div>
                 <div v-else-if="importType === 'accountsAndSnapshots'">
-                  <q-file-input
+                  <q-file
                     label="Upload Accounts and Snapshots CSV"
                     accept=".csv"
                     @change="handleAccountsAndSnapshotsImport"
                     :disabled="importing"
-                  ></q-file-input>
+                  ></q-file>
                 </div>
                 <div v-else>
-                  <q-file-input
+                  <q-file
                     label="Upload Budget or Transactions CSV/JSON"
                     accept=".csv,.json"
                     multiple
                     @change="handleFileUpload"
                     :disabled="importing || (!selectedEntityId && importType !== 'entities')"
-                  ></q-file-input>
+                  ></q-file>
                 </div>
 
                 <!-- Preview Dialog -->
@@ -580,9 +580,14 @@ async function handleEntitySave() {
   }
 }
 
-async function handleFileUpload(event: Event) {
-  const input = event.target as HTMLInputElement;
-  selectedFiles.value = input.files ? Array.from(input.files) : [];
+async function handleFileUpload(files: File | File[] | FileList | null) {
+  selectedFiles.value = Array.isArray(files)
+    ? files
+    : files instanceof FileList
+    ? Array.from(files)
+    : files
+    ? [files as File]
+    : [];
 
   if (!selectedFiles.value.length) return;
 
@@ -1020,9 +1025,12 @@ async function handleBudgetTransactionImport() {
   console.log('previewData.value', previewData.value);
 }
 
-async function handleAccountsAndSnapshotsImport(event: Event) {
-  const input = event.target as HTMLInputElement;
-  const file = input.files ? input.files[0] : null;
+async function handleAccountsAndSnapshotsImport(files: File | File[] | FileList | null) {
+  const file = Array.isArray(files)
+    ? files[0]
+    : files instanceof FileList
+    ? files[0]
+    : files || null;
 
   if (!file) return;
 
@@ -1119,9 +1127,12 @@ async function handleAccountsAndSnapshotsImport(event: Event) {
   }
 }
 
-async function handleBankTransactionsFileUpload(event: Event) {
-  const input = event.target as HTMLInputElement;
-  const file = input.files ? input.files[0] : null;
+async function handleBankTransactionsFileUpload(files: File | File[] | FileList | null) {
+  const file = Array.isArray(files)
+    ? files[0]
+    : files instanceof FileList
+    ? files[0]
+    : files || null;
 
   if (!file) return;
 
