@@ -219,11 +219,11 @@
 import { ref, onMounted, computed } from "vue";
 import { auth } from "../firebase/init";
 import { dataAccess } from "../dataAccess";
-import type { Budget, Snapshot } from "../types";
+import type { Account, Budget, Snapshot } from "../types";
 import { Doughnut, Line } from "vue-chartjs";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, LineElement, PointElement, LinearScale, TimeScale, Filler } from "chart.js";
+import type { TooltipItem } from "chart.js";
 import { useBudgetStore } from "../store/budget";
-import type { Timestamp } from "firebase/firestore";
 import "chartjs-adapter-date-fns";
 import { timestampToDate, currentMonthISO } from "../utils/helpers";
 
@@ -293,9 +293,9 @@ const chartOptions = ref({
     },
     tooltip: {
       callbacks: {
-        label: (context: any) => {
+        label: (context: TooltipItem<'doughnut'>) => {
           const label = context.label || "";
-          const value = context.raw || 0;
+          const value = Number(context.raw) || 0;
           return `${label}: $${value.toLocaleString("en-US", {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
@@ -417,9 +417,9 @@ const netWorthChartOptions = ref({
     },
     tooltip: {
       callbacks: {
-        label: (context: any) => {
+        label: (context: TooltipItem<'line'>) => {
           const label = context.dataset.label || "";
-          const value = context.raw || 0;
+          const value = Number(context.raw) || 0;
           return `${label}: $${value.toLocaleString("en-US", {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
@@ -556,9 +556,9 @@ const assetDebtChartOptions = ref({
     },
     tooltip: {
       callbacks: {
-        label: (context: any) => {
+        label: (context: TooltipItem<'line'>) => {
           const label = context.dataset.label || "";
-          const value = context.raw || 0;
+          const value = Number(context.raw) || 0;
           return `${label}: $${Math.abs(value).toLocaleString("en-US", {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
@@ -629,9 +629,9 @@ const monthlyBudgetChartOptions = ref({
     },
     tooltip: {
       callbacks: {
-        label: (context: any) => {
+        label: (context: TooltipItem<'line'>) => {
           const label = context.dataset.label || "";
-          const value = context.raw || 0;
+          const value = Number(context.raw) || 0;
           return `${label}: $${value.toLocaleString("en-US", {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
@@ -642,12 +642,7 @@ const monthlyBudgetChartOptions = ref({
   },
 });
 
-const accounts = ref<any[]>([]); // To store account details for mapping in assetDebtData
-
-// Helper function to get account details by ID
-function getAccountDetails(accountId: string) {
-  return accounts.value.find((account) => account.id === accountId);
-}
+const accounts = ref<Account[]>([]); // To store account details for mapping in assetDebtData
 
 onMounted(async () => {
   const user = auth.currentUser;
@@ -689,7 +684,7 @@ onMounted(async () => {
       accounts.value = [];
       snapshots.value = [];
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error loading data for reports:", error);
     accounts.value = [];
     snapshots.value = [];
@@ -719,7 +714,7 @@ async function updateReportData() {
         }
         return budget;
       })
-    ).then((results) => results.filter((b) => b !== null) as Budget[]);
+    ).then((results) => results.filter((b): b is Budget => b !== null));
 
     const categoryToGroup = new Map<string, string>();
     const groupSet = new Set<string>();
@@ -830,7 +825,7 @@ async function updateReportData() {
       planned: data.planned,
       actual: data.actual,
     }));
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating report data:", error);
     budgetGroups.value = [];
   }

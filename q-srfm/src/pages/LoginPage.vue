@@ -40,7 +40,9 @@ onMounted(() => {
       googleLoaded.value = true;
       window.google.accounts.id.initialize({
         client_id: '583821970715-53n7g2bv1r3s810vro67vaiqujiek4en.apps.googleusercontent.com',
-        callback: handleCredentialResponse,
+        callback: (response) => {
+          void handleCredentialResponse(response);
+        },
       });
       const btn = document.getElementById('google-signin-button');
       if (btn) {
@@ -78,9 +80,9 @@ const handleCredentialResponse = async (response: { credential: string }) => {
 
     await authStore.loginWithCustomToken(token);
     await authStore.user?.reload();
-    router.push('/');
+    await router.push('/');
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = err instanceof Error ? err.message : 'Unknown error';
     error.value = msg || 'Failed to sign in with Google';
     console.error('Login error:', err);
   } finally {

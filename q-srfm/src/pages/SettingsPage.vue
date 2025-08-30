@@ -215,7 +215,7 @@
 import { ref, onMounted, onUnmounted, computed } from "vue";
 import { auth } from "../firebase/init";
 import { dataAccess } from "../dataAccess";
-import type { Timestamp } from "firebase/firestore";
+import { Timestamp } from "firebase/firestore";
 import type { Family, PendingInvite, Entity, Budget, ImportedTransactionDoc, Transaction, ImportedTransaction } from "../types";
 import { useFamilyStore } from "../store/family";
 import EntityForm from "../components/EntityForm.vue";
