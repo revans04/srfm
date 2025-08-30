@@ -54,6 +54,13 @@ Key props/usage:
               placeholder="Select Budgets"
               class="col-3"
             />
+            <q-btn
+              dense
+              flat
+              label="Clear All"
+              class="col-auto"
+              @click="clearSelectedBudgets"
+            />
             <q-input v-model="filters.search" dense outlined placeholder="Search" class="col" />
             <q-select
               v-model="filters.status"
@@ -162,23 +169,40 @@ const budgetOptions = computed(() =>
     .map((b) => ({ label: formatLongMonth(b.month), value: b.budgetId || '' })),
 );
 
+function setCurrentBudgetSelection() {
+  const budgetsArr = Array.from(budgetStore.budgets.values());
+  if (budgetsArr.length === 0) {
+    selectedBudgetIds.value = [];
+    return;
+  }
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const sorted = budgetsArr.sort((a, b) => b.month.localeCompare(a.month));
+  const current = sorted.find((b) => b.month === currentMonth) || sorted[0];
+  selectedBudgetIds.value = current?.budgetId ? [current.budgetId] : [];
+}
+
 async function loadBudgets() {
   const user = auth.user;
   if (!user) return;
   await budgetStore.loadBudgets(user.uid, selectedEntityId.value);
-  const ids = Array.from(budgetStore.budgets.keys());
-  selectedBudgetIds.value = ids;
+  if (selectedBudgetIds.value.length === 0) {
+    setCurrentBudgetSelection();
+  }
 }
 
 watch(
   () => budgetStore.budgets.size,
   (size) => {
     if (size > 0 && selectedBudgetIds.value.length === 0) {
-      selectedBudgetIds.value = Array.from(budgetStore.budgets.keys());
+      setCurrentBudgetSelection();
     }
   },
   { immediate: true },
 );
+
+function clearSelectedBudgets() {
+  selectedBudgetIds.value = [];
+}
 
 // Filters
 const filters = ref({

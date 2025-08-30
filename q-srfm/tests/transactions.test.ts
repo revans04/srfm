@@ -10,17 +10,22 @@ test('withinDateWindow', () => {
 });
 
 test('isDuplicate', () => {
-  const t1: BudgetTransaction = {
+  const base: BudgetTransaction = {
     id: '1',
     date: '2024-01-01',
-    payee: 'A',
-    categoryId: 'c1',
-    entityId: 'e1',
-    budgetId: 'b1',
+    merchant: 'A',
+    categories: [],
     amount: -10,
+    notes: '',
+    recurring: false,
+    recurringInterval: 'Monthly',
+    userId: 'u',
+    isIncome: false,
+    taxMetadata: [],
     status: 'U',
   };
-  const t2: BudgetTransaction = { ...t1, id: '2' };
+  const t1: BudgetTransaction = base;
+  const t2: BudgetTransaction = { ...base, id: '2' };
   assert.equal(isDuplicate(t1, [t1, t2]), true);
 });
 
@@ -28,11 +33,15 @@ test('link/unlink', () => {
   const t: BudgetTransaction = {
     id: '3',
     date: '2024-01-01',
-    payee: 'B',
-    categoryId: 'c1',
-    entityId: 'e1',
-    budgetId: 'b1',
+    merchant: 'B',
+    categories: [],
     amount: 5,
+    notes: '',
+    recurring: false,
+    recurringInterval: 'Monthly',
+    userId: 'u',
+    isIncome: false,
+    taxMetadata: [],
     status: 'U',
   };
   link(t, 'imp1');

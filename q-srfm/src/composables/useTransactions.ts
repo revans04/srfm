@@ -23,6 +23,33 @@ export interface LedgerRow {
   notes?: string;
 }
 
+export type BudgetTransaction = Transaction & { linkId?: string };
+
+export function withinDateWindow(date1: string, date2: string, windowDays: number): boolean {
+  const d1 = new Date(date1).getTime();
+  const d2 = new Date(date2).getTime();
+  const diff = Math.abs(d1 - d2);
+  return diff <= windowDays * 86400000;
+}
+
+export function isDuplicate(tx: BudgetTransaction, list: BudgetTransaction[]): boolean {
+  return list.some(
+    (other) =>
+      other.id !== tx.id &&
+      other.merchant === tx.merchant &&
+      other.amount === tx.amount &&
+      withinDateWindow(tx.date, other.date, 3),
+  );
+}
+
+export function link(tx: BudgetTransaction, linkId: string): void {
+  tx.linkId = linkId;
+}
+
+export function unlink(tx: BudgetTransaction): void {
+  delete tx.linkId;
+}
+
 export interface LedgerFilters {
   search: string;
   clearedOnly: boolean;
@@ -170,42 +197,31 @@ export function useTransactions() {
     loadInitial,
   };
 
-  // Attempt an initial load using all budgets currently in the store
+  // Load budgets initially so selection and options are available
   void (async () => {
     try {
       const user = auth.currentUser;
       if (!user) return;
       await familyStore.loadFamily(user.uid);
       await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
-      const ids = Array.from(budgetStore.budgets.keys());
-      if (ids.length > 0) await loadInitial(ids);
     } catch {
       /* ignore */
     }
   })();
 
-  // If budgets arrive later (auth lag), hydrate once
-  watch(
-    () => budgetStore.budgets.size,
-    async (size) => {
-      if (size > 0 && rows.value.length === 0) {
-        const ids = Array.from(budgetStore.budgets.keys());
-        await loadInitial(ids);
-      }
-    },
-  );
-
   // When the user's selection of budgets changes, hydrate those budgets explicitly
   watch(
     () => selectedBudgetIds.value?.slice().join(','),
-    async (list) => {
-      if (!list) return;
+    async () => {
       const ids = selectedBudgetIds.value.filter(Boolean);
       if (ids.length > 0) {
         await loadInitial(ids);
+      } else {
+        rows.value = [];
+        registerRows.value = [];
       }
     },
-    { immediate: false },
+    { immediate: true },
   );
 
   return api;
