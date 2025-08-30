@@ -491,11 +491,11 @@ import { useBudgetStore } from "../store/budget";
 import { useFamilyStore } from "../store/family";
 import { useStatementStore } from "../store/statements";
 import { useUIStore } from "../store/ui";
-import type { Transaction, ImportedTransaction, Budget, Account, ImportedTransactionDoc, Statement, BudgetCategory } from "../types";
-import { formatCurrency, adjustTransactionDate, todayISO } from "../utils/helpers";
+import type { Transaction, ImportedTransaction, Budget, Account, ImportedTransactionDoc, Statement } from "../types";
+import { formatCurrency, todayISO } from "../utils/helpers";
 import { QForm } from "quasar";
 import { v4 as uuidv4 } from "uuid";
-import { DEFAULT_BUDGET_TEMPLATES } from "../constants/budgetTemplates";
+import { createBudgetForMonth } from "../utils/budget";
 
 // Interface for displayTransactions items
 interface DisplayTransaction {
@@ -1153,6 +1153,7 @@ async function executeBatchMatch() {
       if (!targetBudget) {
         // Create new budget by copying the most recent previous budget
         targetBudget = await createBudgetForMonth(budgetMonth, family.id, ownerUid, selectedEntityId.value);
+        budgets.value = Array.from(budgetStore.budgets.values());
       }
 
       // Check if category exists in budget; if not, add it
@@ -1295,164 +1296,6 @@ async function executeBatchAction() {
   }
 }
 
-async function createBudgetForMonth(month: string, familyId: string, ownerUid: string, entityId: string): Promise<Budget> {
-  const budgetId = `${ownerUid}_${entityId}_${month}`; // New ID format: uid_entityId_budgetMonth
-  const existingBudget = await dataAccess.getBudget(budgetId);
-  if (existingBudget) {
-    return existingBudget;
-  }
-
-  // Get the family store
-  const familyStore = useFamilyStore();
-
-  // Find the entity from familyStore.family?.entities
-  const entity = familyStore.family?.entities?.find((e) => e.id === entityId);
-  const templateBudget = entity?.templateBudget;
-
-  if (templateBudget && templateBudget.categories.length > 0) {
-    // Use template budget if it exists and has at least one category
-    const newBudget: Budget = {
-      familyId: familyId,
-      entityId: entityId,
-      month: month,
-      incomeTarget: 0, // Use template's incomeTarget or default to 0
-      categories: templateBudget.categories.map((cat: BudgetCategory) => ({
-        ...cat,
-        carryover: cat.isFund ? 0 : 0, // Initialize carryover as 0 for new budgets
-      })),
-      transactions: [], // No transactions initially
-      label: `Budget for ${month}`,
-      merchants: [],
-      budgetId: budgetId,
-    };
-
-    await dataAccess.saveBudget(budgetId, newBudget);
-    budgetStore.updateBudget(budgetId, newBudget);
-    budgets.value.push(newBudget);
-    return newBudget;
-  }
-
-  // Use predefined template based on entity.type if no valid templateBudget
-  if (entity && DEFAULT_BUDGET_TEMPLATES[entity.type]) {
-    const predefinedTemplate = DEFAULT_BUDGET_TEMPLATES[entity.type];
-    const newBudget: Budget = {
-      familyId: familyId,
-      entityId: entityId,
-      month: month,
-      incomeTarget: 0,
-      categories: (predefinedTemplate?.categories ?? []).map((cat: BudgetCategory) => ({
-        ...cat,
-        carryover: cat.isFund ? 0 : 0, // Initialize carryover as 0
-      })),
-      transactions: [],
-      label: `Default ${entity.type} Budget for ${month}`,
-      merchants: [],
-      budgetId: budgetId,
-    };
-
-    await dataAccess.saveBudget(budgetId, newBudget);
-    budgetStore.updateBudget(budgetId, newBudget);
-    budgets.value.push(newBudget);
-    return newBudget;
-  }
-
-  // Fallback to existing logic: find the most recent previous budget or earliest future budget
-  const availableBudgets = Array.from(budgetStore.budgets.values()).sort((a, b) => a.month.localeCompare(b.month));
-  let sourceBudget: Budget | undefined;
-
-  // Look for previous budget (preferred)
-  const previousBudgets = availableBudgets.filter((b) => b.month < month && b.entityId === entityId);
-  if (previousBudgets.length > 0) {
-    sourceBudget = previousBudgets[previousBudgets.length - 1]; // Most recent previous
-  } else {
-    // Fall back to earliest future budget
-    const futureBudgets = availableBudgets.filter((b) => b.month > month && b.entityId === entityId);
-    if (futureBudgets.length > 0) {
-      sourceBudget = futureBudgets[0]; // Earliest future
-    }
-  }
-
-  if (!sourceBudget) {
-    // Create a default budget if no source budget exists
-    const defaultBudget: Budget = {
-      familyId: familyId,
-      entityId: entityId,
-      month: month,
-      incomeTarget: 0,
-      categories: [],
-      transactions: [],
-      label: `Default Budget for ${month}`,
-      merchants: [],
-      budgetId: budgetId,
-    };
-    await dataAccess.saveBudget(budgetId, defaultBudget);
-    budgetStore.updateBudget(budgetId, defaultBudget);
-    budgets.value.push(defaultBudget);
-    return defaultBudget;
-  }
-
-  // Copy source budget
-  const [newYear, newMonthNum] = month.split("-").map((v) => Number(v));
-  const [sourceYear, sourceMonthNum] = sourceBudget.month.split("-").map((v) => Number(v));
-  const isFutureMonth =
-    (newYear ?? 0) > (sourceYear ?? 0) ||
-    ((newYear ?? 0) === (sourceYear ?? 0) && (newMonthNum ?? 0) > (sourceMonthNum ?? 0));
-
-  let newCarryover: Record<string, number> = {};
-  if (isFutureMonth) {
-    newCarryover = dataAccess.calculateCarryOver(sourceBudget);
-  }
-
-  const newBudget: Budget = {
-    familyId: familyId,
-    entityId: entityId,
-    month: month,
-    incomeTarget: sourceBudget.incomeTarget,
-    categories: sourceBudget.categories.map((cat: BudgetCategory) => ({
-      ...cat,
-      carryover: cat.isFund ? newCarryover[cat.name] || 0 : 0,
-    })),
-    label: sourceBudget.label || `Budget for ${month}`,
-    merchants: sourceBudget.merchants || [],
-    transactions: [],
-    budgetId: budgetId,
-  };
-
-  // Copy recurring transactions
-  const recurringTransactions: Transaction[] = [];
-  if (sourceBudget.transactions) {
-    const recurringGroups = sourceBudget.transactions.reduce((groups, trx) => {
-      if (!trx.deleted && trx.recurring) {
-        const key = `${trx.merchant}-${trx.amount}-${trx.recurringInterval}-${trx.userId}-${trx.isIncome}`;
-        if (!groups[key]) {
-          groups[key] = [];
-        }
-        groups[key].push(trx);
-      }
-      return groups;
-    }, {} as Record<string, Transaction[]>);
-
-    Object.values(recurringGroups).forEach((group) => {
-      const firstInstance = group.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
-      if (firstInstance && firstInstance.recurringInterval === "Monthly") {
-        const newDate = adjustTransactionDate(firstInstance.date, month, "Monthly");
-        recurringTransactions.push({
-          ...firstInstance,
-          id: uuidv4(),
-          date: newDate,
-          budgetMonth: month,
-          entityId: entityId,
-        });
-      }
-      // Add support for other intervals (Daily, Weekly, etc.) if needed
-    });
-  }
-
-  newBudget.transactions = recurringTransactions;
-  await dataAccess.saveBudget(budgetId, newBudget);
-  budgetStore.updateBudget(budgetId, newBudget);
-  return newBudget;
-}
 
 function openBalanceAdjustmentDialog() {
   if (currentBalance.value !== latestTransactionBalance.value) {
