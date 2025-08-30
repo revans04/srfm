@@ -1,4 +1,5 @@
 import { ref } from 'vue';
+import type { QTableColumn } from 'quasar';
 
 export interface TransactionBase {
   id: string;
@@ -85,7 +86,7 @@ export function useTransactions() {
   }
 
   // Columns for tables
-  const budgetColumns = [
+  const budgetColumns: QTableColumn[] = [
     { name: 'date', label: 'Date', field: 'date', align: 'left' },
     { name: 'payee', label: 'Payee', field: 'payee', align: 'left' },
     { name: 'category', label: 'Category', field: 'categoryId', align: 'left' },
@@ -95,7 +96,7 @@ export function useTransactions() {
     { name: 'notes', label: 'Notes', field: 'notes', align: 'left' },
   ];
 
-  const registerColumns = [
+  const registerColumns: QTableColumn[] = [
     ...budgetColumns,
     { name: 'balance', label: 'Balance', field: 'runningBalance', align: 'right' },
   ];

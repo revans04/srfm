@@ -75,6 +75,7 @@
                   <div class="row">
                     <div class="col col-12 col-md-6">
                       <q-file
+                        v-model="bankTransactionsFile"
                         label="Upload Bank/Card Transactions CSV"
                         accept=".csv"
                         @change="handleBankTransactionsFileUpload"
@@ -207,10 +208,17 @@
                   </div>
                 </div>
                 <div v-else-if="importType === 'entities'">
-                  <q-file label="Upload Entities CSV/JSON" accept=".csv,.json" @change="handleFileUpload" :disabled="importing"></q-file>
+                  <q-file
+                    v-model="entitiesFile"
+                    label="Upload Entities CSV/JSON"
+                    accept=".csv,.json"
+                    @change="handleFileUpload"
+                    :disabled="importing"
+                  ></q-file>
                 </div>
                 <div v-else-if="importType === 'accountsAndSnapshots'">
                   <q-file
+                    v-model="accountsSnapshotsFile"
                     label="Upload Accounts and Snapshots CSV"
                     accept=".csv"
                     @change="handleAccountsAndSnapshotsImport"
@@ -219,6 +227,7 @@
                 </div>
                 <div v-else>
                   <q-file
+                    v-model="selectedFiles"
                     label="Upload Budget or Transactions CSV/JSON"
                     accept=".csv,.json"
                     multiple
@@ -402,6 +411,9 @@ const importTypes = [
   { title: "Accounts/Snapshots", value: "accountsAndSnapshots" },
 ];
 const selectedFiles = ref<File[]>([]);
+const bankTransactionsFile = ref<File | null>(null);
+const entitiesFile = ref<File | null>(null);
+const accountsSnapshotsFile = ref<File | null>(null);
 
 // Bank/Card Transactions Import
 const previewBankTransactions = ref<any[]>([]);

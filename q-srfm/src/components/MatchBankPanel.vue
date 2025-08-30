@@ -45,13 +45,14 @@
 import { ref } from 'vue';
 import { useImported } from 'src/composables/useImported';
 import type { ImportedTransaction } from 'src/composables/useImported';
+import type { QTableColumn } from 'quasar';
 
 const inner = ref<'smart' | 'remaining'>('smart');
 const selected = ref<ImportedTransaction[]>([]);
 
 const { smartMatches, remaining, confirmMatches } = useImported();
 
-const columns = [
+const columns: QTableColumn[] = [
   { name: 'bankDate', label: 'Bank Date', field: 'bankDate', align: 'left' },
   { name: 'bankAmount', label: 'Bank Amount', field: 'bankAmount', align: 'right' },
   { name: 'bankPayee', label: 'Payee', field: 'bankPayee', align: 'left' },
