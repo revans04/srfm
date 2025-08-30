@@ -11,7 +11,7 @@ export const useUIStore = defineStore("uiState", () => {
   const filterStartDate = ref("");
   const filterEndDate = ref("");
 
-  // Budget Entries filters
+  // Budget Transactions filters
   const entriesSearch = ref("");
   const entriesFilterMerchant = ref("");
   const entriesFilterAmount = ref("");

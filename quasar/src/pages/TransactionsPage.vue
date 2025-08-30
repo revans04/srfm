@@ -6,12 +6,12 @@
 
     <!-- Tabs -->
     <q-tabs v-model="tab" color="primary">
-      <q-tab name="entries">Budget Entries</q-tab>
+      <q-tab name="entries">Budget Transactions</q-tab>
       <q-tab name="register">Transaction Register</q-tab>
     </q-tabs>
 
     <q-tab-panels v-model="tab">
-      <!-- Budget Entries -->
+      <!-- Budget Transactions -->
       <q-tab-panel name="entries">
         <!-- Add Transaction Button -->
         <q-btn color="primary" variant="plain" class="mb-4 mr-2" @click="showTransactionDialog = true"> Add Transaction </q-btn>
@@ -45,6 +45,7 @@
                   item-value="budgetId"
                   variant="outlined"
                   multiple
+                  use-chips
                   clearable
                   :disabled="budgetOptions.length === 0"
                   @update:modelValue="loadTransactions"
@@ -167,7 +168,7 @@
         </q-card>
 
         <q-card density="compact">
-          <q-card-section>Budget Entries</q-card-section>
+          <q-card-section>Budget Transactions</q-card-section>
           <q-list dense>
             <q-item v-for="transaction in expenseTransactions" :key="transaction.id" class="transaction-item" :class="{ 'deleted-transaction': transaction.deleted }" @click="editTransaction(transaction)">
               <!-- Desktop Layout -->
@@ -364,7 +365,7 @@ import MatchBudgetTransactionDialog from '../components/MatchBudgetTransactionDi
 import TransactionRegistry from '../components/TransactionRegistry.vue';
 import EntitySelector from '../components/EntitySelector.vue';
 import { Transaction, BudgetInfo, ImportedTransaction, Account, Entity } from '../types';
-import { formatDateLong, toDollars, toCents, formatCurrency, toBudgetMonth, todayISO } from '../utils/helpers';
+import { formatDateLong, toDollars, toCents, formatCurrency, toBudgetMonth, todayISO, formatDateMonthYYYY } from '../utils/helpers';
 import { useBudgetStore } from '../store/budget';
 import { useFamilyStore } from '../store/family';
 import { useUIStore } from '../store/ui';
@@ -554,12 +555,12 @@ const unmatchedImportedTransactions = computed(() => {
 
 const budgetOptions = computed(() => {
   return Array.from(budgetStore.budgets.entries())
+    .sort((a, b) => b[1].month.localeCompare(a[1].month))
     .map(([budgetId, budget]) => ({
       budgetId,
-      month: budget.month,
+      month: formatDateMonthYYYY(budget.month),
       familyId: budget.familyId,
-    }))
-    .sort((a, b) => b.month.localeCompare(a.month));
+    }));
 });
 
 onMounted(async () => {

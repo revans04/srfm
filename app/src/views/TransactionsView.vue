@@ -10,12 +10,12 @@
 
     <!-- Tabs -->
     <v-tabs v-model="tab" :color="isMobile ? 'white' : 'primary'">
-      <v-tab value="entries">Budget Entries</v-tab>
+      <v-tab value="entries">Budget Transactions</v-tab>
       <v-tab value="register">Register</v-tab>
     </v-tabs>
 
     <v-window v-model="tab">
-      <!-- Budget Entries -->
+      <!-- Budget Transactions -->
       <v-window-item class="bg-white" value="entries">
         <!-- Add Transaction Button -->
         <v-btn v-if="isMobile" color="primary" variant="plain" @click="showTransactionDialog = true" icon="mdi-plus"></v-btn>
@@ -60,6 +60,7 @@
                   item-value="budgetId"
                   variant="outlined"
                   multiple
+                  chips
                   clearable
                   :disabled="budgetOptions.length === 0"
                   @update:modelValue="loadTransactions"
@@ -183,7 +184,7 @@
         </v-card>
 
         <v-card density="compact">
-          <v-card-title>Budget Entries</v-card-title>
+          <v-card-title>Budget Transactions</v-card-title>
           <v-list dense>
             <v-list-item v-for="transaction in expenseTransactions" :key="transaction.id" class="transaction-item" :class="{ 'deleted-transaction': transaction.deleted }" @click="editTransaction(transaction)">
               <!-- Desktop Layout -->
@@ -389,7 +390,7 @@ import MatchBudgetTransactionDialog from "../components/MatchBudgetTransactionDi
 import TransactionRegistry from "../components/TransactionRegistry.vue";
 import EntitySelector from "../components/EntitySelector.vue";
 import { Transaction, BudgetInfo, ImportedTransaction, Account, Entity } from "../types";
-import { formatDateLong, toDollars, toCents, formatCurrency, toBudgetMonth, todayISO } from "../utils/helpers";
+import { formatDateLong, toDollars, toCents, formatCurrency, toBudgetMonth, todayISO, formatDateMonthYYYY } from "../utils/helpers";
 import { useBudgetStore } from "../store/budget";
 import { useFamilyStore } from "../store/family";
 import { useUIStore } from "../store/ui";
@@ -582,12 +583,12 @@ const unmatchedImportedTransactions = computed(() => {
 
 const budgetOptions = computed(() => {
   return Array.from(budgetStore.budgets.entries())
+    .sort((a, b) => b[1].month.localeCompare(a[1].month))
     .map(([budgetId, budget]) => ({
       budgetId,
-      month: budget.month,
+      month: formatDateMonthYYYY(budget.month),
       familyId: budget.familyId,
-    }))
-    .sort((a, b) => b.month.localeCompare(a.month));
+    }));
 });
 
 onMounted(async () => {
