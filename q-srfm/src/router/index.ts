@@ -1,9 +1,10 @@
 import { defineRouter } from '#q-app/wrappers';
+import type { Pinia } from 'pinia';
 import { createMemoryHistory, createRouter, createWebHashHistory, createWebHistory } from 'vue-router';
 import routes from './routes';
 import { useAuthStore } from '../store/auth';
 
-export default defineRouter(function (/* { store, ssrContext } */) {
+export default defineRouter(function (ctx /* { store, ssrContext } */) {
   const createHistory = process.env.SERVER ? createMemoryHistory : process.env.VUE_ROUTER_MODE === 'history' ? createWebHistory : createWebHashHistory;
 
   const Router = createRouter({
@@ -12,30 +13,43 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     history: createHistory(process.env.VUE_ROUTER_BASE),
   });
 
+  type CtxWithStore = { store?: Pinia };
+  const pinia = (ctx as unknown as CtxWithStore).store;
+
   Router.beforeEach(async (to, from, next) => {
-    const auth = useAuthStore();
+    const auth = pinia ? useAuthStore(pinia) : useAuthStore();
     console.log('Route guard: Navigating to', to.path);
 
-    const requiresAuth = to.matched.some((record) => record.path !== '/login');
+    const isLoginRoute = to.path === '/login' || to.path.startsWith('/login/');
 
-    if (requiresAuth) {
-      console.log('Route guard: Protected route, checking auth');
+    // Allow access to login route without auth; if already authed, send to dashboard
+    if (isLoginRoute) {
       try {
         const user = await auth.initializeAuth();
         if (user) {
-          console.log('Route guard: User authenticated', user.uid);
-          next();
-        } else {
-          console.log('Route guard: No user, redirecting to /login');
-          next('/login');
+          console.log('Route guard: Already authenticated, redirecting from /login to /');
+          return next('/');
         }
       } catch (error) {
-        console.error('Route guard: Auth error', error);
-        next('/login');
+        console.warn('Route guard: Auth check failed on login route', error);
       }
-    } else {
-      console.log('Route guard: Public route, allowing access');
-      next();
+      console.log('Route guard: Public login route, allowing access');
+      return next();
+    }
+
+    // All other routes require auth
+    console.log('Route guard: Protected route, checking auth');
+    try {
+      const user = await auth.initializeAuth();
+      if (user) {
+        console.log('Route guard: User authenticated', user.uid);
+        return next();
+      }
+      console.log('Route guard: No user, redirecting to /login');
+      return next({ path: '/login', query: { redirect: to.fullPath } });
+    } catch (error) {
+      console.error('Route guard: Auth error', error);
+      return next('/login');
     }
   });
 

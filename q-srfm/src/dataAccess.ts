@@ -21,10 +21,13 @@ type RawAccount = Account & { createdAt?: unknown; updatedAt?: unknown };
 
 export class DataAccess {
   private apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
-  private auth = useAuthStore();
+  // Lazily access the auth store to ensure Pinia is active
+  private get authStore() {
+    return useAuthStore();
+  }
 
   private async getAuthHeaders(): Promise<HeadersInit> {
-    const token = await this.auth.user?.getIdToken();
+    const token = await this.authStore.user?.getIdToken();
     if (!token) throw new Error('User not authenticated');
     return {
       Authorization: `Bearer ${token}`,
@@ -827,12 +830,20 @@ export class DataAccess {
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       const data = (await response.json()) as Record<string, unknown>[];
-      return data.map((s) => ({
-        ...s,
-        // API may send ISO strings via FirestoreDateStringConverter; support both shapes
-        date: this.toTimestamp(s.date) ?? Timestamp.fromDate(new Date()),
-        createdAt: this.toTimestamp(s.createdAt) ?? Timestamp.fromDate(new Date()),
-      })) as Snapshot[];
+      return data.map((raw) => {
+        const s = raw;
+        const date = this.toTimestamp(s.date ?? s.Date) ?? Timestamp.fromDate(new Date());
+        const createdAt = this.toTimestamp(s.createdAt ?? s.CreatedAt) ?? Timestamp.fromDate(new Date());
+        const netWorth = Number(s.netWorth ?? s.NetWorth ?? 0);
+        const id = typeof s.id === 'string' || typeof s.id === 'number'
+          ? String(s.id)
+          : typeof s.Id === 'string' || typeof s.Id === 'number'
+          ? String(s.Id)
+          : '';
+        // Keep accounts as-is if present
+        const accounts = Array.isArray(s.accounts ?? s.Accounts) ? ((s.accounts ?? s.Accounts) as unknown[]) : [];
+        return { id, date, netWorth, createdAt, accounts } as unknown as Snapshot;
+      });
     } catch (error) {
       console.error('Error fetching snapshots:', error);
       return [];
@@ -874,6 +885,43 @@ export class DataAccess {
     const response = await fetch(`${this.apiBaseUrl}/families/${familyId}/accounts/${accountNumber}/statements`, { headers });
     if (!response.ok) throw new Error(`Failed to fetch statements: ${response.statusText}`);
     return await response.json();
+  }
+
+  // -----------------
+  // Sync Functions
+  // -----------------
+  async syncFull(): Promise<string> {
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(`${this.apiBaseUrl}/sync/full`, {
+      method: 'POST',
+      headers,
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Failed to run full sync: ${response.status} ${response.statusText} - ${text}`);
+    }
+    try {
+      const body = (await response.json()) as { message?: string };
+      return body?.message || 'Full sync completed';
+    } catch {
+      return 'Full sync completed';
+    }
+  }
+
+  async syncIncremental(sinceISO: string): Promise<string> {
+    const headers = await this.getAuthHeaders();
+    const url = `${this.apiBaseUrl}/sync/incremental?since=${encodeURIComponent(sinceISO)}`;
+    const response = await fetch(url, { method: 'POST', headers });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Failed to run incremental sync: ${response.status} ${response.statusText} - ${text}`);
+    }
+    try {
+      const body = (await response.json()) as { message?: string };
+      return body?.message || 'Incremental sync completed';
+    } catch {
+      return 'Incremental sync completed';
+    }
   }
 
   async saveStatement(

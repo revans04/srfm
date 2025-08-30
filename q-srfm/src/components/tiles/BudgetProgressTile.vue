@@ -1,10 +1,10 @@
 <template>
-  <q-card flat bordered class="tile">
+  <q-card flat bordered class="tile tile--primary text-white">
     <q-card-section class="row items-center justify-between">
       <div class="col text-subtitle2">Budget Progress</div>
-      <q-btn dense flat icon="refresh" :loading="loading" @click="loadBudget" />
+      <q-btn dense flat round icon="refresh" color="white" :loading="loading" @click="loadBudget" />
     </q-card-section>
-    <q-separator />
+    <q-separator class="sep--dark" />
     <q-card-section>
       <div v-if="loading" class="row items-center justify-center q-pa-md">
         <q-spinner size="24px" color="primary" />
@@ -13,23 +13,23 @@
         <div class="row items-center">
           <div class="col">
             <div class="text-caption">Planned Expenses</div>
-            <div class="text-h6">{{ money(plannedExpenses) }}</div>
+            <div class="text-h5">{{ money(plannedExpenses) }}</div>
           </div>
           <div class="col">
             <div class="text-caption">Actual Income</div>
-            <div class="text-h6">{{ money(actualIncome) }}</div>
+            <div class="text-h5">{{ money(actualIncome) }}</div>
           </div>
         </div>
         <div class="row items-center q-mt-sm">
           <div class="col">
-            <q-linear-progress :value="progress" color="primary" rounded />
+            <q-linear-progress :value="progress" color="white" track-color="teal-6" rounded />
           </div>
           <div class="col-auto text-caption q-ml-sm">
             {{ (progress * 100).toFixed(0) }}%
           </div>
         </div>
         <div class="row q-mt-sm">
-          <div class="col text-weight-medium" :class="{ 'text-negative': remaining < 0 }">
+          <div class="col text-weight-medium">
             {{ remainingLabel }}
           </div>
         </div>
@@ -50,8 +50,8 @@ const budget = ref<Budget | undefined>(undefined);
 const loading = ref(false);
 
 function money(n: number) {
-  const s = (Math.round(n * 100) / 100).toFixed(2);
-  return `$${s}`;
+  const v = Math.round(n * 100) / 100;
+  return `$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 async function ensureBudget() {
@@ -123,7 +123,8 @@ watch(
 </script>
 
 <style scoped>
-.tile {
-  min-height: 150px;
-}
+.tile { min-height: 150px; border-radius: 12px; }
+.tile--primary { background: var(--q-primary); }
+.sep--dark { opacity: 0.2; }
+.text-subtitle2 { font-weight: 600; letter-spacing: .3px; }
 </style>

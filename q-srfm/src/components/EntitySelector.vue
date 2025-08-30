@@ -1,20 +1,22 @@
 <template>
-  <h4 class="entity-label">
-    {{ currentEntityName }}
-    <q-icon size="xs" name="expand_more" style="color: var(--q-primary); vertical-align: middle; cursor: pointer" @click="menuOpen = !menuOpen">
-      <q-menu v-model="menuOpen" :offset="[0, 4]">
-        <q-list class="entity-menu" style="background-color: white">
-          <q-item v-for="option in entityOptions" :key="option.id" clickable @click="selectEntity(option.id)">
-            <q-item-section>{{ option.name }}</q-item-section>
-          </q-item>
-        </q-list>
-      </q-menu>
-    </q-icon>
-  </h4>
+  <div class="entity-wrap">
+    <h4 class="entity-label">
+      {{ currentEntityName }}
+      <q-btn flat dense round icon="expand_more" size="sm">
+        <q-menu v-model="menuOpen" anchor="bottom left" self="top left" :offset="[0, 4]" @show="onMenuShow" @hide="onMenuHide">
+          <q-list class="entity-menu" style="background-color: white">
+            <q-item v-for="option in entityOptions" :key="option.id" clickable @click="selectEntity(option.id)">
+              <q-item-section>{{ option.name }}</q-item-section>
+            </q-item>
+          </q-list>
+        </q-menu>
+      </q-btn>
+    </h4>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed } from 'vue';
 import { useFamilyStore } from '../store/family';
 
 const emit = defineEmits<{ (e: 'change', value: string): void }>();
@@ -32,7 +34,6 @@ const entityOptions = computed(() => {
 const currentEntityName = computed(() => {
   if (!familyStore.selectedEntityId) return 'All Entities';
   const entity = entities.value.find((e) => e.id === familyStore.selectedEntityId);
-  console.log('Entity found:', entity);
   return entity?.name || 'All Entities';
 });
 
@@ -42,18 +43,17 @@ function selectEntity(id: string) {
   emit('change', id);
 }
 
-onMounted(() => {
-  console.log('EntitySelector: entities', entities.value);
-  console.log('EntitySelector: selectedEntityId', familyStore.selectedEntityId);
-  console.log('EntitySelector: currentEntityName', currentEntityName.value);
-});
-
-watch(
-  () => familyStore.selectedEntityId,
-  () => {
-    console.log('Selected Entity ID changed to:', familyStore.selectedEntityId, 'Name:', currentEntityName.value);
-  },
-);
+// Targeted logging for debugging selector open/close
+const DBG = '[EntitySelector]';
+// Btn+QMenu handles toggling; keep diagnostic hooks
+function onMenuShow() {
+  // eslint-disable-next-line no-console
+  console.debug(DBG, 'menu show');
+}
+function onMenuHide() {
+  // eslint-disable-next-line no-console
+  console.debug(DBG, 'menu hide');
+}
 </script>
 
 <style scoped>

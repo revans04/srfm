@@ -1,6 +1,7 @@
 // FamilyBudgetApi/Controllers/SyncController.cs
 using Microsoft.AspNetCore.Mvc;
 using System;
+using System.Globalization;
 using System.Threading.Tasks;
 using FamilyBudgetApi.Services;
 using Microsoft.Extensions.Logging;
@@ -45,13 +46,22 @@ namespace FamilyBudgetApi.Controllers
             {
                 return BadRequest("Query parameter 'since' is required.");
             }
-            if (!DateTime.TryParse(since, out var parsedSince))
+            // Prefer strict ISO-8601 parsing; fall back to Assume/Adjust to UTC
+            DateTime sinceUtc;
+            if (DateTimeOffset.TryParse(since, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var dto))
+            {
+                sinceUtc = dto.UtcDateTime;
+            }
+            else if (DateTime.TryParse(since, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var dt))
+            {
+                sinceUtc = dt.ToUniversalTime();
+            }
+            else
             {
                 return BadRequest("Query parameter 'since' must be a valid ISO-8601 timestamp.");
             }
-
-            await _syncService.IncrementalSyncFirestoreToSupabaseAsync(parsedSince);
-            return Ok(new { message = $"Incremental sync completed since {parsedSince:o}" });
+            await _syncService.IncrementalSyncFirestoreToSupabaseAsync(sinceUtc);
+            return Ok(new { message = $"Incremental sync completed since {sinceUtc:o}" });
         }
     }
 }

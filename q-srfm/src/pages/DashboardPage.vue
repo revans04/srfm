@@ -1,5 +1,5 @@
 <template>
-  <q-page fluid :class="isMobile ? 'q-pt-none q-px-none' : ''">
+  <q-page fluid :class="isMobile ? 'q-pt-none q-px-none' : 'q-pl-lg'">
     <!-- Loading Animation -->
     <div v-if="loading" class="row justify-center q-mt-lg">
       <q-spinner color="primary" size="50px" />
@@ -16,7 +16,7 @@
             <div class="row items-center">
               <div class="col">
                 No budgets found for {{ selectedEntity?.name || 'selected entity' }}. Would you like to create a default budget for
-                {{ formatMonth(currentMonth) }}? You can also import budget information from the Data Page.
+                {{ formatLongMonth(currentMonth) }}? You can also import budget information from the Data Page.
               </div>
               <div class="col-auto">
                 <q-btn color="primary" @click="createDefaultBudget">Create Default Budget</q-btn>
@@ -34,36 +34,37 @@
           <!-- Entity Dropdown -->
           <EntitySelector @change="loadBudgets" class="q-mb-sm" />
           <h4>
-            {{ formatMonth(currentMonth) }}
-            <span class="month-selector no-wrap" :class="{ 'text-white': isMobile }" @click="menuOpen = true">
-              <q-icon size="xs" name="expand_more" />
-              <q-menu v-model="menuOpen" :offset="[0, 4]" :close-on-content-click="false">
-                <q-card class="month-menu">
-                  <div class="row no-wrap items-center q-px-sm q-py-xs border-bottom">
-                    <div class="col-auto">
-                      <q-btn flat dense icon="chevron_left" @click.stop="shiftMonths(-6)" />
-                    </div>
-                    <div class="col text-center">
-                      <span>{{ displayYear }}</span>
-                    </div>
-                    <div class="col-auto">
-                      <q-btn flat dense icon="chevron_right" @click.stop="shiftMonths(6)" />
+            <span class="month-selector no-wrap" :class="{ 'text-white': isMobile }">
+              {{ formatLongMonth(currentMonth) }}
+              <q-btn flat dense round icon="expand_more" size="sm">
+                <q-menu v-model="menuOpen" anchor="bottom left" self="top left" :offset="[0, 4]" :close-on-content-click="false" @show="onMonthMenuShow" @hide="onMonthMenuHide">
+              <q-card class="month-menu">
+                <div class="row no-wrap items-center q-px-sm q-py-xs border-bottom">
+                  <div class="col-auto">
+                    <q-btn flat dense icon="chevron_left" @click.stop="shiftMonths(-6)" />
+                  </div>
+                  <div class="col text-center">
+                    <span>{{ displayYear }}</span>
+                  </div>
+                  <div class="col-auto">
+                    <q-btn flat dense icon="chevron_right" @click.stop="shiftMonths(6)" />
+                  </div>
+                </div>
+                <div class="row">
+                  <div v-for="month in displayedMonths" :key="month.value" class="col-4">
+                    <div
+                      class="q-pa-xs q-ma-xs text-center cursor-pointer border rounded"
+                      :class="month.value === currentMonth ? 'bg-primary text-white' : 'text-primary'"
+                      :style="monthExists(month.value) ? 'border-style: solid' : 'border-style: dashed'"
+                      @click="selectMonth(month.value)"
+                    >
+                      {{ month.label }}
                     </div>
                   </div>
-                  <div class="row">
-                    <div v-for="month in displayedMonths" :key="month.value" class="col-4">
-                      <div
-                        class="q-pa-xs q-ma-xs text-center cursor-pointer border rounded"
-                        :class="month.value === currentMonth ? 'bg-primary text-white' : 'text-primary'"
-                        :style="monthExists(month.value) ? 'border-style: solid' : 'border-style: dashed'"
-                        @click="selectMonth(month.value)"
-                      >
-                        {{ month.label }}
-                      </div>
-                    </div>
-                  </div>
-                </q-card>
-              </q-menu>
+                </div>
+              </q-card>
+            </q-menu>
+              </q-btn>
             </span>
             <q-btn v-if="!isMobile && !isEditing" flat icon="edit" @click="isEditing = true" title="Edit Budget" />
             <q-btn v-if="isEditing" flat icon="close" @click="isEditing = false" title="Cancel" />
@@ -85,6 +86,33 @@
         <!-- Dashboard Tiles -->
         <div class="col-12">
           <DashboardTiles :budget-id="budgetId" :family-id="familyId" @open-bills="onOpenBills" @create-goal="onCreateGoal" />
+        </div>
+
+        <!-- Quick actions -->
+        <div class="col-12 q-mt-sm">
+          <q-btn color="primary" class="full-width q-py-sm" rounded unelevated size="lg" label="View Transactions" to="/transactions" />
+        </div>
+
+        <!-- Charts Row -->
+        <div class="col-12 q-mt-md">
+          <div class="row q-col-gutter-md">
+            <div class="col-12 col-md-6">
+              <SpendingByCategoryCard :budget-id="budgetId" />
+            </div>
+            <div class="col-12 col-md-6">
+              <IncomeVsExpensesCard :entity-id="selectedEntity?.id" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Budget Status Banner -->
+        <div class="col-12 q-mt-md">
+          <q-banner :class="['text-white', 'rounded-borders', remainingToBudget >= 0 ? 'bg-positive' : 'bg-negative']">
+            <q-icon name="emoji_events" class="q-mr-sm" />
+            {{ remainingToBudget >= 0
+              ? `You are ${formatCurrency(toDollars(toCents(remainingToBudget)))} under budget`
+              : `You are ${formatCurrency(toDollars(toCents(Math.abs(remainingToBudget))))} over budget` }}
+          </q-banner>
         </div>
         <div v-if="!isMobile || !selectedCategory" class="col-12 sm:col-6">
           <div class="q-my-sm bg-white q-pa-md rounded-borders">
@@ -323,6 +351,8 @@ import CategoryTransactions from '../components/CategoryTransactions.vue';
 import TransactionForm from '../components/TransactionForm.vue';
 import EntitySelector from '../components/EntitySelector.vue';
 import DashboardTiles from '../components/DashboardTiles.vue';
+import SpendingByCategoryCard from '../components/charts/SpendingByCategoryCard.vue';
+import IncomeVsExpensesCard from '../components/charts/IncomeVsExpensesCard.vue';
 import type { Transaction, Budget, IncomeTarget, BudgetCategoryTrx, BudgetCategory } from '../types';
 import version from '../version';
 import { toDollars, toCents, formatCurrency, adjustTransactionDate, todayISO, currentMonthISO } from '../utils/helpers';
@@ -333,6 +363,13 @@ import { useFamilyStore } from '../store/family';
 import debounce from 'lodash/debounce';
 import { v4 as uuidv4 } from 'uuid';
 import { DEFAULT_BUDGET_TEMPLATES } from '../constants/budgetTemplates';
+
+// Structured logger for this page
+const DBG = '[Dashboard]';
+function log(...args: unknown[]) {
+  // eslint-disable-next-line no-console
+  console.log(DBG, ...args);
+}
 
 const $q = useQuasar();
 const budgetStore = useBudgetStore();
@@ -417,6 +454,14 @@ const selectedEntity = computed(() => {
   return familyStore.family?.entities?.find((e) => e.id === familyStore.selectedEntityId);
 });
 
+function matchesSelectedEntity(b: Budget) {
+  // If no specific entity is selected, allow any
+  if (!familyStore.selectedEntityId) return true;
+  if (b.entityId) return b.entityId === familyStore.selectedEntityId;
+  // Some legacy family budgets may have no entityId; treat them as the Family entity
+  return selectedEntity.value?.type === 'Family';
+}
+
 const budgetedExpenses = computed(() => {
   const totalPlanned = budget.value.categories
     .filter((cat) => cat.name !== 'Income' && cat.group !== 'Income')
@@ -428,7 +473,7 @@ const remainingToBudget = computed(() => {
   return actualIncome.value - budgetedExpenses.value;
 });
 
-const formatMonth = (month: string) => {
+const formatLongMonth = (month: string) => {
   const [year, monthNum] = month.split('-');
   const date = new Date(parseInt(year), parseInt(monthNum) - 1);
   return date.toLocaleString('en-US', { month: 'long', year: 'numeric' });
@@ -569,7 +614,7 @@ const plannedIncome = computed(() => {
 });
 
 function monthExists(month: string) {
-  return availableBudgets.value.filter((b) => b.month == month && b.entityId === familyStore.selectedEntityId).length > 0;
+  return availableBudgets.value.some((b) => b.month === month && matchesSelectedEntity(b));
 }
 
 function onIncomeRowClick(item: IncomeTarget) {
@@ -614,13 +659,20 @@ watch(selectedCategory, (newVal) => {
 
 watch(
   () => familyStore.selectedEntityId,
-  async () => {
+  async (val, oldVal) => {
+    log('selectedEntityId changed', { from: oldVal, to: val });
     await loadBudgets();
   },
 );
 
 const updateBudgetForMonth = debounce(async () => {
+  log('updateBudgetForMonth start', {
+    selectedEntityId: familyStore.selectedEntityId,
+    currentMonth: currentMonth.value,
+    budgetsCount: budgets.value.length,
+  });
   if (!familyStore.selectedEntityId) {
+    log('No selected entity; resetting empty budget model');
     budget.value = {
       familyId: '',
       entityId: '',
@@ -634,8 +686,9 @@ const updateBudgetForMonth = debounce(async () => {
     return;
   }
 
-  const defaultBudget = budgets.value.find((b) => b.month === currentMonth.value && b.entityId === familyStore.selectedEntityId);
+  const defaultBudget = budgets.value.find((b) => b.month === currentMonth.value && matchesSelectedEntity(b));
   if (defaultBudget) {
+    log('Found budget for current month/entity', { month: currentMonth.value, entityId: familyStore.selectedEntityId });
     const family = await familyStore.getFamily();
     if (family) {
       ownerUid.value = family.ownerUid;
@@ -650,6 +703,7 @@ const updateBudgetForMonth = debounce(async () => {
       categoryOptions.value.push('Income');
     }
   } else if (isInitialLoad.value && budgets.value.length > 0) {
+    log('No current-month budget; picking most recent for entity');
     const sortedBudgets = budgets.value
       .filter((b) => b.entityId === familyStore.selectedEntityId)
       .sort((a, b) => {
@@ -659,6 +713,7 @@ const updateBudgetForMonth = debounce(async () => {
       });
     const mostRecentBudget = sortedBudgets[0];
     if (mostRecentBudget) {
+      log('Switching to most recent budget', mostRecentBudget.month);
       currentMonth.value = mostRecentBudget.month;
       budget.value = { ...mostRecentBudget, budgetId: budgetId.value };
 
@@ -674,6 +729,8 @@ const updateBudgetForMonth = debounce(async () => {
       if (!categoryOptions.value.includes('Income')) {
         categoryOptions.value.push('Income');
       }
+    } else {
+      log('No budgets exist for selected entity');
     }
   }
 }, 300);
@@ -681,9 +738,11 @@ const updateBudgetForMonth = debounce(async () => {
 watch(
   () => budgetStore.budgets,
   (newBudgets) => {
+    log('Budget store changed', { size: (newBudgets as Map<string, Budget>).size });
     budgets.value = Array.from(newBudgets.values());
     availableBudgets.value = budgets.value;
     if (budgets.value.length > 0) {
+      log('Triggering updateBudgetForMonth due to budgets change');
       updateBudgetForMonth();
     }
   },
@@ -691,11 +750,25 @@ watch(
 );
 
 watch(currentMonth, () => {
+  log('currentMonth changed', currentMonth.value);
   updateBudgetForMonth();
 });
 
+watch(
+  () => budgetId.value,
+  (val, oldVal) => {
+    log('budgetId changed', {
+      from: oldVal,
+      to: val,
+      ownerUid: ownerUid.value,
+      selectedEntityId: familyStore.selectedEntityId,
+      currentMonth: currentMonth.value,
+    });
+  },
+);
+
 onMounted(async () => {
-  console.log('Mounted: Checking auth state');
+  log('Mounted: Checking auth state', { uid: auth.user?.uid, email: auth.user?.email });
   loading.value = true;
 
   try {
@@ -716,12 +789,17 @@ onMounted(async () => {
 
     loadingTimeout = setTimeout(() => {
       showLoadingMessage.value = true;
-      console.log('Loading timeout triggered');
+      log('Loading timeout triggered');
     }, 5000);
 
-    console.log('Loading family for user:', auth.user.uid);
+    log('Loading family for user', auth.user.uid);
     await familyStore.loadFamily(auth.user.uid);
-    console.log('Loading budgets');
+    log('Family loaded', {
+      familyId: familyStore.family?.id,
+      entities: familyStore.family?.entities?.length || 0,
+      selectedEntityId: familyStore.selectedEntityId,
+    });
+    log('Loading budgets');
     await loadBudgets();
   } catch (error: unknown) {
     const err = error as Error;
@@ -736,6 +814,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  log('Unmount: cleaning up subscriptions and timers');
   budgetStore.unsubscribeAll();
   if (loadingTimeout) clearTimeout(loadingTimeout);
 });
@@ -751,14 +830,18 @@ function onCreateGoal() {
 async function loadBudgets() {
   const user = auth.user;
   if (!user) {
-    console.log('No user for loading budgets');
+    log('No user for loading budgets');
     return;
   }
 
   loading.value = true;
   try {
-    console.log('Loading budgets for user:', user.uid, 'entity:', familyStore.selectedEntityId);
+    log('Loading budgets for user', { uid: user.uid, entityId: familyStore.selectedEntityId });
     await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
+    log('Budgets loaded', {
+      total: budgetStore.budgets.size,
+      months: Array.from(budgetStore.budgets.values()).map((b) => b.month),
+    });
   } catch (error: unknown) {
     const err = error as Error;
     console.error('Error loading budgets:', err);
@@ -984,9 +1067,16 @@ function shiftMonths(offset: number) {
 }
 
 async function selectMonth(month: string) {
+  // If no entity is selected, but a budget exists for this month for some entity,
+  // temporarily switch to that entity so the user can view it.
   if (!familyStore.selectedEntityId) {
-    showSnackbar('Please select an entity before selecting a month', 'error');
-    return;
+    const existing = availableBudgets.value.find((b) => b.month === month);
+    if (existing?.entityId) {
+      familyStore.selectEntity(existing.entityId);
+    } else {
+      showSnackbar('Select an entity to create a budget for this month', 'warning');
+      return;
+    }
   }
 
   if (!monthExists(month)) {
@@ -1028,6 +1118,18 @@ async function selectMonth(month: string) {
   } finally {
     loading.value = false;
   }
+}
+
+// Targeted logging for Month selector
+function onMonthToggle() {
+  menuOpen.value = true;
+  log('Month toggle clicked, opening menu');
+}
+function onMonthMenuShow() {
+  log('Month menu shown');
+}
+function onMonthMenuHide() {
+  log('Month menu hidden');
 }
 
 async function saveBudget() {

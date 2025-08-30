@@ -10,8 +10,15 @@
           <q-card-section>
             <p class="text-center">Sign in with your Google account to manage your finances.</p>
           </q-card-section>
-          <q-card-actions class="justify-center q-pb-lg">
+          <q-card-actions class="column items-center q-pb-lg q-gutter-sm">
             <div id="google-signin-button"></div>
+            <q-btn
+              color="primary"
+              icon="login"
+              label="Sign in with Google"
+              :loading="loading"
+              @click="loginWithPopup"
+            />
           </q-card-actions>
           <q-card-section v-if="error">
             <q-banner type="error" dense>{{ error }}</q-banner>
@@ -85,6 +92,21 @@ const handleCredentialResponse = async (response: { credential: string }) => {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     error.value = msg || 'Failed to sign in with Google';
     console.error('Login error:', err);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const loginWithPopup = async () => {
+  loading.value = true;
+  error.value = '';
+  try {
+    await authStore.loginWithGoogle();
+    await router.push('/');
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    error.value = msg || 'Failed to sign in with Google';
+    console.error('Login popup error:', err);
   } finally {
     loading.value = false;
   }

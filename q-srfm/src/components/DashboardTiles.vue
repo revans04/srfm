@@ -24,4 +24,3 @@ import GoalsTile from './tiles/GoalsTile.vue';
 defineProps<{ budgetId: string; familyId: string }>();
 defineEmits<{ (e: 'open-bills'): void; (e: 'create-goal'): void }>();
 </script>
-

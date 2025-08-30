@@ -1,10 +1,10 @@
 <template>
-  <q-card flat bordered class="tile">
+  <q-card flat bordered class="tile tile--info text-white">
     <q-card-section class="row items-center justify-between">
       <div class="col text-subtitle2">Net Worth</div>
-      <q-btn dense flat icon="refresh" :loading="loading" @click="loadNetWorth" />
+      <q-btn dense flat round icon="refresh" color="white" :loading="loading" @click="loadNetWorth" />
     </q-card-section>
-    <q-separator />
+    <q-separator class="sep--dark" />
     <q-card-section>
       <div v-if="loading" class="row items-center justify-center q-pa-md">
         <q-spinner size="24px" color="primary" />
@@ -34,8 +34,8 @@ const loading = ref(false);
 const value = ref<number | null>(null);
 
 function money(n: number) {
-  const s = (Math.round(n * 100) / 100).toFixed(2);
-  return `$${s}`;
+  const v = Math.round(n * 100) / 100;
+  return `$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 async function loadNetWorth() {
@@ -74,13 +74,16 @@ async function loadNetWorth() {
 
 watch(
   () => props.familyId,
-  (val) => {
-    if (val) void loadNetWorth();
+  () => {
+    if (props.familyId) void loadNetWorth();
   },
   { immediate: true },
 );
 </script>
 
 <style scoped>
-.tile { min-height: 150px; }
+.tile { min-height: 150px; border-radius: 12px; }
+.tile--info { background: var(--q-info); }
+.sep--dark { opacity: 0.2; }
+.text-subtitle2 { font-weight: 600; letter-spacing: .3px; }
 </style>

@@ -142,7 +142,8 @@ var app = builder.Build();
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
 logger.LogInformation("Firebase setup completed with project ID: {ProjectId}", projectId);
 
-// Enable CORS using the configured policy
+// Enable routing + CORS using the configured policy (CORS must run between routing and endpoints)
+app.UseRouting();
 app.UseCors("AllowLocalDomain");
 
 

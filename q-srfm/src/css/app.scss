@@ -43,3 +43,17 @@ h4 {
     line-height: 2rem;
     letter-spacing: 0.00735em;
 }
+
+/* Brand-driven surface + text defaults */
+body, .q-page {
+  background: #F5F7FA; /* Background (light) */
+  color: #212121;      /* Text Primary */
+}
+
+.q-card {
+  background: #FFFFFF; /* Surface / Cards */
+}
+
+.text-secondary, .q-text-secondary {
+  color: #757575 !important; /* Text Secondary */
+}

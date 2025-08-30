@@ -383,7 +383,21 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
         await using var cmd = new NpgsqlCommand(sql, conn);
         BindTransactionParameters(cmd, budgetId, transaction);
         await cmd.ExecuteNonQueryAsync();
-        await SaveCategories(conn, transaction.Id, transaction.Categories);
+        // Ensure at least one split row exists. If none provided, create a default
+        // split using either 'Income' or 'Uncategorized' for the full amount.
+        var cats = transaction.Categories;
+        if (cats == null || cats.Count == 0)
+        {
+            cats = new List<TransactionCategory>
+            {
+                new TransactionCategory
+                {
+                    Category = transaction.IsIncome ? "Income" : "Uncategorized",
+                    Amount = transaction.Amount
+                }
+            };
+        }
+        await SaveCategories(conn, transaction.Id, cats);
         await LogEdit(conn, budgetId, userId, userEmail, "save-transaction");
     }
 

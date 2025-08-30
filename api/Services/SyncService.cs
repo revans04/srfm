@@ -46,58 +46,69 @@ namespace FamilyBudgetApi.Services
         /// <param name="since">The timestamp after which updated records should be synced.</param>
         public async Task IncrementalSyncFirestoreToSupabaseAsync(DateTime since)
         {
-            _logger.LogInformation("Starting incremental Firestore → Supabase sync since {Since}.", since);
-            await SyncAccountsAsync(since);
-            await SyncSnapshotsAsync(since);
-            await SyncBudgetsAsync(since);
-            await SyncImportedTransactionsAsync(since);
+            var sinceUtc = since.Kind == DateTimeKind.Utc ? since : since.ToUniversalTime();
+            _logger.LogInformation("Starting incremental Firestore → Supabase sync since {Since}.", sinceUtc);
+            await SyncAccountsAsync(sinceUtc);
+            await SyncSnapshotsAsync(sinceUtc);
+            await SyncBudgetsAsync(sinceUtc);
+            await SyncImportedTransactionsAsync(sinceUtc);
             _logger.LogInformation("Completed incremental Firestore → Supabase sync.");
         }
 
         private async Task SyncAccountsAsync(DateTime? updatedSince)
         {
-            Query query = _firestoreDb.CollectionGroup("accounts");
-            if (updatedSince.HasValue)
-            {
-                query = query.WhereGreaterThanOrEqualTo("updatedAt", updatedSince.Value);
-            }
-
-            var snapshot = await query.GetSnapshotAsync();
+            // Avoid collection group index requirement by iterating families and querying their
+            // nested "accounts" subcollection individually.
             var supabaseAccounts = new List<PgAccount>();
+            var familiesSnap = await _firestoreDb.Collection("families").GetSnapshotAsync();
+            var ts = updatedSince.HasValue
+                ? Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(updatedSince.Value.ToUniversalTime())
+                : null;
 
-            foreach (var doc in snapshot.Documents)
+            foreach (var familyDoc in familiesSnap.Documents)
             {
-                var account = doc.ConvertTo<Account>();
-                var familyId = TryParseGuid(doc.Reference.Parent.Parent?.Id);
-                var createdAt = account.CreatedAt.ToDateTime();
-                var updatedAt = account.UpdatedAt.ToDateTime();
-                if (createdAt == DateTime.MinValue)
+                var familyGuid = TryParseGuid(familyDoc.Id);
+                var accountsRef = familyDoc.Reference.Collection("accounts");
+                Query q = accountsRef;
+                if (ts != null)
                 {
-                    createdAt = doc.CreateTime?.ToDateTime() ?? DateTime.UtcNow;
-                }
-                if (updatedAt == DateTime.MinValue)
-                {
-                    updatedAt = doc.UpdateTime?.ToDateTime() ?? createdAt;
+                    q = q.WhereGreaterThanOrEqualTo("updatedAt", ts);
                 }
 
-                supabaseAccounts.Add(new PgAccount
+                var accountSnap = await q.GetSnapshotAsync();
+                foreach (var doc in accountSnap.Documents)
                 {
-                    Id = account.Id,
-                    FamilyId = familyId,
-                    UserId = account.UserId,
-                    Name = account.Name,
-                    Type = account.Type,
-                    Category = account.Category,
-                    AccountNumber = account.AccountNumber,
-                    Institution = account.Institution,
-                    Balance = (decimal?)account.Balance ?? 0m,
-                    InterestRate = (decimal?)account.Details?.InterestRate,
-                    AppraisedValue = (decimal?)account.Details?.AppraisedValue,
-                    MaturityDate = TryParseDate(account.Details?.MaturityDate),
-                    Address = account.Details?.Address,
-                    CreatedAt = createdAt,
-                    UpdatedAt = updatedAt
-                });
+                    var account = doc.ConvertTo<Account>();
+                    var createdAt = account.CreatedAt.ToDateTime();
+                    var updatedAt = account.UpdatedAt.ToDateTime();
+                    if (createdAt == DateTime.MinValue)
+                    {
+                        createdAt = doc.CreateTime?.ToDateTime() ?? DateTime.UtcNow;
+                    }
+                    if (updatedAt == DateTime.MinValue)
+                    {
+                        updatedAt = doc.UpdateTime?.ToDateTime() ?? createdAt;
+                    }
+
+                    supabaseAccounts.Add(new PgAccount
+                    {
+                        Id = account.Id,
+                        FamilyId = familyGuid,
+                        UserId = account.UserId,
+                        Name = account.Name,
+                        Type = account.Type,
+                        Category = account.Category,
+                        AccountNumber = account.AccountNumber,
+                        Institution = account.Institution,
+                        Balance = (decimal?)account.Balance ?? 0m,
+                        InterestRate = (decimal?)account.Details?.InterestRate,
+                        AppraisedValue = (decimal?)account.Details?.AppraisedValue,
+                        MaturityDate = TryParseDate(account.Details?.MaturityDate),
+                        Address = account.Details?.Address,
+                        CreatedAt = createdAt,
+                        UpdatedAt = updatedAt
+                    });
+                }
             }
 
             if (supabaseAccounts.Count == 0)
@@ -280,13 +291,15 @@ namespace FamilyBudgetApi.Services
             Query query = _firestoreDb.Collection("budgets");
             if (updatedSince.HasValue)
             {
+                var ts = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(updatedSince.Value.ToUniversalTime());
                 // Firestore stores timestamps as 'updatedAt'
-                query = query.WhereGreaterThanOrEqualTo("updatedAt", updatedSince.Value);
+                query = query.WhereGreaterThanOrEqualTo("updatedAt", ts);
             }
 
             var snapshot = await query.GetSnapshotAsync();
             var supabaseBudgets = new List<PgBudget>();
             var supabaseTransactions = new List<PgTransaction>();
+            var supabaseTxCategories = new List<PgTransactionCategory>();
             var supabaseCategories = new List<PgBudgetCategory>();
             var supabaseMerchants = new List<PgMerchant>();
 
@@ -334,6 +347,29 @@ namespace FamilyBudgetApi.Services
                         UpdatedAt = doc.UpdateTime?.ToDateTime() ?? DateTime.UtcNow
                     };
                     supabaseTransactions.Add(pgTransaction);
+
+                    // Map split categories for this transaction, ensuring at least one row
+                    if (tx.Categories != null && tx.Categories.Count > 0)
+                    {
+                        foreach (var c in tx.Categories)
+                        {
+                            supabaseTxCategories.Add(new PgTransactionCategory
+                            {
+                                TransactionId = pgTransaction.Id,
+                                CategoryName = c.Category ?? string.Empty,
+                                Amount = (decimal)c.Amount
+                            });
+                        }
+                    }
+                    else
+                    {
+                        supabaseTxCategories.Add(new PgTransactionCategory
+                        {
+                            TransactionId = pgTransaction.Id,
+                            CategoryName = tx.IsIncome ? "Income" : "Uncategorized",
+                            Amount = (decimal)tx.Amount
+                        });
+                    }
                 }
 
                 foreach (var cat in budget.Categories)
@@ -485,6 +521,38 @@ namespace FamilyBudgetApi.Services
                 await catTx.CommitAsync();
             }
 
+            // Upsert transaction split categories
+            if (supabaseTxCategories.Count > 0)
+            {
+                await using var splitTx = await conn.BeginTransactionAsync();
+                // Group by budget using the transactions we just prepared
+                foreach (var grp in supabaseTransactions.GroupBy(t => t.BudgetId))
+                {
+                    var ids = grp.Select(t => t.Id).ToArray();
+                    if (ids.Length == 0) continue;
+
+                    // Delete existing splits for these transactions to avoid duplicates
+                    await using (var delSplits = new NpgsqlCommand("DELETE FROM transaction_categories WHERE transaction_id = ANY(@ids)", conn, splitTx))
+                    {
+                        delSplits.Parameters.AddWithValue("ids", ids);
+                        await delSplits.ExecuteNonQueryAsync();
+                    }
+
+                    // Insert splits for only these transactions
+                    var rows = supabaseTxCategories.Where(s => ids.Contains(s.TransactionId));
+                    const string insSql = "INSERT INTO transaction_categories (transaction_id, category_name, amount) VALUES (@tid, @name, @amount)";
+                    foreach (var row in rows)
+                    {
+                        await using var ins = new NpgsqlCommand(insSql, conn, splitTx);
+                        ins.Parameters.AddWithValue("tid", row.TransactionId);
+                        ins.Parameters.AddWithValue("name", row.CategoryName);
+                        ins.Parameters.AddWithValue("amount", row.Amount);
+                        await ins.ExecuteNonQueryAsync();
+                    }
+                }
+                await splitTx.CommitAsync();
+            }
+
             if (supabaseMerchants.Count > 0)
             {
                 await using var merchTx = await conn.BeginTransactionAsync();
@@ -514,7 +582,8 @@ namespace FamilyBudgetApi.Services
             Query query = _firestoreDb.Collection("importedtransactions");
             if (updatedSince.HasValue)
             {
-                query = query.WhereGreaterThanOrEqualTo("updatedAt", updatedSince.Value);
+                var ts = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(updatedSince.Value.ToUniversalTime());
+                query = query.WhereGreaterThanOrEqualTo("updatedAt", ts);
             }
 
             var snapshot = await query.GetSnapshotAsync();
@@ -780,5 +849,15 @@ namespace FamilyBudgetApi.Services
         public string BudgetId { get; set; } = string.Empty;
         public string? Name { get; set; }
         public int UsageCount { get; set; }
+    }
+
+    /// <summary>
+    /// Represents rows in the 'transaction_categories' table (split amounts per transaction).
+    /// </summary>
+    public class PgTransactionCategory
+    {
+        public string TransactionId { get; set; } = string.Empty;
+        public string CategoryName { get; set; } = string.Empty;
+        public decimal Amount { get; set; }
     }
 }

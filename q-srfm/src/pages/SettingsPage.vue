@@ -38,6 +38,57 @@
             </q-form>
           </q-card-section>
         </q-card>
+
+        <q-card class="mt-4">
+          <q-card-section>Data Sync</q-card-section>
+          <q-card-section>
+            <div class="row items-center q-col-gutter-sm">
+              <div class="col-auto">
+                <q-btn color="primary" :loading="syncing" @click="syncNow">
+                  <q-icon name="sync" class="q-mr-sm" /> Force Sync (Firestore → Supabase)
+                </q-btn>
+              </div>
+            </div>
+            <div class="text-caption q-mt-sm text-secondary">
+              Runs a server-side sync that upserts budgets and transactions into Supabase.
+            </div>
+
+            <q-separator class="q-my-md" />
+
+            <div class="row q-col-gutter-md items-end">
+              <div class="col-12 col-sm-4">
+                <q-input v-model="syncSinceDate" label="Since Date" placeholder="YYYY-MM-DD" dense readonly>
+                  <template #append>
+                    <q-icon name="event" class="cursor-pointer">
+                      <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                        <q-date v-model="syncSinceDate" mask="YYYY-MM-DD" />
+                      </q-popup-proxy>
+                    </q-icon>
+                  </template>
+                </q-input>
+              </div>
+              <div class="col-12 col-sm-3">
+                <q-input v-model="syncSinceTime" label="Time (optional)" placeholder="HH:mm" dense readonly>
+                  <template #append>
+                    <q-icon name="schedule" class="cursor-pointer">
+                      <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                        <q-time v-model="syncSinceTime" mask="HH:mm" format24h />
+                      </q-popup-proxy>
+                    </q-icon>
+                  </template>
+                </q-input>
+              </div>
+              <div class="col-auto">
+                <q-btn color="secondary" :disable="!syncSinceDate" :loading="syncingIncremental" @click="syncIncrementalNow">
+                  <q-icon name="sync_alt" class="q-mr-sm" /> Incremental Sync
+                </q-btn>
+              </div>
+            </div>
+            <div class="text-caption q-mt-sm text-secondary">
+              Runs an incremental sync for changes since the selected date/time.
+            </div>
+          </q-card-section>
+        </q-card>
       </q-tab-panel>
 
       <!-- Entity Management Tab -->
@@ -247,6 +298,10 @@ const entityToDelete = ref<Entity | null>(null);
 const associatedBudgets = ref<Budget[]>([]);
 const validatingBudgets = ref(false);
 const validatingImports = ref(false);
+const syncing = ref(false);
+const syncingIncremental = ref(false);
+const syncSinceDate = ref<string>(''); // format: YYYY-MM-DD
+const syncSinceTime = ref<string>(''); // format: HH:mm (24h)
 
 const entities = computed(() => family.value?.entities || []);
 
@@ -666,5 +721,42 @@ function showSnackbar(text: string, color = "success") {
     timeout: 3000,
     actions: [{ label: 'Close', color: 'white', handler: () => {} }],
   });
+}
+
+async function syncNow() {
+  syncing.value = true;
+  try {
+    const msg = await dataAccess.syncFull();
+    showSnackbar(msg || 'Sync completed successfully', 'positive');
+  } catch (error: unknown) {
+    console.error('Sync error:', error);
+    const msg = error instanceof Error ? error.message : String(error);
+    showSnackbar(`Sync failed: ${msg}`, 'negative');
+  } finally {
+    syncing.value = false;
+  }
+}
+
+async function syncIncrementalNow() {
+  if (!syncSinceDate.value) {
+    showSnackbar('Please select a date for incremental sync', 'warning');
+    return;
+  }
+  try {
+    syncingIncremental.value = true;
+    const datePart = syncSinceDate.value;
+    const timePart = syncSinceTime.value || '00:00';
+    const local = new Date(`${datePart}T${timePart}:00`);
+    const iso = local.toISOString();
+    const serverMsg = await dataAccess.syncIncremental(iso);
+    const label = serverMsg || `Incremental sync completed since ${datePart} ${syncSinceTime.value || '00:00'}`;
+    showSnackbar(label, 'positive');
+  } catch (error: unknown) {
+    console.error('Incremental sync error:', error);
+    const msg = error instanceof Error ? error.message : String(error);
+    showSnackbar(`Incremental sync failed: ${msg}`, 'negative');
+  } finally {
+    syncingIncremental.value = false;
+  }
 }
 </script>

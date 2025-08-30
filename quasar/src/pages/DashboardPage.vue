@@ -336,6 +336,13 @@ import { debounce } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import { DEFAULT_BUDGET_TEMPLATES } from '../constants/budgetTemplates';
 
+// Structured logger for this page
+const DBG = '[Dashboard]';
+function log(...args: unknown[]) {
+  // eslint-disable-next-line no-console
+  console.log(DBG, ...args);
+}
+
 const $q = useQuasar();
 const budgetStore = useBudgetStore();
 const merchantStore = useMerchantStore();
@@ -621,7 +628,13 @@ watch(
 );
 
 const updateBudgetForMonth = debounce(async () => {
+  log('updateBudgetForMonth start', {
+    selectedEntityId: familyStore.selectedEntityId,
+    currentMonth: currentMonth.value,
+    budgetsCount: budgets.value.length
+  });
   if (!familyStore.selectedEntityId) {
+    log('No selected entity; resetting empty budget');
     budget.value = {
       familyId: '',
       entityId: '',
@@ -637,6 +650,7 @@ const updateBudgetForMonth = debounce(async () => {
 
   const defaultBudget = budgets.value.find((b) => b.month === currentMonth.value && b.entityId === familyStore.selectedEntityId);
   if (defaultBudget) {
+    log('Found current-month budget', { month: currentMonth.value });
     const family = await familyStore.getFamily();
     if (family) {
       ownerUid.value = family.ownerUid;
@@ -651,6 +665,7 @@ const updateBudgetForMonth = debounce(async () => {
       categoryOptions.value.push('Income');
     }
   } else if (isInitialLoad.value && budgets.value.length > 0) {
+    log('No current-month budget; choosing most recent');
     const sortedBudgets = budgets.value
       .filter((b) => b.entityId === familyStore.selectedEntityId)
       .sort((a, b) => {
@@ -660,6 +675,7 @@ const updateBudgetForMonth = debounce(async () => {
       });
     const mostRecentBudget = sortedBudgets[0];
     if (mostRecentBudget) {
+      log('Switching to most recent budget', mostRecentBudget.month);
       currentMonth.value = mostRecentBudget.month;
       budget.value = { ...mostRecentBudget, budgetId: budgetId.value };
 
@@ -675,6 +691,8 @@ const updateBudgetForMonth = debounce(async () => {
       if (!categoryOptions.value.includes('Income')) {
         categoryOptions.value.push('Income');
       }
+    } else {
+      log('No budgets exist for selected entity');
     }
   }
 }, 300);
@@ -682,9 +700,11 @@ const updateBudgetForMonth = debounce(async () => {
 watch(
   () => budgetStore.budgets,
   (newBudgets) => {
+    log('Budget store changed', { size: (newBudgets as Map<string, Budget>).size });
     budgets.value = Array.from(newBudgets.values());
     availableBudgets.value = budgets.value;
     if (budgets.value.length > 0) {
+      log('Triggering updateBudgetForMonth due to budgets change');
       updateBudgetForMonth();
     }
   },
@@ -692,11 +712,12 @@ watch(
 );
 
 watch(currentMonth, () => {
+  log('currentMonth changed', currentMonth.value);
   updateBudgetForMonth();
 });
 
 onMounted(async () => {
-  console.log('Mounted: Checking auth state');
+  log('Mounted: Checking auth state');
   loading.value = true;
 
   try {
@@ -717,12 +738,17 @@ onMounted(async () => {
 
     loadingTimeout = setTimeout(() => {
       showLoadingMessage.value = true;
-      console.log('Loading timeout triggered');
+      log('Loading timeout triggered');
     }, 5000);
 
-    console.log('Loading family for user:', auth.user.uid);
+    log('Loading family for user', auth.user.uid);
     await familyStore.loadFamily(auth.user.uid);
-    console.log('Loading budgets');
+    log('Family loaded', {
+      familyId: familyStore.family?.id,
+      entities: familyStore.family?.entities?.length || 0,
+      selectedEntityId: familyStore.selectedEntityId
+    });
+    log('Loading budgets');
     await loadBudgets();
   } catch (error: any) {
     console.error('Initialization error:', error);
@@ -736,6 +762,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  log('Unmount: cleaning up');
   budgetStore.unsubscribeAll();
   if (loadingTimeout) clearTimeout(loadingTimeout);
 });
@@ -743,14 +770,18 @@ onUnmounted(() => {
 async function loadBudgets() {
   const user = auth.user;
   if (!user) {
-    console.log('No user for loading budgets');
+    log('No user for loading budgets');
     return;
   }
 
   loading.value = true;
   try {
-    console.log('Loading budgets for user:', user.uid, 'entity:', familyStore.selectedEntityId);
+    log('Loading budgets for user', { uid: user.uid, entityId: familyStore.selectedEntityId });
     await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
+    log('Budgets loaded', {
+      total: budgetStore.budgets.size,
+      months: Array.from(budgetStore.budgets.values()).map(b => b.month)
+    });
   } catch (error: any) {
     console.error('Error loading budgets:', error);
     showSnackbar(`Error loading budgets: ${error.message}`, 'error');
