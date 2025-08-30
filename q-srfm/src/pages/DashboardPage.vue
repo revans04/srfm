@@ -354,6 +354,7 @@ import DashboardTiles from '../components/DashboardTiles.vue';
 import SpendingByCategoryCard from '../components/charts/SpendingByCategoryCard.vue';
 import IncomeVsExpensesCard from '../components/charts/IncomeVsExpensesCard.vue';
 import type { Transaction, Budget, IncomeTarget, BudgetCategoryTrx, BudgetCategory } from '../types';
+import { EntityType } from '../types';
 import version from '../version';
 import { toDollars, toCents, formatCurrency, adjustTransactionDate, todayISO, currentMonthISO } from '../utils/helpers';
 import { useAuthStore } from '../store/auth';
@@ -367,7 +368,6 @@ import { DEFAULT_BUDGET_TEMPLATES } from '../constants/budgetTemplates';
 // Structured logger for this page
 const DBG = '[Dashboard]';
 function log(...args: unknown[]) {
-  // eslint-disable-next-line no-console
   console.log(DBG, ...args);
 }
 
@@ -459,7 +459,7 @@ function matchesSelectedEntity(b: Budget) {
   if (!familyStore.selectedEntityId) return true;
   if (b.entityId) return b.entityId === familyStore.selectedEntityId;
   // Some legacy family budgets may have no entityId; treat them as the Family entity
-  return selectedEntity.value?.type === 'Family';
+  return selectedEntity.value?.type === EntityType.Family;
 }
 
 const budgetedExpenses = computed(() => {
@@ -1120,11 +1120,6 @@ async function selectMonth(month: string) {
   }
 }
 
-// Targeted logging for Month selector
-function onMonthToggle() {
-  menuOpen.value = true;
-  log('Month toggle clicked, opening menu');
-}
 function onMonthMenuShow() {
   log('Month menu shown');
 }
