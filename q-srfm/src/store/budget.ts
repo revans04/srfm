@@ -19,7 +19,7 @@ export const useBudgetStore = defineStore("budgets", () => {
         }
       }
       budgets.value = newBudgets;
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error loading budgets:", error);
     }
   }

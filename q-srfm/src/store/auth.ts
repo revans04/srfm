@@ -43,9 +43,9 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       authError.value = null;
       user.value = await signInWithGoogle();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Google login error:', error);
-      authError.value = error.message;
+      authError.value = error instanceof Error ? error.message : String(error);
       throw error;
     }
   }
@@ -55,9 +55,9 @@ export const useAuthStore = defineStore('auth', () => {
       authError.value = null;
       const userCredential = await signInWithCustomToken(auth, token);
       user.value = userCredential.user;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Custom token login error:', error);
-      authError.value = error.message;
+      authError.value = error instanceof Error ? error.message : String(error);
       throw error;
     }
   }
@@ -67,9 +67,9 @@ export const useAuthStore = defineStore('auth', () => {
       await auth.signOut();
       user.value = null;
       authError.value = null;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Logout error:', error);
-      authError.value = error.message;
+      authError.value = error instanceof Error ? error.message : String(error);
       throw error;
     }
   }
@@ -78,9 +78,9 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const currentUser = user.value;
       return currentUser ? await currentUser.getIdToken(true) : null;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Get ID token error:', error);
-      authError.value = error.message;
+      authError.value = error instanceof Error ? error.message : String(error);
       return null;
     }
   }

@@ -17,6 +17,8 @@ import type {
 import { useBudgetStore } from './store/budget';
 import { Timestamp } from 'firebase/firestore';
 
+type RawAccount = Account & { createdAt?: unknown; updatedAt?: unknown };
+
 export class DataAccess {
   private apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
   private auth = useAuthStore();
@@ -250,7 +252,7 @@ export class DataAccess {
       budgetStore.updateBudget(budget.budgetId, { ...budget });
 
       if (budget && budget.budgetId && futureBudgetsExist && this.hasFundCategory(transaction, budget)) {
-        const [uid, entityId, budgetMonth] = budget.budgetId.split('_') as [string, string, string];
+        const [uid, entityId, budgetMonth] = budget.budgetId.split('_');
         await this.recalculateCarryoverForFutureBudgets(uid, entityId, budgetMonth, transaction.categories);
       }
     }
@@ -274,7 +276,7 @@ export class DataAccess {
 
       for (const transaction of transactions) {
         if (this.hasFundCategory(transaction, budget) && budget.budgetId) {
-          const [uid, entityId, budgetMonth] = budget.budgetId.split('_') as [string, string, string];
+          const [uid, entityId, budgetMonth] = budget.budgetId.split('_');
           await this.recalculateCarryoverForFutureBudgets(uid, entityId, budgetMonth, transaction.categories);
         }
       }
@@ -301,7 +303,7 @@ export class DataAccess {
       budgetStore.updateBudget(budget.budgetId, budget);
 
       if (futureBudgetsExist && this.hasFundCategory(transactionToDelete, budget) && budget.budgetId) {
-        const [uid, entityId, budgetMonth] = budget.budgetId.split('_') as [string, string, string];
+        const [uid, entityId, budgetMonth] = budget.budgetId.split('_');
         await this.recalculateCarryoverForFutureBudgets(uid, entityId, budgetMonth, transactionToDelete.categories);
       }
     }
@@ -328,7 +330,7 @@ export class DataAccess {
       budgetStore.updateBudget(budget.budgetId, budget);
 
       if (futureBudgetsExist && this.hasFundCategory(transactionToRestore, budget) && budget.budgetId) {
-        const [uid, entityId, budgetMonth] = budget.budgetId.split('_') as [string, string, string];
+        const [uid, entityId, budgetMonth] = budget.budgetId.split('_');
         await this.recalculateCarryoverForFutureBudgets(uid, entityId, budgetMonth, transactionToRestore.categories);
       }
     }
@@ -352,7 +354,7 @@ export class DataAccess {
       budgetStore.updateBudget(budget.budgetId, budget);
 
       if (futureBudgetsExist && this.hasFundCategory(transactionToDelete, budget) && budget.budgetId) {
-        const [uid, entityId, budgetMonth] = budget.budgetId.split('_') as [string, string, string];
+        const [uid, entityId, budgetMonth] = budget.budgetId.split('_');
         await this.recalculateCarryoverForFutureBudgets(uid, entityId, budgetMonth, transactionToDelete.categories);
       }
     }
@@ -362,7 +364,7 @@ export class DataAccess {
     return transaction.categories.some((cat) => budget.categories.find((bc) => bc.name === cat.category)?.isFund || false);
   }
 
-  async calculateCarryOver(budget: Budget): Promise<Record<string, number>> {
+  calculateCarryOver(budget: Budget): Record<string, number> {
     const nextCarryover: Record<string, number> = {};
     const currTrx = budget.transactions || [];
 
@@ -412,12 +414,12 @@ export class DataAccess {
     const budgetStore = useBudgetStore();
     const budgets = Array.from(budgetStore.budgets.values());
 
-    const [startYear, startMonth] = startBudgetMonth.split('-').map(Number) as [number, number];
+    const [startYear, startMonth] = startBudgetMonth.split('-').map(Number);
     const affectedCategoryNames = affectedCategories.map((c) => c.category);
 
     const futureBudgets = budgets
       .filter((b) => {
-        const [year, month] = b.month.split('-').map(Number) as [number, number];
+        const [year, month] = b.month.split('-').map(Number);
         return year > startYear || (year === startYear && month > startMonth);
       })
       .sort((a, b) => a.month.localeCompare(b.month));
@@ -425,7 +427,8 @@ export class DataAccess {
     // Ensure we have category data for candidate budgets; load on demand
     const budgetList: Budget[] = [];
     for (const b of futureBudgets) {
-      const budgetWithCats = b.categories && b.categories.length > 0 ? b : (await this.getBudget(b.budgetId!))!;
+      const id = b.budgetId;
+      const budgetWithCats = b.categories && b.categories.length > 0 ? b : id ? await this.getBudget(id) : null;
       if (budgetWithCats && budgetWithCats.categories.some((cat) => cat.isFund && affectedCategoryNames.includes(cat.name))) {
         budgetList.push(budgetWithCats);
       }
@@ -434,16 +437,18 @@ export class DataAccess {
     if (budgetList.length === 0) return;
 
     const startBudget =
-      budgetStore.getBudget(`${userId}_${entityId}_${startBudgetMonth}`) || (await this.getBudget(`${userId}_${entityId}_${startBudgetMonth}`));
+      budgetStore.getBudget(`${userId}_${entityId}_${startBudgetMonth}`) ||
+      (await this.getBudget(`${userId}_${entityId}_${startBudgetMonth}`));
     if (!startBudget) return;
 
-    const startCarryover = await this.calculateCarryOver(startBudget);
+    const startCarryover = this.calculateCarryOver(startBudget);
 
     for (const categoryName of affectedCategoryNames) {
       let cumulativeCarryover = startCarryover[categoryName] || 0;
 
       for (let i = 0; i < budgetList.length; i++) {
-        const budget = budgetList[i]!;
+        const budget = budgetList[i];
+        if (!budget?.budgetId) continue;
         const isFirstFutureBudget = i === 0;
 
         const updatedCategories = budget.categories.map((cat) => {
@@ -455,8 +460,8 @@ export class DataAccess {
           return cat;
         });
 
-        await this.saveBudget(budget.budgetId!, { ...budget, categories: updatedCategories });
-        budgetStore.updateBudget(budget.budgetId!, { ...budget, categories: updatedCategories });
+        await this.saveBudget(budget.budgetId, { ...budget, categories: updatedCategories });
+        budgetStore.updateBudget(budget.budgetId, { ...budget, categories: updatedCategories });
       }
     }
   }
@@ -759,11 +764,11 @@ export class DataAccess {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/families/${familyId}/accounts`, { headers });
     if (!response.ok) throw new Error(`Failed to fetch accounts: ${response.statusText}`);
-    const raw = await response.json();
-    return (raw as unknown[]).map((a) => ({
+    const raw = (await response.json()) as RawAccount[];
+    return raw.map((a): Account => ({
       ...a,
-      createdAt: this.toTimestamp(a?.createdAt) ?? Timestamp.fromDate(new Date()),
-      updatedAt: this.toTimestamp(a?.updatedAt) ?? Timestamp.fromDate(new Date()),
+      createdAt: this.toTimestamp(a.createdAt) ?? Timestamp.fromDate(new Date()),
+      updatedAt: this.toTimestamp(a.updatedAt) ?? Timestamp.fromDate(new Date()),
     }));
   }
 
@@ -774,14 +779,14 @@ export class DataAccess {
       if (response.status === 404) return null;
       throw new Error(`Failed to fetch account ${accountId}: ${response.statusText}`);
     }
-    const a = await response.json();
-    return a
-      ? {
-          ...a,
-          createdAt: this.toTimestamp(a?.createdAt) ?? Timestamp.fromDate(new Date()),
-          updatedAt: this.toTimestamp(a?.updatedAt) ?? Timestamp.fromDate(new Date()),
-        }
-      : null;
+    const a = (await response.json()) as RawAccount | null;
+    if (!a) return null;
+    const account: Account = {
+      ...a,
+      createdAt: this.toTimestamp(a.createdAt) ?? Timestamp.fromDate(new Date()),
+      updatedAt: this.toTimestamp(a.updatedAt) ?? Timestamp.fromDate(new Date()),
+    };
+    return account;
   }
 
   async saveAccount(familyId: string, account: Account): Promise<void> {
@@ -821,13 +826,13 @@ export class DataAccess {
         headers,
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      const data = await response.json();
-      return (data as any[]).map((s) => ({
+      const data = (await response.json()) as Record<string, unknown>[];
+      return data.map((s) => ({
         ...s,
         // API may send ISO strings via FirestoreDateStringConverter; support both shapes
-        date: this.toTimestamp(s?.date) ?? Timestamp.fromDate(new Date()),
-        createdAt: this.toTimestamp(s?.createdAt) ?? Timestamp.fromDate(new Date()),
-      }));
+        date: this.toTimestamp(s.date) ?? Timestamp.fromDate(new Date()),
+        createdAt: this.toTimestamp(s.createdAt) ?? Timestamp.fromDate(new Date()),
+      })) as Snapshot[];
     } catch (error) {
       console.error('Error fetching snapshots:', error);
       return [];

@@ -352,8 +352,8 @@ import MatchBankTransactionsDialog from '../components/MatchBankTransactionsDial
 import MatchBudgetTransactionDialog from '../components/MatchBudgetTransactionDialog.vue';
 import TransactionRegistry from '../components/TransactionRegistry.vue';
 import EntitySelector from '../components/EntitySelector.vue';
-import type { Transaction, BudgetInfo, ImportedTransaction, Account, Entity } from '../types';
-import { formatDateLong, toDollars, toCents, formatCurrency, toBudgetMonth, todayISO } from '../utils/helpers';
+import type { Transaction, ImportedTransaction, Account } from '../types';
+import { formatDateLong, toDollars, toCents, formatCurrency, todayISO } from '../utils/helpers';
 import { useBudgetStore } from '../store/budget';
 import { useFamilyStore } from '../store/family';
 import { useUIStore } from '../store/ui';
@@ -428,7 +428,7 @@ let processingQueue = false;
 function enqueueAction(action: () => Promise<void>) {
   actionQueue.push(action);
   if (!processingQueue) {
-    processQueue();
+    void processQueue();
   }
 }
 
@@ -442,16 +442,9 @@ async function processQueue() {
   if (next) {
     await next();
   }
-  processQueue();
+  void processQueue();
 }
 
-const entityOptions = computed(() => {
-  const options = (familyStore.family?.entities || []).map((entity) => ({
-    id: entity.id,
-    name: entity.name,
-  }));
-  return [{ id: '', name: 'All Entities' }, ...options];
-});
 
 const potentialDuplicateIds = computed(() => {
   const ids = new Set<string>();
@@ -500,7 +493,6 @@ const expenseTransactions = computed(() => {
     );
   }
   if (entriesFilterAmount.value) {
-    const amount = parseFloat(entriesFilterAmount.value);
     temp = temp.filter((t) => t.amount.toString().includes(entriesFilterAmount.value.toString()));
   }
   if (entriesFilterNote.value) {
@@ -592,8 +584,9 @@ onMounted(async () => {
       availableAccounts.value = await dataAccess.getAccounts(family.id);
       availableAccounts.value = availableAccounts.value.filter((account) => account.type === 'Bank' || account.type === 'CreditCard');
     }
-  } catch (error: any) {
-    showSnackbar(`Error loading data: ${error.message}`, 'error');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    showSnackbar(`Error loading data: ${message}`, 'error');
   } finally {
     $q.loading.hide();
   }
@@ -626,8 +619,9 @@ async function loadBudgets() {
   });
   try {
     await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
-  } catch (error: any) {
-    showSnackbar(`Error loading budgets: ${error.message}`, 'error');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    showSnackbar(`Error loading budgets: ${message}`, 'error');
   } finally {
     $q.loading.hide();
   }
@@ -667,14 +661,15 @@ async function loadTransactions() {
 
     transactions.value = allTransactions;
     categoryOptions.value = Array.from(allCategories).sort((a, b) => b.localeCompare(a));
-  } catch (error: any) {
-    showSnackbar(`Error loading transactions: ${error.message}`, 'error');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    showSnackbar(`Error loading transactions: ${message}`, 'error');
   } finally {
     $q.loading.hide();
   }
 }
 
-async function isLastMonth(transaction: Transaction) {
+function isLastMonth(transaction: Transaction) {
   return transaction.budgetMonth === (budgetOptions.value[0]?.month || '');
 }
 
@@ -702,8 +697,9 @@ async function saveTransaction(transaction: Transaction) {
     resetForm();
     showTransactionDialog.value = false;
     await loadTransactions();
-  } catch (error: any) {
-    showSnackbar(`Error: ${error.message}`, 'error');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    showSnackbar(`Error: ${message}`, 'error');
   } finally {
     $q.loading.hide();
   }
@@ -717,7 +713,7 @@ function editTransaction(item: Transaction) {
   showTransactionDialog.value = true;
 }
 
-async function deleteTransaction(id: string) {
+function deleteTransaction(id: string) {
   enqueueAction(() => processDeleteTransaction(id));
 }
 
@@ -756,17 +752,18 @@ async function processDeleteTransaction(id: string) {
     const budget = budgetStore.getBudget(targetBudgetIdToUse);
     if (!budget) throw new Error('Selected budget not found');
 
-    await dataAccess.deleteTransaction(budget, originalId, !(await isLastMonth(targetTransaction)));
+    await dataAccess.deleteTransaction(budget, originalId, !isLastMonth(targetTransaction));
     showSnackbar('Transaction deleted successfully');
     await loadTransactions();
-  } catch (error: any) {
-    showSnackbar(`Error: ${error.message}`, 'error');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    showSnackbar(`Error: ${message}`, 'error');
   } finally {
     $q.loading.hide();
   }
 }
 
-async function restoreTransaction(id: string) {
+function restoreTransaction(id: string) {
   enqueueAction(() => processRestoreTransaction(id));
 }
 
@@ -806,11 +803,12 @@ async function processRestoreTransaction(id: string) {
     const budget = budgetStore.getBudget(targetBudgetIdToUse);
     if (!budget) throw new Error('Selected budget not found');
 
-    await dataAccess.restoreTransaction(budget, originalId, !(await isLastMonth(targetTransaction)));
+    await dataAccess.restoreTransaction(budget, originalId, !isLastMonth(targetTransaction));
     showSnackbar('Transaction restored successfully');
     await loadTransactions();
-  } catch (error: any) {
-    showSnackbar(`Error: ${error.message}`, 'error');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    showSnackbar(`Error: ${message}`, 'error');
   } finally {
     $q.loading.hide();
   }
@@ -879,10 +877,9 @@ async function matchTransaction(importedTx: ImportedTransaction) {
     const budget = budgetStore.getBudget(targetBudgetIdToUse);
     if (!budget) throw new Error('Selected budget not found');
 
-    await dataAccess.saveTransaction(budget, updatedTransaction, !(await isLastMonth(updatedTransaction)));
+    await dataAccess.saveTransaction(budget, updatedTransaction, !isLastMonth(updatedTransaction));
 
     const parts = importedTx.id.split('-');
-    const txId = parts[parts.length - 1];
     const docId = parts.slice(0, -1).join('-');
     await dataAccess.updateImportedTransaction(docId, { ...importedTx, matched: true });
 
@@ -895,9 +892,10 @@ async function matchTransaction(importedTx: ImportedTransaction) {
     showMatchBudgetTransactionDialog.value = false;
     selectedBudgetTransaction.value = null;
     await loadTransactions();
-  } catch (error: any) {
+  } catch (error) {
     console.log(error);
-    showSnackbar(`Error matching transaction: ${error.message}`, 'error');
+    const message = error instanceof Error ? error.message : String(error);
+    showSnackbar(`Error matching transaction: ${message}`, 'error');
   } finally {
     $q.loading.hide();
   }
@@ -991,8 +989,8 @@ function showSnackbar(text: string, color = 'success') {
   });
 }
 
-function updateTransactions(newTransactions: Transaction[]) {
-  loadTransactions();
+function updateTransactions() {
+  void loadTransactions();
 }
 
 function applyFilters() {
