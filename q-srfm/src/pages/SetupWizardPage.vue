@@ -4,7 +4,7 @@
     <h1>Setup Wizard</h1>
     <div class="text-subtitle-1 mb-2">Step {{ currentStepIndex + 1 }} of {{ wizardSteps.length }}</div>
     <q-stepper v-model="currentStepValue" class="mt-4 wizard-stepper" hide-actions aria-label="Setup Wizard Steps">
-      <template v-for="(step, index) in wizardSteps" :key="`item-${step.value}`">
+      <template v-for="step in wizardSteps" :key="`item-${step.value}`">
         <q-stepper-item
           :value="step.value"
           :editable="isStepEditable(step.value)"
@@ -101,7 +101,7 @@
                   </p>
                   <p v-else class="mb-4">Add your {{ step.accountType?.toLowerCase() }} accounts here. You can add as many as you need.</p>
                   <AccountList
-                    :accounts="(getAccountsByType(step.accountType!) as any)"
+                    :accounts="getAccountsByType(step.accountType!) as Account[]"
                     :type="step.accountType!"
                     @add="openWizardAccountDialog(step.accountType!)"
                     @edit="editWizardAccount"
@@ -132,7 +132,7 @@
         <q-card-section>
           <AccountForm
             :account-type="newWizardAccount.type as AccountType"
-            :account="editMode ? (newWizardAccount as any) : undefined"
+            :account="editMode ? (newWizardAccount as Partial<Account>) : undefined"
             :show-personal-option="false"
             @save="saveWizardAccount"
             @cancel="closeWizardAccountDialog"
@@ -146,7 +146,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useQuasar } from 'quasar';
 import { useRouter } from "vue-router";
 import { auth } from "../firebase/init";
@@ -158,7 +158,7 @@ import AccountList from "../components/AccountList.vue";
 import AccountForm from "../components/AccountForm.vue"; // Import AccountForm directly
 import { v4 as uuidv4 } from "uuid";
 import { Timestamp } from "firebase/firestore";
-import { AccountType, type Family, type Entity, type Account, EntityType } from "../types";
+import { AccountType, type Family, type Account } from "../types";
 
 interface WizardStep {
   value: string;
@@ -179,6 +179,14 @@ const messages = {
   accountUpdated: (type: string) => `${type} account updated successfully.`,
   entityAdded: (name: string) => `Entity "${name}" added successfully.`,
 };
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : typeof error === 'string'
+    ? error
+    : JSON.stringify(error);
+}
 
 // Stepper State
 const initialSteps: WizardStep[] = [
@@ -208,9 +216,13 @@ const highestStepReached = ref<string>(wizardSteps.value[0].value);
 
 // Entity Step State
 const selectedEntityId = ref("");
-const entityFormRef = ref<InstanceType<typeof EntityForm> | null>(null);
+interface EntityFormExposed {
+  save?: () => Promise<void>;
+  resetFormInternal?: () => void;
+  resetForm?: () => void;
+}
+const entityFormRef = ref<EntityFormExposed | null>(null);
 const hasUnsavedEntityChanges = ref(false);
-const savingEntity = ref(false);
 const showUnsavedEntityDialog = ref(false);
 const pendingNavigationArgs = ref<{
   direction: "next" | "back" | "select_entity";
@@ -277,7 +289,7 @@ onMounted(async () => {
   const user = auth.currentUser;
   if (!user) {
     showSnackbarMessage("Please log in to complete setup.", "error");
-    router.push("/login");
+    await router.push("/login");
     return;
   }
   if (familyStore.family) {
@@ -288,7 +300,7 @@ onMounted(async () => {
       if (fam) {
         family.value = fam;
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error loading family:", error);
     }
   }
@@ -296,9 +308,9 @@ onMounted(async () => {
   if (family.value) {
     try {
       accountsData.value = await dataAccess.getAccounts(family.value.id);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error loading accounts:", error);
-      showSnackbarMessage(`Error loading accounts: ${error.message}`, "error");
+      showSnackbarMessage(`Error loading accounts: ${errorMessage(error)}`, "error");
     }
   }
 });
@@ -327,7 +339,7 @@ function canNavigateFromEntities(): boolean {
   return true;
 }
 
-async function navigateStep(direction: "next" | "back") {
+function navigateStep(direction: "next" | "back") {
   const currentIndex = currentStepIndex.value;
   let targetStepValue: string | undefined;
 
@@ -346,11 +358,6 @@ async function navigateStep(direction: "next" | "back") {
       hasUnsavedEntityChanges.value = false;
     }
   }
-}
-
-function cancelPendingNavigation() {
-  pendingNavigationArgs.value = null;
-  showUnsavedEntityDialog.value = false;
 }
 
 // Entity Functions
@@ -405,32 +412,8 @@ function updateUnsavedChanges(unsaved: boolean) {
   hasUnsavedEntityChanges.value = unsaved;
 }
 
-async function saveEntityAndProceed() {
-  if (entityFormRef.value) {
-    savingEntity.value = true;
-    try {
-      await (entityFormRef.value as any)?.save?.();
-    } catch (error) {
-      showSnackbarMessage("Failed to save entity.", "error");
-      cancelPendingNavigation();
-    } finally {
-      savingEntity.value = false;
-    }
-  }
-}
-
-function discardChangesAndProceed() {
-  hasUnsavedEntityChanges.value = false;
-  const anyRef = entityFormRef.value as any;
-  if (anyRef?.resetFormInternal) anyRef.resetFormInternal();
-  else if (anyRef?.resetForm) anyRef.resetForm();
-  showUnsavedEntityDialog.value = false;
-  executePendingNavigation();
-}
-
 function executePendingNavigation() {
   if (!pendingNavigationArgs.value) return;
-  const { direction, entityId } = pendingNavigationArgs.value;
   const currentPendingArgs = pendingNavigationArgs.value;
   pendingNavigationArgs.value = null;
 
@@ -504,9 +487,9 @@ function saveWizardAccount(account: Account, isPersonal: boolean) {
 }
 
 function removeWizardAccount(account: Account | DraftAccount) {
-  const keyToRemove = (account as any).tempId || account.id;
+  const keyToRemove = 'tempId' in account && account.tempId ? account.tempId : account.id;
   accountsData.value = accountsData.value.filter((acc) => (acc.tempId || acc.id) !== keyToRemove);
-  showSnackbarMessage(messages.accountRemoved(account.name), "info");
+  showSnackbarMessage(messages.accountRemoved(account.name || ''), "info");
 }
 
 // Finish Setup
@@ -525,14 +508,16 @@ async function finishSetup() {
   try {
     for (const accData of accountsData.value) {
       const accountId = accData.id || uuidv4();
+      const accountType = accData.type || AccountType.Bank;
+      const accountCategory: 'Asset' | 'Liability' =
+        accData.category ||
+        (accountType === AccountType.CreditCard || accountType === AccountType.Loan ? 'Liability' : 'Asset');
       const newAccountToSave: Account = {
         id: accountId,
         userId: accData.userId,
         name: accData.name || '',
-        type: (accData.type as AccountType) || AccountType.Bank,
-        category:
-          (accData.category as any) ||
-          (((accData.type as AccountType) === AccountType.CreditCard || (accData.type as AccountType) === AccountType.Loan) ? 'Liability' : 'Asset'),
+        type: accountType,
+        category: accountCategory,
         accountNumber: accData.accountNumber,
         institution: accData.institution || '',
         createdAt: accData.createdAt instanceof Timestamp ? accData.createdAt : Timestamp.fromDate(new Date()),
@@ -540,13 +525,12 @@ async function finishSetup() {
         balance: accData.balance,
         details: accData.details,
       };
-      delete (newAccountToSave as any).tempId;
-      await dataAccess.saveAccount(family.value!.id, newAccountToSave);
+      await dataAccess.saveAccount(family.value.id, newAccountToSave);
     }
     showSnackbarMessage("Setup completed successfully! Redirecting...", "success");
-    setTimeout(() => router.push("/dashboard"), 1500);
-  } catch (error: any) {
-    showSnackbarMessage(`Error saving accounts: ${error.message || "Unknown error"}`, "error");
+    setTimeout(() => void router.push("/dashboard"), 1500);
+  } catch (error: unknown) {
+    showSnackbarMessage(`Error saving accounts: ${errorMessage(error)}`, "error");
     console.error("Error in finishSetup:", error);
   } finally {
     finishingSetup.value = false;
@@ -554,7 +538,7 @@ async function finishSetup() {
 }
 
 // Snackbar Helper
-function showSnackbarMessage(keyOrText: string, color: string = "success", ...args: any[]) {
+function showSnackbarMessage(keyOrText: string, color: string = "success", ...args: string[]) {
   const text = messages[keyOrText] ? messages[keyOrText](...args) : keyOrText;
   $q.notify({
     message: text,
