@@ -324,7 +324,6 @@ import TransactionForm from '../components/TransactionForm.vue';
 import EntitySelector from '../components/EntitySelector.vue';
 import DashboardTiles from '../components/DashboardTiles.vue';
 import type { Transaction, Budget, IncomeTarget, BudgetCategoryTrx, BudgetCategory } from '../types';
-import type { Entity } from '../types';
 import version from '../version';
 import { toDollars, toCents, formatCurrency, adjustTransactionDate, todayISO, currentMonthISO } from '../utils/helpers';
 import { useAuthStore } from '../store/auth';
@@ -391,7 +390,6 @@ const searchInput = ref(null);
 const search = ref('');
 const debouncedSearch = ref('');
 const monthOffset = ref(0);
-const duplicating = ref(false);
 const menuOpen = ref(false);
 
 let clickTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -414,15 +412,6 @@ const inlineEditNumber = computed<number>({
 });
 
 const isMobile = computed(() => $q.screen.lt.md);
-
-// Entity-related computed properties
-const entityOptions = computed(() => {
-  const options = (familyStore.family?.entities || []).map((entity) => ({
-    id: entity.id,
-    name: entity.name,
-  }));
-  return [{ id: '', name: 'All Entities' }, ...options];
-});
 
 const selectedEntity = computed(() => {
   return familyStore.family?.entities?.find((e) => e.id === familyStore.selectedEntityId);
@@ -734,9 +723,10 @@ onMounted(async () => {
     await familyStore.loadFamily(auth.user.uid);
     console.log('Loading budgets');
     await loadBudgets();
-  } catch (error: any) {
-    console.error('Initialization error:', error);
-    showSnackbar(`Error loading data: ${error.message}`, 'error');
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error('Initialization error:', err);
+    showSnackbar(`Error loading data: ${err.message}`, 'error');
   } finally {
     if (loadingTimeout) clearTimeout(loadingTimeout);
     showLoadingMessage.value = false;
@@ -769,9 +759,10 @@ async function loadBudgets() {
   try {
     console.log('Loading budgets for user:', user.uid, 'entity:', familyStore.selectedEntityId);
     await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
-  } catch (error: any) {
-    console.error('Error loading budgets:', error);
-    showSnackbar(`Error loading budgets: ${error.message}`, 'error');
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error('Error loading budgets:', err);
+    showSnackbar(`Error loading budgets: ${err.message}`, 'error');
   } finally {
     loading.value = false;
   }
@@ -872,7 +863,7 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
 
     const recurringTransactions: Transaction[] = [];
     if (sourceBudget.transactions) {
-      const recurringGroups = sourceBudget.transactions.reduce(
+      const recurringGroups: Record<string, Transaction[]> = sourceBudget.transactions.reduce(
         (groups, trx) => {
           if (!trx.deleted && trx.recurring) {
             const key = `${trx.merchant}-${trx.amount}-${trx.recurringInterval}-${trx.userId}-${trx.isIncome}`;
@@ -886,7 +877,7 @@ async function createBudgetForMonth(month: string, familyId: string, ownerUid: s
         {} as Record<string, Transaction[]>,
       );
 
-      (Object.values(recurringGroups) as Transaction[][]).forEach((group) => {
+      Object.values(recurringGroups).forEach((group) => {
         const firstInstance = group.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
         if (firstInstance.recurringInterval === 'Monthly') {
           const newDate = adjustTransactionDate(firstInstance.date, month, 'Monthly');
@@ -950,26 +941,11 @@ async function createDefaultBudget() {
     await createBudgetForMonth(currentMonth.value, family.id, family.ownerUid, familyStore.selectedEntityId);
     await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
     showSnackbar('Budget created successfully', 'success');
-  } catch (error: any) {
-    showSnackbar(`Failed to create budget: ${error.message}`, 'error');
+  } catch (error: unknown) {
+    const err = error as Error;
+    showSnackbar(`Failed to create budget: ${err.message}`, 'error');
   } finally {
     loading.value = false;
-  }
-}
-
-async function refreshBudget() {
-  try {
-    const freshBudget = await dataAccess.getBudget(budgetId.value);
-    if (freshBudget) {
-      budget.value = { ...freshBudget, budgetId: budgetId.value };
-      budgetStore.updateBudget(budgetId.value, freshBudget);
-      categoryOptions.value = freshBudget.categories.map((cat) => cat.name);
-      if (!categoryOptions.value.includes('Income')) {
-        categoryOptions.value.push('Income');
-      }
-    }
-  } catch (error: any) {
-    showSnackbar(`Error refreshing budget: ${error.message}`, 'error');
   }
 }
 
@@ -986,8 +962,9 @@ function onTransactionSaved(transaction: Transaction) {
 
     updateMerchants();
     showSnackbar(isIncomeTransaction.value ? 'Income added successfully' : 'Transaction added successfully');
-  } catch (error: any) {
-    showSnackbar(`Error updating transaction: ${error.message}`, 'error');
+  } catch (error: unknown) {
+    const err = error as Error;
+    showSnackbar(`Error updating transaction: ${err.message}`, 'error');
   }
 }
 
@@ -996,8 +973,9 @@ function updateTransactions(newTransactions: Transaction[]) {
     budget.value.transactions = newTransactions;
     budgetStore.updateBudget(budgetId.value, { ...budget.value });
     updateMerchants();
-  } catch (error: any) {
-    showSnackbar(`Error updating transactions: ${error.message}`, 'error');
+  } catch (error: unknown) {
+    const err = error as Error;
+    showSnackbar(`Error updating transactions: ${err.message}`, 'error');
   }
 }
 
@@ -1033,7 +1011,10 @@ async function selectMonth(month: string) {
         categoryOptions.value.push('Income');
       }
     } else {
-      const b = await createBudgetForMonth(month, family!.id, ownerId, familyStore.selectedEntityId);
+      if (!family) {
+        throw new Error('Family not found');
+      }
+      const b = await createBudgetForMonth(month, family.id, ownerId, familyStore.selectedEntityId);
       budget.value = { ...b, budgetId: newBudgetId };
       budgetStore.updateBudget(newBudgetId, b);
       categoryOptions.value = b.categories.map((cat) => cat.name);
@@ -1041,8 +1022,9 @@ async function selectMonth(month: string) {
         categoryOptions.value.push('Income');
       }
     }
-  } catch (error: any) {
-    showSnackbar(`Error loading budget: ${error.message}`, 'error');
+  } catch (error: unknown) {
+    const err = error as Error;
+    showSnackbar(`Error loading budget: ${err.message}`, 'error');
   } finally {
     loading.value = false;
   }
@@ -1067,9 +1049,10 @@ async function saveBudget() {
     await dataAccess.saveBudget(budgetId.value, budget.value);
     showSnackbar('Budget saved successfully');
     isEditing.value = false;
-  } catch (error: any) {
-    showSnackbar(`Error saving budget: ${error.message}`, 'error', async () => {
-      await saveBudget();
+  } catch (error: unknown) {
+    const err = error as Error;
+    showSnackbar(`Error saving budget: ${err.message}`, 'error', () => {
+      void saveBudget();
     });
   } finally {
     saving.value = false;
@@ -1178,31 +1161,6 @@ function addTransactionForCategory(category: string) {
   }
 }
 
-function addIncome() {
-  if (!familyStore.selectedEntityId) {
-    showSnackbar('Please select an entity before adding income', 'error');
-    return;
-  }
-
-  newTransaction.value = {
-    id: uuidv4(),
-    date: todayISO(),
-    budgetMonth: currentMonth.value,
-    merchant: '',
-    categories: [{ category: 'Income', amount: 0 }],
-    amount: 0,
-    notes: '',
-    recurring: false,
-    recurringInterval: 'Monthly',
-    userId: userId.value,
-    isIncome: true,
-    entityId: familyStore.selectedEntityId,
-    taxMetadata: [],
-  };
-  isIncomeTransaction.value = true;
-  showTransactionDialog.value = true;
-}
-
 async function duplicateCurrentMonth(month: string) {
   const user = auth.user;
   if (!user) {
@@ -1237,14 +1195,15 @@ async function duplicateCurrentMonth(month: string) {
       return;
     }
 
-    let newBudget = await createBudgetForMonth(month, family.id, family.ownerUid, familyStore.selectedEntityId);
+    const newBudget = await createBudgetForMonth(month, family.id, family.ownerUid, familyStore.selectedEntityId);
     newBudget.merchants = budget.value.merchants ? [...budget.value.merchants] : [];
     await dataAccess.saveBudget(newBudget.budgetId, newBudget);
     await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
 
     showSnackbar("Created new month's budget");
-  } catch (error: any) {
-    showSnackbar(`Failed to duplicate budget: ${error.message}`, 'error');
+  } catch (error: unknown) {
+    const err = error as Error;
+    showSnackbar(`Failed to duplicate budget: ${err.message}`, 'error');
   } finally {
     $q.loading.hide();
   }
@@ -1342,8 +1301,9 @@ async function saveInlineEdit() {
     await dataAccess.saveBudget(budgetId.value, budget.value);
     budgetStore.updateBudget(budgetId.value, { ...budget.value });
     showSnackbar('Budget updated');
-  } catch (error: any) {
-    showSnackbar(`Error saving budget: ${error.message}`, 'error');
+  } catch (error: unknown) {
+    const err = error as Error;
+    showSnackbar(`Error saving budget: ${err.message}`, 'error');
   }
 
   cancelInlineEdit();

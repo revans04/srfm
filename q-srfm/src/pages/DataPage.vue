@@ -339,13 +339,14 @@
 </template>
 
 <script setup lang="ts">
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unnecessary-type-assertion */
 import { ref, onMounted, computed } from "vue";
 import { useQuasar, QSpinner } from 'quasar';
 import { auth } from "../firebase/init";
 import { dataAccess } from "../dataAccess";
 import Papa from "papaparse";
-import type { Budget, Transaction, Account, Entity, ImportedTransaction, ImportedTransactionDoc, Snapshot } from "../types";
-import { EntityType } from "../types";
+import type { Budget, Transaction, Account, Entity, ImportedTransaction, ImportedTransactionDoc } from "../types";
+import type { EntityType } from "../types";
 import { useRouter } from "vue-router";
 import { v4 as uuidv4 } from "uuid";
 import { useBudgetStore } from "../store/budget";
@@ -363,10 +364,8 @@ const $q = useQuasar();
 const budgets = ref<Budget[]>([]);
 const familyId = ref<string | null>(null);
 const transactions = ref<Transaction[]>([]);
-const loadingData = ref(false);
 const exporting = ref(false);
 const importing = ref(false);
-const loading = computed(() => loadingData.value || importing.value || exporting.value);
 const activeTab = ref<string>("import");
 const availableAccounts = ref<Account[]>([]);
 const selectedAccountId = ref<string>("");
@@ -839,7 +838,6 @@ async function handleBudgetTransactionImport() {
   if (budgetCSVData) {
     console.log(`budget found`, budgetCSVData);
     budgetCSVData.forEach((row, index) => {
-      const originalBudgetId = row.budgetid;
       if (!row.budgetmonth) {
         previewErrors.value.push(`File ${budgetCSVFile}, Row ${index + 1}: budgetMonth is required`);
         return;
@@ -889,7 +887,7 @@ async function handleBudgetTransactionImport() {
       if (!month) {
         try {
           month = toBudgetMonth(row.transactiondate);
-        } catch (e) {
+        } catch {
           previewErrors.value.push(`File ${transactionCSVFile}, Row ${index + 1}: Invalid transaction date: ${row.transactiondate}`);
           return;
         }
@@ -899,7 +897,6 @@ async function handleBudgetTransactionImport() {
         return;
       }
 
-      const originalBudgetId = row.budgetid;
       const budgetId = `${user.uid}_${selectedEntityId.value}_${month}`;
       const amount = parseFloat(row.amount);
       if (isNaN(amount)) {
@@ -1062,7 +1059,7 @@ async function handleAccountsAndSnapshotsImport(event: Event) {
       if (entry && entry.date) {
         try {
           entry.date = stringToFirestoreTimestamp(entry.date);
-        } catch (e) {
+        } catch {
           entry.date = "";
         }
       } else {
@@ -1168,7 +1165,7 @@ async function handleBankTransactionsFileUpload(event: Event) {
   }
 }
 
-async function previewBankTransactionsData() {
+function previewBankTransactionsData() {
   previewBankTransactions.value = [];
   previewErrors.value = [];
 
@@ -1197,6 +1194,7 @@ async function previewBankTransactionsData() {
         } else {
           const parts = mappedRow.postedDate.split("/");
           if (parts.length === 3) {
+            // eslint-disable-next-line prefer-const
             let [month, day, year] = parts;
             year = year.length === 2 ? `20${year}` : year;
             mappedRow.postedDate = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
@@ -1311,7 +1309,7 @@ async function confirmImport() {
         customClass: 'q-ml-sm flex items-center justify-center',
       });
       const entitiesById = pendingImportData.value?.entitiesById || new Map();
-      for (const [entityId, entity] of entitiesById) {
+      for (const entity of entitiesById.values()) {
         await familyStore.createEntity(familyId.value, entity);
       }
       await familyStore.loadFamily(user.uid); // Refresh family data
@@ -1756,7 +1754,6 @@ async function proceedWithImport() {
     if (!user) throw new Error("User not authenticated");
 
     const budgetsById: Map<string, Budget> = pendingImportData.value?.budgetsById ?? new Map();
-    const budgetIdMap: Map<string, string> = pendingImportData.value?.budgetIdMap ?? new Map();
     pendingImportData.value = null;
 
     for (const [budgetId, budget] of budgetsById) {
