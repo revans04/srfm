@@ -5,10 +5,10 @@
 
     <!-- Tabs -->
     <q-tabs v-model="tab" color="primary">
-      <q-tab value="monthly">Monthly Overview</q-tab>
-      <q-tab value="register">Register Report</q-tab>
-      <q-tab value="year-over-year">Year-over-Year</q-tab>
-      <q-tab value="net-worth">Net Worth</q-tab>
+      <q-tab name="monthly" label="Monthly Overview" />
+      <q-tab name="register" label="Register Report" />
+      <q-tab name="year-over-year" label="Year-over-Year" />
+      <q-tab name="net-worth" label="Net Worth" />
     </q-tabs>
 
     <q-tab-panels v-model="tab">

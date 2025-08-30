@@ -11,10 +11,10 @@
     </q-banner>
 
     <q-tabs v-model="activeTab" color="primary" class="mt-4">
-      <q-tab value="group">Manage Family/Group</q-tab>
-      <q-tab value="entity">Manage Entities</q-tab>
-      <q-tab value="manageTransactions">Manage Imports</q-tab>
-      <q-tab value="manageBudgets">Manage Budgets</q-tab>
+      <q-tab name="group" label="Manage Family/Group" />
+      <q-tab name="entity" label="Manage Entities" />
+      <q-tab name="manageTransactions" label="Manage Imports" />
+      <q-tab name="manageBudgets" label="Manage Budgets" />
     </q-tabs>
 
     <q-tab-panels v-model="activeTab">

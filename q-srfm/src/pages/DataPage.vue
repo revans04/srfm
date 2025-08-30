@@ -7,8 +7,8 @@
 
     <!-- Tabs -->
     <q-tabs v-model="activeTab" color="primary" class="mb-4">
-      <q-tab value="import">Import</q-tab>
-      <q-tab value="export">Export</q-tab>
+      <q-tab name="import" label="Import" />
+      <q-tab name="export" label="Export" />
     </q-tabs>
 
     <q-tab-panels v-model="activeTab">
@@ -233,11 +233,11 @@
                     <q-card-section>Preview Data</q-card-section>
                     <q-card-section>
                       <q-tabs v-model="previewTab">
-                        <q-tab value="entities" v-if="previewData.entities?.length > 0">Entities</q-tab>
-                        <q-tab value="categories" v-if="previewData.categories?.length > 0">Categories</q-tab>
-                        <q-tab value="transactions" v-if="previewData.transactions?.length > 0">Transactions</q-tab>
-                        <q-tab value="bankTransactions" v-if="previewBankTransactions.length > 0">Bank Transactions</q-tab>
-                        <q-tab value="accountsAndSnapshots" v-if="previewData.accountsAndSnapshots?.length > 0">Accounts/Snapshots</q-tab>
+                        <q-tab name="entities" v-if="previewData.entities?.length > 0" label="Entities" />
+                        <q-tab name="categories" v-if="previewData.categories?.length > 0" label="Categories" />
+                        <q-tab name="transactions" v-if="previewData.transactions?.length > 0" label="Transactions" />
+                        <q-tab name="bankTransactions" v-if="previewBankTransactions.length > 0" label="Bank Transactions" />
+                        <q-tab name="accountsAndSnapshots" v-if="previewData.accountsAndSnapshots?.length > 0" label="Accounts/Snapshots" />
                       </q-tabs>
                       <q-tab-panels v-model="previewTab">
                         <q-tab-panel name="entities">

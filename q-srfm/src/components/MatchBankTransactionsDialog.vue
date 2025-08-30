@@ -13,8 +13,8 @@
           </div>
         </div>
         <q-tabs v-model="activeTab" grow>
-          <q-tab value="smart-matches">Smart Matches</q-tab>
-          <q-tab value="remaining">Remaining Transactions</q-tab>
+          <q-tab name="smart-matches" label="Smart Matches" />
+          <q-tab name="remaining" label="Remaining Transactions" />
         </q-tabs>
 
         <q-tab-panels v-model="activeTab">
