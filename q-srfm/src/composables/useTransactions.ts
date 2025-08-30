@@ -1,147 +1,212 @@
-import { ref } from 'vue';
-import type { QTableColumn } from 'quasar';
+import { ref, computed, watch } from 'vue';
+import { storeToRefs } from 'pinia';
+import { useUIStore } from '../store/ui';
+import { useBudgetStore } from '../store/budget';
+import { useFamilyStore } from '../store/family';
+import { dataAccess } from '../dataAccess';
+import { auth } from '../firebase/init';
+import type { Budget, Transaction } from '../types';
 
-export interface TransactionBase {
+export type Status = 'C' | 'U';
+
+export interface LedgerRow {
   id: string;
   date: string; // ISO
   payee: string;
-  categoryId: string;
-  entityId: string;
+  category: string;
+  entityName: string;
   budgetId: string;
   amount: number;
+  status: Status;
+  isDuplicate?: boolean;
+  linkId?: string;
   notes?: string;
 }
 
-export interface BudgetTransaction extends TransactionBase {
-  status: 'C' | 'U';
-  isDuplicate?: boolean;
-  linkId?: string;
+export interface LedgerFilters {
+  search: string;
+  clearedOnly: boolean;
+  unmatchedOnly: boolean;
+  duplicatesOnly: boolean;
+  status?: Status | '';
+  minAmt?: number | null;
+  maxAmt?: number | null;
+  start?: string | null; // ISO date
+  end?: string | null;   // ISO date
 }
-
-export interface RegistryRow extends BudgetTransaction {
-  runningBalance?: number;
-}
-
-// mock generator
-function generateMock(count = 1000): BudgetTransaction[] {
-  const arr: BudgetTransaction[] = [];
-  for (let i = 0; i < count; i++) {
-    const amt = parseFloat((Math.random() * 200 - 100).toFixed(2));
-    arr.push({
-      id: `tx-${i}`,
-      date: new Date(Date.now() - i * 86400000).toISOString().slice(0, 10),
-      payee: `Merchant ${i % 20}`,
-      categoryId: `cat-${i % 5}`,
-      entityId: `ent-${i % 3}`,
-      budgetId: `bud-${i % 2}`,
-      amount: amt,
-      status: i % 3 === 0 ? 'C' : 'U',
-      notes: 'Sample note',
-    });
-  }
-  return arr;
-}
-
-const all = generateMock();
 
 export function useTransactions() {
-  const transactions = ref<BudgetTransaction[]>([]);
-  const registerRows = ref<RegistryRow[]>([]);
-  const page = ref(0);
-  const registerPage = ref(0);
-  const pageSize = 50;
+  const budgetStore = useBudgetStore();
+  const familyStore = useFamilyStore();
+  const { selectedBudgetIds } = storeToRefs(useUIStore());
+
+  const rows = ref<LedgerRow[]>([]);
+  const registerRows = ref<LedgerRow[]>([]);
   const loading = ref(false);
   const loadingRegister = ref(false);
 
-  function loadPage(target: typeof transactions, pageRef: typeof page) {
-    const start = pageRef.value * pageSize;
-    const next = all.slice(start, start + pageSize);
-    target.value.push(...next);
-    pageRef.value++;
+  // Columns are placeholders; LedgerTable defines its own, but callers may expect arrays
+  const budgetColumns = ref([
+    { name: 'date', label: 'Date' },
+    { name: 'payee', label: 'Payee' },
+    { name: 'category', label: 'Category' },
+    { name: 'entity', label: 'Entity/Budget' },
+    { name: 'amount', label: 'Amount' },
+    { name: 'status', label: 'Status' },
+    { name: 'notes', label: 'Notes' },
+    { name: 'actions', label: '' },
+  ]);
+  const registerColumns = budgetColumns;
+
+  const filters = ref<LedgerFilters>({
+    search: '',
+    clearedOnly: false,
+    unmatchedOnly: false,
+    duplicatesOnly: false,
+    status: '',
+    minAmt: null,
+    maxAmt: null,
+    start: null,
+    end: null,
+  });
+
+  function mapTxToRow(tx: Transaction, budget: Budget): LedgerRow {
+    const category = (tx.categories?.length || 0) > 1
+      ? 'Split'
+      : (tx.categories?.[0]?.category || '');
+    const entityName = familyStore.family?.entities?.find(e => e.id === (tx.entityId || budget.entityId))?.name || 'N/A';
+    return {
+      id: tx.id,
+      date: tx.date,
+      payee: tx.merchant || '',
+      category,
+      entityName,
+      budgetId: budget.budgetId || '',
+      amount: Number(tx.amount || 0),
+      status: (tx.status === 'C' ? 'C' : 'U'),
+      linkId: tx.accountNumber ? `${tx.accountSource || ''}:${tx.accountNumber}` : undefined,
+      notes: tx.notes || '',
+    };
   }
 
-  function fetchMore() {
-    if (loading.value) return;
+  async function hydrateBudgets(budgetIds: string[]) {
+    const out: LedgerRow[] = [];
+    for (const id of budgetIds) {
+      let b = budgetStore.getBudget(id);
+      if (!b || !Array.isArray(b.categories) || !Array.isArray(b.transactions)) {
+        const full = await dataAccess.getBudget(id);
+        if (full) {
+          b = full;
+          budgetStore.updateBudget(id, full);
+        }
+      }
+      if (b) {
+        const mapped = (b.transactions || []).filter(t => !t.deleted).map(t => mapTxToRow(t, b));
+        out.push(...mapped);
+      }
+    }
+    // Sort desc by date
+    out.sort((a, b) => b.date.localeCompare(a.date));
+    return out;
+  }
+
+  async function loadInitial(budgetIdOrIds: string | string[]) {
     loading.value = true;
-    loadPage(transactions, page);
-    loading.value = false;
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+      await familyStore.loadFamily(user.uid);
+      const ids = Array.isArray(budgetIdOrIds) ? budgetIdOrIds : [budgetIdOrIds];
+      rows.value = await hydrateBudgets(ids);
+      registerRows.value = rows.value; // Placeholder: same data until register wired
+    } finally {
+      loading.value = false;
+    }
   }
 
-  function fetchMoreRegister() {
-    if (loadingRegister.value) return;
-    loadingRegister.value = true;
-    const start = registerPage.value * pageSize;
-    const next = all.slice(start, start + pageSize).map((t) => ({
-      ...t,
-      runningBalance: (registerRows.value.at(-1)?.runningBalance || 0) + t.amount,
-    }));
-    registerRows.value.push(...next);
-    registerPage.value++;
-    loadingRegister.value = false;
+  async function fetchMore() { /* pagination placeholder for API cursors */ }
+  async function fetchMoreRegister() { /* placeholder */ }
+
+  function scrollToDate(iso: string) {
+    // The page can use this to scroll via QTable / VirtualScroll API later.
+    console.log('scrollToDate', iso);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  function scrollToDate(_date: string) {
-    // no-op placeholder; would map date to index and scroll
-  }
+  const filtered = computed(() => {
+    const f = filters.value;
+    return rows.value.filter((r) => {
+      if (f.search) {
+        const s = f.search.toLowerCase();
+        if (!(r.payee.toLowerCase().includes(s) || r.category.toLowerCase().includes(s) || r.entityName.toLowerCase().includes(s))) return false;
+      }
+      if (f.status && r.status !== f.status) return false;
+      if (f.clearedOnly && r.status !== 'C') return false;
+      if (f.unmatchedOnly && !!r.linkId) return false;
+      if (f.duplicatesOnly && !r.isDuplicate) return false;
+      if (f.minAmt != null && r.amount < f.minAmt) return false;
+      if (f.maxAmt != null && r.amount > f.maxAmt) return false;
+      if (f.start && r.date < f.start) return false;
+      if (f.end && r.date > f.end) return false;
+      return true;
+    });
+  });
 
-  // Columns for tables
-  const budgetColumns: QTableColumn[] = [
-    { name: 'date', label: 'Date', field: 'date', align: 'left' },
-    { name: 'payee', label: 'Payee', field: 'payee', align: 'left' },
-    { name: 'category', label: 'Category', field: 'categoryId', align: 'left' },
-    { name: 'entity', label: 'Entity/Budget', field: 'entityId', align: 'left' },
-    { name: 'amount', label: 'Amount', field: 'amount', align: 'right' },
-    { name: 'status', label: 'Status', field: 'status', align: 'center' },
-    { name: 'notes', label: 'Notes', field: 'notes', align: 'left' },
-  ];
-
-  const registerColumns: QTableColumn[] = [
-    ...budgetColumns,
-    { name: 'balance', label: 'Balance', field: 'runningBalance', align: 'right' },
-  ];
-
-  // seed initial
-  void fetchMore();
-  void fetchMoreRegister();
-
-  return {
-    transactions,
-    registerRows,
+  const api = {
+    // budget tab
+    transactions: filtered,
     fetchMore,
-    fetchMoreRegister,
     loading,
-    loadingRegister,
-    scrollToDate,
     budgetColumns,
+
+    // register tab (placeholder mirrors budget for now)
+    registerRows,
+    fetchMoreRegister,
+    loadingRegister,
     registerColumns,
-    withinDateWindow,
-    isDuplicate,
-    link,
-    unlink,
-  } as const;
-}
 
-// duplicate helper exported at module scope
-export function withinDateWindow(a: string, b: string, days: number) {
-  const diff = Math.abs(new Date(a).getTime() - new Date(b).getTime());
-  return diff <= days * 86400000;
-}
+    // utilities
+    scrollToDate,
+    // also expose init for callers that want explicit control
+    loadInitial,
+  };
 
-export function isDuplicate(tx: BudgetTransaction, others: BudgetTransaction[], days = 3) {
-  return others.some(
-    (o) =>
-      o.id !== tx.id &&
-      o.payee === tx.payee &&
-      Math.abs(o.amount - tx.amount) <= 0.01 &&
-      withinDateWindow(tx.date, o.date, days)
+  // Attempt an initial load using all budgets currently in the store
+  void (async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+      await familyStore.loadFamily(user.uid);
+      await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
+      const ids = Array.from(budgetStore.budgets.keys());
+      if (ids.length > 0) await loadInitial(ids);
+    } catch {
+      /* ignore */
+    }
+  })();
+
+  // If budgets arrive later (auth lag), hydrate once
+  watch(
+    () => budgetStore.budgets.size,
+    async (size) => {
+      if (size > 0 && rows.value.length === 0) {
+        const ids = Array.from(budgetStore.budgets.keys());
+        await loadInitial(ids);
+      }
+    },
   );
-}
 
-export function link(tx: BudgetTransaction, importedId: string) {
-  tx.linkId = importedId;
-}
+  // When the user's selection of budgets changes, hydrate those budgets explicitly
+  watch(
+    () => selectedBudgetIds.value?.slice().join(','),
+    async (list) => {
+      if (!list) return;
+      const ids = selectedBudgetIds.value.filter(Boolean);
+      if (ids.length > 0) {
+        await loadInitial(ids);
+      }
+    },
+    { immediate: false },
+  );
 
-export function unlink(tx: BudgetTransaction) {
-  delete tx.linkId;
+  return api;
 }

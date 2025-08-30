@@ -61,14 +61,12 @@ Key props/usage:
                 </q-icon>
               </template>
             </q-input>
-            <q-date v-model="jumpDate" mask="YYYY-MM-DD" minimal class="col-auto">
-              <template #default>
-                <q-btn dense outline icon="event" @click="jumpMenu = true" aria-label="Jump to date" />
-                <q-menu v-model="jumpMenu" anchor="bottom right" self="top right">
-                  <q-date v-model="jumpDate" @update:model-value="onJump" />
-                </q-menu>
-              </template>
-            </q-date>
+            <div class="col-auto">
+              <q-btn dense outline icon="event" @click="jumpMenu = true" aria-label="Jump to date" />
+              <q-menu v-model="jumpMenu" anchor="bottom right" self="top right">
+                <q-date v-model="jumpDate" mask="YYYY-MM-DD" @update:model-value="onJump" />
+              </q-menu>
+            </div>
           </div>
           <!-- Active filter chips -->
           <div class="q-mt-sm">
