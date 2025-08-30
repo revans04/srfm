@@ -100,18 +100,18 @@ const navItems = [
 ];
 
 
-function onNavClick(item: { title: string; path: string }) {
+async function onNavClick(item: { title: string; path: string }) {
   if (item.title === 'Logout') {
-    signOut();
+    await signOut();
   } else {
-    router.push(item.path);
+    await router.push(item.path);
     currentTab.value = item.path;
   }
 }
 
 async function signOut() {
   await auth.logout();
-  router.push('/login');
+  await router.push('/login');
 }
 
 function handleResize() {
