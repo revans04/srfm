@@ -47,11 +47,9 @@ function selectEntity(id: string) {
 const DBG = '[EntitySelector]';
 // Btn+QMenu handles toggling; keep diagnostic hooks
 function onMenuShow() {
-  // eslint-disable-next-line no-console
   console.debug(DBG, 'menu show');
 }
 function onMenuHide() {
-  // eslint-disable-next-line no-console
   console.debug(DBG, 'menu hide');
 }
 </script>
