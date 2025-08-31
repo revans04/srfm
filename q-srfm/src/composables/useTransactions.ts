@@ -127,9 +127,18 @@ export function useTransactions() {
   }
 
   function mapImportedToRow(tx: ImportedTransaction): LedgerRow {
-    const accountName =
-      tx.accountName ||
-      familyStore.family?.accounts?.find((a) => a.id === tx.accountId)?.name || '';
+    const account = familyStore.family?.accounts?.find((a) => {
+      if (tx.accountId) return a.id === tx.accountId;
+      if (tx.accountNumber) {
+        const numberMatch = a.accountNumber === tx.accountNumber;
+        const sourceMatch = tx.accountSource
+          ? a.institution === tx.accountSource
+          : true;
+        return numberMatch && sourceMatch;
+      }
+      return false;
+    });
+    const accountName = tx.accountName || account?.name || '';
     return {
       id: tx.id,
       date: tx.postedDate,
@@ -141,7 +150,7 @@ export function useTransactions() {
       status: tx.status,
       linkId: tx.accountNumber ? `${tx.accountSource || ''}:${tx.accountNumber}` : undefined,
       notes: '',
-      accountId: tx.accountId,
+      accountId: account?.id || tx.accountId,
     };
   }
 
@@ -149,7 +158,7 @@ export function useTransactions() {
     const out: LedgerRow[] = [];
     for (const id of budgetIds) {
       let full = budgetStore.getBudget(id);
-      if (!full || !full.transactions) {
+      if (!full || !full.transactions || full.transactions.length === 0) {
         full = await dataAccess.getBudget(id);
         if (full) {
           budgetStore.updateBudget(id, full);

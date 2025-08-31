@@ -20,7 +20,7 @@ import { Timestamp } from 'firebase/firestore';
 type RawAccount = Account & { createdAt?: unknown; updatedAt?: unknown };
 
 export class DataAccess {
-  private apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+  private apiBaseUrl = ((import.meta as any)?.env || {}).VITE_API_BASE_URL || 'http://localhost:8080/api';
   // Lazily access the auth store to ensure Pinia is active
   private get authStore() {
     return useAuthStore();
