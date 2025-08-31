@@ -1,12 +1,12 @@
 <!-- src/views/DataView.vue -->
 <template>
-  <q-page fluid>
-    <h1>Data Management</h1>
+  <q-page class="bg-grey-2 q-pa-md" fluid>
+    <h1 class="text-h5 q-mb-md">Data Management</h1>
 
     <!-- Loading handled via $q.loading -->
 
     <!-- Tabs -->
-    <q-tabs v-model="activeTab" color="primary" class="mb-4">
+    <q-tabs v-model="activeTab" color="primary" class="bg-white rounded-borders q-mb-md">
       <q-tab name="import" label="Import" />
       <q-tab name="export" label="Export" />
     </q-tabs>
@@ -16,7 +16,7 @@
       <q-tab-panel name="import">
         <div class="row">
           <div class="col col-12">
-            <q-card>
+            <q-card flat bordered class="bg-white q-pa-md rounded-borders">
               <q-card-section>Import Data</q-card-section>
               <q-card-section>
                 <q-select v-model="importType" :items="importTypes" label="Select Import Type" outlined class="mb-4"></q-select>
@@ -327,7 +327,7 @@
       <q-tab-panel name="export">
         <div class="row">
           <div class="col col-12">
-            <q-card>
+            <q-card flat bordered class="bg-white q-pa-md rounded-borders">
               <q-card-section>Export Data</q-card-section>
               <q-card-section>
                 <q-btn color="primary" @click="exportDataToCSV" :loading="exporting">Export All Data</q-btn>
@@ -538,8 +538,12 @@ async function loadAllData() {
 
     await familyStore.loadFamily(user.uid);
 
+    const family = await familyStore.getFamily();
+    if (!family) throw new Error("User has no family assigned");
+    familyId.value = family.id;
+
     // Set selectedEntityId to the first entity if available
-    const entities = familyStore.family?.entities || [];
+    const entities = family.entities || [];
     if (entities.length > 0 && !selectedEntityId.value) {
       selectedEntityId.value = entities[0].id;
     }
@@ -549,17 +553,10 @@ async function loadAllData() {
 
     transactions.value = budgets.value.flatMap((budget) => budget.transactions || []);
 
-    if (budgets.value && budgets.value.length > 0) {
-      familyId.value = budgets.value[0].familyId;
-    } else {
-      const family = await familyStore.getFamily();
-      if (!family) throw new Error("User has no family assigned");
-      familyId.value = family.id;
-    }
-
-    if (familyId.value) {
-      const accounts = await dataAccess.getAccounts(familyId.value);
-      availableAccounts.value = accounts.filter((account) => account.type === "Bank" || account.type === "CreditCard");
+    const accounts = await dataAccess.getAccounts(familyId.value);
+    availableAccounts.value = accounts.filter((account) => account.type === "Bank" || account.type === "CreditCard");
+    if (availableAccounts.value.length > 0 && !selectedAccountId.value) {
+      selectedAccountId.value = availableAccounts.value[0].id;
     }
   } catch (error: any) {
     console.error("Error loading data:", error);
