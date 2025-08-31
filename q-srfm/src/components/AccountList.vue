@@ -6,7 +6,7 @@
         <div class="col">{{ type }} Accounts</div>
         <div class="col-auto text-right q-mr-md">{{ formatCurrency(accountValue) }}</div>
         <div class="col-auto">
-          <q-btn color="primary" variant="plain" @click="$emit('add')">Add Account</q-btn>
+          <q-btn color="primary" flat dense @click="$emit('add')" icon="add">Add Account</q-btn>
         </div>
       </div>
     </q-card-section>
@@ -27,23 +27,21 @@
         </template>
         <template v-slot:body-cell-actions="{ row }">
           <q-btn
-            density="compact"
-            variant="plain"
+            flat
+            dense
             color="primary"
+            icon="edit"
             @click="$emit('edit', row)"
             :disabled="row.userId && row.userId !== userId"
-          >
-              <q-icon name="edit"></q-icon>
-          </q-btn>
+          />
           <q-btn
-            density="compact"
-            variant="plain"
+            flat
+            dense
             color="error"
+            icon="delete"
             @click="$emit('delete', row.id)"
             :disabled="row.userId && row.userId !== userId"
-          >
-              <q-icon name="delete"></q-icon>
-          </q-btn>
+          />
         </template>
       </q-table>
 

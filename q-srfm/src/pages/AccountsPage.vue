@@ -58,8 +58,27 @@
         <q-card>
           <q-card-section>Net Worth Over Time</q-card-section>
           <q-card-section>
-            <q-btn color="primary" class="mb-4 mr-2" @click="openSnapshotDialog" :disabled="accounts.length === 0"> Capture Snapshot </q-btn>
-            <q-btn color="error" class="mb-4" @click="confirmBatchDeleteSnapshots" :disabled="selectedSnapshots.length === 0" :loading="deleting">
+            <q-btn
+              color="primary"
+              flat
+              dense
+              class="mb-4 mr-2"
+              icon="photo_camera"
+              @click="openSnapshotDialog"
+              :disabled="accounts.length === 0"
+            >
+              Capture Snapshot
+            </q-btn>
+            <q-btn
+              color="error"
+              flat
+              dense
+              class="mb-4"
+              icon="delete"
+              @click="confirmBatchDeleteSnapshots"
+              :disabled="selectedSnapshots.length === 0"
+              :loading="deleting"
+            >
               Delete Selected
             </q-btn>
               <q-table
@@ -89,9 +108,13 @@
                 {{ formatCurrency(row.netWorth) }}
               </template>
                 <template #body-cell-actions="{ row }">
-                  <q-btn dense variant="plain" color="error" @click.stop="confirmDeleteSnapshot(row.id)">
-                    <q-icon name="delete_outline"></q-icon>
-                  </q-btn>
+                  <q-btn
+                    flat
+                    dense
+                    color="error"
+                    icon="delete"
+                    @click.stop="confirmDeleteSnapshot(row.id)"
+                  />
                 </template>
               </q-table>
             <div class="mt-4">
