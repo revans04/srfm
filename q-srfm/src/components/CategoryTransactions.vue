@@ -50,6 +50,7 @@
             :key="transaction.id"
             class="transaction-item"
             dense
+            clickable
             @click="editTransaction(transaction)"
             style="border-bottom: 1px solid rgb(var(--v-theme-light))"
           >
@@ -65,7 +66,13 @@
                   ${{ Math.abs(getCategoryAmount(transaction)).toFixed(2) }}
                 </div>
                 <div class="col text-right col-auto" style="min-width: 40px">
-                  <q-icon small @click.stop="confirmDelete(transaction)" title="Move to Trash" color="error" name="trash"></q-icon>
+                  <q-icon
+                    small
+                    name="delete"
+                    color="error"
+                    title="Move to Trash"
+                    @click.stop="confirmDelete(transaction)"
+                  />
                 </div>
               </div>
             </q-item-section>
