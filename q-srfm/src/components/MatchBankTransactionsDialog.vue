@@ -25,7 +25,7 @@
         <q-tab-panels v-model="activeTab">
           <!-- Smart Matches Tab -->
           <q-tab-panel name="smart-matches">
-            <div class="row mt-4" v-if="smartMatches.length > 0">
+            <div class="row mt-4">
               <div class="col">
                 <h3>Smart Matches ({{ smartMatches.length }})</h3>
                 <p class="text-caption pb-2">These imported transactions have exactly one potential match. Review and confirm below (max 50 at a time).</p>
@@ -71,6 +71,7 @@
                 </div>
 
                 <q-table
+                  v-if="smartMatches.length > 0"
                   :columns="smartMatchColumns"
                   :rows="sortedSmartMatches"
                   row-key="importedTransaction.id"
@@ -85,22 +86,18 @@
                   <template #body-cell-budgetAmount="{ row }"> ${{ toDollars(toCents(row.budgetTransaction.amount)) }} </template>
                   <template #body-cell-budgetType="{ row }"> {{ row.budgetTransaction.isIncome ? "Income" : "Expense" }} </template>
                   <template #body-cell-actions="{ row }">
-                      <q-icon
-                        v-if="isBudgetTxMatchedMultiple(row.budgetTransaction.id)"
-                        color="warning"
-                        title="This budget transaction matches multiple bank transactions"
-                        name="warning"
-                      ></q-icon>
+                    <q-icon
+                      v-if="isBudgetTxMatchedMultiple(row.budgetTransaction.id)"
+                      color="warning"
+                      title="This budget transaction matches multiple bank transactions"
+                      name="warning"
+                    ></q-icon>
                   </template>
                 </q-table>
-                <q-btn color="primary" @click="confirmSmartMatches" :disabled="selectedSmartMatchIds.length === 0 || props.matching" :loading="props.matching">
-                  Confirm Selected Matches ({{ selectedSmartMatchIds.length }})
-                </q-btn>
-              </div>
-            </div>
-            <div class="row mt-4" v-else >
-              <div class="col">
-                <q-banner type="info"> No smart matches found. Check Remaining Transactions for potential conflicts. </q-banner>
+
+                <q-banner v-else type="info" class="mt-4">
+                  No smart matches found. Check Remaining Transactions for potential conflicts.
+                </q-banner>
               </div>
             </div>
           </q-tab-panel>
