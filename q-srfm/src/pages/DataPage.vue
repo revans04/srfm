@@ -349,7 +349,7 @@
 
 <script setup lang="ts">
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unnecessary-type-assertion */
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import { useQuasar, QSpinner } from 'quasar';
 import { auth } from "../firebase/init";
 import { dataAccess } from "../dataAccess";
@@ -411,6 +411,22 @@ const importTypes = [
   { title: "Bank/Card Transactions", value: "bankTransactions" },
   { title: "Accounts/Snapshots", value: "accountsAndSnapshots" },
 ];
+
+watch(importType, async (val) => {
+  if (val === "bankTransactions" && availableAccounts.value.length === 0 && familyId.value) {
+    try {
+      const accounts = await dataAccess.getAccounts(familyId.value);
+      availableAccounts.value = accounts.filter(
+        (account) => account.type === "Bank" || account.type === "CreditCard"
+      );
+      if (availableAccounts.value.length > 0 && !selectedAccountId.value) {
+        selectedAccountId.value = availableAccounts.value[0].id;
+      }
+    } catch (err: any) {
+      showSnackbar(`Error loading accounts: ${err.message}`, "error");
+    }
+  }
+});
 const selectedFiles = ref<File[]>([]);
 const bankTransactionsFile = ref<File | null>(null);
 const entitiesFile = ref<File | null>(null);
