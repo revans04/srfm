@@ -53,7 +53,7 @@
         </div>
       </div>
 
-      <div class="form-row my-6 ms-n3 q-py-md">
+      <div class="form-row q-my-xl ms-n3 q-py-md">
         <div v-for="(split, index) in locTrnsx.categories" :key="index">
           <div class="row no-gutters">
             <div class="col form-col-label q-pr-sm col-auto" :class="locTrnsx.categories.length > 1 ? '' : 'q-pb-md'">
@@ -78,7 +78,7 @@
           </div>
         </div>
         <div v-if="locTrnsx.categories.length > 1 && remainingSplit !== 0">
-          <q-banner v-if="remainingSplit !== 0" :type="remainingSplit < 0 ? 'error' : 'warning'" class="mb-4">
+          <q-banner v-if="remainingSplit !== 0" :type="remainingSplit < 0 ? 'error' : 'warning'" class="q-mb-lg">
             <div v-if="remainingSplit > 0">Remaining ${{ toDollars(toCents(Math.abs(remainingSplit))) }}</div>
             <div v-else>Over allocated ${{ toDollars(toCents(Math.abs(remainingSplit))) }} ({{ toDollars(toCents(locTrnsx.amount + remainingSplit)) }})</div>
           </q-banner>
@@ -100,9 +100,9 @@
         <q-textarea v-model="locTrnsx.notes" label="Notes" borderless @focus="scrollToNoteField" />
       </div>
 
-      <div class="row rounded-5 bg-light mb-2 justify-center">
+      <div class="row rounded-5 bg-light q-mb-sm justify-center">
         <div class="col font-weight-bold col-auto" justify="center">Budget</div>
-        <div class="col q-pa-none ma-0 text-right">
+        <div class="col q-pa-none q-ma-none text-right">
           <q-select
             v-model="locTrnsx.budgetMonth"
             :options="availableMonths"
@@ -114,7 +114,7 @@
         </div>
       </div>
 
-      <div class="row mt-2" v-if="availableMonths.length === 0" >
+      <div class="row q-mt-sm" v-if="availableMonths.length === 0" >
         <div class="col">
           <q-banner type="warning">No budgets available. Please create a budget in the Dashboard.</q-banner>
         </div>
@@ -126,7 +126,7 @@
       <!-- Imported Transaction Fields (Shown only if matched) -->
       <div
         v-if="locTrnsx.status && (locTrnsx.status === 'C' || locTrnsx.status === 'R')"
-        class="mt-4"
+        class="q-mt-lg"
       >
         <div class="row form-row" >
           <div class="col form-col-label" >Posted Date</div>
@@ -498,10 +498,6 @@ function showSnackbar(text: string, color = "success") {
 </script>
 
 <style>
-.mb-2 {
-  margin-bottom: 8px;
-}
-
 .form-row {
   background-color: #f5f5f5;
   padding: 4px 8px;

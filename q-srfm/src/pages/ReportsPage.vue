@@ -15,7 +15,7 @@
       <!-- Monthly Overview -->
       <q-tab-panel name="monthly">
         <!-- Budget Selection -->
-        <div class="row mt-4" >
+        <div class="row q-mt-lg" >
           <div class="col col-12 col-md-6">
             <q-select
               v-model="selectedBudgets"
@@ -32,7 +32,7 @@
           </div>
         </div>
 
-        <div class="row mt-4">
+        <div class="row q-mt-lg">
           <div class="col col-12 col-md-6">
             <q-select
               v-model="excludedGroups"
@@ -59,7 +59,7 @@
           </div>
         </div>
 
-        <div class="row mt-4" >
+        <div class="row q-mt-lg" >
           <div class="col col-12 col-md-6">
             <q-card>
               <q-card-section class="text-center">
@@ -71,7 +71,7 @@
               </q-card-section>
             </q-card>
             <!-- Table for Group, Planned, Actual -->
-            <q-markup-table class="mt-4">
+            <q-markup-table class="q-mt-lg">
               <thead>
                 <tr>
                   <th>Group</th>
@@ -146,7 +146,7 @@
                 </div>
               </q-card-section>
             </q-card>
-            <q-markup-table class="mt-4">
+            <q-markup-table class="q-mt-lg">
               <thead>
                 <tr>
                   <th>Month</th>
@@ -168,7 +168,7 @@
 
       <!-- Year-over-Year -->
       <q-tab-panel name="year-over-year">
-        <div class="row mt-4" >
+        <div class="row q-mt-lg" >
           <div class="col">
             <q-card>
               <q-card-section>
@@ -181,7 +181,7 @@
 
       <!-- Net Worth -->
       <q-tab-panel name="net-worth">
-        <div class="row mt-4" >
+        <div class="row q-mt-lg" >
           <!-- Net Worth Over Time with Trend Line -->
           <div class="col col-12">
             <q-card>

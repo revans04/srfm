@@ -12,7 +12,7 @@
     </div>
 
     <!-- Progress Bar and Remaining -->
-    <div class="row mt-2">
+    <div class="row q-mt-sm">
       <div class="col">
         <div class="progress-section">
           <div class="progress-label">
@@ -38,10 +38,10 @@
     </div>
 
     <!-- Transactions List -->
-    <div class="row flex-grow-1 mt-4 q-pl-none q-pr-none">
+    <div class="row flex-grow-1 q-mt-lg q-pl-none q-pr-none">
       <div class="col transaction-list q-pl-none q-pr-none">
         <h3 class="section-title q-pb-sm">Transactions ({{ categoryTransactions.length }})</h3>
-        <div class="my-2 bg-white rounded-borders q-pa-sm mb-4">
+        <div class="q-mt-sm q-mb-lg bg-white rounded-borders q-pa-sm">
           <q-input v-model="search" label="Search" dense clearable prepend-icon="search"></q-input>
         </div>
         <q-card flat class="bg-white rounded-borders">
@@ -63,7 +63,7 @@
                 <div class="col text-truncate" style="flex: 1; min-width: 0">
                   {{ transaction.merchant }}
                 </div>
-                <div class="col text-right no-wrap col-auto" :class="transaction.isIncome ? 'green--text' : ''" style="min-width: 60px">
+                <div class="col text-right no-wrap col-auto" :class="transaction.isIncome ? 'text-green' : ''" style="min-width: 60px">
                   ${{ Math.abs(getCategoryAmount(transaction)).toFixed(2) }}
                 </div>
                 <div class="col text-right col-auto" style="min-width: 40px">
@@ -87,7 +87,7 @@
     </div>
 
     <!-- Floating Action Button -->
-    <q-fab icon="add" :app="true" color="primary" @click="$emit('add-transaction')" location="bottom left" class="ml-2" :class="isMobile ? 'mb-14' : 'mb-2'" />
+    <q-fab icon="add" :app="true" color="primary" @click="$emit('add-transaction')" location="bottom left" class="q-ml-sm" :class="isMobile ? 'q-mb-xl' : 'q-mb-sm'" />
 
     <!-- Edit Transaction Dialog -->
     <q-dialog v-model="showEditDialog" :width="!isMobile ? '550px' : undefined" :fullscreen="isMobile">
@@ -97,7 +97,7 @@
           <q-btn
             flat
             dense
-            color="negative"
+            color="white"
             label="X"
             class="q-ml-auto"
             @click="showEditDialog = false"

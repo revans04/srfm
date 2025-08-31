@@ -27,7 +27,7 @@
     </div>
 
     <!-- Balance Display -->
-    <q-card class="mb-4" v-if="selectedAccount">
+    <q-card class="q-mb-lg" v-if="selectedAccount">
       <q-card-section>Account Balance</q-card-section>
       <q-card-section>
         <div class="row">
@@ -53,7 +53,7 @@
       </q-card-section>
     </q-card>
 
-    <q-card class="mb-4" v-if="selectedStatement">
+    <q-card class="q-mb-lg" v-if="selectedStatement">
       <q-card-section>Statement Totals</q-card-section>
       <q-card-section>
         <p>Start Balance: {{ formatCurrency(selectedStatement.startingBalance) }}</p>
@@ -63,7 +63,7 @@
 
     <!-- Loading handled via $q.loading -->
 
-    <q-card class="mb-4">
+    <q-card class="q-mb-lg">
       <q-card-section>Filters</q-card-section>
       <q-card-section>
         <div class="row">
@@ -157,7 +157,7 @@
           v-if="selectedRows.length > 0"
           color="primary"
           @click="openBatchMatchDialog"
-          class="mb-4"
+          class="q-mb-lg"
           :disabled="loading || !selectedRows.every(id => {
             const tx = displayTransactions.find((t: DisplayTransaction) => t.id === id);
             return tx && tx.status === 'U';
@@ -168,7 +168,7 @@
         <q-btn
           v-if="selectedRows.length > 0"
           color="warning"
-          class="mb-4 ml-2"
+          class="q-mb-lg q-ml-sm"
           @click="confirmBatchAction('Ignore')"
           :disabled="loading || !selectedRows.every(id => {
             const tx = displayTransactions.find((t: DisplayTransaction) => t.id === id);
@@ -180,7 +180,7 @@
         <q-btn
           v-if="selectedRows.length > 0"
           color="negative"
-          class="mb-4 ml-2"
+          class="q-mb-lg q-ml-sm"
           @click="confirmBatchAction('Delete')"
           :disabled="loading || !selectedRows.every(id => {
             const tx = displayTransactions.find((t: DisplayTransaction) => t.id === id);
@@ -443,14 +443,14 @@
               </div>
             </div>
             <q-btn type="submit" color="primary" :loading="saving">Save Adjustment</q-btn>
-            <q-btn color="grey" variant="text" @click="closeBalanceAdjustmentDialog" class="ml-2">Cancel</q-btn>
+            <q-btn color="grey" variant="text" @click="closeBalanceAdjustmentDialog" class="q-ml-sm">Cancel</q-btn>
           </q-form>
         </q-card-section>
       </q-card>
     </q-dialog>
 
     <!-- Reconcile Summary -->
-    <q-card class="mt-4" v-if="reconciling && selectedStatement">
+    <q-card class="q-mt-lg" v-if="reconciling && selectedStatement">
       <q-card-section class="bg-primary q-py-md">
         <span class="text-white">Reconcile Statement</span>
       </q-card-section>
@@ -459,12 +459,12 @@
           Select transactions to reconcile for
           {{ selectedStatement.startDate }} - {{ selectedStatement.endDate }}
         </p>
-        <div class="mt-4">
+        <div class="q-mt-lg">
           <p>Starting Balance: {{ formatCurrency(selectedStatement.startingBalance) }}</p>
           <p>Selected Total: {{ formatCurrency(selectedTransactionsTotal) }}</p>
           <p>Calculated Ending Balance: {{ formatCurrency(calculatedEndingBalance) }}</p>
           <p :class="{ 'text-negative': !reconcileMatches }">Statement Ending Balance: {{ formatCurrency(selectedStatement.endingBalance) }}</p>
-          <q-banner type="warning" v-if="!reconcileMatches" class="mt-2" dense>
+          <q-banner type="warning" v-if="!reconcileMatches" class="q-mt-sm" dense>
             Calculated ending balance does not match statement ending balance.
           </q-banner>
         </div>

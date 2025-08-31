@@ -19,7 +19,7 @@
             <q-card flat bordered class="bg-white q-pa-md rounded-borders">
               <q-card-section>Import Data</q-card-section>
               <q-card-section>
-                <q-select v-model="importType" :items="importTypes" label="Select Import Type" outlined class="mb-4"></q-select>
+                <q-select v-model="importType" :items="importTypes" label="Select Import Type" outlined class="q-mb-lg"></q-select>
 
                 <!-- Entity Selection or Creation -->
                 <div class="row" v-if="entityOptions.length > 0 && importType !== 'bankTransactions' && importType !== 'accountsAndSnapshots'">
@@ -34,19 +34,19 @@
                       dense
                       clearable
                       :rules="importType !== 'entities' ? [(v) => !!v || 'Entity selection is required'] : []"
-                      class="mb-4"
+                      class="q-mb-lg"
                     ></q-select>
                   </div>
                   <div class="col col-12 col-md-6">
-                    <q-btn color="primary" @click="openCreateEntityDialog" class="mt-2">Create New Entity</q-btn>
+                    <q-btn color="primary" @click="openCreateEntityDialog" class="q-mt-sm">Create New Entity</q-btn>
                   </div>
                 </div>
                 <div class="row" v-else-if="importType !== 'bankTransactions' && importType !== 'accountsAndSnapshots'">
                   <div class="col col-12">
-                    <q-banner type="info" class="mb-4">
+                    <q-banner type="info" class="q-mb-lg">
                       No entities found. Please create a new entity or import entities before importing budgets or transactions.
                     </q-banner>
-                    <q-btn color="primary" @click="openCreateEntityDialog" class="mr-4">Create Entity</q-btn>
+                    <q-btn color="primary" @click="openCreateEntityDialog" class="q-mr-lg">Create Entity</q-btn>
                     <q-btn color="secondary" @click="importType = 'entities'">Import Entities</q-btn>
                   </div>
                 </div>
@@ -65,9 +65,9 @@
                         outlined
                         :rules="[(v) => !!v || 'Account selection is required']"
                         :disabled="importing || availableAccounts.length === 0"
-                        class="mb-4"
+                        class="q-mb-lg"
                       ></q-select>
-                      <q-banner v-if="availableAccounts.length === 0" type="warning" class="mb-4">
+                      <q-banner v-if="availableAccounts.length === 0" type="warning" class="q-mb-lg">
                         No bank or credit card accounts found. Please create an account in the Accounts section before importing transactions.
                       </q-banner>
                     </div>
@@ -93,7 +93,7 @@
                           :items="amountFormatOptions"
                           label="How are Credits/Debits Represented?"
                           outlined
-                          class="mb-4"
+                          class="q-mb-lg"
                         ></q-select>
 
                         <!-- Common Fields -->
@@ -250,13 +250,13 @@
                       </q-tabs>
                       <q-tab-panels v-model="previewTab">
                         <q-tab-panel name="entities">
-                          <q-table :columns="entityColumns" :rows="previewData.entities" :pagination="{ rowsPerPage: 5 }" class="mt-4"></q-table>
+                          <q-table :columns="entityColumns" :rows="previewData.entities" :pagination="{ rowsPerPage: 5 }" class="q-mt-lg"></q-table>
                         </q-tab-panel>
                         <q-tab-panel name="categories">
-                          <q-table :columns="categoryColumns" :rows="previewData.categories" :pagination="{ rowsPerPage: 5 }" class="mt-4"></q-table>
+                          <q-table :columns="categoryColumns" :rows="previewData.categories" :pagination="{ rowsPerPage: 5 }" class="q-mt-lg"></q-table>
                         </q-tab-panel>
                         <q-tab-panel name="transactions">
-                          <q-table :columns="transactionColumns" :rows="previewData.transactions" :pagination="{ rowsPerPage: 5 }" class="mt-4">
+                          <q-table :columns="transactionColumns" :rows="previewData.transactions" :pagination="{ rowsPerPage: 5 }" class="q-mt-lg">
                             <template #body-cell-categories="slotProps">
                               <span>{{ formatCategories(slotProps.row.categories) }}</span>
                             </template>
@@ -267,7 +267,7 @@
                             :columns="bankTransactionPreviewColumns"
                             :rows="previewBankTransactions"
                             :pagination="{ rowsPerPage: 5 }"
-                            class="mt-4"
+                            class="q-mt-lg"
                           ></q-table>
                         </q-tab-panel>
                         <q-tab-panel name="accountsAndSnapshots">
@@ -275,11 +275,11 @@
                             :columns="accountsAndSnapshotsColumns"
                             :rows="previewData.accountsAndSnapshots"
                             :pagination="{ rowsPerPage: 5 }"
-                            class="mt-4"
+                            class="q-mt-lg"
                           ></q-table>
                         </q-tab-panel>
                       </q-tab-panels>
-                      <q-banner v-if="previewErrors.length > 0" type="negative" class="mt-4">
+                      <q-banner v-if="previewErrors.length > 0" type="negative" class="q-mt-lg">
                         <ul>
                           <li v-for="(error, index) in previewErrors" :key="index">
                             {{ error }}

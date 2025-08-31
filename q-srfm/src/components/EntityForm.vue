@@ -49,7 +49,7 @@
           </div>
           <div class="col col-12">
             <!-- Help Section -->
-            <q-expansion-panels class="mb-4">
+            <q-expansion-panels class="q-mb-lg">
               <q-expansion-panel title="Need help with creating a budget template?">
                 <q-expansion-panel-text class="q-px-lg">
                   <strong>Create Your First Budget Template</strong>

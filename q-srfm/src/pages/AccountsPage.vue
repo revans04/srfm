@@ -6,7 +6,7 @@
     <!-- Loading handled via $q.loading -->
 
     <!-- Family Prompt -->
-    <q-banner v-if="!familyId" type="warning" class="mb-4"> Please create or join a family to manage accounts. </q-banner>
+    <q-banner v-if="!familyId" type="warning" class="q-mb-lg"> Please create or join a family to manage accounts. </q-banner>
 
     <!-- Tabs -->
     <q-tabs v-model="tab" color="primary" :disabled="!familyId">
@@ -127,7 +127,7 @@
                   </q-td>
                 </template>
               </q-table>
-            <div class="mt-4">
+            <div class="q-mt-lg">
               <p>Net worth trend chart coming soon!</p>
             </div>
           </q-card-section>
@@ -186,8 +186,8 @@
                 </q-td>
               </template>
             </q-table>
-            <q-btn type="submit" color="primary" :loading="saving" class="mt-4"> Save Snapshot </q-btn>
-            <q-btn color="grey" variant="text" @click="showSnapshotDialog = false" class="ml-2"> Cancel </q-btn>
+            <q-btn type="submit" color="primary" :loading="saving" class="q-mt-lg"> Save Snapshot </q-btn>
+            <q-btn color="grey" variant="text" @click="showSnapshotDialog = false" class="q-ml-sm"> Cancel </q-btn>
           </q-form>
         </q-card-section>
       </q-card>
@@ -258,7 +258,7 @@
                 </q-td>
               </template>
             </q-table>
-            <div class="text-right mt-4">
+            <div class="text-right q-mt-lg">
               <strong>Net Worth: {{ snapshotDetails ? formatCurrency(snapshotDetails.netWorth) : '' }}</strong>
             </div>
           </q-card-section>

@@ -3,14 +3,14 @@
   <q-page>
     <h1>Settings</h1>
 
-    <q-banner v-if="userEmail && !emailVerified" type="warning" class="mb-4">
+    <q-banner v-if="userEmail && !emailVerified" type="warning" class="q-mb-lg">
       Your email ({{ userEmail }}) is not verified. Please check your inbox or resend the verification email.
       <template v-slot:action>
         <q-btn variant="plain" @click="sendVerificationEmail" :loading="resending">Resend</q-btn>
       </template>
     </q-banner>
 
-    <q-tabs v-model="activeTab" color="primary" class="mt-4">
+    <q-tabs v-model="activeTab" color="primary" class="q-mt-lg">
       <q-tab name="group" label="Manage Family/Group" />
       <q-tab name="entity" label="Manage Entities" />
       <q-tab name="manageTransactions" label="Manage Imports" />
@@ -20,7 +20,7 @@
     <q-tab-panels v-model="activeTab">
       <!-- Group Management Tab -->
       <q-tab-panel name="group">
-        <q-card class="mt-4">
+        <q-card class="q-mt-lg">
           <q-card-section>Family/Group Information</q-card-section>
           <q-card-section>
             <q-list>
@@ -39,7 +39,7 @@
           </q-card-section>
         </q-card>
 
-        <q-card class="mt-4">
+        <q-card class="q-mt-lg">
           <q-card-section>Data Sync</q-card-section>
           <q-card-section>
             <div class="row items-center q-col-gutter-sm">
@@ -93,16 +93,16 @@
 
       <!-- Entity Management Tab -->
       <q-tab-panel name="entity">
-        <q-card class="mt-4">
+        <q-card class="q-mt-lg">
           <q-card-section>Entities</q-card-section>
           <q-card-section>
-            <q-btn color="primary" @click="openCreateEntityDialog" class="mb-4">Add Entity</q-btn>
+            <q-btn color="primary" @click="openCreateEntityDialog" class="q-mb-lg">Add Entity</q-btn>
             <q-list>
               <q-item v-for="entity in entities" :key="entity.id">
                 <div class="row dense">
                   <div class="col">
                     {{ entity.name }} ({{ entity.type }}) - Owner: {{ entity.members.find((m) => m.role === "Admin")?.email || "N/A" }}
-                    <q-chip v-if="entity.templateBudget" color="positive" size="small" class="ml-2">Has Template</q-chip>
+                    <q-chip v-if="entity.templateBudget" color="positive" size="small" class="q-ml-sm">Has Template</q-chip>
                   </div>
                   <div class="col col-auto">
                     <q-btn variant="plain" color="primary" @click="openEditEntityDialog(entity)" icon="edit" />
