@@ -107,7 +107,7 @@
 
         <!-- Budget Status Banner -->
         <div class="col-12 q-mt-md">
-          <q-banner :class="['text-white', 'rounded-borders', remainingToBudget >= 0 ? 'bg-positive' : 'bg-negative']">
+          <q-banner rounded class="text-white" :class="remainingToBudget >= 0 ? 'bg-positive' : 'bg-negative'">
             <q-icon name="emoji_events" class="q-mr-sm" />
             {{ remainingToBudget >= 0
               ? `You are ${formatCurrency(toDollars(toCents(remainingToBudget)))} under budget`
@@ -115,7 +115,7 @@
           </q-banner>
         </div>
         <div v-if="!isMobile || !selectedCategory" class="col-12 sm:col-6">
-          <div class="q-my-sm bg-white q-pa-md rounded-borders">
+          <div class="q-my-sm bg-white q-pa-md" style="border-radius: 4px">
             <q-input
               dense
               label="Search"

@@ -41,11 +41,11 @@
     <div class="row flex-grow-1 q-mt-lg q-pl-none q-pr-none">
       <div class="col transaction-list q-pl-none q-pr-none">
         <h3 class="section-title q-pb-sm">Transactions ({{ categoryTransactions.length }})</h3>
-        <div class="q-mt-sm q-mb-lg bg-white rounded-borders q-pa-sm">
+        <div class="q-mt-sm q-mb-lg bg-white q-pa-sm" style="border-radius: 4px">
           <q-input v-model="search" label="Search" dense clearable prepend-icon="search"></q-input>
         </div>
-        <q-card flat class="bg-white rounded-borders">
-        <q-list dense class="rounded-borders">
+        <q-card flat class="bg-white" rounded>
+          <q-list dense>
           <q-item
             v-for="transaction in categoryTransactions"
             :key="transaction.id"
@@ -81,7 +81,7 @@
           <q-item v-if="categoryTransactions.length === 0">
             <q-item-label>No transactions for this category.</q-item-label>
           </q-item>
-        </q-list>
+          </q-list>
         </q-card>
       </div>
     </div>

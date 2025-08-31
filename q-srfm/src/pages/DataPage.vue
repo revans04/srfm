@@ -6,7 +6,7 @@
     <!-- Loading handled via $q.loading -->
 
     <!-- Tabs -->
-    <q-tabs v-model="activeTab" color="primary" class="bg-white rounded-borders q-mb-md">
+    <q-tabs v-model="activeTab" color="primary" class="bg-white q-mb-md" style="border-radius: 4px">
       <q-tab name="import" label="Import" />
       <q-tab name="export" label="Export" />
     </q-tabs>
@@ -16,7 +16,7 @@
       <q-tab-panel name="import">
         <div class="row">
           <div class="col col-12">
-            <q-card flat bordered class="bg-white q-pa-md rounded-borders">
+            <q-card flat bordered class="bg-white q-pa-md" rounded>
               <q-card-section>Import Data</q-card-section>
               <q-card-section>
                 <q-select v-model="importType" :items="importTypes" label="Select Import Type" outlined class="q-mb-lg"></q-select>
@@ -327,7 +327,7 @@
       <q-tab-panel name="export">
         <div class="row">
           <div class="col col-12">
-            <q-card flat bordered class="bg-white q-pa-md rounded-borders">
+            <q-card flat bordered class="bg-white q-pa-md" rounded>
               <q-card-section>Export Data</q-card-section>
               <q-card-section>
                 <q-btn color="primary" @click="exportDataToCSV" :loading="exporting">Export All Data</q-btn>
