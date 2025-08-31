@@ -2,7 +2,7 @@
 <template>
   <q-dialog
     v-model="localShowDialog"
-    :max-width="!isMobile ? '550px' : undefined"
+    :width="!isMobile ? '550px' : undefined"
     :fullscreen="isMobile"
     @update:modelValue="handleDialogClose"
   >
@@ -14,7 +14,7 @@
         <q-btn
           flat
           dense
-          color="error"
+          color="negative"
           label="X"
           class="q-ml-auto"
           @click="handleCancel"

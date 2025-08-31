@@ -40,7 +40,7 @@
     <!-- Transactions List -->
     <div class="row flex-grow-1 mt-4 pl-0 pr-0">
       <div class="col transaction-list pl-0 pr-0">
-        <h3 class="section-title pb-2">Transactions ({{ categoryTransactions.length }})</h3>
+        <h3 class="section-title q-pb-sm">Transactions ({{ categoryTransactions.length }})</h3>
         <div class="my-2 bg-white rounded-10 pt-2 pr-3 pl-3 mb-4">
           <q-input v-model="search" label="Search" dense clearable prepend-icon="search"></q-input>
         </div>
@@ -69,7 +69,7 @@
                   <q-icon
                     small
                     name="delete"
-                    color="error"
+                    color="negative"
                     title="Move to Trash"
                     @click.stop="confirmDelete(transaction)"
                   />
@@ -88,14 +88,14 @@
     <q-fab icon="add" :app="true" color="primary" @click="$emit('add-transaction')" location="bottom right" class="mr-2" :class="isMobile ? 'mb-14' : 'mb-2'" />
 
     <!-- Edit Transaction Dialog -->
-    <q-dialog v-model="showEditDialog" :max-width="!isMobile ? '550px' : undefined" :fullscreen="isMobile">
+    <q-dialog v-model="showEditDialog" :width="!isMobile ? '550px' : undefined" :fullscreen="isMobile">
       <q-card dense>
-        <q-card-section class="bg-primary row items-center py-5">
+        <q-card-section class="bg-primary row items-center q-py-md">
           <div class="text-white">Edit {{ transactionToEdit?.merchant }} Transaction</div>
           <q-btn
             flat
             dense
-            color="error"
+            color="negative"
             label="X"
             class="q-ml-auto"
             @click="showEditDialog = false"
@@ -120,17 +120,17 @@
     <!-- Delete Confirmation Dialog -->
     <q-dialog v-model="showDeleteDialog" max-width="400">
       <q-card>
-        <q-card-section class="bg-error py-3">
+        <q-card-section class="bg-negative q-py-sm">
           <span class="text-white">Confirm Deletion</span>
         </q-card-section>
-        <q-card-section class="pt-4">
+        <q-card-section class="q-pt-md">
           Are you sure you want to delete the transaction for "{{ transactionToDelete?.merchant }}" on
           {{ transactionToDelete ? formatDate(transactionToDelete.date) : '' }}?
         </q-card-section>
         <q-card-actions>
           <q-space></q-space>
           <q-btn color="grey" variant="text" @click="showDeleteDialog = false">Cancel</q-btn>
-          <q-btn color="error" variant="flat" @click="executeDelete">Move to Trash</q-btn>
+          <q-btn color="negative" variant="flat" @click="executeDelete">Move to Trash</q-btn>
         </q-card-actions>
       </q-card>
     </q-dialog>

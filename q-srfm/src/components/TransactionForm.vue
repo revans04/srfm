@@ -54,11 +54,11 @@
         </div>
       </div>
 
-      <div class="form-row my-6 ms-n3 py-5">
+      <div class="form-row my-6 ms-n3 q-py-md">
         <div v-for="(split, index) in locTrnsx.categories" :key="index">
           <div class="row no-gutters" >
-            <div class="col form-col-label pr-2 col-auto" no-gutters  :class="locTrnsx.categories.length > 1 ? '' : 'pb-5'">
-                <q-icon color="error" @click="removeSplit(index)" name="close"></q-icon>
+            <div class="col form-col-label pr-2 col-auto" no-gutters  :class="locTrnsx.categories.length > 1 ? '' : 'q-pb-md'">
+                <q-icon color="negative" @click="removeSplit(index)" name="close"></q-icon>
             </div>
             <div class="col">
               <q-select
@@ -176,7 +176,7 @@
         <q-btn
           v-if="locTrnsx.id"
           variant="text"
-          color="error"
+          color="negative"
           :loading="isLoading"
           @click="deleteTransaction"
           label="Delete Transaction"
