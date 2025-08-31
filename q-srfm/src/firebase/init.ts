@@ -2,7 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 
-const env = (import.meta as any)?.env || {};
+const env = ((import.meta as unknown) as { env?: Record<string, string> }).env || {};
 const firebaseConfig = {
   apiKey: env.VITE_FIREBASE_API_KEY ?? '',
   authDomain: env.VITE_FIREBASE_AUTH_DOMAIN ?? '',
@@ -18,9 +18,7 @@ if (env.VITE_FIREBASE_API_KEY) {
   provider = new GoogleAuthProvider();
 } else {
   // Test environment stub
-  // @ts-ignore
-  auth = {};
-  // @ts-ignore
+  auth = {} as unknown as ReturnType<typeof getAuth>;
   provider = new GoogleAuthProvider();
 }
 
