@@ -67,7 +67,7 @@
       </q-card-section>
       <q-card-actions>
         <q-space></q-space>
-        <q-btn color="error" @click="cancel">Cancel</q-btn>
+        <q-btn color="negative" @click="cancel">Cancel</q-btn>
         <q-btn color="primary" @click="matchTransaction" :disabled="!selectedImportedTransaction.length"> Match </q-btn>
       </q-card-actions>
     </q-card>

@@ -1,29 +1,26 @@
 <!-- src/components/BankTransactionMatchingDialog.vue -->
 <template>
-  <q-dialog v-if="isReady" :model-value="props.showDialog" :fullscreen="isMobile" persistent @update:model-value="closeDialog($event)">
+  <component
+    :is="props.asPanel ? 'div' : 'q-dialog'"
+    v-if="isReady"
+    v-bind="props.asPanel ? {} : { modelValue: props.showDialog, fullscreen: isMobile, persistent: true }"
+    @update:model-value="(val) => { if (!props.asPanel) closeDialog(val as boolean) }"
+  >
     <q-card>
-      <q-card-section>Match Bank Transactions</q-card-section>
       <q-card-section>
         <div class="row">
           <div class="col"><q-space></q-space></div>
-          <div class="col-auto text-right">
-            <q-btn color="error" @click="closeDialog(false)" :disabled="props.matching" variant="plain">
+          <div class="col-auto text-right" v-if="!props.asPanel">
+            <q-btn color="negative" @click="closeDialog(false)" :disabled="props.matching" variant="plain">
               <q-icon name="close"></q-icon>
             </q-btn>
           </div>
         </div>
-        <q-tabs v-model="activeTab" grow>
-          <q-tab name="smart-matches" label="Smart Matches" />
-          <q-tab name="remaining" label="Remaining Transactions" />
-        </q-tabs>
-
-        <q-tab-panels v-model="activeTab">
-          <!-- Smart Matches Tab -->
-          <q-tab-panel name="smart-matches">
-            <div class="row mt-4" v-if="smartMatches.length > 0">
+        <!-- Smart Matches -->
+        <div class="row mt-4">
               <div class="col">
                 <h3>Smart Matches ({{ smartMatches.length }})</h3>
-                <p class="text-caption pb-2">These imported transactions have exactly one potential match. Review and confirm below (max 50 at a time).</p>
+                <p class="text-caption q-pb-sm">These imported transactions have exactly one potential match. Review and confirm below (max 50 at a time).</p>
 
                 <!-- Sort Controls -->
                 <div class="row mb-4" >
@@ -66,6 +63,7 @@
                 </div>
 
                 <q-table
+                  v-if="smartMatches.length > 0"
                   :columns="smartMatchColumns"
                   :rows="sortedSmartMatches"
                   row-key="importedTransaction.id"
@@ -80,29 +78,23 @@
                   <template #body-cell-budgetAmount="{ row }"> ${{ toDollars(toCents(row.budgetTransaction.amount)) }} </template>
                   <template #body-cell-budgetType="{ row }"> {{ row.budgetTransaction.isIncome ? "Income" : "Expense" }} </template>
                   <template #body-cell-actions="{ row }">
-                      <q-icon
-                        v-if="isBudgetTxMatchedMultiple(row.budgetTransaction.id)"
-                        color="warning"
-                        title="This budget transaction matches multiple bank transactions"
-                        name="warning"
-                      ></q-icon>
+                    <q-icon
+                      v-if="isBudgetTxMatchedMultiple(row.budgetTransaction.id)"
+                      color="warning"
+                      title="This budget transaction matches multiple bank transactions"
+                      name="warning"
+                    ></q-icon>
                   </template>
                 </q-table>
-                <q-btn color="primary" @click="confirmSmartMatches" :disabled="selectedSmartMatchIds.length === 0 || props.matching" :loading="props.matching">
-                  Confirm Selected Matches ({{ selectedSmartMatchIds.length }})
-                </q-btn>
-              </div>
-            </div>
-            <div class="row mt-4" v-else >
-              <div class="col">
-                <q-banner type="info"> No smart matches found. Check Remaining Transactions for potential conflicts. </q-banner>
-              </div>
-            </div>
-          </q-tab-panel>
 
-          <!-- Remaining Transactions Tab -->
-          <q-tab-panel name="remaining">
-            <div class="row mt-4" v-if="remainingImportedTransactions.length > 0">
+                <q-banner v-else type="info" class="mt-4">
+                  No smart matches found. Check Remaining Transactions for potential conflicts.
+                </q-banner>
+              </div>
+            </div>
+
+        <!-- Remaining Transactions -->
+        <div class="row mt-4" v-if="remainingImportedTransactions.length > 0">
               <div class="col">
                 <h3>Remaining Transactions ({{ currentBankTransactionIndex + 1 }} of {{ remainingImportedTransactions.length }})</h3>
                 <q-markup-table>
@@ -196,7 +188,7 @@
                       ></q-input>
                     </div>
                     <div class="col col-12 col-md-1">
-                      <q-btn color="error" icon="close" @click="removeSplit(index)" variant="plain"></q-btn>
+                      <q-btn color="negative" icon="close" @click="removeSplit(index)" variant="plain"></q-btn>
                     </div>
                   </div>
                   <q-banner v-if="remainingSplitAmount !== 0" :type="remainingSplitAmount < 0 ? 'error' : 'warning'" class="mb-4">
@@ -204,7 +196,7 @@
                     <div v-else>Over allocated ${{ toDollars(toCents(Math.abs(remainingSplitAmount))) }}</div>
                   </q-banner>
                   <q-btn color="primary" @click="addSplitTransaction">Add Split</q-btn>
-                  <q-btn color="success" type="submit" :disabled="remainingSplitAmount !== 0 || props.matching" :loading="props.matching" class="ml-2">
+                  <q-btn color="positive" type="submit" :disabled="remainingSplitAmount !== 0 || props.matching" :loading="props.matching" class="ml-2">
                     Save Splits
                   </q-btn>
                 </q-form>
@@ -261,19 +253,17 @@
                 </div>
               </div>
             </div>
-            <div class="row mt-4" v-else >
+            <div class="row q-mt-sm" v-else >
               <div class="col">
-                <q-banner type="success"> All bank transactions have been matched or ignored. </q-banner>
+                <q-banner type="positive"> All bank transactions have been matched or ignored. </q-banner>
               </div>
             </div>
-          </q-tab-panel>
-        </q-tab-panels>
       </q-card-section>
       <q-card-actions>
         <q-btn v-if="remainingImportedTransactions.length > 0" color="warning" @click="ignoreBankTransaction" :disabled="props.matching"> Ignore </q-btn>
         <q-btn v-if="remainingImportedTransactions.length > 0" color="secondary" @click="skipBankTransaction" :disabled="props.matching"> Skip </q-btn>
         <q-space></q-space>
-        <q-btn color="error" @click="closeDialog(false)" :disabled="props.matching"> Close </q-btn>
+        <q-btn v-if="!props.asPanel" color="negative" @click="closeDialog(false)" :disabled="props.matching"> Close </q-btn>
       </q-card-actions>
     </q-card>
 
@@ -293,7 +283,7 @@
     />
 
     <!-- Snackbar handled via $q.notify -->
-  </q-dialog>
+  </component>
 </template>
 
 <script setup lang="ts">
@@ -323,6 +313,7 @@ const props = defineProps<{
   matching: boolean;
   categoryOptions: string[];
   userId: string;
+  asPanel?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -350,7 +341,6 @@ const selectedBankTransaction = ref<ImportedTransaction | null>(props.selectedBa
 const timeout = ref(3000);
 
 // Local state for Smart Matches sorting
-const activeTab = ref("smart-matches");
 const selectedSmartMatchIds = ref<string[]>([]);
 const smartMatchesSortField = ref<string>("postedDate");
 const smartMatchesSortDirection = ref<"asc" | "desc">("asc");
@@ -359,13 +349,13 @@ const smartMatchesSortFields = [
   { text: "Merchant", value: "merchant" },
   { text: "Amount", value: "bankAmount" },
 ];
-const smartMatchDateRange = ref<string>("7");
+const smartMatchDateRange = ref<string>("3");
 
 // Local state for Remaining Transactions
 const currentBankTransactionIndex = ref<number>(0);
 const searchAmount = ref<string>("");
 const searchMerchant = ref<string>("");
-const searchDateRange = ref<string>("7");
+const searchDateRange = ref<string>("3");
 const potentialMatches = ref<Transaction[]>([]);
 const selectedBudgetTransactionForMatch = ref<Transaction[]>([]);
 const potentialMatchesSortField = ref<string>("date");
@@ -538,7 +528,7 @@ async function initializeState() {
   selectedBankTransaction.value = props.selectedBankTransaction || remainingImportedTransactions.value[0] || null;
 
   smartMatches.value = [];
-  smartMatchDateRange.value = "7";
+  smartMatchDateRange.value = "3";
   computeSmartMatchesLocal();
 
   resetState(false);
@@ -554,7 +544,7 @@ watch(
       selectedBankTransaction.value = newVal;
       searchAmount.value = newVal.debitAmount ? newVal.debitAmount.toString() : newVal.creditAmount?.toString() || "0";
       searchMerchant.value = "";
-      searchDateRange.value = "7";
+      searchDateRange.value = "3";
       transactionSplits.value = [{ entityId: familyStore.selectedEntityId || "", category: "", amount: 0 }]; // Reset splits
       showSplitForm.value = false;
       searchBudgetTransactions();
@@ -582,6 +572,7 @@ watch(
 
 // Methods
 function closeDialog(value: boolean) {
+  if (props.asPanel) return;
   emit("update:showDialog", value);
   if (!value) {
     emit("transactions-updated");
@@ -759,7 +750,7 @@ function skipBankTransaction() {
     searchBudgetTransactions();
   } else {
     if (smartMatches.value.length === 0) {
-      closeDialog(false);
+      if (!props.asPanel) closeDialog(false);
       showSnackbar("All bank transactions have been processed", "success");
     } else {
       currentBankTransactionIndex.value = -1;
@@ -1016,7 +1007,7 @@ function searchBudgetTransactions() {
   const bankTx = selectedBankTransaction.value;
   const amount = parseFloat(searchAmount.value) || bankTx.debitAmount || bankTx.creditAmount || 0;
   const merchant = searchMerchant.value.toLowerCase();
-  const dateRangeDays = parseInt(searchDateRange.value) || 7;
+  const dateRangeDays = parseInt(searchDateRange.value) || 3;
 
   const bankDate = new Date(bankTx.postedDate);
   const startDate = new Date(bankDate);
@@ -1030,7 +1021,7 @@ function searchBudgetTransactions() {
     const txMerchant = tx.merchant.toLowerCase();
 
     const dateMatch = txDate >= startDate && txDate <= endDate;
-    const amountMatch = Math.abs(txAmount - amount) < 0.01;
+    const amountMatch = Math.abs(txAmount - amount) <= 0.05;
     const merchantMatch = merchant ? txMerchant.includes(merchant) : true;
 
     return !tx.deleted && dateMatch && amountMatch && merchantMatch && (!tx.status || tx.status === "U");
@@ -1042,7 +1033,7 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
   const confirmedIds = new Set(confirmedMatches.map((m) => m.importedTransaction.id));
   const newSmartMatches = smartMatches.value.filter((match) => !confirmedIds.has(match.importedTransaction.id));
 
-  const dateRangeDays = parseInt(smartMatchDateRange.value) || 7;
+  const dateRangeDays = parseInt(smartMatchDateRange.value) || 3;
   const unmatchedImported = remainingImportedTransactions.value.filter(
     (tx) => !confirmedIds.has(tx.id) && !newSmartMatches.some((m) => m.importedTransaction.id === tx.id)
   );
@@ -1077,7 +1068,7 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
       if (
         normalizedTxDate >= startDate &&
         normalizedTxDate <= endDate &&
-        Math.abs(txAmount - bankAmount) < 0.01 &&
+        Math.abs(txAmount - bankAmount) <= 0.05 &&
         (!tx.status || tx.status === "U") &&
         !tx.deleted &&
         typeMatch
