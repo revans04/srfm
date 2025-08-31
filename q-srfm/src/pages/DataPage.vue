@@ -548,8 +548,12 @@ async function loadAllData() {
       selectedEntityId.value = entities[0].id;
     }
 
-    // Load budgets directly from loadAccessibleBudgets
-    budgets.value = await dataAccess.loadAccessibleBudgets(user.uid);
+    // Load full budget details for export
+    const accessibleBudgets = await dataAccess.loadAccessibleBudgets(user.uid);
+    const fullBudgets = await Promise.all(
+      accessibleBudgets.map((b) => dataAccess.getBudget(b.budgetId))
+    );
+    budgets.value = fullBudgets.filter((b): b is Budget => b !== null);
 
     transactions.value = budgets.value.flatMap((budget) => budget.transactions || []);
 
