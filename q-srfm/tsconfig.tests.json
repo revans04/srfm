@@ -13,6 +13,11 @@
     "src/env.d.ts",
     "src/composables/**/*.ts",
     "src/utils/**/*.ts",
+    "src/store/**/*.ts",
+    "src/types.ts",
     "tests/**/*.ts"
+  ]
+  ,"exclude": [
+    "src/store/index.ts"
   ]
 }

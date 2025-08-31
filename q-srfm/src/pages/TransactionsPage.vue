@@ -40,63 +40,89 @@ Key props/usage:
       <!-- Budget Transactions Tab -->
       <q-tab-panel name="budget">
         <div class="filter-bar shadow-2 bg-white q-pa-sm">
-          <div class="row q-col-gutter-sm items-center">
+          <div class="column q-gutter-sm">
             <EntitySelector @change="loadBudgets" class="col-auto" />
-            <q-select
-              v-model="selectedBudgetIds"
-              :options="budgetOptions"
-              dense
-              outlined
-              multiple
-              use-chips
-              emit-value
-              map-options
-              placeholder="Select Budgets"
-              class="col-3"
-            />
-            <q-btn
-              dense
-              flat
-              label="Clear All"
-              class="col-auto"
-              @click="clearSelectedBudgets"
-            />
-            <q-input v-model="filters.search" dense outlined placeholder="Search" class="col" />
-            <q-select
-              v-model="filters.status"
-              :options="statusOptions"
-              dense
-              outlined
-              placeholder="Status"
-              class="col-2"
-            />
-            <q-input v-model.number="filters.min" type="number" dense outlined placeholder="Min" class="col-1" />
-            <q-input v-model.number="filters.max" type="number" dense outlined placeholder="Max" class="col-1" />
-            <q-input v-model="filters.date" dense outlined placeholder="Date" mask="####-##-##" class="col-2">
-              <template #append>
-                <q-icon name="event" class="cursor-pointer">
-                  <q-popup-proxy transition-show="scale" transition-hide="scale">
-                    <q-date v-model="filters.date" mask="YYYY-MM-DD" />
-                  </q-popup-proxy>
-                </q-icon>
-              </template>
-            </q-input>
-            <div class="col-auto">
-              <q-btn dense outline icon="event" @click="jumpMenu = true" aria-label="Jump to date" />
+            <div class="row q-col-gutter-sm items-center">
+              <q-select
+                v-model="selectedBudgetIds"
+                :options="budgetOptions"
+                dense
+                outlined
+                multiple
+                use-chips
+                emit-value
+                map-options
+                placeholder="Select Budgets"
+                class="col-6"
+              />
+              <q-btn
+                dense
+                flat
+                label="Clear All"
+                class="col-auto"
+                @click="clearSelectedBudgets"
+              />
+            </div>
+            <div class="row q-col-gutter-sm">
+              <q-input v-model="filters.search" dense outlined placeholder="Search" class="col" />
+              <q-select
+                v-model="filters.status"
+                :options="statusOptions"
+                dense
+                outlined
+                placeholder="Status"
+                class="col-2"
+              />
+              <q-input v-model="filters.importedMerchant" dense outlined placeholder="Imported Merchant" class="col-2" />
+              <q-input v-model.number="filters.min" type="number" dense outlined placeholder="Amount Min" class="col-2" />
+              <q-input v-model="filters.date" dense outlined placeholder="Date" mask="####-##-##" class="col-2">
+                <template #append>
+                  <q-icon name="event" class="cursor-pointer">
+                    <q-popup-proxy transition-show="scale" transition-hide="scale">
+                      <q-date v-model="filters.date" mask="YYYY-MM-DD" />
+                    </q-popup-proxy>
+                  </q-icon>
+                </template>
+              </q-input>
+            </div>
+            <div class="row items-center q-gutter-sm">
+              <q-btn
+                dense
+                :color="filters.cleared ? 'primary' : 'grey-5'"
+                text-color="white"
+                label="Cleared"
+                @click="filters.cleared = !filters.cleared"
+              />
+              <q-btn
+                dense
+                :color="filters.unmatched ? 'primary' : 'grey-5'"
+                text-color="white"
+                label="Unmatched"
+                @click="filters.unmatched = !filters.unmatched"
+              />
+              <q-btn
+                dense
+                :color="filters.duplicates ? 'primary' : 'grey-5'"
+                text-color="white"
+                label="Duplicates"
+                @click="filters.duplicates = !filters.duplicates"
+              />
+              <q-space />
+              <q-btn dense flat label="Jump to Date" @click="jumpMenu = true" />
               <q-menu v-model="jumpMenu" anchor="bottom right" self="top right">
                 <q-date v-model="jumpDate" mask="YYYY-MM-DD" @update:model-value="onJump" />
               </q-menu>
             </div>
-          </div>
-          <!-- Active filter chips -->
-          <div class="q-mt-sm">
-            <q-chip
-              v-for="(val, key) in activeChips"
-              :key="key"
-              dense
-              removable
-              @remove="() => removeChip(key)"
-            >{{ key }}: {{ val }}</q-chip>
+            <!-- Active filter chips -->
+            <div class="q-mt-sm">
+              <q-chip
+                v-for="(val, key) in activeChips"
+                :key="key"
+                dense
+                removable
+                @remove="() => removeChip(key)"
+              >{{ key }}<template v-if="val">: {{ val }}</template></q-chip>
+            </div>
           </div>
         </div>
         <ledger-table
@@ -211,9 +237,12 @@ function clearSelectedBudgets() {
 const filters = ref({
   search: '',
   status: null as null | string,
+  importedMerchant: '',
   min: null as null | number,
-  max: null as null | number,
   date: '' as string,
+  cleared: false,
+  unmatched: false,
+  duplicates: false,
   clearedOnly: false,
 });
 
@@ -226,7 +255,9 @@ function removeFilter(key: keyof typeof filters.value) {
 const activeChips = computed<Record<string, unknown>>(() => {
   const res: Record<string, unknown> = {};
   Object.entries(filters.value).forEach(([k, v]) => {
-    if (v !== null && v !== '' && v !== false) res[k] = v;
+    if (v !== null && v !== '' && v !== false) {
+      res[k] = typeof v === 'boolean' ? '' : v;
+    }
   });
   return res;
 });
