@@ -140,12 +140,15 @@ export function useTransactions() {
       return false;
     });
     const accountName = tx.accountName || account?.name || '';
+    const entityName = tx.accountNumber
+      ? `${accountName} (${tx.accountNumber})`
+      : accountName;
     return {
       id: tx.id,
       date: tx.postedDate,
       payee: tx.payee,
       category: '',
-      entityName: accountName,
+      entityName,
       budgetId: '',
       amount: (tx.creditAmount ?? 0) - (tx.debitAmount ?? 0),
       status: tx.status,

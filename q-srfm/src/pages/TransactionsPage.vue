@@ -134,6 +134,9 @@ Key props/usage:
               dense
               outlined
               placeholder="Account"
+              clearable
+              emit-value
+              map-options
               class="col-3"
             />
             <q-checkbox v-model="filters.cleared" label="Cleared Only" class="col-auto" />
@@ -180,7 +183,10 @@ const { selectedBudgetIds } = storeToRefs(uiStore);
 const { selectedEntityId } = storeToRefs(familyStore);
 
 const accountOptions = computed(() =>
-  familyStore.family?.accounts?.map((a) => ({ label: a.name, value: a.id })) || [],
+  familyStore.family?.accounts?.map((a) => ({
+    label: a.accountNumber ? `${a.name} (${a.accountNumber})` : a.name,
+    value: a.id,
+  })) || [],
 );
 
 const {
