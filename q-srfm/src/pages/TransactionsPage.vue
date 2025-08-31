@@ -116,8 +116,8 @@ Key props/usage:
         </div>
         <ledger-table
           :rows="transactions"
-          :fetch-more="fetchMore"
           :loading="loading"
+          @load-more="fetchMore"
         />
       </q-tab-panel>
 
@@ -127,7 +127,6 @@ Key props/usage:
         <div class="filter-bar shadow-2 bg-white q-pa-sm">
           <!-- reuse same filters for demo -->
           <div class="row q-col-gutter-sm items-center">
-            <q-input v-model="filters.search" dense outlined placeholder="Search" class="col" />
             <q-select
               v-model="filters.accountId"
               :options="accountOptions"
@@ -139,14 +138,17 @@ Key props/usage:
               map-options
               class="col-3"
             />
+            <q-input v-model="filters.search" dense outlined placeholder="Search" class="col" />
             <q-checkbox v-model="filters.cleared" label="Cleared Only" class="col-auto" />
           </div>
         </div>
         <ledger-table
           :rows="registerRows"
-          :fetch-more="fetchMoreRegister"
           :loading="loadingRegister"
           entity-label="Account"
+          :can-load-more="canLoadMoreRegister"
+          :loading-more="loadingMoreRegister"
+          @load-more="fetchMoreRegister"
         />
       </q-tab-panel>
 
@@ -182,12 +184,16 @@ const auth = useAuthStore();
 const { selectedBudgetIds } = storeToRefs(uiStore);
 const { selectedEntityId } = storeToRefs(familyStore);
 
-const accountOptions = computed(() =>
-  familyStore.family?.accounts?.map((a) => ({
-    label: a.accountNumber ? `${a.name} (${a.accountNumber})` : a.name,
-    value: a.id,
-  })) || [],
-);
+const accountOptions = computed(() => {
+  const accounts = familyStore.family?.accounts || [];
+  return accounts
+    .filter((a) => ['Bank', 'CreditCard', 'Investment'].includes(a.type))
+    .map((a) => ({
+      label: a.accountNumber ? `${a.name} (${a.accountNumber})` : a.name,
+      value: a.id,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+});
 
 const {
   transactions,
@@ -197,6 +203,8 @@ const {
   fetchMoreRegister,
   loading,
   loadingRegister,
+  canLoadMoreRegister,
+  loadingMoreRegister,
   scrollToDate,
   loadImportedTransactions,
 } = useTransactions();
@@ -205,7 +213,7 @@ onMounted(loadBudgets);
 
 watch(tab, async (t) => {
   if (t === 'register' && registerRows.value.length === 0) {
-    await loadImportedTransactions();
+    await loadImportedTransactions(true);
   }
 });
 

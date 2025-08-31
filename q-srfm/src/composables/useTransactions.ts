@@ -85,6 +85,10 @@ export function useTransactions() {
   const loading = ref(false);
   const loadingRegister = ref(false);
   const importedLoaded = ref(false);
+  const importedOffset = ref(0);
+  const pageSize = 100;
+  const hasMoreImported = ref(true);
+  const loadingMoreRegister = ref(false);
 
   const filters = ref<LedgerFilters>({
     search: '',
@@ -190,9 +194,20 @@ export function useTransactions() {
     }
   }
 
-  async function loadImportedTransactions() {
-    if (importedLoaded.value) return;
-    loadingRegister.value = true;
+  async function loadImportedTransactions(reset = false) {
+    if (!filters.value.accountId) return;
+    if (loadingMoreRegister.value) return;
+    if (reset) {
+      importedOffset.value = 0;
+      registerRows.value = [];
+      hasMoreImported.value = true;
+      loadingRegister.value = true;
+    }
+    if (!hasMoreImported.value) {
+      loadingRegister.value = false;
+      return;
+    }
+    loadingMoreRegister.value = true;
     try {
       if (!familyStore.family?.accounts || familyStore.family.accounts.length === 0) {
         const fid = familyStore.family?.id;
@@ -205,19 +220,30 @@ export function useTransactions() {
           }
         }
       }
-      const imported = await dataAccess.getImportedTransactions();
-      registerRows.value = imported
+      const imported = await dataAccess.getImportedTransactionsByAccountId(
+        filters.value.accountId,
+        importedOffset.value,
+        pageSize,
+      );
+      const mapped = imported
         .filter((t) => !t.deleted)
-        .map((t) => mapImportedToRow(t))
-        .sort((a, b) => b.date.localeCompare(a.date));
+        .map((t) => mapImportedToRow(t));
+      registerRows.value = [...registerRows.value, ...mapped];
+      importedOffset.value += imported.length;
+      if (imported.length < pageSize) {
+        hasMoreImported.value = false;
+      }
       importedLoaded.value = true;
     } finally {
+      loadingMoreRegister.value = false;
       loadingRegister.value = false;
     }
   }
 
   async function fetchMore() { /* pagination placeholder for API cursors */ }
-  async function fetchMoreRegister() { /* placeholder */ }
+  async function fetchMoreRegister() {
+    await loadImportedTransactions();
+  }
 
   function scrollToDate(iso: string) {
     // The page can use this to scroll via QTable / VirtualScroll API later.
@@ -271,6 +297,19 @@ export function useTransactions() {
     });
   });
 
+  watch(
+    () => filters.value.accountId,
+    async () => {
+      importedOffset.value = 0;
+      registerRows.value = [];
+      hasMoreImported.value = true;
+      importedLoaded.value = false;
+      if (filters.value.accountId) {
+        await loadImportedTransactions(true);
+      }
+    },
+  );
+
   const api = {
     // budget tab
     transactions: filtered,
@@ -282,6 +321,8 @@ export function useTransactions() {
     registerRows: filteredRegister,
     fetchMoreRegister,
     loadingRegister,
+    canLoadMoreRegister: computed(() => hasMoreImported.value),
+    loadingMoreRegister,
 
     // utilities
     scrollToDate,
