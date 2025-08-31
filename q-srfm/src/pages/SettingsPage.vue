@@ -125,22 +125,33 @@
             <q-card>
               <q-card-section>Imported Transaction</q-card-section>
               <q-card-section>
-                <q-table :columns="transactionDocColumns" :rows="importedTransactionDocs" :pagination="{ rowsPerPage: 10 }" class="elevation-1">
+                <q-table
+                  :columns="transactionDocColumns"
+                  :rows="importedTransactionDocs"
+                  :pagination="{ rowsPerPage: 10 }"
+                  class="elevation-1"
+                >
                   <template #body-cell-createdAt="props">
-                    {{ getDateRange(props.row) }}
+                    <q-td :props="props">
+                      {{ getDateRange(props.row) }}
+                    </q-td>
                   </template>
                   <template #body-cell-account="props">
-                    {{ getAccountInfo(props.row) }}
+                    <q-td :props="props">
+                      {{ getAccountInfo(props.row) }}
+                    </q-td>
                   </template>
                   <template #body-cell-actions="props">
-                    <q-btn
-                      density="compact"
-                      variant="plain"
-                      color="negative"
-                      @click.stop="confirmDeleteTransactionDoc(props.row)"
-                      title="Delete Transaction Document"
-                      icon="o_delete"
-                    />
+                    <q-td :props="props">
+                      <q-btn
+                        density="compact"
+                        variant="plain"
+                        color="negative"
+                        @click.stop="confirmDeleteTransactionDoc(props.row)"
+                        title="Delete Transaction Document"
+                        icon="o_delete"
+                      />
+                    </q-td>
                   </template>
                 </q-table>
                 <div class="q-mt-md">
@@ -161,15 +172,33 @@
             <q-card>
               <q-card-section>Monthly Budgets</q-card-section>
               <q-card-section>
-                <q-table :columns="budgetColumns" :rows="budgets" :pagination="{ rowsPerPage: 10 }" class="elevation-1">
+                <q-table
+                  :columns="budgetColumns"
+                  :rows="budgets"
+                  :pagination="{ rowsPerPage: 10 }"
+                  class="elevation-1"
+                >
                   <template #body-cell-entityName="props">
-                    {{ getEntityName(props.row.entityId) }}
+                    <q-td :props="props">
+                      {{ getEntityName(props.row.entityId) }}
+                    </q-td>
                   </template>
                   <template #body-cell-transactionCount="props">
-                    {{ props.row.transactions?.length || 0 }}
+                    <q-td :props="props">
+                      {{ props.row.transactions?.length || 0 }}
+                    </q-td>
                   </template>
                   <template #body-cell-actions="props">
-                    <q-btn density="compact" variant="plain" color="negative" @click.stop="confirmDeleteBudget(props.row)" title="Delete Budget" icon="o_delete" />
+                    <q-td :props="props">
+                      <q-btn
+                        density="compact"
+                        variant="plain"
+                        color="negative"
+                        @click.stop="confirmDeleteBudget(props.row)"
+                        title="Delete Budget"
+                        icon="o_delete"
+                      />
+                    </q-td>
                   </template>
                 </q-table>
                 <div class="q-mt-md">
