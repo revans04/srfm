@@ -303,10 +303,12 @@ onMounted(async () => {
   transactions.value = await dataAccess.getTransactions(props.budgetId);
   emit("update-transactions", transactions.value);
 
-  if (budget.value?.merchants) {
-    merchantStore.updateMerchantsFromCounts(Object.fromEntries(budget.value.merchants.map((m) => [m.name, m.usageCount])));
-  } else if (budget.value?.transactions) {
-    merchantStore.updateMerchants(budget.value.transactions);
+  if (budget.value?.merchants && budget.value.merchants.length > 0) {
+    merchantStore.updateMerchantsFromCounts(
+      Object.fromEntries(budget.value.merchants.map((m) => [m.name, m.usageCount]))
+    );
+  } else {
+    merchantStore.updateMerchants(transactions.value);
   }
 
   isInitialized.value = true;
