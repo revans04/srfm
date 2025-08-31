@@ -566,10 +566,13 @@ export class DataAccess {
     );
   }
 
-  async getImportedTransactionsByAccountId(accountId: string): Promise<ImportedTransaction[]> {
+  async getImportedTransactionsByAccountId(accountId: string, offset = 0, limit = 100): Promise<ImportedTransaction[]> {
     console.log(`Fetching imported transactions for accountId: ${accountId}`);
     const headers = await this.getAuthHeaders();
-    const response = await fetch(`${this.apiBaseUrl}/budget/imported-transactions/by-account/${accountId}`, { headers });
+    const response = await fetch(
+      `${this.apiBaseUrl}/budget/imported-transactions/by-account/${accountId}?offset=${offset}&limit=${limit}`,
+      { headers }
+    );
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`Failed to fetch imported transactions: ${response.status} ${response.statusText} - ${errorText}`);
