@@ -4,9 +4,10 @@
     :columns="visibleColumns"
     row-key="id"
     flat
-    bordered
-    dense
+  bordered
+  dense
     class="ledger-table"
+    :style="{ '--header-offset': `${headerOffset}px` }"
     :virtual-scroll="true"
     :virtual-scroll-item-size="rowHeight"
     :rows-per-page-options="[0]"
@@ -81,11 +82,13 @@ const props = defineProps<{
   canLoadMore?: boolean;
   loadingMore?: boolean;
   rowHeight?: number;
+  headerOffset?: number;
 }>();
 
 const emit = defineEmits<{ (e: 'load-more'): void }>();
 
 const rowHeight = computed(() => props.rowHeight ?? 44);
+const headerOffset = computed(() => props.headerOffset ?? 0);
 
 const baseColumns: Column<LedgerRow>[] = [
   { name: 'date', label: 'Date', field: 'date', align: 'left', sortable: true },
@@ -130,7 +133,7 @@ onMounted(() => {
 <style scoped>
 .ledger-table thead tr {
   position: sticky;
-  top: 0;
+  top: var(--header-offset);
   z-index: 2;
   background: #fff;
 }

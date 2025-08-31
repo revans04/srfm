@@ -108,10 +108,11 @@ Key props/usage:
                 @click="filters.duplicatesOnly = !filters.duplicatesOnly"
               />
               <q-space />
-              <q-btn dense flat label="Jump to Date" @click="jumpMenu = true" />
-              <q-menu v-model="jumpMenu" anchor="bottom right" self="top right">
-                <q-date v-model="jumpDate" mask="YYYY-MM-DD" @update:model-value="onJump" />
-              </q-menu>
+              <q-btn dense flat label="Jump to Date">
+                <q-menu v-model="jumpMenu" anchor="bottom right" self="top right">
+                  <q-date v-model="jumpDate" mask="YYYY-MM-DD" @update:model-value="onJump" />
+                </q-menu>
+              </q-btn>
             </div>
             <!-- Active filter chips -->
             <div class="q-mt-sm">
@@ -130,6 +131,7 @@ Key props/usage:
           :columns="budgetColumns"
           :fetch-more="fetchMore"
           :loading="loading"
+          :header-offset="tableHeaderOffset"
         />
       </q-tab-panel>
 
@@ -148,6 +150,7 @@ Key props/usage:
           :columns="registerColumns"
           :fetch-more="fetchMoreRegister"
           :loading="loadingRegister"
+          :header-offset="tableHeaderOffset"
         />
       </q-tab-panel>
 
@@ -175,6 +178,7 @@ import { sortBudgetsByMonthDesc } from 'src/utils/budget';
 
 const tab = ref<'budget' | 'register' | 'match'>('budget');
 const globalSearch = ref('');
+const tableHeaderOffset = 112;
 
 const budgetStore = useBudgetStore();
 const familyStore = useFamilyStore();

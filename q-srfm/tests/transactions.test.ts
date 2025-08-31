@@ -16,7 +16,7 @@ test('isDuplicate', () => {
   const base: BudgetTransaction = {
     id: '1',
     date: '2024-01-01',
-    merchant: 'A',
+    merchant: 'Starbucks',
     categories: [],
     amount: -10,
     notes: '',
@@ -28,8 +28,10 @@ test('isDuplicate', () => {
     status: 'U',
   };
   const t1: BudgetTransaction = base;
-  const t2: BudgetTransaction = { ...base, id: '2' };
+  const t2: BudgetTransaction = { ...base, id: '2', merchant: 'Starbucks Store #123' };
+  const t3: BudgetTransaction = { ...base, id: '3', merchant: 'Local Cafe' };
   assert.equal(isDuplicate(t1, [t1, t2]), true);
+  assert.equal(isDuplicate(t1, [t3]), false);
 });
 
 test('link/unlink', () => {

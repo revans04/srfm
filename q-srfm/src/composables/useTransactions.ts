@@ -37,10 +37,19 @@ export function isDuplicate(tx: BudgetTransaction, list: BudgetTransaction[]): b
   return list.some(
     (other) =>
       other.id !== tx.id &&
-      other.merchant === tx.merchant &&
       other.amount === tx.amount &&
+      merchantSimilar(other.merchant, tx.merchant) &&
       withinDateWindow(tx.date, other.date, 3),
   );
+}
+
+function merchantSimilar(a?: string | null, b?: string | null): boolean {
+  const normalize = (s?: string | null) =>
+    (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const na = normalize(a);
+  const nb = normalize(b);
+  if (!na || !nb) return true;
+  return na.includes(nb) || nb.includes(na);
 }
 
 export function link(tx: BudgetTransaction, linkId: string): void {
