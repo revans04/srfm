@@ -1,12 +1,17 @@
 <!-- src/components/BankTransactionMatchingDialog.vue -->
 <template>
-  <q-dialog v-if="isReady" :model-value="props.showDialog" :fullscreen="isMobile" persistent @update:model-value="closeDialog($event)">
+  <component
+    :is="props.asPanel ? 'div' : 'q-dialog'"
+    v-if="isReady"
+    v-bind="props.asPanel ? {} : { modelValue: props.showDialog, fullscreen: isMobile, persistent: true }"
+    @update:model-value="(val) => { if (!props.asPanel) closeDialog(val as boolean) }"
+  >
     <q-card>
       <q-card-section>Match Bank Transactions</q-card-section>
       <q-card-section>
         <div class="row">
           <div class="col"><q-space></q-space></div>
-          <div class="col-auto text-right">
+          <div class="col-auto text-right" v-if="!props.asPanel">
             <q-btn color="error" @click="closeDialog(false)" :disabled="props.matching" variant="plain">
               <q-icon name="close"></q-icon>
             </q-btn>
@@ -273,7 +278,7 @@
         <q-btn v-if="remainingImportedTransactions.length > 0" color="warning" @click="ignoreBankTransaction" :disabled="props.matching"> Ignore </q-btn>
         <q-btn v-if="remainingImportedTransactions.length > 0" color="secondary" @click="skipBankTransaction" :disabled="props.matching"> Skip </q-btn>
         <q-space></q-space>
-        <q-btn color="error" @click="closeDialog(false)" :disabled="props.matching"> Close </q-btn>
+        <q-btn v-if="!props.asPanel" color="error" @click="closeDialog(false)" :disabled="props.matching"> Close </q-btn>
       </q-card-actions>
     </q-card>
 
@@ -293,7 +298,7 @@
     />
 
     <!-- Snackbar handled via $q.notify -->
-  </q-dialog>
+  </component>
 </template>
 
 <script setup lang="ts">
@@ -323,6 +328,7 @@ const props = defineProps<{
   matching: boolean;
   categoryOptions: string[];
   userId: string;
+  asPanel?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -582,6 +588,7 @@ watch(
 
 // Methods
 function closeDialog(value: boolean) {
+  if (props.asPanel) return;
   emit("update:showDialog", value);
   if (!value) {
     emit("transactions-updated");
@@ -759,7 +766,7 @@ function skipBankTransaction() {
     searchBudgetTransactions();
   } else {
     if (smartMatches.value.length === 0) {
-      closeDialog(false);
+      if (!props.asPanel) closeDialog(false);
       showSnackbar("All bank transactions have been processed", "success");
     } else {
       currentBankTransactionIndex.value = -1;
