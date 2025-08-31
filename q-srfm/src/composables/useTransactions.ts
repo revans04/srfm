@@ -85,19 +85,6 @@ export function useTransactions() {
   const loading = ref(false);
   const loadingRegister = ref(false);
 
-  // Columns are placeholders; LedgerTable defines its own, but callers may expect arrays
-  const budgetColumns = ref([
-    { name: 'date', label: 'Date' },
-    { name: 'payee', label: 'Payee' },
-    { name: 'category', label: 'Category' },
-    { name: 'entity', label: 'Entity/Budget' },
-    { name: 'amount', label: 'Amount' },
-    { name: 'status', label: 'Status' },
-    { name: 'notes', label: 'Notes' },
-    { name: 'actions', label: '' },
-  ]);
-  const registerColumns = budgetColumns;
-
   const filters = ref<LedgerFilters>({
     search: '',
     importedMerchant: '',
@@ -159,9 +146,14 @@ export function useTransactions() {
   async function hydrateBudgets(budgetIds: string[]) {
     const out: LedgerRow[] = [];
     for (const id of budgetIds) {
-      const full = await dataAccess.getBudget(id);
+      let full = budgetStore.getBudget(id);
+      if (!full || !full.transactions) {
+        full = await dataAccess.getBudget(id);
+        if (full) {
+          budgetStore.updateBudget(id, full);
+        }
+      }
       if (full) {
-        budgetStore.updateBudget(id, full);
         const mapped = (full.transactions || [])
           .filter((t) => !t.deleted)
           .map((t) => mapTxToRow(t, full));
@@ -257,13 +249,11 @@ export function useTransactions() {
     filters,
     fetchMore,
     loading,
-    budgetColumns,
 
-    // register tab (placeholder mirrors budget for now)
+    // register tab
     registerRows: filteredRegister,
     fetchMoreRegister,
     loadingRegister,
-    registerColumns,
 
     // utilities
     scrollToDate,

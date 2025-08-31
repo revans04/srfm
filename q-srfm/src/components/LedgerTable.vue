@@ -64,7 +64,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, watch } from 'vue';
 type Align = 'left' | 'right' | 'center';
 // Generic column typing to avoid any
 export type Column<Row = Record<string, unknown>> = {
@@ -98,6 +98,7 @@ const props = defineProps<{
   loadingMore?: boolean;
   rowHeight?: number;
   headerOffset?: number;
+  entityLabel?: string;
 }>();
 
 const emit = defineEmits<{ (e: 'load-more'): void }>();
@@ -105,44 +106,53 @@ const emit = defineEmits<{ (e: 'load-more'): void }>();
 const rowHeight = computed(() => props.rowHeight ?? 44);
 const headerOffset = computed(() => props.headerOffset ?? 0);
 
-const baseColumns: Column<LedgerRow>[] = [
+const baseColumns = computed<Column<LedgerRow>[]>(() => [
   { name: 'date', label: 'Date', field: 'date', align: 'left', sortable: true },
   { name: 'payee', label: 'Payee', field: 'payee', align: 'left', sortable: true },
   { name: 'category', label: 'Category', field: 'category', align: 'left' },
-  { name: 'entity', label: 'Entity/Budget', field: 'entityName', align: 'left' },
+  { name: 'entity', label: props.entityLabel ?? 'Entity/Budget', field: 'entityName', align: 'left' },
   { name: 'amount', label: 'Amount', field: 'amount', align: 'right', sortable: true },
   { name: 'status', label: 'Status', field: 'status', align: 'left' },
   { name: 'notes', label: 'Notes', field: 'notes', align: 'left' },
   { name: 'actions', label: '', field: 'id', align: 'right' },
-];
+]);
 
-const visibleColumns = ref<Column<LedgerRow>[]>(baseColumns);
+const visibleColumns = ref<Column<LedgerRow>[]>([]);
+
+function updateCols(mq: MediaQueryList) {
+  const cols = baseColumns.value;
+  visibleColumns.value = mq.matches
+    ? cols.filter((c) => !['category', 'notes'].includes(c.name))
+    : cols;
+}
+
+onMounted(() => {
+  const mq = window.matchMedia('(max-width: 768px)');
+  const handler = () => updateCols(mq);
+  handler();
+  mq.addEventListener?.('change', handler);
+});
+
+watch(baseColumns, () => {
+  const mq = window.matchMedia('(max-width: 768px)');
+  updateCols(mq);
+});
 
 function money(n: number) {
   return (n < 0 ? '-$' : '$') + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function formatDate(iso: string) {
   const d = new Date(iso);
-  return d.toLocaleDateString('en-US');
+  return d.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  });
 }
 
 function onLoadMore() {
   emit('load-more');
 }
-
-onMounted(() => {
-  // Responsive columns: hide notes on xs
-  const mq = window.matchMedia('(max-width: 768px)');
-  const updateCols = () => {
-    if (mq.matches) {
-      visibleColumns.value = baseColumns.filter((c) => !['category', 'notes'].includes(c.name));
-    } else {
-      visibleColumns.value = baseColumns;
-    }
-  };
-  updateCols();
-  mq.addEventListener?.('change', updateCols);
-});
 </script>
 
 <style scoped>

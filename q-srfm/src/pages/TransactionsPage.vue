@@ -66,8 +66,8 @@ Key props/usage:
             <div class="row q-col-gutter-sm">
               <q-input v-model="filters.search" dense outlined placeholder="Search" class="col" />
               <q-input v-model="filters.importedMerchant" dense outlined placeholder="Imported Merchant" class="col-2" />
-              <q-input v-model.number="filters.minAmt" type="number" dense outlined placeholder="Amount Min" class="col-2" />
-              <q-input v-model.number="filters.maxAmt" type="number" dense outlined placeholder="Amount Max" class="col-2" />
+              <q-input v-model="minAmtInput" type="number" dense outlined placeholder="Amount Min" class="col-2" />
+              <q-input v-model="maxAmtInput" type="number" dense outlined placeholder="Amount Max" class="col-2" />
               <q-input v-model="filters.start" dense outlined placeholder="Date" mask="####-##-##" class="col-2">
                 <template #append>
                   <q-icon name="event" class="cursor-pointer">
@@ -128,7 +128,6 @@ Key props/usage:
         </div>
         <ledger-table
           :rows="transactions"
-          :columns="budgetColumns"
           :fetch-more="fetchMore"
           :loading="loading"
         />
@@ -154,9 +153,9 @@ Key props/usage:
         </div>
         <ledger-table
           :rows="registerRows"
-          :columns="registerColumns"
           :fetch-more="fetchMoreRegister"
           :loading="loadingRegister"
+          entity-label="Account"
         />
       </q-tab-panel>
 
@@ -206,9 +205,28 @@ const {
   loading,
   loadingRegister,
   scrollToDate,
-  budgetColumns,
-  registerColumns,
 } = useTransactions();
+
+const minAmtInput = ref('');
+const maxAmtInput = ref('');
+watch(minAmtInput, (v) => {
+  filters.value.minAmt = v === '' ? null : Number(v);
+});
+watch(maxAmtInput, (v) => {
+  filters.value.maxAmt = v === '' ? null : Number(v);
+});
+watch(
+  () => filters.value.minAmt,
+  (v) => {
+    if (v == null) minAmtInput.value = '';
+  },
+);
+watch(
+  () => filters.value.maxAmt,
+  (v) => {
+    if (v == null) maxAmtInput.value = '';
+  },
+);
 
 const formatLongMonth = (month: string) => {
   const [year, monthNum] = month.split('-');
