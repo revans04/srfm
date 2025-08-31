@@ -483,7 +483,8 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
         const string sql = @"SELECT d.id, d.family_id, d.user_id, t.id, t.account_id, t.account_number, t.account_source, t.payee, t.posted_date, t.amount, t.status, t.debit_amount, t.credit_amount, t.check_number, t.deleted, t.matched, t.ignored
                               FROM imported_transaction_docs d
                               LEFT JOIN imported_transactions t ON d.id = t.document_id
-                              WHERE d.user_id=@uid";
+                              WHERE d.user_id=@uid
+                              ORDER BY t.posted_date DESC";
         await using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("uid", userId);
         await using var reader = await cmd.ExecuteReaderAsync();
@@ -538,12 +539,14 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
         await cmd.ExecuteNonQueryAsync();
     }
 
-    public async Task<List<ImportedTransaction>> GetImportedTransactionsByAccountId(string accountId)
+    public async Task<List<ImportedTransaction>> GetImportedTransactionsByAccountId(string accountId, int offset = 0, int limit = 100)
     {
         await using var conn = await _db.GetOpenConnectionAsync();
-        const string sql = "SELECT id, account_id, account_number, account_source, payee, posted_date, amount, status, debit_amount, credit_amount, check_number, deleted, matched, ignored FROM imported_transactions WHERE account_id=@aid";
+        const string sql = "SELECT id, account_id, account_number, account_source, payee, posted_date, amount, status, debit_amount, credit_amount, check_number, deleted, matched, ignored FROM imported_transactions WHERE account_id=@aid ORDER BY posted_date DESC LIMIT @limit OFFSET @offset";
         await using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("aid", Guid.Parse(accountId));
+        cmd.Parameters.AddWithValue("limit", limit);
+        cmd.Parameters.AddWithValue("offset", offset);
         await using var reader = await cmd.ExecuteReaderAsync();
         var list = new List<ImportedTransaction>();
         while (await reader.ReadAsync())

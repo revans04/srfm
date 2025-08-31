@@ -508,7 +508,9 @@ export class DataAccess {
 
   async getImportedTransactions(): Promise<ImportedTransaction[]> {
     const importedDocs = await this.getImportedTransactionDocs();
-    return importedDocs.flatMap((doc) => doc.importedTransactions);
+    return importedDocs
+      .flatMap((doc) => doc.importedTransactions)
+      .sort((a, b) => b.postedDate.localeCompare(a.postedDate));
   }
 
   async updateImportedTransaction(docId: string, transaction: ImportedTransaction): Promise<void>;
@@ -566,17 +568,22 @@ export class DataAccess {
     );
   }
 
-  async getImportedTransactionsByAccountId(accountId: string): Promise<ImportedTransaction[]> {
+  async getImportedTransactionsByAccountId(accountId: string, offset = 0, limit = 100): Promise<ImportedTransaction[]> {
     console.log(`Fetching imported transactions for accountId: ${accountId}`);
     const headers = await this.getAuthHeaders();
-    const response = await fetch(`${this.apiBaseUrl}/budget/imported-transactions/by-account/${accountId}`, { headers });
+    const response = await fetch(
+      `${this.apiBaseUrl}/budget/imported-transactions/by-account/${accountId}?offset=${offset}&limit=${limit}`,
+      { headers }
+    );
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`Failed to fetch imported transactions: ${response.status} ${response.statusText} - ${errorText}`);
       throw new Error(`Failed to fetch imported transactions: ${response.statusText}`);
     }
     const importedTxs = await response.json();
-    return importedTxs;
+    return importedTxs.sort((a: ImportedTransaction, b: ImportedTransaction) =>
+      b.postedDate.localeCompare(a.postedDate),
+    );
   }
 
   async updateImportedTransactions(transactions: ImportedTransaction[]): Promise<void> {

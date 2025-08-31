@@ -12,6 +12,7 @@
     :virtual-scroll-item-size="rowHeight"
     :rows-per-page-options="[0]"
     :loading="loading"
+    @virtual-scroll="onVirtualScroll"
   >
     <template #top>
       <slot name="header"></slot>
@@ -148,6 +149,12 @@ function formatDate(iso: string) {
     month: 'numeric',
     day: 'numeric',
   });
+}
+
+function onVirtualScroll({ to }: { to: number }) {
+  if (props.canLoadMore && !props.loadingMore && to >= props.rows.length - 1) {
+    onLoadMore();
+  }
 }
 
 function onLoadMore() {

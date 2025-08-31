@@ -1,25 +1,6 @@
 <!-- src/components/TransactionRegistry.vue -->
 <template>
   <q-page fluid>
-    <div class="row">
-      <div class="col col-12 col-md-4">
-        <q-select
-          v-model="selectedAccount"
-          :items="accountOptions"
-          label="Select Account"
-          variant="outlined"
-          item-title="title"
-          item-value="value"
-          @update:modelValue="loadTransactions"
-        ></q-select>
-      </div>
-      <div class="col d-flex align-center col-auto" >
-          <q-btn color="primary" variant="plain" @click="refreshData" :loading="loading">
-            <q-icon start name="refresh"></q-icon>
-            Refresh
-          </q-btn>
-      </div>
-    </div>
     <div class="row" v-if="selectedAccount">
       <div class="col col-12 col-md-4">
         <q-select
@@ -86,7 +67,19 @@
       <q-card-section>Filters</q-card-section>
       <q-card-section>
         <div class="row">
-          <div class="col col-6 col-md-6">
+          <div class="col col-12 col-md-4">
+            <q-select
+              v-model="selectedAccount"
+              :items="accountOptions"
+              placeholder="Account"
+              variant="outlined"
+              item-title="title"
+              item-value="value"
+              clearable
+              @update:modelValue="loadTransactions"
+            ></q-select>
+          </div>
+          <div class="col col-12 col-md-4">
             <q-input
               append-inner-icon="search"
               density="compact"
@@ -99,6 +92,12 @@
           </div>
           <div class="col col-auto">
             <q-checkbox v-model="filterMatched" label="Show Only Unmatched" density="compact" @input="applyFilters"></q-checkbox>
+          </div>
+          <div class="col col-auto d-flex align-center">
+            <q-btn color="primary" variant="plain" @click="refreshData" :loading="loading">
+              <q-icon start name="refresh"></q-icon>
+              Refresh
+            </q-btn>
           </div>
         </div>
         <div class="row">
@@ -204,6 +203,8 @@
         fixed-footer
         height="600"
         :row-class="getRowClass"
+        virtual-scroll
+        @virtual-scroll="onTableVirtualScroll"
       >
         <template #body-cell-amount="{ row }">
           <span :class="row.isIncome ? 'text-positive' : 'text-negative'">
@@ -534,6 +535,10 @@ const {
 } = storeToRefs(uiStore);
 const budgets = ref<Budget[]>([]);
 const importedTransactions = ref<ImportedTransaction[]>([]);
+const importedOffset = ref(0);
+const pageSize = 100;
+const hasMoreImported = ref(true);
+const loadingMore = ref(false);
 const accounts = ref<Account[]>([]);
 const accountOptions = ref<{ title: string; value: string }[]>([]);
 const statements = ref<Statement[]>([]);
@@ -860,9 +865,6 @@ async function loadData() {
     await budgetStore.loadBudgets(user.uid);
     budgets.value = Array.from(budgetStore.budgets.values());
 
-    // Load imported transactions
-    importedTransactions.value = await dataAccess.getImportedTransactions();
-
     // Load accounts
     const family = await familyStore.getFamily();
     if (!family) {
@@ -871,30 +873,10 @@ async function loadData() {
     }
     accounts.value = await dataAccess.getAccounts(family.id);
 
-    // Extract unique account numbers and names
-    const budgetAccounts = budgets.value
-      .flatMap((budget) => budget.transactions || [])
-      .filter((tx): tx is Transaction & { accountNumber: string } => !tx.deleted && !!tx.accountNumber)
-      .map((tx) => tx.accountNumber);
-
-    const importedAccounts = importedTransactions.value
-      .filter((tx): tx is ImportedTransaction & { accountNumber: string } => !!tx.accountNumber)
-      .map((tx) => tx.accountNumber);
-
-    const uniqueAccountNumbers = [...new Set([...budgetAccounts, ...importedAccounts])].filter(
-      (num): num is string => !!num
-    );
-
-    // Create account options with name and number
-    accountOptions.value = uniqueAccountNumbers
-      .map((accountNumber) => {
-        const account = accounts.value.find((acc) => acc.accountNumber === accountNumber);
-        return {
-          title: account ? `${account.name} (${accountNumber})` : `Unknown (${accountNumber})`,
-          value: accountNumber,
-        };
-      })
-      .sort((a, b) => a.title.localeCompare(b.title));
+    accountOptions.value = accounts.value
+      .filter((acc) => ["Bank", "CreditCard", "Investment"].includes(acc.type) && acc.accountNumber)
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((acc) => ({ title: acc.name, value: acc.accountNumber }));
 
     // Default to first account if available
     if (accountOptions.value.length > 0) {
@@ -910,18 +892,50 @@ async function loadData() {
   }
 }
 
+async function loadImportedTransactions(reset = false) {
+  if (!selectedAccount.value || loadingMore.value || !hasMoreImported.value) return;
+  if (reset) {
+    importedOffset.value = 0;
+    importedTransactions.value = [];
+    hasMoreImported.value = true;
+  }
+  loadingMore.value = true;
+  try {
+    const txs = await dataAccess.getImportedTransactionsByAccountId(
+      selectedAccount.value,
+      importedOffset.value,
+      pageSize
+    );
+    importedTransactions.value = [...importedTransactions.value, ...txs];
+    importedOffset.value += txs.length;
+    if (txs.length < pageSize) {
+      hasMoreImported.value = false;
+    }
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error("Error loading imported transactions:", err);
+    showSnackbar(`Error loading imported transactions: ${err.message}`, "error");
+  } finally {
+    loadingMore.value = false;
+  }
+}
+
+function onTableVirtualScroll({ to }: { to: number }) {
+  if (to >= displayTransactions.value.length - 20) {
+    void loadImportedTransactions();
+  }
+}
+
 async function loadTransactions() {
   if (!selectedAccount.value) return;
 
   loading.value = true;
   try {
-    // Transactions are already loaded in budgets.value and importedTransactions.value
-    // Filtering happens in displayTransactions computed property
+    await loadImportedTransactions(true);
     await statementStore.loadStatements(familyId.value, selectedAccount.value);
     statements.value = statementStore.getStatements(familyId.value, selectedAccount.value);
     if (statements.value.length > 0) {
-      const lastStatement = statements.value[statements.value.length - 1];
-      selectedStatementId.value = lastStatement ? lastStatement.id : "ALL";
+      selectedStatementId.value = statements.value[statements.value.length - 1].id;
     } else {
       selectedStatementId.value = "ALL";
     }

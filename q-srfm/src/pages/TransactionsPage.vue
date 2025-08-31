@@ -116,8 +116,8 @@ Key props/usage:
         </div>
         <ledger-table
           :rows="transactions"
-          :fetch-more="fetchMore"
           :loading="loading"
+          @load-more="fetchMore"
         />
       </q-tab-panel>
 
@@ -127,7 +127,6 @@ Key props/usage:
         <div class="filter-bar shadow-2 bg-white q-pa-sm">
           <!-- reuse same filters for demo -->
           <div class="row q-col-gutter-sm items-center">
-            <q-input v-model="filters.search" dense outlined placeholder="Search" class="col" />
             <q-select
               v-model="filters.accountId"
               :options="accountOptions"
@@ -139,14 +138,17 @@ Key props/usage:
               map-options
               class="col-3"
             />
+            <q-input v-model="filters.search" dense outlined placeholder="Search" class="col" />
             <q-checkbox v-model="filters.cleared" label="Cleared Only" class="col-auto" />
           </div>
         </div>
         <ledger-table
           :rows="registerRows"
-          :fetch-more="fetchMoreRegister"
           :loading="loadingRegister"
           entity-label="Account"
+          :can-load-more="canLoadMoreRegister"
+          :loading-more="loadingMoreRegister"
+          @load-more="fetchMoreRegister"
         />
       </q-tab-panel>
 
@@ -171,6 +173,7 @@ import { useFamilyStore } from 'src/store/family';
 import { useUIStore } from 'src/store/ui';
 import { useAuthStore } from 'src/store/auth';
 import { sortBudgetsByMonthDesc } from 'src/utils/budget';
+import { dataAccess } from 'src/dataAccess';
 
 const tab = ref<'budget' | 'register' | 'match'>('budget');
 
@@ -182,12 +185,17 @@ const auth = useAuthStore();
 const { selectedBudgetIds } = storeToRefs(uiStore);
 const { selectedEntityId } = storeToRefs(familyStore);
 
-const accountOptions = computed(() =>
-  familyStore.family?.accounts?.map((a) => ({
-    label: a.accountNumber ? `${a.name} (${a.accountNumber})` : a.name,
-    value: a.id,
-  })) || [],
-);
+const accountOptions = computed(() => {
+  const accounts = familyStore.family?.accounts || [];
+  const opts = accounts
+    .filter((a) => ['Bank', 'CreditCard', 'Investment'].includes(a.type))
+    .map((a) => ({
+      label: a.accountNumber ? `${a.name} (${a.accountNumber})` : a.name,
+      value: String(a.id),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+  return [{ label: 'All', value: null }, ...opts];
+});
 
 const {
   transactions,
@@ -197,15 +205,46 @@ const {
   fetchMoreRegister,
   loading,
   loadingRegister,
+  canLoadMoreRegister,
+  loadingMoreRegister,
   scrollToDate,
   loadImportedTransactions,
 } = useTransactions();
 
 onMounted(loadBudgets);
 
+async function ensureAccountsLoaded() {
+  if (!familyStore.family?.accounts || familyStore.family.accounts.length === 0) {
+    const fid = familyStore.family?.id;
+    if (fid) {
+      try {
+        const accounts = await dataAccess.getAccounts(fid);
+        if (familyStore.family) familyStore.family.accounts = accounts;
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+}
+
+// Ensure an account is selected when viewing the register so data loads
+watch(
+  [tab, accountOptions],
+  async ([t, opts]) => {
+    if (t === 'register') {
+      await ensureAccountsLoaded();
+      if (!filters.value.accountId && opts.length > 0) {
+        const first = opts.find((o) => o.value);
+        if (first) filters.value.accountId = first.value;
+      }
+    }
+  },
+  { immediate: true },
+);
+
 watch(tab, async (t) => {
-  if (t === 'register' && registerRows.value.length === 0) {
-    await loadImportedTransactions();
+  if (t === 'register' && registerRows.value.length === 0 && filters.value.accountId != null) {
+    await loadImportedTransactions(true);
   }
 });
 
