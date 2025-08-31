@@ -365,13 +365,13 @@ const smartMatchesSortFields = [
   { text: "Merchant", value: "merchant" },
   { text: "Amount", value: "bankAmount" },
 ];
-const smartMatchDateRange = ref<string>("7");
+const smartMatchDateRange = ref<string>("3");
 
 // Local state for Remaining Transactions
 const currentBankTransactionIndex = ref<number>(0);
 const searchAmount = ref<string>("");
 const searchMerchant = ref<string>("");
-const searchDateRange = ref<string>("7");
+const searchDateRange = ref<string>("3");
 const potentialMatches = ref<Transaction[]>([]);
 const selectedBudgetTransactionForMatch = ref<Transaction[]>([]);
 const potentialMatchesSortField = ref<string>("date");
@@ -544,7 +544,7 @@ async function initializeState() {
   selectedBankTransaction.value = props.selectedBankTransaction || remainingImportedTransactions.value[0] || null;
 
   smartMatches.value = [];
-  smartMatchDateRange.value = "7";
+  smartMatchDateRange.value = "3";
   computeSmartMatchesLocal();
 
   resetState(false);
@@ -560,7 +560,7 @@ watch(
       selectedBankTransaction.value = newVal;
       searchAmount.value = newVal.debitAmount ? newVal.debitAmount.toString() : newVal.creditAmount?.toString() || "0";
       searchMerchant.value = "";
-      searchDateRange.value = "7";
+      searchDateRange.value = "3";
       transactionSplits.value = [{ entityId: familyStore.selectedEntityId || "", category: "", amount: 0 }]; // Reset splits
       showSplitForm.value = false;
       searchBudgetTransactions();
@@ -1023,7 +1023,7 @@ function searchBudgetTransactions() {
   const bankTx = selectedBankTransaction.value;
   const amount = parseFloat(searchAmount.value) || bankTx.debitAmount || bankTx.creditAmount || 0;
   const merchant = searchMerchant.value.toLowerCase();
-  const dateRangeDays = parseInt(searchDateRange.value) || 7;
+  const dateRangeDays = parseInt(searchDateRange.value) || 3;
 
   const bankDate = new Date(bankTx.postedDate);
   const startDate = new Date(bankDate);
@@ -1037,7 +1037,7 @@ function searchBudgetTransactions() {
     const txMerchant = tx.merchant.toLowerCase();
 
     const dateMatch = txDate >= startDate && txDate <= endDate;
-    const amountMatch = Math.abs(txAmount - amount) < 0.01;
+    const amountMatch = Math.abs(txAmount - amount) <= 0.05;
     const merchantMatch = merchant ? txMerchant.includes(merchant) : true;
 
     return !tx.deleted && dateMatch && amountMatch && merchantMatch && (!tx.status || tx.status === "U");
@@ -1049,7 +1049,7 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
   const confirmedIds = new Set(confirmedMatches.map((m) => m.importedTransaction.id));
   const newSmartMatches = smartMatches.value.filter((match) => !confirmedIds.has(match.importedTransaction.id));
 
-  const dateRangeDays = parseInt(smartMatchDateRange.value) || 7;
+  const dateRangeDays = parseInt(smartMatchDateRange.value) || 3;
   const unmatchedImported = remainingImportedTransactions.value.filter(
     (tx) => !confirmedIds.has(tx.id) && !newSmartMatches.some((m) => m.importedTransaction.id === tx.id)
   );
@@ -1084,7 +1084,7 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
       if (
         normalizedTxDate >= startDate &&
         normalizedTxDate <= endDate &&
-        Math.abs(txAmount - bankAmount) < 0.01 &&
+        Math.abs(txAmount - bankAmount) <= 0.05 &&
         (!tx.status || tx.status === "U") &&
         !tx.deleted &&
         typeMatch
