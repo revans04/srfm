@@ -210,9 +210,19 @@ const {
 } = useTransactions();
 
 onMounted(loadBudgets);
+// Ensure an account is selected when viewing the register so data loads
+watch(
+  [tab, accountOptions],
+  ([t, opts]) => {
+    if (t === 'register' && !filters.value.accountId && opts.length > 0) {
+      filters.value.accountId = opts[0].value;
+    }
+  },
+  { immediate: true },
+);
 
 watch(tab, async (t) => {
-  if (t === 'register' && registerRows.value.length === 0) {
+  if (t === 'register' && registerRows.value.length === 0 && filters.value.accountId) {
     await loadImportedTransactions(true);
   }
 });
