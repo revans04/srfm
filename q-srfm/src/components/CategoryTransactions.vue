@@ -1,13 +1,13 @@
 <!-- CategoryTransactions.vue -->
 <template>
-  <q-page fluid class="category-transactions text-black">
+  <q-page fluid class="category-transactions text-black bg-grey-2 q-pa-md">
     <!-- Header -->
-    <div class="row header">
+    <div class="row header items-center">
       <div class="col">
         <h2 class="category-title">{{ category.name }}</h2>
       </div>
-      <div class="col col-auto">
-        <q-fab :class="isMobile ? 'mr-2' : 'mr-2 mt-2'" icon="close" variant="plain" :absolute="true" location="top" @click="$emit('close')" />
+      <div class="col-auto">
+        <q-btn flat dense icon="close" class="q-mt-sm" @click="$emit('close')" />
       </div>
     </div>
 
@@ -41,10 +41,11 @@
     <div class="row flex-grow-1 mt-4 q-pl-none q-pr-none">
       <div class="col transaction-list q-pl-none q-pr-none">
         <h3 class="section-title q-pb-sm">Transactions ({{ categoryTransactions.length }})</h3>
-        <div class="my-2 bg-white rounded-10 q-pt-sm q-pr-md q-pl-md mb-4">
+        <div class="my-2 bg-white rounded-borders q-pa-sm mb-4">
           <q-input v-model="search" label="Search" dense clearable prepend-icon="search"></q-input>
         </div>
-        <q-list dense class="rounded-10">
+        <q-card flat class="bg-white rounded-borders">
+        <q-list dense class="rounded-borders">
           <q-item
             v-for="transaction in categoryTransactions"
             :key="transaction.id"
@@ -81,11 +82,12 @@
             <q-item-label>No transactions for this category.</q-item-label>
           </q-item>
         </q-list>
+        </q-card>
       </div>
     </div>
 
     <!-- Floating Action Button -->
-    <q-fab icon="add" :app="true" color="primary" @click="$emit('add-transaction')" location="bottom right" class="mr-2" :class="isMobile ? 'mb-14' : 'mb-2'" />
+    <q-fab icon="add" :app="true" color="primary" @click="$emit('add-transaction')" location="bottom left" class="ml-2" :class="isMobile ? 'mb-14' : 'mb-2'" />
 
     <!-- Edit Transaction Dialog -->
     <q-dialog v-model="showEditDialog" :width="!isMobile ? '550px' : undefined" :fullscreen="isMobile">

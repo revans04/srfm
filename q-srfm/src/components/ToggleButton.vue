@@ -84,16 +84,14 @@ watch(
 
 /* Style for the active button */
 .active {
-  background-color: rgb(
-    var(--v-theme-primary)
-  ); /* Vuetify's default blue color */
+  background-color: var(--q-primary);
   color: white;
 }
 
 /* Style for the inactive button */
 .inactive {
   background-color: #e0e0e0; /* Light gray for inactive */
-  color: black;
+  color: #555;
 }
 
 /* Ensure the buttons are seamlessly connected */
