@@ -2,15 +2,23 @@
 <template>
   <q-dialog
     v-model="localShowDialog"
-    :max-width="!isMobile ? '600px' : ''"
+    :max-width="!isMobile ? '550px' : undefined"
     :fullscreen="isMobile"
     @update:modelValue="handleDialogClose"
   >
     <q-card>
-      <q-card-section class="bg-primary text-white">
-        <div class="text-h6">
+      <q-card-section class="bg-primary row items-center">
+        <div class="text-h6 text-white">
           {{ editMode ? `Edit ${transaction.merchant} Transaction` : "Add Transaction" }}
         </div>
+        <q-btn
+          flat
+          dense
+          color="error"
+          label="X"
+          class="q-ml-auto"
+          @click="handleCancel"
+        />
       </q-card-section>
       <q-card-section>
         <TransactionForm

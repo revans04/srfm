@@ -88,12 +88,18 @@
     <q-fab icon="add" :app="true" color="primary" @click="$emit('add-transaction')" location="bottom right" class="mr-2" :class="isMobile ? 'mb-14' : 'mb-2'" />
 
     <!-- Edit Transaction Dialog -->
-    <q-dialog v-model="showEditDialog" :max-width="!isMobile ? '600px' : ''" :fullscreen="isMobile">
+    <q-dialog v-model="showEditDialog" :max-width="!isMobile ? '550px' : undefined" :fullscreen="isMobile">
       <q-card dense>
-        <q-card-section class="bg-primary py-5">
-          <div class="row">
-            <div class="col">Edit {{ transactionToEdit?.merchant }} Transaction</div>
-          </div>
+        <q-card-section class="bg-primary row items-center py-5">
+          <div class="text-white">Edit {{ transactionToEdit?.merchant }} Transaction</div>
+          <q-btn
+            flat
+            dense
+            color="error"
+            label="X"
+            class="q-ml-auto"
+            @click="showEditDialog = false"
+          />
         </q-card-section>
         <q-card-section>
           <transaction-form

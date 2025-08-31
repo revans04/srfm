@@ -2,9 +2,20 @@
 <template>
   <div v-if="isInitialized && locTrnsx?.categories">
       <div class="row pa-0" >
-        <div class="col col-6"> <q-btn variant="text" type="submit" color="primary" :loading="isLoading" @click="save()">Save</q-btn></div>
+        <div class="col col-6">
+          <q-btn variant="flat" type="submit" color="primary" :loading="isLoading" @click="save" label="Save" />
+        </div>
         <div class="col text-right col-6" >
-          <q-btn v-if="showCancel" @click="emit('cancel')" variant="text" type="submit" color="primary" :loading="isLoading">Cancel</q-btn></div>
+          <q-btn
+            v-if="showCancel"
+            @click="emit('cancel')"
+            variant="flat"
+            type="submit"
+            color="primary"
+            :loading="isLoading"
+            label="Cancel"
+          />
+        </div>
       </div>
     <q-form ref="form" @submit.prevent="save">
       <div class="row form-row" >
@@ -162,7 +173,14 @@
       </div>
 
       <div class="text-center">
-        <q-btn v-if="locTrnsx.id" variant="text" color="error" :loading="isLoading" @click="deleteTransaction"> Delete Transaction </q-btn>
+        <q-btn
+          v-if="locTrnsx.id"
+          variant="text"
+          color="error"
+          :loading="isLoading"
+          @click="deleteTransaction"
+          label="Delete Transaction"
+        />
       </div>
     </q-form>
   </div>
