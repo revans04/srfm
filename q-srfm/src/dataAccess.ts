@@ -508,7 +508,9 @@ export class DataAccess {
 
   async getImportedTransactions(): Promise<ImportedTransaction[]> {
     const importedDocs = await this.getImportedTransactionDocs();
-    return importedDocs.flatMap((doc) => doc.importedTransactions);
+    return importedDocs
+      .flatMap((doc) => doc.importedTransactions)
+      .sort((a, b) => b.postedDate.localeCompare(a.postedDate));
   }
 
   async updateImportedTransaction(docId: string, transaction: ImportedTransaction): Promise<void>;
@@ -579,7 +581,9 @@ export class DataAccess {
       throw new Error(`Failed to fetch imported transactions: ${response.statusText}`);
     }
     const importedTxs = await response.json();
-    return importedTxs;
+    return importedTxs.sort((a: ImportedTransaction, b: ImportedTransaction) =>
+      b.postedDate.localeCompare(a.postedDate),
+    );
   }
 
   async updateImportedTransactions(transactions: ImportedTransaction[]): Promise<void> {

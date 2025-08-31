@@ -191,7 +191,7 @@ const accountOptions = computed(() => {
     .filter((a) => ['Bank', 'CreditCard', 'Investment'].includes(a.type))
     .map((a) => ({
       label: a.accountNumber ? `${a.name} (${a.accountNumber})` : a.name,
-      value: a.id,
+      value: String(a.id),
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
   return [{ label: 'All', value: null }, ...opts];

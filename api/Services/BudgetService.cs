@@ -483,7 +483,8 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
         const string sql = @"SELECT d.id, d.family_id, d.user_id, t.id, t.account_id, t.account_number, t.account_source, t.payee, t.posted_date, t.amount, t.status, t.debit_amount, t.credit_amount, t.check_number, t.deleted, t.matched, t.ignored
                               FROM imported_transaction_docs d
                               LEFT JOIN imported_transactions t ON d.id = t.document_id
-                              WHERE d.user_id=@uid";
+                              WHERE d.user_id=@uid
+                              ORDER BY t.posted_date DESC";
         await using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("uid", userId);
         await using var reader = await cmd.ExecuteReaderAsync();

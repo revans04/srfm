@@ -158,7 +158,7 @@ export function useTransactions() {
       status: tx.status,
       linkId: tx.accountNumber ? `${tx.accountSource || ''}:${tx.accountNumber}` : undefined,
       notes: '',
-      accountId: account?.id || tx.accountId,
+      accountId: account?.id ? String(account.id) : tx.accountId ? String(tx.accountId) : undefined,
     };
   }
 
@@ -233,7 +233,9 @@ export function useTransactions() {
       const mapped = imported
         .filter((t) => !t.deleted)
         .map((t) => mapImportedToRow(t));
-      registerRows.value = [...registerRows.value, ...mapped];
+      registerRows.value = [...registerRows.value, ...mapped].sort((a, b) =>
+        b.date.localeCompare(a.date),
+      );
       importedOffset.value += imported.length;
       if (imported.length < pageSize) {
         hasMoreImported.value = false;
