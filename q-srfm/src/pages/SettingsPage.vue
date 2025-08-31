@@ -105,14 +105,10 @@
                     <q-chip v-if="entity.templateBudget" color="success" size="small" class="ml-2">Has Template</q-chip>
                   </div>
                   <div class="col col-auto">
-                    <q-btn variant="plain" color="primary" @click="openEditEntityDialog(entity)">
-                        <q-icon name="edit"></q-icon>
-                    </q-btn>
+                    <q-btn variant="plain" color="primary" @click="openEditEntityDialog(entity)" icon="edit" />
                   </div>
                   <div class="col col-auto">
-                    <q-btn variant="plain" @click="confirmDeleteEntity(entity)" color="error">
-                        <q-icon name="delete_outline"></q-icon>
-                    </q-btn>
+                    <q-btn variant="plain" @click="confirmDeleteEntity(entity)" color="error" icon="o_delete" />
                   </div>
                 </div>
               </q-item>
@@ -143,9 +139,8 @@
                       color="error"
                       @click.stop="confirmDeleteTransactionDoc(props.row)"
                       title="Delete Transaction Document"
-                    >
-                        <q-icon name="delete_outline"></q-icon>
-                    </q-btn>
+                      icon="o_delete"
+                    />
                   </template>
                 </q-table>
                 <div class="q-mt-md">
@@ -174,9 +169,7 @@
                     {{ props.row.transactions?.length || 0 }}
                   </template>
                   <template #body-cell-actions="props">
-                    <q-btn density="compact" variant="plain" color="error" @click.stop="confirmDeleteBudget(props.row)" title="Delete Budget">
-                        <q-icon name="delete_outline"></q-icon>
-                    </q-btn>
+                    <q-btn density="compact" variant="plain" color="error" @click.stop="confirmDeleteBudget(props.row)" title="Delete Budget" icon="o_delete" />
                   </template>
                 </q-table>
                 <div class="q-mt-md">
