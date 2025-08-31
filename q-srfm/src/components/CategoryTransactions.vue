@@ -54,7 +54,7 @@
             style="border-bottom: 1px solid rgb(var(--v-theme-light))"
           >
             <q-item-section class="d-flex align-center">
-              <div class="row pa-2 align-center no-gutters">
+              <div class="row q-pa-sm align-center no-gutters">
                 <div class="col pt-2 font-weight-bold text-primary col-2" style="min-width: 60px; font-size: 10px">
                   {{ formatDate(transaction.date) }}
                 </div>

@@ -89,32 +89,42 @@
                 row-key="id"
                 @row-click="viewSnapshotDetails"
               >
-                <template #header-cell-select>
-                  <q-checkbox v-model="selectAll" @update:modelValue="toggleSelectAll" dense @click.stop />
+                <template #header-cell-select="props">
+                  <q-th :props="props">
+                    <q-checkbox v-model="selectAll" @update:modelValue="toggleSelectAll" dense @click.stop />
+                  </q-th>
                 </template>
-                <template #body-cell-select="{ row }">
-                  <q-checkbox
-                    v-model="selectedSnapshots"
-                    :value="row.id"
-                    dense
-                    @update:modelValue="updateSelectAll"
-                    @click.stop
-                  />
+                <template #body-cell-select="props">
+                  <q-td :props="props">
+                    <q-checkbox
+                      v-model="selectedSnapshots"
+                      :value="props.row.id"
+                      dense
+                      @update:modelValue="updateSelectAll"
+                      @click.stop
+                    />
+                  </q-td>
                 </template>
-              <template #body-cell-date="{ row }">
-                {{ formatTimestamp(row.date) }}
-              </template>
-              <template #body-cell-netWorth="{ row }">
-                {{ formatCurrency(row.netWorth) }}
-              </template>
-                <template #body-cell-actions="{ row }">
-                  <q-btn
-                    flat
-                    dense
-                    color="error"
-                    icon="delete"
-                    @click.stop="confirmDeleteSnapshot(row.id)"
-                  />
+                <template #body-cell-date="props">
+                  <q-td :props="props">
+                    {{ formatTimestamp(props.row.date) }}
+                  </q-td>
+                </template>
+                <template #body-cell-netWorth="props">
+                  <q-td :props="props">
+                    {{ formatCurrency(props.row.netWorth) }}
+                  </q-td>
+                </template>
+                <template #body-cell-actions="props">
+                  <q-td :props="props">
+                    <q-btn
+                      flat
+                      dense
+                      color="error"
+                      icon="delete"
+                      @click.stop="confirmDeleteSnapshot(props.row.id)"
+                    />
+                  </q-td>
                 </template>
               </q-table>
             <div class="mt-4">
@@ -154,20 +164,26 @@
               hide-bottom
               :pagination="{ rowsPerPage: 100 }"
             >
-              <template #body-cell-name="{ row }">
-                {{ getAccountName(row.accountId) }}
+              <template #body-cell-name="props">
+                <q-td :props="props">
+                  {{ getAccountName(props.row.accountId) }}
+                </q-td>
               </template>
-              <template #body-cell-type="{ row }">
-                {{ getAccountType(row.accountId) }}
+              <template #body-cell-type="props">
+                <q-td :props="props">
+                  {{ getAccountType(props.row.accountId) }}
+                </q-td>
               </template>
-              <template #body-cell-value="{ row }">
-                <q-input
-                  v-model.number="row.value"
-                  type="number"
-                  outlined
-                  dense
-                  :prefix="getAccountCategory(row.accountId) === 'Liability' ? '-' : ''"
-                ></q-input>
+              <template #body-cell-value="props">
+                <q-td :props="props">
+                  <q-input
+                    v-model.number="props.row.value"
+                    type="number"
+                    outlined
+                    dense
+                    :prefix="getAccountCategory(props.row.accountId) === 'Liability' ? '-' : ''"
+                  ></q-input>
+                </q-td>
               </template>
             </q-table>
             <q-btn type="submit" color="primary" :loading="saving" class="mt-4"> Save Snapshot </q-btn>
@@ -236,8 +252,10 @@
               :pagination="{ rowsPerPage: 0 }"
               flat
             >
-              <template #body-cell-value="{ row }">
-                {{ formatCurrency(row.value) }}
+              <template #body-cell-value="props">
+                <q-td :props="props">
+                  {{ formatCurrency(props.row.value) }}
+                </q-td>
               </template>
             </q-table>
             <div class="text-right mt-4">
