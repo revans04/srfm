@@ -62,25 +62,38 @@
             <q-btn color="error" class="mb-4" @click="confirmBatchDeleteSnapshots" :disabled="selectedSnapshots.length === 0" :loading="deleting">
               Delete Selected
             </q-btn>
-            <q-table :columns="snapshotColumns" :rows="snapshotsWithSelection" class="elevation-1" :pagination="{ rowsPerPage: 10 }">
-              <template #header-cell-select>
-                <q-checkbox v-model="selectAll" @update:modelValue="toggleSelectAll" dense />
-              </template>
-              <template #body-cell-select="{ row }">
-                <q-checkbox v-model="selectedSnapshots" :value="row.id" dense @update:modelValue="updateSelectAll" />
-              </template>
+              <q-table
+                :columns="snapshotColumns"
+                :rows="snapshotsWithSelection"
+                class="elevation-1"
+                :pagination="{ rowsPerPage: 10 }"
+                row-key="id"
+                @row-click="viewSnapshotDetails"
+              >
+                <template #header-cell-select>
+                  <q-checkbox v-model="selectAll" @update:modelValue="toggleSelectAll" dense @click.stop />
+                </template>
+                <template #body-cell-select="{ row }">
+                  <q-checkbox
+                    v-model="selectedSnapshots"
+                    :value="row.id"
+                    dense
+                    @update:modelValue="updateSelectAll"
+                    @click.stop
+                  />
+                </template>
               <template #body-cell-date="{ row }">
                 {{ formatTimestamp(row.date) }}
               </template>
               <template #body-cell-netWorth="{ row }">
                 {{ formatCurrency(row.netWorth) }}
               </template>
-              <template #body-cell-actions="{ row }">
-            <q-btn dense variant="plain" color="error" @click="confirmDeleteSnapshot(row.id)">
-              <q-icon name="delete_outline"></q-icon>
-            </q-btn>
-              </template>
-            </q-table>
+                <template #body-cell-actions="{ row }">
+                  <q-btn dense variant="plain" color="error" @click.stop="confirmDeleteSnapshot(row.id)">
+                    <q-icon name="delete_outline"></q-icon>
+                  </q-btn>
+                </template>
+              </q-table>
             <div class="mt-4">
               <p>Net worth trend chart coming soon!</p>
             </div>
@@ -92,26 +105,18 @@
     <!-- Account Dialog -->
     <q-dialog v-model="showAccountDialog" max-width="600px">
       <q-card>
-        <q-card-section>{{ editMode ? "Edit" : "Add" }} {{ accountType }} Account</q-card-section>
-        <q-card-section>
-          <AccountForm
-            v-if="editMode"
-            :account-type="accountType"
-            :account="newAccount"
-            :show-personal-option="true"
-            @save="saveAccount"
-            @cancel="closeAccountDialog"
-          />
-          <AccountForm
-            v-else
-            :account-type="accountType"
-            :show-personal-option="true"
-            @save="saveAccount"
-            @cancel="closeAccountDialog"
-          />
-        </q-card-section>
-      </q-card>
-    </q-dialog>
+          <q-card-section>{{ editMode ? "Edit" : "Add" }} {{ accountType }} Account</q-card-section>
+          <q-card-section>
+            <AccountForm
+              :account-type="accountType"
+              :account="editMode ? newAccount : undefined"
+              :show-personal-option="true"
+              @save="saveAccount"
+              @cancel="closeAccountDialog"
+            />
+          </q-card-section>
+        </q-card>
+      </q-dialog>
 
     <!-- Snapshot Dialog -->
     <q-dialog v-model="showSnapshotDialog" max-width="800px">
@@ -179,9 +184,9 @@
       </q-card>
     </q-dialog>
 
-    <!-- Batch Delete Snapshots Confirmation Dialog -->
-    <q-dialog v-model="showBatchDeleteSnapshotDialog" max-width="400">
-      <q-card>
+      <!-- Batch Delete Snapshots Confirmation Dialog -->
+      <q-dialog v-model="showBatchDeleteSnapshotDialog" max-width="400">
+        <q-card>
         <q-card-section class="bg-error py-3">
           <span class="text-white">Delete Selected Snapshots</span>
         </q-card-section>
@@ -191,8 +196,36 @@
           <q-btn color="grey" variant="text" @click="showBatchDeleteSnapshotDialog = false"> Cancel </q-btn>
           <q-btn color="error" variant="flat" @click="executeBatchDeleteSnapshots"> Delete </q-btn>
         </q-card-actions>
-      </q-card>
-    </q-dialog>
+        </q-card>
+      </q-dialog>
+
+      <!-- Snapshot Details Dialog -->
+      <q-dialog v-model="showSnapshotDetailsDialog" max-width="600px">
+        <q-card>
+          <q-card-section>
+            Snapshot on {{ snapshotDetails ? formatTimestamp(snapshotDetails.date) : '' }}
+          </q-card-section>
+          <q-card-section>
+            <q-table
+              :columns="snapshotDetailColumns"
+              :rows="snapshotDetails ? snapshotDetails.accounts : []"
+              hide-bottom
+              :pagination="{ rowsPerPage: 0 }"
+              flat
+            >
+              <template #body-cell-value="{ row }">
+                {{ formatCurrency(row.value) }}
+              </template>
+            </q-table>
+            <div class="text-right mt-4">
+              <strong>Net Worth: {{ snapshotDetails ? formatCurrency(snapshotDetails.netWorth) : '' }}</strong>
+            </div>
+          </q-card-section>
+          <q-card-actions class="justify-end">
+            <q-btn color="primary" variant="text" @click="showSnapshotDetailsDialog = false">Close</q-btn>
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
 
     <!-- Update Budget Transactions Confirmation Dialog -->
     <q-dialog v-model="showUpdateBudgetTransactionsDialog" max-width="500px">
@@ -238,11 +271,13 @@ const deleting = ref(false);
 const accounts = ref<Account[]>([]);
 const importedTransactions = ref<ImportedTransaction[]>([]);
 const snapshots = ref<Snapshot[]>([]);
+const snapshotDetails = ref<Snapshot | null>(null);
 const showAccountDialog = ref(false);
 const showSnapshotDialog = ref(false);
 const showDeleteAccountDialog = ref(false);
 const showDeleteSnapshotDialog = ref(false);
 const showBatchDeleteSnapshotDialog = ref(false);
+const showSnapshotDetailsDialog = ref(false);
 const showUpdateBudgetTransactionsDialog = ref(false);
 const accountType = ref<AccountType>(AccountType.Bank);
 const editMode = ref(false);
@@ -320,6 +355,12 @@ const snapshotAccountColumns = [
   { name: 'value', label: 'Value', field: 'value' },
 ];
 
+const snapshotDetailColumns = [
+  { name: 'accountName', label: 'Account', field: 'accountName' },
+  { name: 'type', label: 'Type', field: 'type' },
+  { name: 'value', label: 'Value', field: 'value' },
+];
+
 const snapshotsWithSelection = computed(() => {
   return snapshots.value.map((snapshot) => ({
     ...snapshot,
@@ -338,6 +379,11 @@ function toggleSelectAll(value: boolean) {
     selectedSnapshots.value = [];
   }
   updateSelectAll();
+}
+
+function viewSnapshotDetails(_: unknown, row: Snapshot) {
+  snapshotDetails.value = row;
+  showSnapshotDetailsDialog.value = true;
 }
 
 onMounted(async () => {
