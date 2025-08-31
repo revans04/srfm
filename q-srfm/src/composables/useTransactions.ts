@@ -127,14 +127,15 @@ export function useTransactions() {
   }
 
   function mapImportedToRow(tx: ImportedTransaction): LedgerRow {
+    const normalizeNum = (n?: string | null) => (n || '').replace(/\D/g, '');
     const account = familyStore.family?.accounts?.find((a) => {
-      if (tx.accountId) return a.id === tx.accountId;
+      if (tx.accountId && String(a.id) === String(tx.accountId)) return true;
       if (tx.accountNumber) {
-        const numberMatch = a.accountNumber === tx.accountNumber;
-        const sourceMatch = tx.accountSource
-          ? a.institution === tx.accountSource
+        const numberMatch = normalizeNum(a.accountNumber) === normalizeNum(tx.accountNumber);
+        if (!numberMatch) return false;
+        return tx.accountSource
+          ? (a.institution || '').toLowerCase() === tx.accountSource.toLowerCase()
           : true;
-        return numberMatch && sourceMatch;
       }
       return false;
     });
@@ -190,6 +191,17 @@ export function useTransactions() {
     if (importedLoaded.value) return;
     loadingRegister.value = true;
     try {
+      if (!familyStore.family?.accounts || familyStore.family.accounts.length === 0) {
+        const fid = familyStore.family?.id;
+        if (fid) {
+          try {
+            const accounts = await dataAccess.getAccounts(fid);
+            if (familyStore.family) familyStore.family.accounts = accounts;
+          } catch {
+            /* ignore */
+          }
+        }
+      }
       const imported = await dataAccess.getImportedTransactions();
       registerRows.value = imported
         .filter((t) => !t.deleted)
