@@ -280,12 +280,12 @@ namespace FamilyBudgetApi.Controllers
 
         [HttpGet("imported-transactions/by-account/{accountId}")]
         [AuthorizeFirebase]
-        public async Task<IActionResult> GetImportedTransactionsByAccountId(string accountId)
+        public async Task<IActionResult> GetImportedTransactionsByAccountId(string accountId, [FromQuery] int offset = 0, [FromQuery] int limit = 100)
         {
             try
             {
                 var userId = HttpContext.Items["UserId"]?.ToString() ?? throw new Exception("User ID not found");
-                var transactions = await _budgetService.GetImportedTransactionsByAccountId(accountId);
+                var transactions = await _budgetService.GetImportedTransactionsByAccountId(accountId, offset, limit);
                 return Ok(transactions);
             }
             catch (Exception ex)

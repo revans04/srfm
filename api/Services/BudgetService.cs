@@ -538,12 +538,14 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
         await cmd.ExecuteNonQueryAsync();
     }
 
-    public async Task<List<ImportedTransaction>> GetImportedTransactionsByAccountId(string accountId)
+    public async Task<List<ImportedTransaction>> GetImportedTransactionsByAccountId(string accountId, int offset = 0, int limit = 100)
     {
         await using var conn = await _db.GetOpenConnectionAsync();
-        const string sql = "SELECT id, account_id, account_number, account_source, payee, posted_date, amount, status, debit_amount, credit_amount, check_number, deleted, matched, ignored FROM imported_transactions WHERE account_id=@aid";
+        const string sql = "SELECT id, account_id, account_number, account_source, payee, posted_date, amount, status, debit_amount, credit_amount, check_number, deleted, matched, ignored FROM imported_transactions WHERE account_id=@aid ORDER BY posted_date DESC LIMIT @limit OFFSET @offset";
         await using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("aid", Guid.Parse(accountId));
+        cmd.Parameters.AddWithValue("limit", limit);
+        cmd.Parameters.AddWithValue("offset", offset);
         await using var reader = await cmd.ExecuteReaderAsync();
         var list = new List<ImportedTransaction>();
         while (await reader.ReadAsync())
