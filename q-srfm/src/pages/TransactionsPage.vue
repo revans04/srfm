@@ -12,7 +12,7 @@ Key props/usage:
 -->
 <template>
   <q-page class="bg-grey-2">
-    <!-- Sticky header: title, tabs, global search -->
+    <!-- Sticky header: title and tabs -->
     <div class="top-bar bg-grey-2 q-px-md q-pt-md">
       <div class="row items-center q-gutter-md">
         <div class="col-auto text-h5">Transactions</div>
@@ -21,18 +21,6 @@ Key props/usage:
           <q-tab name="register" label="Account Register" />
           <q-tab name="match" label="Match Bank Transactions" />
         </q-tabs>
-        <q-input
-          v-model="globalSearch"
-          placeholder="Search"
-          dense
-          outlined
-          debounce="300"
-          class="col-3"
-        >
-          <template #append>
-            <q-icon name="search" />
-          </template>
-        </q-input>
       </div>
     </div>
 
@@ -168,7 +156,7 @@ Key props/usage:
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, onMounted } from 'vue';
 import { storeToRefs } from 'pinia';
 import LedgerTable from 'src/components/LedgerTable.vue';
 import StatementHeader from 'src/components/StatementHeader.vue';
@@ -182,7 +170,6 @@ import { useAuthStore } from 'src/store/auth';
 import { sortBudgetsByMonthDesc } from 'src/utils/budget';
 
 const tab = ref<'budget' | 'register' | 'match'>('budget');
-const globalSearch = ref('');
 
 const budgetStore = useBudgetStore();
 const familyStore = useFamilyStore();
@@ -205,7 +192,16 @@ const {
   loading,
   loadingRegister,
   scrollToDate,
+  loadImportedTransactions,
 } = useTransactions();
+
+onMounted(loadBudgets);
+
+watch(tab, async (t) => {
+  if (t === 'register' && registerRows.value.length === 0) {
+    await loadImportedTransactions();
+  }
+});
 
 const minAmtInput = ref('');
 const maxAmtInput = ref('');

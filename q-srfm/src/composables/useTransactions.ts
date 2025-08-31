@@ -84,6 +84,7 @@ export function useTransactions() {
   const registerRows = ref<LedgerRow[]>([]);
   const loading = ref(false);
   const loadingRegister = ref(false);
+  const importedLoaded = ref(false);
 
   const filters = ref<LedgerFilters>({
     search: '',
@@ -127,6 +128,7 @@ export function useTransactions() {
 
   function mapImportedToRow(tx: ImportedTransaction): LedgerRow {
     const accountName =
+      tx.accountName ||
       familyStore.family?.accounts?.find((a) => a.id === tx.accountId)?.name || '';
     return {
       id: tx.id,
@@ -176,6 +178,7 @@ export function useTransactions() {
   }
 
   async function loadImportedTransactions() {
+    if (importedLoaded.value) return;
     loadingRegister.value = true;
     try {
       const imported = await dataAccess.getImportedTransactions();
@@ -183,6 +186,7 @@ export function useTransactions() {
         .filter((t) => !t.deleted)
         .map((t) => mapImportedToRow(t))
         .sort((a, b) => b.date.localeCompare(a.date));
+      importedLoaded.value = true;
     } finally {
       loadingRegister.value = false;
     }
@@ -269,7 +273,6 @@ export function useTransactions() {
       if (!user) return;
       await familyStore.loadFamily(user.uid);
       await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
-      await loadImportedTransactions();
     } catch {
       /* ignore */
     }
