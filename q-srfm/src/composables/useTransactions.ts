@@ -195,7 +195,6 @@ export function useTransactions() {
   }
 
   async function loadImportedTransactions(reset = false) {
-    if (!filters.value.accountId) return;
     if (loadingMoreRegister.value) return;
     if (reset) {
       importedOffset.value = 0;
@@ -220,11 +219,17 @@ export function useTransactions() {
           }
         }
       }
-      const imported = await dataAccess.getImportedTransactionsByAccountId(
-        filters.value.accountId,
-        importedOffset.value,
-        pageSize,
-      );
+      let imported: ImportedTransaction[];
+      if (filters.value.accountId) {
+        imported = await dataAccess.getImportedTransactionsByAccountId(
+          filters.value.accountId,
+          importedOffset.value,
+          pageSize,
+        );
+      } else {
+        imported = await dataAccess.getImportedTransactions();
+        imported = imported.slice(importedOffset.value, importedOffset.value + pageSize);
+      }
       const mapped = imported
         .filter((t) => !t.deleted)
         .map((t) => mapImportedToRow(t));
@@ -304,9 +309,7 @@ export function useTransactions() {
       registerRows.value = [];
       hasMoreImported.value = true;
       importedLoaded.value = false;
-      if (filters.value.accountId) {
-        await loadImportedTransactions(true);
-      }
+      await loadImportedTransactions(true);
     },
   );
 
