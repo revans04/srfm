@@ -58,29 +58,75 @@
         <q-card>
           <q-card-section>Net Worth Over Time</q-card-section>
           <q-card-section>
-            <q-btn color="primary" class="mb-4 mr-2" @click="openSnapshotDialog" :disabled="accounts.length === 0"> Capture Snapshot </q-btn>
-            <q-btn color="negative" class="mb-4" @click="confirmBatchDeleteSnapshots" :disabled="selectedSnapshots.length === 0" :loading="deleting">
+            <q-btn
+              color="primary"
+              flat
+              dense
+              class="q-mb-md q-mr-sm"
+              icon="photo_camera"
+              @click="openSnapshotDialog"
+              :disabled="accounts.length === 0"
+            >
+              Capture Snapshot
+            </q-btn>
+            <q-btn
+              color="negative"
+              flat
+              dense
+              class="q-mb-md"
+              icon="delete"
+              @click="confirmBatchDeleteSnapshots"
+              :disabled="selectedSnapshots.length === 0"
+              :loading="deleting"
+            >
               Delete Selected
             </q-btn>
-            <q-table :columns="snapshotColumns" :rows="snapshotsWithSelection" class="elevation-1" :pagination="{ rowsPerPage: 10 }">
-              <template #header-cell-select>
-                <q-checkbox v-model="selectAll" @update:modelValue="toggleSelectAll" dense />
-              </template>
-              <template #body-cell-select="{ row }">
-                <q-checkbox v-model="selectedSnapshots" :value="row.id" dense @update:modelValue="updateSelectAll" />
-              </template>
-              <template #body-cell-date="{ row }">
-                {{ formatTimestamp(row.date) }}
-              </template>
-              <template #body-cell-netWorth="{ row }">
-                {{ formatCurrency(row.netWorth) }}
-              </template>
-              <template #body-cell-actions="{ row }">
-            <q-btn dense variant="plain" color="negative" @click="confirmDeleteSnapshot(row.id)">
-              <q-icon name="delete_outline"></q-icon>
-            </q-btn>
-              </template>
-            </q-table>
+              <q-table
+                :columns="snapshotColumns"
+                :rows="snapshotsWithSelection"
+                class="elevation-1"
+                :pagination="{ rowsPerPage: 10 }"
+                row-key="id"
+                @row-click="viewSnapshotDetails"
+              >
+                <template #header-cell-select="props">
+                  <q-th :props="props">
+                    <q-checkbox v-model="selectAll" @update:modelValue="toggleSelectAll" dense @click.stop />
+                  </q-th>
+                </template>
+                <template #body-cell-select="props">
+                  <q-td :props="props">
+                    <q-checkbox
+                      v-model="selectedSnapshots"
+                      :value="props.row.id"
+                      dense
+                      @update:modelValue="updateSelectAll"
+                      @click.stop
+                    />
+                  </q-td>
+                </template>
+                <template #body-cell-date="props">
+                  <q-td :props="props">
+                    {{ formatTimestamp(props.row.date) }}
+                  </q-td>
+                </template>
+                <template #body-cell-netWorth="props">
+                  <q-td :props="props">
+                    {{ formatCurrency(props.row.netWorth) }}
+                  </q-td>
+                </template>
+                <template #body-cell-actions="props">
+                  <q-td :props="props">
+                    <q-btn
+                      flat
+                      dense
+                      color="error"
+                      icon="delete"
+                      @click.stop="confirmDeleteSnapshot(props.row.id)"
+                    />
+                  </q-td>
+                </template>
+              </q-table>
             <div class="mt-4">
               <p>Net worth trend chart coming soon!</p>
             </div>
@@ -92,26 +138,18 @@
     <!-- Account Dialog -->
     <q-dialog v-model="showAccountDialog" max-width="600px">
       <q-card>
-        <q-card-section>{{ editMode ? "Edit" : "Add" }} {{ accountType }} Account</q-card-section>
-        <q-card-section>
-          <AccountForm
-            v-if="editMode"
-            :account-type="accountType"
-            :account="newAccount"
-            :show-personal-option="true"
-            @save="saveAccount"
-            @cancel="closeAccountDialog"
-          />
-          <AccountForm
-            v-else
-            :account-type="accountType"
-            :show-personal-option="true"
-            @save="saveAccount"
-            @cancel="closeAccountDialog"
-          />
-        </q-card-section>
-      </q-card>
-    </q-dialog>
+          <q-card-section>{{ editMode ? "Edit" : "Add" }} {{ accountType }} Account</q-card-section>
+          <q-card-section>
+            <AccountForm
+              :account-type="accountType"
+              :account="editMode ? newAccount : undefined"
+              :show-personal-option="true"
+              @save="saveAccount"
+              @cancel="closeAccountDialog"
+            />
+          </q-card-section>
+        </q-card>
+      </q-dialog>
 
     <!-- Snapshot Dialog -->
     <q-dialog v-model="showSnapshotDialog" max-width="800px">
@@ -126,20 +164,26 @@
               hide-bottom
               :pagination="{ rowsPerPage: 100 }"
             >
-              <template #body-cell-name="{ row }">
-                {{ getAccountName(row.accountId) }}
+              <template #body-cell-name="props">
+                <q-td :props="props">
+                  {{ getAccountName(props.row.accountId) }}
+                </q-td>
               </template>
-              <template #body-cell-type="{ row }">
-                {{ getAccountType(row.accountId) }}
+              <template #body-cell-type="props">
+                <q-td :props="props">
+                  {{ getAccountType(props.row.accountId) }}
+                </q-td>
               </template>
-              <template #body-cell-value="{ row }">
-                <q-input
-                  v-model.number="row.value"
-                  type="number"
-                  outlined
-                  dense
-                  :prefix="getAccountCategory(row.accountId) === 'Liability' ? '-' : ''"
-                ></q-input>
+              <template #body-cell-value="props">
+                <q-td :props="props">
+                  <q-input
+                    v-model.number="props.row.value"
+                    type="number"
+                    outlined
+                    dense
+                    :prefix="getAccountCategory(props.row.accountId) === 'Liability' ? '-' : ''"
+                  ></q-input>
+                </q-td>
               </template>
             </q-table>
             <q-btn type="submit" color="primary" :loading="saving" class="mt-4"> Save Snapshot </q-btn>
@@ -191,8 +235,38 @@
           <q-btn color="grey" variant="text" @click="showBatchDeleteSnapshotDialog = false"> Cancel </q-btn>
           <q-btn color="negative" variant="flat" @click="executeBatchDeleteSnapshots"> Delete </q-btn>
         </q-card-actions>
-      </q-card>
-    </q-dialog>
+        </q-card>
+      </q-dialog>
+
+      <!-- Snapshot Details Dialog -->
+      <q-dialog v-model="showSnapshotDetailsDialog" max-width="600px">
+        <q-card>
+          <q-card-section>
+            Snapshot on {{ snapshotDetails ? formatTimestamp(snapshotDetails.date) : '' }}
+          </q-card-section>
+          <q-card-section>
+            <q-table
+              :columns="snapshotDetailColumns"
+              :rows="snapshotDetails ? snapshotDetails.accounts : []"
+              hide-bottom
+              :pagination="{ rowsPerPage: 0 }"
+              flat
+            >
+              <template #body-cell-value="props">
+                <q-td :props="props">
+                  {{ formatCurrency(props.row.value) }}
+                </q-td>
+              </template>
+            </q-table>
+            <div class="text-right mt-4">
+              <strong>Net Worth: {{ snapshotDetails ? formatCurrency(snapshotDetails.netWorth) : '' }}</strong>
+            </div>
+          </q-card-section>
+          <q-card-actions class="justify-end">
+            <q-btn color="primary" variant="text" @click="showSnapshotDetailsDialog = false">Close</q-btn>
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
 
     <!-- Update Budget Transactions Confirmation Dialog -->
     <q-dialog v-model="showUpdateBudgetTransactionsDialog" max-width="500px">
@@ -238,11 +312,13 @@ const deleting = ref(false);
 const accounts = ref<Account[]>([]);
 const importedTransactions = ref<ImportedTransaction[]>([]);
 const snapshots = ref<Snapshot[]>([]);
+const snapshotDetails = ref<Snapshot | null>(null);
 const showAccountDialog = ref(false);
 const showSnapshotDialog = ref(false);
 const showDeleteAccountDialog = ref(false);
 const showDeleteSnapshotDialog = ref(false);
 const showBatchDeleteSnapshotDialog = ref(false);
+const showSnapshotDetailsDialog = ref(false);
 const showUpdateBudgetTransactionsDialog = ref(false);
 const accountType = ref<AccountType>(AccountType.Bank);
 const editMode = ref(false);
@@ -320,6 +396,12 @@ const snapshotAccountColumns = [
   { name: 'value', label: 'Value', field: 'value' },
 ];
 
+const snapshotDetailColumns = [
+  { name: 'accountName', label: 'Account', field: 'accountName' },
+  { name: 'type', label: 'Type', field: 'type' },
+  { name: 'value', label: 'Value', field: 'value' },
+];
+
 const snapshotsWithSelection = computed(() => {
   return snapshots.value.map((snapshot) => ({
     ...snapshot,
@@ -338,6 +420,11 @@ function toggleSelectAll(value: boolean) {
     selectedSnapshots.value = [];
   }
   updateSelectAll();
+}
+
+function viewSnapshotDetails(_: unknown, row: Snapshot) {
+  snapshotDetails.value = row;
+  showSnapshotDetailsDialog.value = true;
 }
 
 onMounted(async () => {

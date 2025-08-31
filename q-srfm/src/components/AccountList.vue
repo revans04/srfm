@@ -2,13 +2,11 @@
 <template>
   <q-card>
     <q-card-section>
-      <div class="row q-pa-sm" >
+      <div class="row items-center q-pa-sm">
         <div class="col">{{ type }} Accounts</div>
-        <div class="col">
-          {{ formatCurrency(accountValue) }}
-        </div>
-        <div class="col col-auto">
-          <q-btn color="primary" variant="plain" @click="$emit('add')">Add Account</q-btn>
+        <div class="col-auto text-right q-mr-md">{{ formatCurrency(accountValue) }}</div>
+        <div class="col-auto">
+          <q-btn color="primary" flat dense @click="$emit('add')" icon="add">Add Account</q-btn>
         </div>
       </div>
     </q-card-section>
@@ -21,31 +19,35 @@
         :pagination="{ rowsPerPage: 100 }"
         hide-bottom
       >
-        <template v-slot:body-cell-owner="{ row }">
-          {{ row.userId ? 'Personal' : 'Shared' }}
+        <template v-slot:body-cell-owner="props">
+          <q-td :props="props">
+            {{ props.row.userId ? 'Personal' : 'Shared' }}
+          </q-td>
         </template>
-        <template v-slot:body-cell-balance="{ row }">
-          {{ formatCurrency(row.balance || 0) }}
+        <template v-slot:body-cell-balance="props">
+          <q-td :props="props">
+            {{ formatCurrency(props.row.balance || 0) }}
+          </q-td>
         </template>
-        <template v-slot:body-cell-actions="{ row }">
-          <q-btn
-            density="compact"
-            variant="plain"
-            color="primary"
-            @click="$emit('edit', row)"
-            :disabled="row.userId && row.userId !== userId"
-          >
-              <q-icon name="edit"></q-icon>
-          </q-btn>
-          <q-btn
-            density="compact"
-            variant="plain"
-            color="negative"
-            @click="$emit('delete', row.id)"
-            :disabled="row.userId && row.userId !== userId"
-          >
-              <q-icon name="delete"></q-icon>
-          </q-btn>
+        <template v-slot:body-cell-actions="props">
+          <q-td :props="props">
+            <q-btn
+              flat
+              dense
+              color="primary"
+              icon="edit"
+              @click="$emit('edit', props.row)"
+              :disabled="props.row.userId && props.row.userId !== userId"
+            />
+            <q-btn
+              flat
+              dense
+              color="error"
+              icon="delete"
+              @click="$emit('delete', props.row.id)"
+              :disabled="props.row.userId && props.row.userId !== userId"
+            />
+          </q-td>
         </template>
       </q-table>
 
