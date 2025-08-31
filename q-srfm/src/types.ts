@@ -72,6 +72,7 @@ export interface Transaction {
 export interface ImportedTransaction {
   id: string;
   accountId: string;
+  accountName?: string;
   accountNumber?: string;
   accountSource?: string;
   payee: string;

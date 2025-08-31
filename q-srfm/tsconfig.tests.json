@@ -9,5 +9,15 @@
     "skipLibCheck": true,
     "outDir": "dist-tests"
   },
-  "include": ["src/env.d.ts", "src/composables/**/*.ts", "tests/**/*.ts"]
+  "include": [
+    "src/env.d.ts",
+    "src/composables/**/*.ts",
+    "src/utils/**/*.ts",
+    "src/store/**/*.ts",
+    "src/types.ts",
+    "tests/**/*.ts"
+  ]
+  ,"exclude": [
+    "src/store/index.ts"
+  ]
 }

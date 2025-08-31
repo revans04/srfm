@@ -12,13 +12,15 @@ export const useFamilyStore = defineStore("family", () => {
 
   async function loadFamily(userId: string = "") {
     try {
+      if (family.value) return family.value;
       if (!userId) userId = auth.user ? auth.user.uid : "";
       const f = await dataAccess.getUserFamily(userId);
       if (f) {
         family.value = f;
         // Set default entity (e.g., first "Family" type entity)
         if (f.entities?.length) {
-          const defaultEntity = f.entities.find((e: Entity) => e.type === EntityType.Family) || f.entities[0];
+          const defaultEntity =
+            f.entities.find((e: Entity) => e.type === EntityType.Family) || f.entities[0];
           selectedEntityId.value = defaultEntity ? defaultEntity.id : "";
         }
         return f;

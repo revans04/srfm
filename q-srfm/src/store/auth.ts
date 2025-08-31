@@ -2,7 +2,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { auth, signInWithGoogle } from '../firebase/init';
-import { signInWithCustomToken } from 'firebase/auth';
+import { onAuthStateChanged, signInWithCustomToken, signOut } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 
 export const useAuthStore = defineStore('auth', () => {
@@ -13,7 +13,8 @@ export const useAuthStore = defineStore('auth', () => {
   function initializeAuth(): Promise<User | null> {
     return new Promise<User | null>((resolve, reject) => {
       console.log('Initializing Firebase auth');
-      const unsubscribe = auth.onAuthStateChanged(
+      const unsubscribe = onAuthStateChanged(
+        auth,
         (firebaseUser) => {
           console.log('Firebase auth state changed:', firebaseUser ? firebaseUser.uid : null);
           user.value = firebaseUser;
@@ -64,7 +65,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function logout() {
     try {
-      await auth.signOut();
+      await signOut(auth);
       user.value = null;
       authError.value = null;
     } catch (error) {

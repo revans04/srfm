@@ -9,7 +9,7 @@
   "scripts": {
     "lint": "eslint -c ./eslint.config.js \"./src*/**/*.{ts,js,cjs,mjs,vue}\"",
     "format": "prettier --write \"**/*.{js,ts,vue,scss,html,md,json}\" --ignore-path .gitignore",
-    "test": "tsc -p tsconfig.tests.json && node --test --experimental-specifier-resolution=node dist-tests/tests",
+    "test": "tsc -p tsconfig.tests.json && node scripts/prep-tests.js && node --test dist-tests/tests",
     "dev": "quasar dev",
     "build": "quasar build",
     "postinstall": "quasar prepare"
