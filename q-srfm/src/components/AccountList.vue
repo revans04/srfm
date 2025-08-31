@@ -2,12 +2,10 @@
 <template>
   <q-card>
     <q-card-section>
-      <div class="row pa-2" >
+      <div class="row items-center pa-2">
         <div class="col">{{ type }} Accounts</div>
-        <div class="col">
-          {{ formatCurrency(accountValue) }}
-        </div>
-        <div class="col col-auto">
+        <div class="col-auto text-right q-mr-md">{{ formatCurrency(accountValue) }}</div>
+        <div class="col-auto">
           <q-btn color="primary" variant="plain" @click="$emit('add')">Add Account</q-btn>
         </div>
       </div>
