@@ -16,7 +16,7 @@
       <div class="col">
         <div class="progress-section">
           <div class="progress-label">
-            <span :class="!isIncome && spent > category.target ? 'text-error' : ''">{{ formatCurrency(toDollars(toCents(spent))) }}</span>
+            <span :class="!isIncome && spent > category.target ? 'text-negative' : ''">{{ formatCurrency(toDollars(toCents(spent))) }}</span>
             {{ isIncome ? 'received' : 'spent' }} of
             {{ formatCurrency(toDollars(toCents(category.target))) }}
           </div>
@@ -38,10 +38,10 @@
     </div>
 
     <!-- Transactions List -->
-    <div class="row flex-grow-1 mt-4 pl-0 pr-0">
-      <div class="col transaction-list pl-0 pr-0">
-        <h3 class="section-title pb-2">Transactions ({{ categoryTransactions.length }})</h3>
-        <div class="my-2 bg-white rounded-10 pt-2 pr-3 pl-3 mb-4">
+    <div class="row flex-grow-1 mt-4 q-pl-none q-pr-none">
+      <div class="col transaction-list q-pl-none q-pr-none">
+        <h3 class="section-title q-pb-sm">Transactions ({{ categoryTransactions.length }})</h3>
+        <div class="my-2 bg-white rounded-10 q-pt-sm q-pr-md q-pl-md mb-4">
           <q-input v-model="search" label="Search" dense clearable prepend-icon="search"></q-input>
         </div>
         <q-list dense class="rounded-10">
@@ -50,12 +50,13 @@
             :key="transaction.id"
             class="transaction-item"
             dense
+            clickable
             @click="editTransaction(transaction)"
             style="border-bottom: 1px solid rgb(var(--v-theme-light))"
           >
             <q-item-section class="d-flex align-center">
-              <div class="row pa-2 align-center no-gutters">
-                <div class="col pt-2 font-weight-bold text-primary col-2" style="min-width: 60px; font-size: 10px">
+              <div class="row q-pa-sm align-center no-gutters">
+                <div class="col q-pt-sm font-weight-bold text-primary col-2" style="min-width: 60px; font-size: 10px">
                   {{ formatDate(transaction.date) }}
                 </div>
                 <div class="col text-truncate" style="flex: 1; min-width: 0">
@@ -65,7 +66,13 @@
                   ${{ Math.abs(getCategoryAmount(transaction)).toFixed(2) }}
                 </div>
                 <div class="col text-right col-auto" style="min-width: 40px">
-                  <q-icon small @click.stop="confirmDelete(transaction)" title="Move to Trash" color="error" name="trash"></q-icon>
+                  <q-icon
+                    small
+                    name="delete"
+                    color="negative"
+                    title="Move to Trash"
+                    @click.stop="confirmDelete(transaction)"
+                  />
                 </div>
               </div>
             </q-item-section>
@@ -81,12 +88,18 @@
     <q-fab icon="add" :app="true" color="primary" @click="$emit('add-transaction')" location="bottom right" class="mr-2" :class="isMobile ? 'mb-14' : 'mb-2'" />
 
     <!-- Edit Transaction Dialog -->
-    <q-dialog v-model="showEditDialog" :max-width="!isMobile ? '600px' : ''" :fullscreen="isMobile">
+    <q-dialog v-model="showEditDialog" :width="!isMobile ? '550px' : undefined" :fullscreen="isMobile">
       <q-card dense>
-        <q-card-section class="bg-primary py-5">
-          <div class="row">
-            <div class="col">Edit {{ transactionToEdit?.merchant }} Transaction</div>
-          </div>
+        <q-card-section class="bg-primary row items-center q-py-md">
+          <div class="text-white">Edit {{ transactionToEdit?.merchant }} Transaction</div>
+          <q-btn
+            flat
+            dense
+            color="negative"
+            label="X"
+            class="q-ml-auto"
+            @click="showEditDialog = false"
+          />
         </q-card-section>
         <q-card-section>
           <transaction-form
@@ -107,17 +120,17 @@
     <!-- Delete Confirmation Dialog -->
     <q-dialog v-model="showDeleteDialog" max-width="400">
       <q-card>
-        <q-card-section class="bg-error py-3">
+        <q-card-section class="bg-negative q-py-sm">
           <span class="text-white">Confirm Deletion</span>
         </q-card-section>
-        <q-card-section class="pt-4">
+        <q-card-section class="q-pt-md">
           Are you sure you want to delete the transaction for "{{ transactionToDelete?.merchant }}" on
           {{ transactionToDelete ? formatDate(transactionToDelete.date) : '' }}?
         </q-card-section>
         <q-card-actions>
           <q-space></q-space>
           <q-btn color="grey" variant="text" @click="showDeleteDialog = false">Cancel</q-btn>
-          <q-btn color="error" variant="flat" @click="executeDelete">Move to Trash</q-btn>
+          <q-btn color="negative" variant="flat" @click="executeDelete">Move to Trash</q-btn>
         </q-card-actions>
       </q-card>
     </q-dialog>

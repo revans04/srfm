@@ -51,7 +51,7 @@
             <!-- Help Section -->
             <q-expansion-panels class="mb-4">
               <q-expansion-panel title="Need help with creating a budget template?">
-                <q-expansion-panel-text class="px-4">
+                <q-expansion-panel-text class="q-px-lg">
                   <strong>Create Your First Budget Template</strong>
                   A budget template helps you plan how to use your money each month. Follow these simple steps:
                   <ol>
@@ -86,20 +86,20 @@
         <q-list>
           <q-item v-for="(category, index) in budget.categories" :key="index">
             <div class="row dense">
-              <div class="col px-2 col-12 col-sm-3">
+              <div class="col q-px-sm col-12 col-sm-3">
                 <q-input v-model="category.name" label="Category" required density="compact"></q-input>
               </div>
-              <div class="col px-2 col-12 col-sm-3">
+              <div class="col q-px-sm col-12 col-sm-3">
                 <q-input v-model="category.group" label="Group" required density="compact"></q-input>
               </div>
-              <div class="col px-2 col-12 col-sm-3">
+              <div class="col q-px-sm col-12 col-sm-3">
                 <Currency-Input v-model.number="category.target" label="Target" class="text-right" density="compact" required></Currency-Input>
               </div>
-              <div class="col px-2 col-12 col-sm-2">
+              <div class="col q-px-sm col-12 col-sm-2">
                 <q-checkbox v-model="category.isFund" label="Is Fund?" density="compact"></q-checkbox>
               </div>
-              <div class="col px-2 col-12 col-sm-1">
-                <q-btn icon="delete" variant="plain" @click="removeCategory(index)" color="error"> </q-btn>
+              <div class="col q-px-sm col-12 col-sm-1">
+                <q-btn icon="delete" variant="plain" @click="removeCategory(index)" color="negative"> </q-btn>
               </div>
             </div>
           </q-item>
@@ -108,19 +108,19 @@
         <!-- Add New Category -->
         <q-form @submit.prevent="addCategory">
           <div class="row dense">
-            <div class="col px-2 col-12 col-sm-3">
+            <div class="col q-px-sm col-12 col-sm-3">
               <q-input v-model="newCategory.name" label="Category" required density="compact"></q-input>
             </div>
-            <div class="col px-2 col-12 col-sm-3">
+            <div class="col q-px-sm col-12 col-sm-3">
               <q-input v-model="newCategory.group" label="Group (e.g., Utilities)" density="compact"></q-input>
             </div>
-            <div class="col px-2 col-12 col-sm-2">
+            <div class="col q-px-sm col-12 col-sm-2">
               <Currency-Input v-model.number="newCategory.target" label="Target" class="text-right" density="compact" required></Currency-Input>
             </div>
-            <div class="col px-2 col-12 col-sm-2">
+            <div class="col q-px-sm col-12 col-sm-2">
               <q-checkbox v-model="newCategory.isFund" label="Is Fund?" density="compact"></q-checkbox>
             </div>
-            <div class="col px-2 col-12 col-sm-2">
+            <div class="col q-px-sm col-12 col-sm-2">
               <q-btn type="submit" color="primary">Add Category</q-btn>
             </div>
           </div>
@@ -129,7 +129,7 @@
     </q-card-section>
     <q-card-actions>
       <q-space></q-space>
-      <q-btn color="error" @click="handleCancel">Cancel</q-btn>
+      <q-btn color="negative" @click="handleCancel">Cancel</q-btn>
       <q-btn color="primary" @click="save" :disabled="!isFormValid" :loading="saving">Save Entity</q-btn>
     </q-card-actions>
 
@@ -140,7 +140,7 @@
         <q-card-section>The template has no categories. Would you like to import categories from the latest budget for this entity?</q-card-section>
         <q-card-actions>
           <q-space></q-space>
-          <q-btn color="error" @click="showImportDialog = false">No</q-btn>
+          <q-btn color="negative" @click="showImportDialog = false">No</q-btn>
           <q-btn color="primary" @click="importCategories" :loading="importing">Yes</q-btn>
         </q-card-actions>
       </q-card>
@@ -153,7 +153,7 @@
         <q-card-section>You have unsaved changes. Are you sure you want to cancel and discard them?</q-card-section>
         <q-card-actions>
           <q-btn color="primary" @click="showCancelDialog = false">No, Keep Editing</q-btn>
-          <q-btn color="error" @click="confirmCancel">Yes, Discard</q-btn>
+          <q-btn color="negative" @click="confirmCancel">Yes, Discard</q-btn>
         </q-card-actions>
       </q-card>
     </q-dialog>

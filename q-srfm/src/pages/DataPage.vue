@@ -279,7 +279,7 @@
                           ></q-table>
                         </q-tab-panel>
                       </q-tab-panels>
-                      <q-banner v-if="previewErrors.length > 0" type="error" class="mt-4">
+                      <q-banner v-if="previewErrors.length > 0" type="negative" class="mt-4">
                         <ul>
                           <li v-for="(error, index) in previewErrors" :key="index">
                             {{ error }}
@@ -289,7 +289,7 @@
                     </q-card-section>
                     <q-card-actions>
                       <q-space></q-space>
-                      <q-btn color="error" @click="showPreview = false">Cancel</q-btn>
+                      <q-btn color="negative" @click="showPreview = false">Cancel</q-btn>
                       <q-btn color="primary" @click="confirmImport" :disabled="previewErrors.length > 0 || importRunning"> Import </q-btn>
                     </q-card-actions>
                   </q-card>
@@ -301,7 +301,7 @@
                     <q-card-section>Overwrite Warning</q-card-section>
                     <q-card-section>
                       Budgets already exist for the following months:
-                      <div class="px-8">
+                      <div class="q-px-xl">
                         <ul>
                           <li v-for="month in overwriteMonths" :key="month">
                             {{ month }}
@@ -312,7 +312,7 @@
                     </q-card-section>
                     <q-card-actions>
                       <q-space></q-space>
-                      <q-btn color="error" @click="showOverwriteDialog = false">Cancel</q-btn>
+                      <q-btn color="negative" @click="showOverwriteDialog = false">Cancel</q-btn>
                       <q-btn color="primary" @click="proceedWithImport">Overwrite</q-btn>
                     </q-card-actions>
                   </q-card>

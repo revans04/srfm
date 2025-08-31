@@ -7,7 +7,7 @@
         <div class="row">
           <div class="col"><q-space></q-space></div>
           <div class="col-auto text-right">
-            <q-btn color="error" @click="closeDialog(false)" :disabled="props.matching" variant="plain">
+            <q-btn color="negative" @click="closeDialog(false)" :disabled="props.matching" variant="plain">
               <q-icon name="close"></q-icon>
             </q-btn>
           </div>
@@ -23,7 +23,7 @@
             <div class="row mt-4" v-if="smartMatches.length > 0">
               <div class="col">
                 <h3>Smart Matches ({{ smartMatches.length }})</h3>
-                <p class="text-caption pb-2">These imported transactions have exactly one potential match. Review and confirm below (max 50 at a time).</p>
+                <p class="text-caption q-pb-sm">These imported transactions have exactly one potential match. Review and confirm below (max 50 at a time).</p>
 
                 <!-- Sort Controls -->
                 <div class="row mb-4" >
@@ -196,7 +196,7 @@
                       ></q-input>
                     </div>
                     <div class="col col-12 col-md-1">
-                      <q-btn color="error" icon="close" @click="removeSplit(index)" variant="plain"></q-btn>
+                      <q-btn color="negative" icon="close" @click="removeSplit(index)" variant="plain"></q-btn>
                     </div>
                   </div>
                   <q-banner v-if="remainingSplitAmount !== 0" :type="remainingSplitAmount < 0 ? 'error' : 'warning'" class="mb-4">
@@ -204,7 +204,7 @@
                     <div v-else>Over allocated ${{ toDollars(toCents(Math.abs(remainingSplitAmount))) }}</div>
                   </q-banner>
                   <q-btn color="primary" @click="addSplitTransaction">Add Split</q-btn>
-                  <q-btn color="success" type="submit" :disabled="remainingSplitAmount !== 0 || props.matching" :loading="props.matching" class="ml-2">
+                  <q-btn color="positive" type="submit" :disabled="remainingSplitAmount !== 0 || props.matching" :loading="props.matching" class="ml-2">
                     Save Splits
                   </q-btn>
                 </q-form>
@@ -263,7 +263,7 @@
             </div>
             <div class="row mt-4" v-else >
               <div class="col">
-                <q-banner type="success"> All bank transactions have been matched or ignored. </q-banner>
+                <q-banner type="positive"> All bank transactions have been matched or ignored. </q-banner>
               </div>
             </div>
           </q-tab-panel>
@@ -273,7 +273,7 @@
         <q-btn v-if="remainingImportedTransactions.length > 0" color="warning" @click="ignoreBankTransaction" :disabled="props.matching"> Ignore </q-btn>
         <q-btn v-if="remainingImportedTransactions.length > 0" color="secondary" @click="skipBankTransaction" :disabled="props.matching"> Skip </q-btn>
         <q-space></q-space>
-        <q-btn color="error" @click="closeDialog(false)" :disabled="props.matching"> Close </q-btn>
+        <q-btn color="negative" @click="closeDialog(false)" :disabled="props.matching"> Close </q-btn>
       </q-card-actions>
     </q-card>
 

@@ -16,7 +16,7 @@
 
 .form-row {
   border-radius: 5px;
-  background-color: #F7F7F7;
+  background-color: #F5F7FA;
   padding-left: 12px;
   padding-right: 12px;
   margin-bottom: 8px;
@@ -30,10 +30,12 @@
   padding-left: 0px;
   padding-right: 0px;
   font-weight: bold;
+  text-align: left;
 }
 
 .form-col {
   padding-bottom: 0px;
   padding-left: 0px;
   padding-right: 0px;
+  text-align: right;
 }
