@@ -7,7 +7,6 @@
     @update:model-value="(val) => { if (!props.asPanel) closeDialog(val as boolean) }"
   >
     <q-card>
-      <q-card-section>Match Bank Transactions</q-card-section>
       <q-card-section>
         <div class="row">
           <div class="col"><q-space></q-space></div>
@@ -17,15 +16,8 @@
             </q-btn>
           </div>
         </div>
-        <q-tabs v-model="activeTab" grow>
-          <q-tab name="smart-matches" label="Smart Matches" />
-          <q-tab name="remaining" label="Remaining Transactions" />
-        </q-tabs>
-
-        <q-tab-panels v-model="activeTab">
-          <!-- Smart Matches Tab -->
-          <q-tab-panel name="smart-matches">
-            <div class="row mt-4">
+        <!-- Smart Matches -->
+        <div class="row mt-4">
               <div class="col">
                 <h3>Smart Matches ({{ smartMatches.length }})</h3>
                 <p class="text-caption pb-2">These imported transactions have exactly one potential match. Review and confirm below (max 50 at a time).</p>
@@ -100,11 +92,9 @@
                 </q-banner>
               </div>
             </div>
-          </q-tab-panel>
 
-          <!-- Remaining Transactions Tab -->
-          <q-tab-panel name="remaining">
-            <div class="row mt-4" v-if="remainingImportedTransactions.length > 0">
+        <!-- Remaining Transactions -->
+        <div class="row mt-4" v-if="remainingImportedTransactions.length > 0">
               <div class="col">
                 <h3>Remaining Transactions ({{ currentBankTransactionIndex + 1 }} of {{ remainingImportedTransactions.length }})</h3>
                 <q-markup-table>
@@ -262,14 +252,12 @@
                   <q-btn color="primary" @click="addNewTransaction" :disabled="props.matching"> Add New Transaction </q-btn>
                 </div>
               </div>
-            </div>
-            <div class="row mt-4" v-else >
-              <div class="col">
-                <q-banner type="success"> All bank transactions have been matched or ignored. </q-banner>
-              </div>
-            </div>
-          </q-tab-panel>
-        </q-tab-panels>
+        </div>
+        <div class="row mt-4" v-else >
+          <div class="col">
+            <q-banner type="success"> All bank transactions have been matched or ignored. </q-banner>
+          </div>
+        </div>
       </q-card-section>
       <q-card-actions>
         <q-btn v-if="remainingImportedTransactions.length > 0" color="warning" @click="ignoreBankTransaction" :disabled="props.matching"> Ignore </q-btn>
@@ -353,7 +341,6 @@ const selectedBankTransaction = ref<ImportedTransaction | null>(props.selectedBa
 const timeout = ref(3000);
 
 // Local state for Smart Matches sorting
-const activeTab = ref("smart-matches");
 const selectedSmartMatchIds = ref<string[]>([]);
 const smartMatchesSortField = ref<string>("postedDate");
 const smartMatchesSortDirection = ref<"asc" | "desc">("asc");
