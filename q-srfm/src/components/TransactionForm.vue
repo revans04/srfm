@@ -114,7 +114,7 @@
       <q-select v-if="locTrnsx.recurring" v-model="locTrnsx.recurringInterval" :items="intervals" label="Recurring Interval"></q-select>
 
       <!-- Imported Transaction Fields (Shown only if matched) -->
-      <div v-if="locTrnsx.status && (locTrnsx.status == 'C' || locTrnsx.status == 'R')" class="mt-4">
+      <div v-if="locTrnsx.accountSource || locTrnsx.importedMerchant" class="mt-4">
         <div class="row form-row" >
           <div class="col form-col-label" >Posted Date</div>
           <div class="col form-col" >

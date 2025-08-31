@@ -7,8 +7,10 @@
     @update:modelValue="handleDialogClose"
   >
     <q-card>
-      <q-card-section>
-        {{ editMode ? "Edit Transaction" : "Add Transaction" }}
+      <q-card-section class="bg-primary text-white">
+        <div class="text-h6">
+          {{ editMode ? `Edit ${transaction.merchant} Transaction` : "Add Transaction" }}
+        </div>
       </q-card-section>
       <q-card-section>
         <TransactionForm
