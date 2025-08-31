@@ -2,9 +2,9 @@
   <q-page>
     <h1>Accept Invite</h1>
     <q-circular-progress v-if="loading" indeterminate></q-circular-progress>
-    <q-banner v-else-if="error" type="error">{{ error }}</q-banner>
+    <q-banner v-else-if="error" type="negative">{{ error }}</q-banner>
     <div v-else-if="accepted">
-      <q-banner type="success">You’ve joined the family! Redirecting to dashboard...</q-banner>
+      <q-banner type="positive">You’ve joined the family! Redirecting to dashboard...</q-banner>
     </div>
     <div v-else-if="!user">
       <p>Please log in or sign up to accept this invite.</p>

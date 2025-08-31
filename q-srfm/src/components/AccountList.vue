@@ -2,7 +2,7 @@
 <template>
   <q-card>
     <q-card-section>
-      <div class="row pa-2" >
+      <div class="row q-pa-sm" >
         <div class="col">{{ type }} Accounts</div>
         <div class="col">
           {{ formatCurrency(accountValue) }}
@@ -40,7 +40,7 @@
           <q-btn
             density="compact"
             variant="plain"
-            color="error"
+            color="negative"
             @click="$emit('delete', row.id)"
             :disabled="row.userId && row.userId !== userId"
           >

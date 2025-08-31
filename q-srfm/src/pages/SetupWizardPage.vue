@@ -26,7 +26,7 @@
                 <q-card-section>
                   <group-naming-form @family-created="handleFamilyCreated" />
                 </q-card-section>
-                <q-card-actions class="pa-4">
+                <q-card-actions class="q-pa-lg">
                   <q-space />
                 </q-card-actions>
               </q-card>
@@ -43,7 +43,7 @@
                     <div class="row full-width align-center" >
                       <div class="col text-h6" >Saved Entities</div>
                       <div class="col text-right col-auto" >
-                        <q-btn density="compact" variant="plain" icon="add" color="success" @click="initNewEntity" aria-label="Add New Entity"></q-btn>
+                        <q-btn density="compact" variant="plain" icon="add" color="positive" @click="initNewEntity" aria-label="Add New Entity"></q-btn>
                       </div>
                     </div>
                     <q-item
@@ -67,7 +67,7 @@
                     @update:unsaved="updateUnsavedChanges"
                   />
                 </q-card-section>
-                <q-card-actions class="pa-4">
+                <q-card-actions class="q-pa-lg">
                   <q-btn color="secondary" variant="text" @click="navigateStep('back')"> Back </q-btn>
                   <q-space />
                   <q-btn color="primary" @click="navigateStep('next')" class="ml-2"> Next </q-btn>
@@ -108,7 +108,7 @@
                     @delete="removeWizardAccount"
                   />
                 </q-card-section>
-                <q-card-actions class="pa-4">
+                <q-card-actions class="q-pa-lg">
                   <q-btn color="secondary" variant="text" @click="navigateStep('back')"> Back </q-btn>
                   <q-space />
                   <q-btn v-if="!isLastStep && step.accountType" color="secondary" variant="text" @click="navigateStep('next')" class="ml-2"> Skip </q-btn>
@@ -597,29 +597,29 @@ function showSnackbarMessage(keyOrText: string, color: string = "success", ...ar
   background-color: rgba(var(--v-theme-success), 0.1);
 }
 
-.v-stepper-item--selected {
-  background-color: rgba(var(--v-theme-primary), 0.05);
+.q-stepper__tab--active {
+  background-color: rgba(var(--q-primary-rgb), 0.05);
 }
 
 /* Content Styles */
-.wizard-step-content-wrapper .v-card.wizard-step-card {
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+.wizard-step-content-wrapper .q-card.wizard-step-card {
+  border: 1px solid rgba(0, 0, 0, 0.12);
   box-shadow: none;
   margin-top: 16px;
   margin-bottom: 16px;
   padding: 16px;
 }
 
-.v-card-text {
+.q-card-section {
   padding-bottom: 24px;
 }
 
-.v-list.py-0 {
+.q-list.q-py-none {
   padding-top: 0 !important;
   padding-bottom: 0 !important;
 }
 
-.pl-0 {
+.q-pl-none {
   padding-left: 0 !important;
 }
 </style>

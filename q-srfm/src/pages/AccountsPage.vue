@@ -59,7 +59,7 @@
           <q-card-section>Net Worth Over Time</q-card-section>
           <q-card-section>
             <q-btn color="primary" class="mb-4 mr-2" @click="openSnapshotDialog" :disabled="accounts.length === 0"> Capture Snapshot </q-btn>
-            <q-btn color="error" class="mb-4" @click="confirmBatchDeleteSnapshots" :disabled="selectedSnapshots.length === 0" :loading="deleting">
+            <q-btn color="negative" class="mb-4" @click="confirmBatchDeleteSnapshots" :disabled="selectedSnapshots.length === 0" :loading="deleting">
               Delete Selected
             </q-btn>
             <q-table :columns="snapshotColumns" :rows="snapshotsWithSelection" class="elevation-1" :pagination="{ rowsPerPage: 10 }">
@@ -76,7 +76,7 @@
                 {{ formatCurrency(row.netWorth) }}
               </template>
               <template #body-cell-actions="{ row }">
-            <q-btn dense variant="plain" color="error" @click="confirmDeleteSnapshot(row.id)">
+            <q-btn dense variant="plain" color="negative" @click="confirmDeleteSnapshot(row.id)">
               <q-icon name="delete_outline"></q-icon>
             </q-btn>
               </template>
@@ -152,14 +152,14 @@
     <!-- Delete Account Confirmation Dialog -->
     <q-dialog v-model="showDeleteAccountDialog" max-width="400">
       <q-card>
-        <q-card-section class="bg-error py-3">
+        <q-card-section class="bg-negative q-py-md">
           <span class="text-white">Delete Account</span>
         </q-card-section>
-        <q-card-section class="pt-4"> Are you sure you want to delete this account? </q-card-section>
+        <q-card-section class="q-pt-lg"> Are you sure you want to delete this account? </q-card-section>
         <q-card-actions>
           <q-space></q-space>
           <q-btn color="grey" variant="text" @click="showDeleteAccountDialog = false"> Cancel </q-btn>
-          <q-btn color="error" variant="flat" @click="executeDeleteAccount"> Delete </q-btn>
+          <q-btn color="negative" variant="flat" @click="executeDeleteAccount"> Delete </q-btn>
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -167,14 +167,14 @@
     <!-- Delete Snapshot Confirmation Dialog -->
     <q-dialog v-model="showDeleteSnapshotDialog" max-width="400">
       <q-card>
-        <q-card-section class="bg-error py-3">
+        <q-card-section class="bg-negative q-py-md">
           <span class="text-white">Delete Snapshot</span>
         </q-card-section>
-        <q-card-section class="pt-4"> Are you sure you want to delete this snapshot? </q-card-section>
+        <q-card-section class="q-pt-lg"> Are you sure you want to delete this snapshot? </q-card-section>
         <q-card-actions>
           <q-space></q-space>
           <q-btn color="grey" variant="text" @click="showDeleteSnapshotDialog = false"> Cancel </q-btn>
-          <q-btn color="error" variant="flat" @click="executeDeleteSnapshot"> Delete </q-btn>
+          <q-btn color="negative" variant="flat" @click="executeDeleteSnapshot"> Delete </q-btn>
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -182,14 +182,14 @@
     <!-- Batch Delete Snapshots Confirmation Dialog -->
     <q-dialog v-model="showBatchDeleteSnapshotDialog" max-width="400">
       <q-card>
-        <q-card-section class="bg-error py-3">
+        <q-card-section class="bg-negative q-py-md">
           <span class="text-white">Delete Selected Snapshots</span>
         </q-card-section>
-        <q-card-section class="pt-4"> Are you sure you want to delete {{ selectedSnapshots.length }} selected snapshot(s)? </q-card-section>
+        <q-card-section class="q-pt-lg"> Are you sure you want to delete {{ selectedSnapshots.length }} selected snapshot(s)? </q-card-section>
         <q-card-actions>
           <q-space></q-space>
           <q-btn color="grey" variant="text" @click="showBatchDeleteSnapshotDialog = false"> Cancel </q-btn>
-          <q-btn color="error" variant="flat" @click="executeBatchDeleteSnapshots"> Delete </q-btn>
+          <q-btn color="negative" variant="flat" @click="executeBatchDeleteSnapshots"> Delete </q-btn>
         </q-card-actions>
       </q-card>
     </q-dialog>

@@ -21,7 +21,7 @@
             />
           </q-card-actions>
           <q-card-section v-if="error">
-            <q-banner type="error" dense>{{ error }}</q-banner>
+            <q-banner type="negative" dense>{{ error }}</q-banner>
           </q-card-section>
         </q-card>
       </div>

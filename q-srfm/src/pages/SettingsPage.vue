@@ -102,13 +102,13 @@
                 <div class="row dense">
                   <div class="col">
                     {{ entity.name }} ({{ entity.type }}) - Owner: {{ entity.members.find((m) => m.role === "Admin")?.email || "N/A" }}
-                    <q-chip v-if="entity.templateBudget" color="success" size="small" class="ml-2">Has Template</q-chip>
+                    <q-chip v-if="entity.templateBudget" color="positive" size="small" class="ml-2">Has Template</q-chip>
                   </div>
                   <div class="col col-auto">
                     <q-btn variant="plain" color="primary" @click="openEditEntityDialog(entity)" icon="edit" />
                   </div>
                   <div class="col col-auto">
-                    <q-btn variant="plain" @click="confirmDeleteEntity(entity)" color="error" icon="o_delete" />
+                    <q-btn variant="plain" @click="confirmDeleteEntity(entity)" color="negative" icon="o_delete" />
                   </div>
                 </div>
               </q-item>
@@ -136,7 +136,7 @@
                     <q-btn
                       density="compact"
                       variant="plain"
-                      color="error"
+                      color="negative"
                       @click.stop="confirmDeleteTransactionDoc(props.row)"
                       title="Delete Transaction Document"
                       icon="o_delete"
@@ -169,7 +169,7 @@
                     {{ props.row.transactions?.length || 0 }}
                   </template>
                   <template #body-cell-actions="props">
-                    <q-btn density="compact" variant="plain" color="error" @click.stop="confirmDeleteBudget(props.row)" title="Delete Budget" icon="o_delete" />
+                    <q-btn density="compact" variant="plain" color="negative" @click.stop="confirmDeleteBudget(props.row)" title="Delete Budget" icon="o_delete" />
                   </template>
                 </q-table>
                 <div class="q-mt-md">
@@ -187,17 +187,17 @@
     <!-- Delete Transaction Doc Confirmation Dialog -->
     <q-dialog v-model="showDeleteDialog" max-width="400" @keyup.enter="deleteTransactionDoc">
       <q-card>
-        <q-card-section class="bg-error py-3">
+        <q-card-section class="bg-negative q-py-md">
           <span class="text-white">Delete Transaction Document</span>
         </q-card-section>
-        <q-card-section class="pt-4">
+        <q-card-section class="q-pt-lg">
           Are you sure you want to delete the transaction document with ID "{{ transactionDocToDelete?.id }}" containing
           {{ transactionDocToDelete?.importedTransactions.length }} transactions? This action cannot be undone.
         </q-card-section>
         <q-card-actions>
           <q-space></q-space>
           <q-btn color="grey" variant="text" @click="showDeleteDialog = false">Cancel</q-btn>
-          <q-btn color="error" variant="flat" @click="deleteTransactionDoc">Delete</q-btn>
+          <q-btn color="negative" variant="flat" @click="deleteTransactionDoc">Delete</q-btn>
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -205,17 +205,17 @@
     <!-- Delete Budget Confirmation Dialog -->
     <q-dialog v-model="showDeleteBudgetDialog" max-width="400" @keyup.enter="deleteBudget">
       <q-card>
-        <q-card-section class="bg-error py-3">
+        <q-card-section class="bg-negative q-py-md">
           <span class="text-white">Delete Budget</span>
         </q-card-section>
-        <q-card-section class="pt-4">
+        <q-card-section class="q-pt-lg">
           Are you sure you want to delete the budget for "{{ budgetToDelete?.month }}" (ID: {{ budgetToDelete?.budgetId }}) containing
           {{ budgetToDelete?.transactions?.length || 0 }} transactions? This action cannot be undone.
         </q-card-section>
         <q-card-actions>
           <q-space></q-space>
           <q-btn color="grey" variant="text" @click="showDeleteBudgetDialog = false">Cancel</q-btn>
-          <q-btn color="error" variant="flat" @click="deleteBudget">Delete</q-btn>
+          <q-btn color="negative" variant="flat" @click="deleteBudget">Delete</q-btn>
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -223,10 +223,10 @@
     <!-- Delete Entity Confirmation Dialog -->
     <q-dialog v-model="showDeleteEntityDialog" max-width="400" @keyup.enter="deleteEntity">
       <q-card>
-        <q-card-section class="bg-error py-3">
+        <q-card-section class="bg-negative q-py-md">
           <span class="text-white">Delete Entity</span>
         </q-card-section>
-        <q-card-section class="pt-4">
+        <q-card-section class="q-pt-lg">
           Are you sure you want to delete the entity "{{ entityToDelete?.name }}" (ID: {{ entityToDelete?.id }})?
           <span v-if="associatedBudgets.length > 0"> This entity has {{ associatedBudgets.length }} associated budget(s), which must be deleted first. </span>
           <span v-else>This action cannot be undone.</span>
@@ -234,7 +234,7 @@
         <q-card-actions>
           <q-space></q-space>
           <q-btn color="grey" variant="text" @click="showDeleteEntityDialog = false">Cancel</q-btn>
-          <q-btn color="error" variant="flat" @click="deleteEntity" :disabled="associatedBudgets.length > 0">Delete</q-btn>
+          <q-btn color="negative" variant="flat" @click="deleteEntity" :disabled="associatedBudgets.length > 0">Delete</q-btn>
         </q-card-actions>
       </q-card>
     </q-dialog>

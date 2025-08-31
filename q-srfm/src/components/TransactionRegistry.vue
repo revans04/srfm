@@ -41,7 +41,7 @@
         <q-btn color="primary" @click="unreconcileStatement">Unreconcile</q-btn>
       </div>
       <div class="col col-auto" v-if="selectedStatement">
-        <q-btn color="error" @click="deleteStatement">Delete Statement</q-btn>
+        <q-btn color="negative" @click="deleteStatement">Delete Statement</q-btn>
       </div>
     </div>
 
@@ -54,8 +54,8 @@
             <span class="text-h6">Balance from Accounts: </span>
             <span
               :class="{
-                'text-success': currentBalance === latestTransactionBalance,
-                'text-error': currentBalance !== latestTransactionBalance,
+                'text-positive': currentBalance === latestTransactionBalance,
+                'text-negative': currentBalance !== latestTransactionBalance,
               }"
             >
               {{ formatCurrency(currentBalance) }}
@@ -180,7 +180,7 @@
         </q-btn>
         <q-btn
           v-if="selectedRows.length > 0"
-          color="error"
+          color="negative"
           class="mb-4 ml-2"
           @click="confirmBatchAction('Delete')"
           :disabled="loading || !selectedRows.every(id => {
@@ -206,7 +206,7 @@
         :row-class="getRowClass"
       >
         <template #body-cell-amount="{ row }">
-          <span :class="row.isIncome ? 'text-success' : 'text-error'">
+          <span :class="row.isIncome ? 'text-positive' : 'text-negative'">
             {{ formatCurrency(row.amount) }}
           </span>
         </template>
@@ -231,7 +231,7 @@
             v-if="row.status != 'C' && row.id"
             density="compact"
             variant="plain"
-            color="error"
+            color="negative"
             @click.stop="confirmAction(row, 'Ignore')"
             title="Ignore Imported Transaction"
           >
@@ -241,7 +241,7 @@
             v-if="row.status != 'C' && row.id"
             density="compact"
             variant="plain"
-            color="error"
+            color="negative"
             @click.stop="confirmAction(row, 'Delete')"
             title="Delete Imported Transaction"
           >
@@ -254,14 +254,14 @@
     <!-- Action Confirmation Dialog -->
     <q-dialog v-model="showActionDialog" max-width="400" @keyup.enter="executeAction">
       <q-card>
-        <q-card-section class="bg-warning py-3">
+        <q-card-section class="bg-warning q-py-md">
           <span class="text-white">{{ transactionAction }} Transaction</span>
         </q-card-section>
-        <q-card-section v-if="transactionAction == 'Disconnect'" class="pt-4">
+        <q-card-section v-if="transactionAction == 'Disconnect'" class="q-pt-lg">
           Are you sure you want to disconnect the transaction for "{{ transactionToAction?.merchant }}" on {{ transactionToAction?.date }} from its imported
           transaction?
         </q-card-section>
-        <q-card-section v-else class="pt-4">
+        <q-card-section v-else class="q-pt-lg">
           Are you sure you want to {{ transactionAction }} the transaction for "{{ transactionToAction?.merchant }}" on {{ transactionToAction?.date }}?
         </q-card-section>
         <q-card-actions>
@@ -275,10 +275,10 @@
     <!-- Batch Match Dialog -->
     <q-dialog v-model="showBatchMatchDialog" max-width="500" @keyup.enter="executeBatchMatch">
       <q-card>
-        <q-card-section class="bg-primary py-3">
+        <q-card-section class="bg-primary q-py-md">
           <span class="text-white">Batch Match Transactions</span>
         </q-card-section>
-        <q-card-section class="pt-4">
+        <q-card-section class="q-pt-lg">
           <q-form ref="batchMatchForm">
             <p>Assign an entity, merchant, and category for {{ selectedRows.length }} unmatched transaction{{ selectedRows.length > 1 ? "s" : "" }}.</p>
             <div class="row">
@@ -321,7 +321,7 @@
     <!-- Add Statement Dialog -->
     <q-dialog v-model="showStatementDialog" max-width="500">
       <q-card>
-        <q-card-section class="bg-primary py-3">
+        <q-card-section class="bg-primary q-py-md">
           <span class="text-white">Add Statement</span>
         </q-card-section>
         <q-card-section>
@@ -383,10 +383,10 @@
     <!-- Batch Action Dialog -->
     <q-dialog v-model="showBatchActionDialog" max-width="400" @keyup.enter="executeBatchAction">
       <q-card>
-        <q-card-section class="bg-warning py-3">
+        <q-card-section class="bg-warning q-py-md">
           <span class="text-white">{{ batchAction }} Selected Transactions</span>
         </q-card-section>
-        <q-card-section class="pt-4">
+        <q-card-section class="q-pt-lg">
           Are you sure you want to {{ batchAction.toLowerCase() }} {{ selectedRows.length }} transaction{{ selectedRows.length > 1 ? "s" : "" }}?
         </q-card-section>
         <q-card-actions>
@@ -400,7 +400,7 @@
     <!-- Balance Adjustment Dialog -->
     <q-dialog v-model="showBalanceAdjustmentDialog" max-width="500">
       <q-card>
-        <q-card-section class="bg-primary py-3">
+        <q-card-section class="bg-primary q-py-md">
           <span class="text-white">Adjust Initial Balance</span>
         </q-card-section>
         <q-card-section>
@@ -450,7 +450,7 @@
 
     <!-- Reconcile Summary -->
     <q-card class="mt-4" v-if="reconciling && selectedStatement">
-      <q-card-section class="bg-primary py-3">
+      <q-card-section class="bg-primary q-py-md">
         <span class="text-white">Reconcile Statement</span>
       </q-card-section>
       <q-card-section>
@@ -462,7 +462,7 @@
           <p>Starting Balance: {{ formatCurrency(selectedStatement.startingBalance) }}</p>
           <p>Selected Total: {{ formatCurrency(selectedTransactionsTotal) }}</p>
           <p>Calculated Ending Balance: {{ formatCurrency(calculatedEndingBalance) }}</p>
-          <p :class="{ 'text-error': !reconcileMatches }">Statement Ending Balance: {{ formatCurrency(selectedStatement.endingBalance) }}</p>
+          <p :class="{ 'text-negative': !reconcileMatches }">Statement Ending Balance: {{ formatCurrency(selectedStatement.endingBalance) }}</p>
           <q-banner type="warning" v-if="!reconcileMatches" class="mt-2" dense>
             Calculated ending balance does not match statement ending balance.
           </q-banner>
