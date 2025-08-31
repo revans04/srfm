@@ -17,8 +17,8 @@ Key props/usage:
       <div class="row items-center q-gutter-md">
         <div class="col-auto text-h5">Transactions</div>
         <q-tabs v-model="tab" dense class="col">
-          <q-tab name="budget" label="Budget Transactions" />
-          <q-tab name="register" label="Register" />
+          <q-tab name="budget" label="Budget Register" />
+          <q-tab name="register" label="Account Register" />
           <q-tab name="match" label="Match Bank Transactions" />
         </q-tabs>
         <q-input
@@ -37,7 +37,7 @@ Key props/usage:
     </div>
 
     <q-tab-panels v-model="tab" animated>
-      <!-- Budget Transactions Tab -->
+      <!-- Budget Register Tab -->
       <q-tab-panel name="budget">
         <div class="filter-bar shadow-2 bg-white q-pa-sm">
           <div class="column q-gutter-sm">
@@ -131,18 +131,25 @@ Key props/usage:
           :columns="budgetColumns"
           :fetch-more="fetchMore"
           :loading="loading"
-          :header-offset="tableHeaderOffset"
         />
       </q-tab-panel>
 
-      <!-- Register Tab -->
+      <!-- Account Register Tab -->
       <q-tab-panel name="register">
         <statement-header class="q-mb-sm" />
         <div class="filter-bar shadow-2 bg-white q-pa-sm">
           <!-- reuse same filters for demo -->
           <div class="row q-col-gutter-sm items-center">
             <q-input v-model="filters.search" dense outlined placeholder="Search" class="col" />
-              <q-checkbox v-model="filters.cleared" label="Cleared Only" class="col-auto" />
+            <q-select
+              v-model="filters.accountId"
+              :options="accountOptions"
+              dense
+              outlined
+              placeholder="Account"
+              class="col-3"
+            />
+            <q-checkbox v-model="filters.cleared" label="Cleared Only" class="col-auto" />
           </div>
         </div>
         <ledger-table
@@ -150,7 +157,6 @@ Key props/usage:
           :columns="registerColumns"
           :fetch-more="fetchMoreRegister"
           :loading="loadingRegister"
-          :header-offset="tableHeaderOffset"
         />
       </q-tab-panel>
 
@@ -178,7 +184,6 @@ import { sortBudgetsByMonthDesc } from 'src/utils/budget';
 
 const tab = ref<'budget' | 'register' | 'match'>('budget');
 const globalSearch = ref('');
-const tableHeaderOffset = 112;
 
 const budgetStore = useBudgetStore();
 const familyStore = useFamilyStore();
@@ -187,6 +192,10 @@ const auth = useAuthStore();
 
 const { selectedBudgetIds } = storeToRefs(uiStore);
 const { selectedEntityId } = storeToRefs(familyStore);
+
+const accountOptions = computed(() =>
+  familyStore.family?.accounts?.map((a) => ({ label: a.name, value: a.id })) || [],
+);
 
 const {
   transactions,
@@ -261,6 +270,7 @@ function removeFilter(key: keyof typeof filters.value) {
 const activeChips = computed<Record<string, unknown>>(() => {
   const res: Record<string, unknown> = {};
   Object.entries(filters.value).forEach(([k, v]) => {
+    if (k === 'accountId') return;
     if (v !== null && v !== '' && v !== false) {
       res[k] = typeof v === 'boolean' ? '' : v;
     }
@@ -282,15 +292,3 @@ function onJump(val: string) {
 
 </script>
 
-<style scoped>
-.top-bar {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-.filter-bar {
-  position: sticky;
-  top: 56px;
-  z-index: 5;
-}
-</style>

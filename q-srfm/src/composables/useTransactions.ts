@@ -5,7 +5,7 @@ import { useBudgetStore } from '../store/budget';
 import { useFamilyStore } from '../store/family';
 import { dataAccess } from '../dataAccess';
 import { auth } from '../firebase/init';
-import type { Budget, Transaction } from '../types';
+import type { Budget, Transaction, ImportedTransaction } from '../types';
 
 export type Status = 'C' | 'U' | 'R';
 
@@ -22,6 +22,7 @@ export interface LedgerRow {
   isDuplicate?: boolean;
   linkId?: string;
   notes?: string;
+  accountId?: string;
 }
 
 export type BudgetTransaction = Transaction & { linkId?: string };
@@ -71,6 +72,7 @@ export interface LedgerFilters {
   maxAmt: number | null;
   start: string | null; // ISO date
   end: string | null;   // ISO date
+  accountId: string | null;
 }
 
 export function useTransactions() {
@@ -107,13 +109,20 @@ export function useTransactions() {
     maxAmt: null,
     start: null,
     end: null,
+    accountId: null,
   });
 
   function mapTxToRow(tx: Transaction, budget: Budget): LedgerRow {
-    const category = (tx.categories?.length || 0) > 1
-      ? 'Split'
-      : (tx.categories?.[0]?.category || '');
-    const entityName = familyStore.family?.entities?.find(e => e.id === (tx.entityId || budget.entityId))?.name || 'N/A';
+    const categoryNames = tx.categories?.map((c) => c.category || '').filter(Boolean) || [];
+    const category = categoryNames.length > 1 ? 'Split' : categoryNames[0] || '';
+    const entityName =
+      familyStore.family?.entities?.find((e) => e.id === (tx.entityId || budget.entityId))?.name ||
+      'N/A';
+    let notes = tx.notes || '';
+    if (categoryNames.length > 1) {
+      const noteCats = categoryNames.join(', ');
+      notes = notes ? `${notes} (${noteCats})` : noteCats;
+    }
     return {
       id: tx.id,
       date: tx.date,
@@ -125,7 +134,25 @@ export function useTransactions() {
       status: tx.status === 'C' ? 'C' : tx.status === 'R' ? 'R' : 'U',
       importedMerchant: tx.importedMerchant || '',
       linkId: tx.accountNumber ? `${tx.accountSource || ''}:${tx.accountNumber}` : undefined,
-      notes: tx.notes || '',
+      notes,
+    };
+  }
+
+  function mapImportedToRow(tx: ImportedTransaction): LedgerRow {
+    const accountName =
+      familyStore.family?.accounts?.find((a) => a.id === tx.accountId)?.name || '';
+    return {
+      id: tx.id,
+      date: tx.postedDate,
+      payee: tx.payee,
+      category: '',
+      entityName: accountName,
+      budgetId: '',
+      amount: (tx.creditAmount ?? 0) - (tx.debitAmount ?? 0),
+      status: tx.status,
+      linkId: tx.accountNumber ? `${tx.accountSource || ''}:${tx.accountNumber}` : undefined,
+      notes: '',
+      accountId: tx.accountId,
     };
   }
 
@@ -151,9 +178,21 @@ export function useTransactions() {
     try {
       const ids = Array.isArray(budgetIdOrIds) ? budgetIdOrIds : [budgetIdOrIds];
       rows.value = await hydrateBudgets(ids);
-      registerRows.value = rows.value; // Placeholder: same data until register wired
     } finally {
       loading.value = false;
+    }
+  }
+
+  async function loadImportedTransactions() {
+    loadingRegister.value = true;
+    try {
+      const imported = await dataAccess.getImportedTransactions();
+      registerRows.value = imported
+        .filter((t) => !t.deleted)
+        .map((t) => mapImportedToRow(t))
+        .sort((a, b) => b.date.localeCompare(a.date));
+    } finally {
+      loadingRegister.value = false;
     }
   }
 
@@ -198,6 +237,20 @@ export function useTransactions() {
     });
   });
 
+  const filteredRegister = computed(() => {
+    const f = filters.value;
+    return registerRows.value.filter((r) => {
+      if (f.search) {
+        const s = f.search.toLowerCase();
+        if (!r.payee.toLowerCase().includes(s) && !r.entityName.toLowerCase().includes(s))
+          return false;
+      }
+      if (f.accountId && r.accountId !== f.accountId) return false;
+      if (f.cleared && r.status !== 'C') return false;
+      return true;
+    });
+  });
+
   const api = {
     // budget tab
     transactions: filtered,
@@ -207,7 +260,7 @@ export function useTransactions() {
     budgetColumns,
 
     // register tab (placeholder mirrors budget for now)
-    registerRows,
+    registerRows: filteredRegister,
     fetchMoreRegister,
     loadingRegister,
     registerColumns,
@@ -216,6 +269,7 @@ export function useTransactions() {
     scrollToDate,
     // also expose init for callers that want explicit control
     loadInitial,
+    loadImportedTransactions,
   };
 
   // Load budgets initially so selection and options are available
@@ -225,6 +279,7 @@ export function useTransactions() {
       if (!user) return;
       await familyStore.loadFamily(user.uid);
       await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
+      await loadImportedTransactions();
     } catch {
       /* ignore */
     }
@@ -239,7 +294,6 @@ export function useTransactions() {
         await loadInitial(ids);
       } else {
         rows.value = [];
-        registerRows.value = [];
       }
     },
     { immediate: true },

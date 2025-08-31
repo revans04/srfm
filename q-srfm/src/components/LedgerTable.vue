@@ -17,6 +17,18 @@
       <slot name="header"></slot>
     </template>
 
+    <template #header="props">
+      <q-tr :props="props">
+        <q-th
+          v-for="col in props.cols"
+          :key="col.name"
+          :props="props"
+        >
+          {{ col.label }}
+        </q-th>
+      </q-tr>
+    </template>
+
     <template #body="props">
       <q-tr :props="props" :class="[{ 'dup-row': props.row.isDuplicate }, 'row-striped']">
         <q-td key="date" :props="props" class="col-date">{{ formatDate(props.row.date) }}</q-td>
@@ -29,6 +41,7 @@
         <q-td key="status" :props="props" class="col-status">
           <q-badge v-if="props.row.status === 'C'" color="positive" outline> C </q-badge>
           <q-badge v-else-if="props.row.status === 'U'" color="warning" outline> U </q-badge>
+          <q-badge v-else-if="props.row.status === 'R'" color="primary" outline> R </q-badge>
           <q-icon v-if="props.row.linkId" name="link" color="primary" size="16px" class="q-ml-xs" />
           <q-icon v-if="props.row.isDuplicate" name="warning" color="warning" size="16px" class="q-ml-xs" />
         </q-td>
@@ -70,10 +83,12 @@ export interface LedgerRow {
   entityName: string;
   budgetId: string;
   amount: number; // dollars
-  status: 'C' | 'U';
+  status: 'C' | 'U' | 'R';
+  importedMerchant?: string;
   isDuplicate?: boolean;
   linkId?: string;
   notes?: string;
+  accountId?: string;
 }
 
 const props = defineProps<{
