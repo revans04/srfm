@@ -7,7 +7,7 @@ import { dataAccess } from '../dataAccess';
 import { auth } from '../firebase/init';
 import type { Budget, Transaction } from '../types';
 
-export type Status = 'C' | 'U';
+export type Status = 'C' | 'U' | 'R';
 
 export interface LedgerRow {
   id: string;
@@ -18,6 +18,7 @@ export interface LedgerRow {
   budgetId: string;
   amount: number;
   status: Status;
+  importedMerchant?: string;
   isDuplicate?: boolean;
   linkId?: string;
   notes?: string;
@@ -52,14 +53,15 @@ export function unlink(tx: BudgetTransaction): void {
 
 export interface LedgerFilters {
   search: string;
-  clearedOnly: boolean;
-  unmatchedOnly: boolean;
+  importedMerchant: string;
+  cleared: boolean;
+  uncleared: boolean;
+  reconciled: boolean;
   duplicatesOnly: boolean;
-  status?: Status | '';
-  minAmt?: number | null;
-  maxAmt?: number | null;
-  start?: string | null; // ISO date
-  end?: string | null;   // ISO date
+  minAmt: number | null;
+  maxAmt: number | null;
+  start: string | null; // ISO date
+  end: string | null;   // ISO date
 }
 
 export function useTransactions() {
@@ -87,10 +89,11 @@ export function useTransactions() {
 
   const filters = ref<LedgerFilters>({
     search: '',
-    clearedOnly: false,
-    unmatchedOnly: false,
+    importedMerchant: '',
+    cleared: false,
+    uncleared: false,
+    reconciled: false,
     duplicatesOnly: false,
-    status: '',
     minAmt: null,
     maxAmt: null,
     start: null,
@@ -110,7 +113,8 @@ export function useTransactions() {
       entityName,
       budgetId: budget.budgetId || '',
       amount: Number(tx.amount || 0),
-      status: (tx.status === 'C' ? 'C' : 'U'),
+      status: tx.status === 'C' ? 'C' : tx.status === 'R' ? 'R' : 'U',
+      importedMerchant: tx.importedMerchant || '',
       linkId: tx.accountNumber ? `${tx.accountSource || ''}:${tx.accountNumber}` : undefined,
       notes: tx.notes || '',
     };
@@ -157,11 +161,25 @@ export function useTransactions() {
     return rows.value.filter((r) => {
       if (f.search) {
         const s = f.search.toLowerCase();
-        if (!(r.payee.toLowerCase().includes(s) || r.category.toLowerCase().includes(s) || r.entityName.toLowerCase().includes(s))) return false;
+        if (
+          !(
+            r.payee.toLowerCase().includes(s) ||
+            r.category.toLowerCase().includes(s) ||
+            r.entityName.toLowerCase().includes(s)
+          )
+        )
+          return false;
       }
-      if (f.status && r.status !== f.status) return false;
-      if (f.clearedOnly && r.status !== 'C') return false;
-      if (f.unmatchedOnly && !!r.linkId) return false;
+      if (
+        f.importedMerchant &&
+        !r.importedMerchant?.toLowerCase().includes(f.importedMerchant.toLowerCase())
+      )
+        return false;
+      const statusFilters: Status[] = [];
+      if (f.cleared) statusFilters.push('C');
+      if (f.uncleared) statusFilters.push('U');
+      if (f.reconciled) statusFilters.push('R');
+      if (statusFilters.length && !statusFilters.includes(r.status)) return false;
       if (f.duplicatesOnly && !r.isDuplicate) return false;
       if (f.minAmt != null && r.amount < f.minAmt) return false;
       if (f.maxAmt != null && r.amount > f.maxAmt) return false;
@@ -174,6 +192,7 @@ export function useTransactions() {
   const api = {
     // budget tab
     transactions: filtered,
+    filters,
     fetchMore,
     loading,
     budgetColumns,

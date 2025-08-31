@@ -65,21 +65,14 @@ Key props/usage:
             </div>
             <div class="row q-col-gutter-sm">
               <q-input v-model="filters.search" dense outlined placeholder="Search" class="col" />
-              <q-select
-                v-model="filters.status"
-                :options="statusOptions"
-                dense
-                outlined
-                placeholder="Status"
-                class="col-2"
-              />
               <q-input v-model="filters.importedMerchant" dense outlined placeholder="Imported Merchant" class="col-2" />
-              <q-input v-model.number="filters.min" type="number" dense outlined placeholder="Amount Min" class="col-2" />
-              <q-input v-model="filters.date" dense outlined placeholder="Date" mask="####-##-##" class="col-2">
+              <q-input v-model.number="filters.minAmt" type="number" dense outlined placeholder="Amount Min" class="col-2" />
+              <q-input v-model.number="filters.maxAmt" type="number" dense outlined placeholder="Amount Max" class="col-2" />
+              <q-input v-model="filters.start" dense outlined placeholder="Date" mask="####-##-##" class="col-2">
                 <template #append>
                   <q-icon name="event" class="cursor-pointer">
                     <q-popup-proxy transition-show="scale" transition-hide="scale">
-                      <q-date v-model="filters.date" mask="YYYY-MM-DD" />
+                      <q-date v-model="filters.start" mask="YYYY-MM-DD" />
                     </q-popup-proxy>
                   </q-icon>
                 </template>
@@ -95,17 +88,24 @@ Key props/usage:
               />
               <q-btn
                 dense
-                :color="filters.unmatched ? 'primary' : 'grey-5'"
+                :color="filters.uncleared ? 'primary' : 'grey-5'"
                 text-color="white"
-                label="Unmatched"
-                @click="filters.unmatched = !filters.unmatched"
+                label="Uncleared"
+                @click="filters.uncleared = !filters.uncleared"
               />
               <q-btn
                 dense
-                :color="filters.duplicates ? 'primary' : 'grey-5'"
+                :color="filters.reconciled ? 'primary' : 'grey-5'"
+                text-color="white"
+                label="Reconciled"
+                @click="filters.reconciled = !filters.reconciled"
+              />
+              <q-btn
+                dense
+                :color="filters.duplicatesOnly ? 'primary' : 'grey-5'"
                 text-color="white"
                 label="Duplicates"
-                @click="filters.duplicates = !filters.duplicates"
+                @click="filters.duplicatesOnly = !filters.duplicatesOnly"
               />
               <q-space />
               <q-btn dense flat label="Jump to Date" @click="jumpMenu = true" />
@@ -140,7 +140,7 @@ Key props/usage:
           <!-- reuse same filters for demo -->
           <div class="row q-col-gutter-sm items-center">
             <q-input v-model="filters.search" dense outlined placeholder="Search" class="col" />
-            <q-checkbox v-model="filters.clearedOnly" label="Cleared Only" class="col-auto" />
+              <q-checkbox v-model="filters.cleared" label="Cleared Only" class="col-auto" />
           </div>
         </div>
         <ledger-table
@@ -183,6 +183,19 @@ const auth = useAuthStore();
 
 const { selectedBudgetIds } = storeToRefs(uiStore);
 const { selectedEntityId } = storeToRefs(familyStore);
+
+const {
+  transactions,
+  filters,
+  registerRows,
+  fetchMore,
+  fetchMoreRegister,
+  loading,
+  loadingRegister,
+  scrollToDate,
+  budgetColumns,
+  registerColumns,
+} = useTransactions();
 
 const formatLongMonth = (month: string) => {
   const [year, monthNum] = month.split('-');
@@ -233,18 +246,7 @@ function clearSelectedBudgets() {
   selectedBudgetIds.value = [];
 }
 
-// Filters
-const filters = ref({
-  search: '',
-  status: null as null | string,
-  importedMerchant: '',
-  min: null as null | number,
-  date: '' as string,
-  cleared: false,
-  unmatched: false,
-  duplicates: false,
-  clearedOnly: false,
-});
+// Filters come from useTransactions
 
 function removeFilter(key: keyof typeof filters.value) {
   const current = filters.value[key];
@@ -274,23 +276,6 @@ function onJump(val: string) {
   if (val) scrollToDate(val);
 }
 
-// Data via composable
-const {
-  transactions,
-  registerRows,
-  fetchMore,
-  fetchMoreRegister,
-  loading,
-  loadingRegister,
-  scrollToDate,
-  budgetColumns,
-  registerColumns,
-} = useTransactions();
-
-const statusOptions = [
-  { label: 'Cleared', value: 'C' },
-  { label: 'Unmatched', value: 'U' },
-];
 </script>
 
 <style scoped>
