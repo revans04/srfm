@@ -16,7 +16,7 @@
       <div class="col">
         <div class="progress-section">
           <div class="progress-label">
-            <span :class="!isIncome && spent > category.target ? 'text-error' : ''">{{ formatCurrency(toDollars(toCents(spent))) }}</span>
+            <span :class="!isIncome && spent > category.target ? 'text-negative' : ''">{{ formatCurrency(toDollars(toCents(spent))) }}</span>
             {{ isIncome ? 'received' : 'spent' }} of
             {{ formatCurrency(toDollars(toCents(category.target))) }}
           </div>
@@ -38,10 +38,10 @@
     </div>
 
     <!-- Transactions List -->
-    <div class="row flex-grow-1 mt-4 pl-0 pr-0">
-      <div class="col transaction-list pl-0 pr-0">
+    <div class="row flex-grow-1 mt-4 q-pl-none q-pr-none">
+      <div class="col transaction-list q-pl-none q-pr-none">
         <h3 class="section-title q-pb-sm">Transactions ({{ categoryTransactions.length }})</h3>
-        <div class="my-2 bg-white rounded-10 pt-2 pr-3 pl-3 mb-4">
+        <div class="my-2 bg-white rounded-10 q-pt-sm q-pr-md q-pl-md mb-4">
           <q-input v-model="search" label="Search" dense clearable prepend-icon="search"></q-input>
         </div>
         <q-list dense class="rounded-10">
@@ -55,8 +55,8 @@
             style="border-bottom: 1px solid rgb(var(--v-theme-light))"
           >
             <q-item-section class="d-flex align-center">
-              <div class="row pa-2 align-center no-gutters">
-                <div class="col pt-2 font-weight-bold text-primary col-2" style="min-width: 60px; font-size: 10px">
+              <div class="row q-pa-sm align-center no-gutters">
+                <div class="col q-pt-sm font-weight-bold text-primary col-2" style="min-width: 60px; font-size: 10px">
                   {{ formatDate(transaction.date) }}
                 </div>
                 <div class="col text-truncate" style="flex: 1; min-width: 0">

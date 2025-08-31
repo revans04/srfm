@@ -1,7 +1,7 @@
 <!-- src/components/TransactionForm.vue -->
 <template>
   <div v-if="isInitialized && locTrnsx?.categories">
-      <div class="row pa-0" >
+      <div class="row q-pa-none" >
         <div class="col col-6">
           <q-btn variant="flat" type="submit" color="primary" :loading="isLoading" @click="save" label="Save" />
         </div>
@@ -33,7 +33,7 @@
         </div>
       </div>
       <div class="row form-row" >
-        <div class="col form-col-label q-pr-5" >Merchant</div>
+        <div class="col form-col-label q-pr-xl" >Merchant</div>
         <div class="col form-col col-auto"  style="min-width: 150px">
           <q-select
             v-model="locTrnsx.merchant"
@@ -57,7 +57,7 @@
       <div class="form-row my-6 ms-n3 q-py-md">
         <div v-for="(split, index) in locTrnsx.categories" :key="index">
           <div class="row no-gutters" >
-            <div class="col form-col-label pr-2 col-auto" no-gutters  :class="locTrnsx.categories.length > 1 ? '' : 'q-pb-md'">
+            <div class="col form-col-label q-pr-sm col-auto" no-gutters  :class="locTrnsx.categories.length > 1 ? '' : 'q-pb-md'">
                 <q-icon color="negative" @click="removeSplit(index)" name="close"></q-icon>
             </div>
             <div class="col">
@@ -103,7 +103,7 @@
 
       <div class="row rounded-5 bg-light mb-2 justify-center" >
         <div class="col font-weight-bold col-auto"  justify="center">Budget</div>
-        <div class="col pa-0 ma-0 text-right" >
+        <div class="col q-pa-none ma-0 text-right" >
           <q-select
             v-model="locTrnsx.budgetMonth"
             :items="availableMonths"
@@ -136,7 +136,7 @@
           </div>
         </div>
         <div class="row form-row" >
-          <div class="col form-col-label q-pr-5" >Imported Merchant</div>
+          <div class="col form-col-label q-pr-xl" >Imported Merchant</div>
           <div class="col form-col"  style="min-width: 150px">
             <q-input v-model="locTrnsx.importedMerchant" variant="plain" density="compact" readonly></q-input>
           </div>
