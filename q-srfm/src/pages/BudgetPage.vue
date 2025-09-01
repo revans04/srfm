@@ -854,10 +854,6 @@ watch(
     log('Budget store changed', { size: (newBudgets as Map<string, Budget>).size });
     budgets.value = Array.from(newBudgets.values());
     availableBudgets.value = budgets.value;
-    if (budgets.value.length > 0) {
-      log('Triggering updateBudgetForMonth due to budgets change');
-      updateBudgetForMonth();
-    }
   },
   { deep: true },
 );
@@ -948,6 +944,8 @@ async function loadBudgets() {
       total: budgetStore.budgets.size,
       months: Array.from(budgetStore.budgets.values()).map((b) => b.month),
     });
+    await nextTick();
+    updateBudgetForMonth();
   } catch (error: unknown) {
     const err = error as Error;
     console.error('Error loading budgets:', err);
