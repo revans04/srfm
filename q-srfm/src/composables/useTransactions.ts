@@ -23,6 +23,7 @@ export interface LedgerRow {
   linkId?: string;
   notes?: string;
   accountId?: string;
+  matched?: boolean;
 }
 
 export type BudgetTransaction = Transaction & { linkId?: string };
@@ -73,6 +74,7 @@ export interface LedgerFilters {
   start: string | null; // ISO date
   end: string | null;   // ISO date
   accountId: string | null;
+  unmatchedOnly: boolean;
 }
 
 export function useTransactions() {
@@ -102,6 +104,7 @@ export function useTransactions() {
     start: null,
     end: null,
     accountId: null,
+    unmatchedOnly: false,
   });
 
   function mapTxToRow(tx: Transaction, budget: Budget): LedgerRow {
@@ -159,6 +162,7 @@ export function useTransactions() {
       linkId: tx.accountNumber ? `${tx.accountSource || ''}:${tx.accountNumber}` : undefined,
       notes: '',
       accountId: account?.id ? String(account.id) : tx.accountId ? String(tx.accountId) : undefined,
+      matched: tx.matched,
     };
   }
 
@@ -299,7 +303,7 @@ export function useTransactions() {
           return false;
       }
       if (f.accountId && r.accountId !== f.accountId) return false;
-      if (f.cleared && r.status !== 'C') return false;
+      if (f.unmatchedOnly && r.matched) return false;
       return true;
     });
   });

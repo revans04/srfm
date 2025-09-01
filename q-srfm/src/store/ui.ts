@@ -36,6 +36,7 @@ export const useUIStore = defineStore("uiState", () => {
     start: null,
     end: null,
     accountId: null,
+    unmatchedOnly: false,
   };
 
   const budgetFilters = ref<LedgerFilters>({ ...defaultFilters });

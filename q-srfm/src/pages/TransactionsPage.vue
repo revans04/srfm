@@ -125,6 +125,20 @@ Key props/usage:
           :rows="transactions"
           :loading="loading"
           @load-more="fetchMore"
+          @row-click="onRowClick"
+        />
+        <TransactionDialog
+          v-if="editTx"
+          :show-dialog="showTxDialog"
+          :initial-transaction="editTx"
+          :edit-mode="true"
+          :loading="false"
+          :category-options="editCategoryOptions"
+          :budget-id="editBudgetId"
+          :user-id="auth.user?.uid || ''"
+          @update:showDialog="(val) => { showTxDialog = val; if (!val) editTx = null; }"
+          @save="onTransactionSaved"
+          @cancel="() => { showTxDialog = false; editTx = null; }"
         />
       </q-tab-panel>
 
@@ -139,14 +153,14 @@ Key props/usage:
               :options="accountOptions"
               dense
               outlined
-              placeholder="Account"
+              label="Account"
               clearable
               emit-value
               map-options
               class="col-3"
             />
             <q-input v-model="filters.search" dense outlined placeholder="Search" class="col" />
-            <q-checkbox v-model="filters.cleared" label="Cleared Only" class="col-auto" />
+            <q-checkbox v-model="filters.unmatchedOnly" label="Unmatched Only" class="col-auto" />
             <q-btn
               dense
               flat
@@ -188,14 +202,16 @@ import LedgerTable from 'src/components/LedgerTable.vue';
 import StatementHeader from 'src/components/StatementHeader.vue';
 import MatchBankPanel from 'src/components/MatchBankPanel.vue';
 import EntitySelector from 'src/components/EntitySelector.vue';
+import TransactionDialog from 'src/components/TransactionDialog.vue';
 import { useTransactions } from 'src/composables/useTransactions';
-import type { LedgerFilters } from 'src/composables/useTransactions';
+import type { LedgerFilters, LedgerRow } from 'src/composables/useTransactions';
 import { useBudgetStore } from 'src/store/budget';
 import { useFamilyStore } from 'src/store/family';
 import { useUIStore } from 'src/store/ui';
 import { useAuthStore } from 'src/store/auth';
 import { sortBudgetsByMonthDesc } from 'src/utils/budget';
 import { dataAccess } from 'src/dataAccess';
+import type { Transaction } from 'src/types';
 
 const tab = ref<'budget' | 'register' | 'match'>('budget');
 
@@ -239,6 +255,15 @@ onMounted(loadBudgets);
 const minAmtInput = ref('');
 const maxAmtInput = ref('');
 
+const showTxDialog = ref(false);
+const editTx = ref<Transaction | null>(null);
+const editBudgetId = ref('');
+const editCategoryOptions = computed(() =>
+  editBudgetId.value
+    ? budgetStore.getBudget(editBudgetId.value)?.categories.map((c) => c.name) || []
+    : [],
+);
+
 const createDefaultFilters = (): LedgerFilters => ({
   search: '',
   importedMerchant: '',
@@ -251,6 +276,7 @@ const createDefaultFilters = (): LedgerFilters => ({
   start: null,
   end: null,
   accountId: null,
+  unmatchedOnly: false,
 });
 
 function syncInputsFromFilters() {
@@ -302,20 +328,16 @@ async function ensureAccountsLoaded() {
 // Ensure an account is selected when viewing the register so data loads
 watch(
   [tab, accountOptions],
-  async ([t, opts]) => {
+  async ([t]) => {
     if (t === 'register') {
       await ensureAccountsLoaded();
-      if (!filters.value.accountId && opts.length > 0) {
-        const first = opts.find((o) => o.value);
-        if (first) filters.value.accountId = first.value;
-      }
     }
   },
   { immediate: true },
 );
 
 watch(tab, async (t) => {
-  if (t === 'register' && registerRows.value.length === 0 && filters.value.accountId != null) {
+  if (t === 'register' && registerRows.value.length === 0) {
     await loadImportedTransactions(true);
   }
 });
@@ -404,6 +426,28 @@ async function refreshBudget() {
 
 async function refreshRegister() {
   await loadImportedTransactions(true);
+}
+
+function onRowClick(row: LedgerRow) {
+  const budget = budgetStore.getBudget(row.budgetId);
+  const tx = budget?.transactions?.find((t) => t.id === row.id);
+  if (tx) {
+    editTx.value = { ...tx };
+    editBudgetId.value = budget?.budgetId || '';
+    showTxDialog.value = true;
+  }
+}
+
+async function onTransactionSaved(updated: Transaction) {
+  showTxDialog.value = false;
+  const budget = budgetStore.getBudget(editBudgetId.value);
+  if (budget) {
+    const idx = budget.transactions.findIndex((t) => t.id === updated.id);
+    if (idx >= 0) budget.transactions[idx] = updated;
+    else budget.transactions.push(updated);
+  }
+  await loadInitial(selectedBudgetIds.value);
+  editTx.value = null;
 }
 
 // Filters come from useTransactions

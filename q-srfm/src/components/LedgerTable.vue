@@ -31,7 +31,11 @@
     </template>
 
     <template #body="props">
-      <q-tr :props="props" :class="[{ 'dup-row': props.row.isDuplicate }, 'row-striped']">
+      <q-tr
+        :props="props"
+        :class="[{ 'dup-row': props.row.isDuplicate }, 'row-striped', 'cursor-pointer']"
+        @click="onRowClick(props.row)"
+      >
         <q-td key="date" :props="props" class="col-date">{{ formatDate(props.row.date) }}</q-td>
         <q-td key="payee" :props="props" class="col-payee">{{ props.row.payee }}</q-td>
         <q-td key="category" :props="props" class="col-category">{{ props.row.category }}</q-td>
@@ -90,6 +94,7 @@ export interface LedgerRow {
   linkId?: string;
   notes?: string;
   accountId?: string;
+  matched?: boolean;
 }
 
 const props = defineProps<{
@@ -102,7 +107,7 @@ const props = defineProps<{
   entityLabel?: string;
 }>();
 
-const emit = defineEmits<{ (e: 'load-more'): void }>();
+const emit = defineEmits<{ (e: 'load-more'): void; (e: 'row-click', row: LedgerRow): void }>();
 
 const rowHeight = computed(() => props.rowHeight ?? 44);
 const headerOffset = computed(() => props.headerOffset ?? 0);
@@ -159,6 +164,10 @@ function onVirtualScroll({ to }: { to: number }) {
 
 function onLoadMore() {
   emit('load-more');
+}
+
+function onRowClick(row: LedgerRow) {
+  emit('row-click', row);
 }
 </script>
 
