@@ -253,6 +253,32 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
         cmd.Parameters.AddWithValue("original_budget_id", (object?)budget.OriginalBudgetId ?? DBNull.Value);
         await cmd.ExecuteNonQueryAsync();
 
+        // Replace existing categories and insert current ones
+        const string delCatSql = "DELETE FROM budget_categories WHERE budget_id=@bid";
+        await using (var delCatCmd = new NpgsqlCommand(delCatSql, conn))
+        {
+            delCatCmd.Parameters.AddWithValue("bid", budgetId);
+            await delCatCmd.ExecuteNonQueryAsync();
+        }
+
+        if (budget.Categories != null && budget.Categories.Count > 0)
+        {
+            const string insCatSql = @"INSERT INTO budget_categories
+                (budget_id, name, target, is_fund, ""group"", carryover)
+                VALUES (@budget_id, @name, @target, @is_fund, @group, @carryover)";
+            foreach (var cat in budget.Categories)
+            {
+                await using var catCmd = new NpgsqlCommand(insCatSql, conn);
+                catCmd.Parameters.AddWithValue("budget_id", budgetId);
+                catCmd.Parameters.AddWithValue("name", (object?)cat.Name ?? DBNull.Value);
+                catCmd.Parameters.AddWithValue("target", (decimal)cat.Target);
+                catCmd.Parameters.AddWithValue("is_fund", cat.IsFund);
+                catCmd.Parameters.AddWithValue("group", (object?)cat.Group ?? DBNull.Value);
+                catCmd.Parameters.AddWithValue("carryover", cat.Carryover.HasValue ? (object)(decimal)cat.Carryover.Value : DBNull.Value);
+                await catCmd.ExecuteNonQueryAsync();
+            }
+        }
+
         if (budget.Transactions != null && budget.Transactions.Count > 0)
         {
             await BatchSaveTransactions(budgetId, budget.Transactions, userId, userEmail);
