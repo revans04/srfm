@@ -319,15 +319,21 @@ const emit = defineEmits<{
 
 // Local reactive state
 const isReady = ref(false);
-const smartMatches = ref<
-  Array<{
-    importedTransaction: ImportedTransaction;
-    budgetTransaction: Transaction;
-    budgetId: string;
-    bankAmount: number;
-    bankType: string;
-  }>
->([]);
+type SmartMatchRow = {
+  importedTransaction: ImportedTransaction;
+  budgetTransaction: Transaction;
+  budgetId: string;
+  bankAmount: number;
+  bankType: string;
+  bankDate: string;
+  payee: string;
+  merchant: string;
+  budgetDate: string;
+  budgetAmount: number;
+  budgetType: string;
+};
+
+const smartMatches = ref<SmartMatchRow[]>([]);
 const remainingImportedTransactions = ref<ImportedTransaction[]>(props.remainingImportedTransactions || []);
 const selectedBankTransaction = ref<ImportedTransaction | null>(props.selectedBankTransaction || null);
 
@@ -397,20 +403,6 @@ const remainingSplitAmount = computed(() => {
   const allocated = transactionSplits.value.reduce((sum, split) => sum + split.amount, 0);
   return Math.round((totalAmount - allocated) * 100) / 100;
 });
-
-type SmartMatchRow = {
-  importedTransaction: ImportedTransaction;
-  budgetTransaction: Transaction;
-  budgetId: string;
-  bankAmount: number;
-  bankType: string;
-  bankDate: string;
-  payee: string;
-  merchant: string;
-  budgetDate: string;
-  budgetAmount: number;
-  budgetType: string;
-};
 
 const smartMatchColumns = [
   { name: 'bankDate', label: 'Bank Date', field: 'bankDate', sortable: true },
