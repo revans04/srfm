@@ -1,74 +1,71 @@
 <!-- src/components/BankTransactionMatchingDialog.vue -->
 <template>
-  <component
-    :is="props.asPanel ? 'div' : 'q-dialog'"
-    v-if="isReady"
-    v-bind="props.asPanel ? {} : { modelValue: props.showDialog, fullscreen: isMobile, persistent: true }"
-    @update:model-value="(val) => { if (!props.asPanel) closeDialog(val as boolean) }"
-  >
+  <div v-if="isReady">
     <q-card>
       <q-card-section>
-        <div class="row">
-          <div class="col"><q-space></q-space></div>
-          <div class="col-auto text-right" v-if="!props.asPanel">
-            <q-btn color="negative" @click="closeDialog(false)" :disabled="props.matching" variant="plain">
-              <q-icon name="close"></q-icon>
+        <!-- Smart Matches Header -->
+        <div class="row items-center q-gutter-md q-mb-md">
+          <div class="col">
+            <div class="row items-center q-gutter-sm">
+              <h3 class="q-mb-none">Smart Matches ({{ smartMatches.length }})</h3>
+              <q-input
+                v-model="smartMatchDateRange"
+                label="Days"
+                type="number"
+                dense
+                class="q-ml-md"
+                style="width: 90px"
+                @input="computeSmartMatchesLocal()"
+              />
+            </div>
+            <p class="text-caption q-mt-xs q-mb-none">These imported transactions have exactly one potential match. Review and confirm below (max 50 at a time).</p>
+          </div>
+          <div class="col-auto">
+            <q-btn color="secondary" @click="findSmartMatches" :loading="findingSmartMatches">
+              <q-icon start name="playlist_add_check" />
+              Find Smart Matches
             </q-btn>
           </div>
         </div>
-        <!-- Smart Matches -->
-        <div class="row q-mt-lg">
-              <div class="col">
-                <h3>Smart Matches ({{ smartMatches.length }})</h3>
-                <p class="text-caption q-pb-sm">These imported transactions have exactly one potential match. Review and confirm below (max 50 at a time).</p>
 
-                <!-- Sort Controls -->
-                <div class="row q-mb-lg" >
-                  <div class="col col-12 col-md-4">
-                    <q-select
-                      v-model="smartMatchesSortField"
-                      :options="smartMatchesSortFields"
-                      option-label="text"
-                      option-value="value"
-                      emit-value
-                      map-options
-                      label="Sort By"
-                      variant="outlined"
-                      density="compact"
-                      @update:model-value="sortSmartMatches"
-                    ></q-select>
-                  </div>
-                  <div class="col col-12 col-md-4">
-                    <q-btn :color="smartMatchesSortDirection === 'asc' ? 'primary' : 'secondary'" @click="toggleSmartMatchesSortDirection">
-                      {{ smartMatchesSortDirection === "asc" ? "Ascending" : "Descending" }}
-                    </q-btn>
-                  </div>
-                  <div class="col col-12 col-md-4">
-                    <q-input
-                      v-model="smartMatchDateRange"
-                      label="Match Date Range (days)"
-                      type="number"
-                      variant="outlined"
-                      @input="computeSmartMatchesLocal()"
-                    ></q-input>
-                  </div>
-                  <div class="col">
-                    <q-btn
-                      color="primary"
-                      @click="confirmSmartMatches"
-                      :disabled="selectedSmartMatchIds.length === 0 || props.matching"
-                      :loading="props.matching"
-                    >
-                      Confirm Selected Matches ({{ selectedSmartMatchIds.length }})
-                    </q-btn>
-                  </div>
-                </div>
+        <!-- Sort Controls -->
+        <div class="row q-gutter-md items-center q-mb-md">
+          <div class="col col-12 col-md-4">
+            <q-select
+              v-model="smartMatchesSortField"
+              :options="smartMatchesSortFields"
+              option-label="text"
+              option-value="value"
+              emit-value
+              map-options
+              label="Sort By"
+              variant="outlined"
+              density="compact"
+              @update:model-value="sortSmartMatches"
+            />
+          </div>
+          <div class="col col-12 col-md-4">
+            <q-btn :color="smartMatchesSortDirection === 'asc' ? 'primary' : 'secondary'" @click="toggleSmartMatchesSortDirection">
+              {{ smartMatchesSortDirection === "asc" ? "Ascending" : "Descending" }}
+            </q-btn>
+          </div>
+          <div class="col">
+            <q-btn
+              color="primary"
+              @click="confirmSmartMatches"
+              :disabled="selectedSmartMatchIds.length === 0 || props.matching"
+              :loading="props.matching"
+            >
+              Confirm Selected Matches ({{ selectedSmartMatchIds.length }})
+            </q-btn>
+          </div>
+        </div>
 
                   <q-table
                   v-if="smartMatches.length > 0"
                   :columns="smartMatchColumns"
                   :rows="sortedSmartMatches"
-                  row-key="importedTransaction.id"
+                  :row-key="rowKey"
                   selection="multiple"
                   v-model:selected="selectedSmartMatchesInternal"
                   class="q-mt-lg"
@@ -76,9 +73,7 @@
                   :pagination="{ rowsPerPage: 50 }"
                 >
                   <template #body-cell-bankAmount="{ row }"> ${{ toDollars(toCents(row.bankAmount)) }} </template>
-                  <template #body-cell-bankType="{ row }"> {{ row.bankType }} </template>
-                  <template #body-cell-budgetAmount="{ row }"> ${{ toDollars(toCents(row.budgetTransaction.amount)) }} </template>
-                  <template #body-cell-budgetType="{ row }"> {{ row.budgetTransaction.isIncome ? "Income" : "Expense" }} </template>
+                  <template #body-cell-budgetAmount="{ row }"> ${{ toDollars(toCents(row.budgetAmount)) }} </template>
                   <template #body-cell-actions="{ row }">
                     <q-icon
                       v-if="isBudgetTxMatchedMultiple(row.budgetTransaction.id)"
@@ -92,8 +87,6 @@
                 <q-banner v-else type="info" class="q-mt-lg">
                   No smart matches found. Check Remaining Transactions for potential conflicts.
                 </q-banner>
-              </div>
-            </div>
 
         <!-- Remaining Transactions -->
         <div class="row q-mt-lg" v-if="remainingImportedTransactions.length > 0">
@@ -268,8 +261,6 @@
       <q-card-actions>
         <q-btn v-if="remainingImportedTransactions.length > 0" color="warning" @click="ignoreBankTransaction" :disabled="props.matching"> Ignore </q-btn>
         <q-btn v-if="remainingImportedTransactions.length > 0" color="secondary" @click="skipBankTransaction" :disabled="props.matching"> Skip </q-btn>
-        <q-space></q-space>
-        <q-btn v-if="!props.asPanel" color="negative" @click="closeDialog(false)" :disabled="props.matching"> Close </q-btn>
       </q-card-actions>
     </q-card>
 
@@ -289,7 +280,7 @@
     />
 
     <!-- Snackbar handled via $q.notify -->
-  </component>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -311,7 +302,6 @@ const familyStore = useFamilyStore();
 const $q = useQuasar();
 
 const props = defineProps<{
-  showDialog: boolean;
   remainingImportedTransactions: ImportedTransaction[];
   selectedBankTransaction: ImportedTransaction | null;
   transactions: Transaction[];
@@ -319,11 +309,9 @@ const props = defineProps<{
   matching: boolean;
   categoryOptions: string[];
   userId: string;
-  asPanel?: boolean;
 }>();
 
 const emit = defineEmits<{
-  (e: "update:showDialog", value: boolean): void;
   (e: "add-new-transaction", importedTx: ImportedTransaction): void;
   (e: "transactions-updated"): void;
   (e: "update:matching", value: boolean): void;
@@ -331,27 +319,34 @@ const emit = defineEmits<{
 
 // Local reactive state
 const isReady = ref(false);
-const smartMatches = ref<
-  Array<{
-    importedTransaction: ImportedTransaction;
-    budgetTransaction: Transaction;
-    budgetId: string;
-    bankAmount: number;
-    bankType: string;
-  }>
->([]);
+type SmartMatchRow = {
+  importedTransaction: ImportedTransaction;
+  budgetTransaction: Transaction;
+  budgetId: string;
+  bankAmount: number;
+  bankType: string;
+  bankDate: string;
+  payee: string;
+  merchant: string;
+  budgetDate: string;
+  budgetAmount: number;
+  budgetType: string;
+};
+
+const smartMatches = ref<SmartMatchRow[]>([]);
 const remainingImportedTransactions = ref<ImportedTransaction[]>(props.remainingImportedTransactions || []);
 const selectedBankTransaction = ref<ImportedTransaction | null>(props.selectedBankTransaction || null);
 
 // Snackbar timeout state for notifications
 const timeout = ref(3000);
+const findingSmartMatches = ref(false);
 
 // Local state for Smart Matches sorting
 const selectedSmartMatchIds = ref<string[]>([]);
-const smartMatchesSortField = ref<string>("postedDate");
+const smartMatchesSortField = ref<string>("bankDate");
 const smartMatchesSortDirection = ref<"asc" | "desc">("asc");
 const smartMatchesSortFields = [
-  { text: "Bank Date", value: "postedDate" },
+  { text: "Bank Date", value: "bankDate" },
   { text: "Merchant", value: "merchant" },
   { text: "Amount", value: "bankAmount" },
 ];
@@ -394,7 +389,6 @@ const newTransaction = ref<Transaction>({
 } as Transaction);
 const newTransactionBudgetId = ref<string>(""); // Track budgetId for TransactionDialog
 
-const isMobile = computed(() => $q.screen.lt.md);
 
 const entityOptions = computed(() => {
   return (familyStore.family?.entities || []).map((entity) => ({
@@ -410,25 +404,19 @@ const remainingSplitAmount = computed(() => {
   return Math.round((totalAmount - allocated) * 100) / 100;
 });
 
-type SmartMatchRow = {
-  importedTransaction: ImportedTransaction;
-  budgetTransaction: Transaction;
-  budgetId: string;
-  bankAmount: number;
-  bankType: string;
-};
-
 const smartMatchColumns = [
-  { name: 'importedDate', label: 'Bank Date', field: (row: SmartMatchRow) => row.importedTransaction.postedDate, sortable: true },
+  { name: 'bankDate', label: 'Bank Date', field: 'bankDate', sortable: true },
   { name: 'bankAmount', label: 'Bank Amount', field: 'bankAmount', sortable: true },
   { name: 'bankType', label: 'Bank Type', field: 'bankType', sortable: true },
-  { name: 'payee', label: 'Payee', field: (row: SmartMatchRow) => row.importedTransaction.payee, sortable: true },
-  { name: 'merchant', label: 'Merchant', field: (row: SmartMatchRow) => row.budgetTransaction.merchant, sortable: true },
-  { name: 'budgetDate', label: 'Budget Date', field: (row: SmartMatchRow) => row.budgetTransaction.date, sortable: true },
-  { name: 'budgetAmount', label: 'Budget Amount', field: (row: SmartMatchRow) => row.budgetTransaction.amount, sortable: true },
-  { name: 'budgetType', label: 'Budget Type', field: (row: SmartMatchRow) => (row.budgetTransaction.isIncome ? 'Income' : 'Expense') },
+  { name: 'payee', label: 'Payee', field: 'payee', sortable: true },
+  { name: 'merchant', label: 'Merchant', field: 'merchant', sortable: true },
+  { name: 'budgetDate', label: 'Budget Date', field: 'budgetDate', sortable: true },
+  { name: 'budgetAmount', label: 'Budget Amount', field: 'budgetAmount', sortable: true },
+  { name: 'budgetType', label: 'Budget Type', field: 'budgetType' },
   { name: 'actions', label: 'Actions', field: 'actions' },
 ];
+
+const rowKey = (row: SmartMatchRow) => row.importedTransaction.id;
 
 type TxRow = Transaction;
 const budgetTransactionColumns = [
@@ -465,12 +453,12 @@ const sortedSmartMatches = computed(() => {
     let valueA: number | string = 0;
     let valueB: number | string = 0;
 
-    if (field === "postedDate") {
-      valueA = new Date(a.importedTransaction.postedDate).getTime();
-      valueB = new Date(b.importedTransaction.postedDate).getTime();
+    if (field === "bankDate") {
+      valueA = new Date(a.bankDate).getTime();
+      valueB = new Date(b.bankDate).getTime();
     } else if (field === "merchant") {
-      valueA = a.budgetTransaction.merchant.toLowerCase();
-      valueB = b.budgetTransaction.merchant.toLowerCase();
+      valueA = a.merchant.toLowerCase();
+      valueB = b.merchant.toLowerCase();
     } else if (field === "bankAmount") {
       valueA = a.bankAmount;
       valueB = b.bankAmount;
@@ -512,15 +500,6 @@ const sortedPotentialMatches = computed(() => {
 onMounted(async () => {
   await initializeState();
 });
-
-watch(
-  () => props.showDialog,
-  async (newVal) => {
-    if (newVal) {
-      await initializeState();
-    }
-  }
-);
 
 watch(
   () => smartMatchDateRange.value,
@@ -594,12 +573,21 @@ watch(
 );
 
 // Methods
-function closeDialog(value: boolean) {
-  if (props.asPanel) return;
-  emit("update:showDialog", value);
-  if (!value) {
-    emit("transactions-updated");
-    isReady.value = false;
+function findSmartMatches() {
+  findingSmartMatches.value = true;
+  try {
+    smartMatches.value = [];
+    computeSmartMatchesLocal();
+    showSnackbar(
+      `Found ${smartMatches.value.length} smart match${smartMatches.value.length !== 1 ? "es" : ""}`,
+      "info"
+    );
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error("Error finding smart matches:", err);
+    showSnackbar(`Error finding smart matches: ${err.message}`, "negative");
+  } finally {
+    findingSmartMatches.value = false;
   }
 }
 
@@ -773,7 +761,7 @@ function skipBankTransaction() {
     searchBudgetTransactions();
   } else {
     if (smartMatches.value.length === 0) {
-      if (!props.asPanel) closeDialog(false);
+      emit("transactions-updated");
       showSnackbar("All bank transactions have been processed", "success");
     } else {
       currentBankTransactionIndex.value = -1;
@@ -1155,6 +1143,12 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
       budgetId: match.budgetId,
       bankAmount: match.bankAmount,
       bankType: match.bankType,
+      bankDate: match.importedTx.postedDate,
+      payee: match.importedTx.payee,
+      merchant: match.budgetTx.merchant,
+      budgetDate: match.budgetTx.date,
+      budgetAmount: match.budgetTx.amount,
+      budgetType: match.budgetTx.isIncome ? 'Income' : 'Expense',
     });
   });
 
@@ -1188,7 +1182,7 @@ function resetState(computeMatches = true) {
   currentBankTransactionIndex.value = remainingImportedTransactions.value.length > 0 ? 0 : -1;
   potentialMatches.value = [];
   selectedBudgetTransactionForMatch.value = [];
-  smartMatchesSortField.value = "postedDate";
+  smartMatchesSortField.value = "bankDate";
   smartMatchesSortDirection.value = "asc";
   potentialMatchesSortField.value = "date";
   potentialMatchesSortDirection.value = "asc";

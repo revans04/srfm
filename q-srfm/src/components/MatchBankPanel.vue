@@ -1,18 +1,21 @@
 <template>
-  <MatchBankTransactionsDialog
-    v-if="ready"
-    as-panel
-    :show-dialog="true"
-    :remaining-imported-transactions="remainingImportedTransactions"
-    :selected-bank-transaction="selectedBankTransaction"
-    :transactions="transactions"
-    :budget-id="budgetId"
-    :matching="matching"
-    :category-options="categoryOptions"
-    :user-id="userId"
-    @update:matching="matching = $event"
-    @transactions-updated="loadData"
-  />
+  <div class="relative-position" :class="{ 'cursor-wait': !ready }" style="min-height: 200px">
+    <MatchBankTransactionsDialog
+      v-if="ready"
+      :remaining-imported-transactions="remainingImportedTransactions"
+      :selected-bank-transaction="selectedBankTransaction"
+      :transactions="transactions"
+      :budget-id="budgetId"
+      :matching="matching"
+      :category-options="categoryOptions"
+      :user-id="userId"
+      @update:matching="matching = $event"
+      @transactions-updated="loadData"
+    />
+    <q-inner-loading :showing="!ready">
+      <q-spinner color="primary" />
+    </q-inner-loading>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -49,10 +52,23 @@ async function loadData() {
 
   const txs: Transaction[] = [];
   const cats = new Set<string>();
-  budgetStore.budgets.forEach((budget) => {
-    (budget.transactions || []).forEach((t) => txs.push(t));
-    (budget.categories || []).forEach((c) => cats.add(c.name));
-  });
+
+  for (const [id, budget] of budgetStore.budgets.entries()) {
+    let full = budget;
+    if (!full.transactions || full.transactions.length === 0) {
+      full = await dataAccess.getBudget(id);
+      if (full) {
+        budgetStore.updateBudget(id, full);
+      } else {
+        continue;
+      }
+    }
+    (full.transactions || [])
+      .filter((t) => !t.deleted && (!t.status || t.status === 'U'))
+      .forEach((t) => txs.push(t));
+    (full.categories || []).forEach((c) => cats.add(c.name));
+  }
+
   transactions.value = txs;
   categoryOptions.value = ['Income', ...Array.from(cats).sort((a, b) => b.localeCompare(a))];
 
