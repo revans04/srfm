@@ -26,7 +26,8 @@ namespace FamilyBudgetApi.Controllers
 
         /// <summary>
         /// Perform a full synchronization from Firestore to Supabase.
-        /// This will upsert all budgets and transactions.
+        /// This will upsert families, users, accounts, snapshots,
+        /// budgets, transactions, and imported transactions.
         /// </summary>
         [HttpPost("full")]
         public async Task<IActionResult> FullSync()

@@ -32,6 +32,8 @@ namespace FamilyBudgetApi.Services
         public async Task FullSyncFirestoreToSupabaseAsync()
         {
             _logger.LogInformation("Starting full Firestore → Supabase sync.");
+            await SyncUsersAsync(null);
+            await SyncFamiliesAsync(null);
             await SyncAccountsAsync(null);
             await SyncSnapshotsAsync(null);
             await SyncBudgetsAsync(null);
@@ -48,11 +50,170 @@ namespace FamilyBudgetApi.Services
         {
             var sinceUtc = since.Kind == DateTimeKind.Utc ? since : since.ToUniversalTime();
             _logger.LogInformation("Starting incremental Firestore → Supabase sync since {Since}.", sinceUtc);
+            await SyncUsersAsync(sinceUtc);
+            await SyncFamiliesAsync(sinceUtc);
             await SyncAccountsAsync(sinceUtc);
             await SyncSnapshotsAsync(sinceUtc);
             await SyncBudgetsAsync(sinceUtc);
             await SyncImportedTransactionsAsync(sinceUtc);
             _logger.LogInformation("Completed incremental Firestore → Supabase sync.");
+        }
+
+        private async Task SyncUsersAsync(DateTime? updatedSince)
+        {
+            Query query = _firestoreDb.Collection("users");
+            if (updatedSince.HasValue)
+            {
+                var ts = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(updatedSince.Value.ToUniversalTime());
+                query = query.WhereGreaterThanOrEqualTo("updatedAt", ts);
+            }
+
+            var snapshot = await query.GetSnapshotAsync();
+            var supabaseUsers = new List<PgUser>();
+
+            foreach (var doc in snapshot.Documents)
+            {
+                var user = doc.ConvertTo<UserData>();
+                var createdAt = doc.CreateTime?.ToDateTime() ?? DateTime.UtcNow;
+                var updatedAt = doc.UpdateTime?.ToDateTime() ?? createdAt;
+                supabaseUsers.Add(new PgUser
+                {
+                    Uid = user.Uid ?? doc.Id,
+                    Email = user.Email,
+                    CreatedAt = createdAt,
+                    UpdatedAt = updatedAt
+                });
+            }
+
+            if (supabaseUsers.Count == 0)
+            {
+                _logger.LogInformation("No users to upsert into Supabase.");
+                return;
+            }
+
+            await using var conn = CreateNpgsqlConnection();
+            await conn.OpenAsync();
+
+            const string sql = @"INSERT INTO users (uid, email, created_at, updated_at)
+                VALUES (@uid, @email, @created_at, @updated_at)
+                ON CONFLICT (uid) DO UPDATE SET
+                    email = COALESCE(EXCLUDED.email, users.email),
+                    created_at = COALESCE(users.created_at, EXCLUDED.created_at),
+                    updated_at = COALESCE(EXCLUDED.updated_at, users.updated_at);";
+
+            await using var transaction = await conn.BeginTransactionAsync();
+            foreach (var u in supabaseUsers)
+            {
+                await using var cmd = new NpgsqlCommand(sql, conn, transaction);
+                cmd.Parameters.AddWithValue("uid", u.Uid);
+                cmd.Parameters.AddWithValue("email", (object?)u.Email ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("created_at", u.CreatedAt);
+                cmd.Parameters.AddWithValue("updated_at", u.UpdatedAt);
+                await cmd.ExecuteNonQueryAsync();
+            }
+            await transaction.CommitAsync();
+        }
+
+        private async Task SyncFamiliesAsync(DateTime? updatedSince)
+        {
+            Query query = _firestoreDb.Collection("families");
+            if (updatedSince.HasValue)
+            {
+                var ts = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(updatedSince.Value.ToUniversalTime());
+                query = query.WhereGreaterThanOrEqualTo("updatedAt", ts);
+            }
+
+            var snapshot = await query.GetSnapshotAsync();
+            var supabaseFamilies = new List<PgFamily>();
+            var supabaseMembers = new List<PgFamilyMember>();
+
+            foreach (var doc in snapshot.Documents)
+            {
+                var family = doc.ConvertTo<Family>();
+                var familyId = TryParseGuid(family.Id) ?? Guid.NewGuid();
+                var createdAt = family.CreatedAt.ToDateTime();
+                var updatedAt = family.UpdatedAt.ToDateTime();
+
+                supabaseFamilies.Add(new PgFamily
+                {
+                    Id = familyId,
+                    Name = family.Name,
+                    OwnerUid = family.OwnerUid,
+                    CreatedAt = createdAt,
+                    UpdatedAt = updatedAt
+                });
+
+                if (family.Members != null)
+                {
+                    foreach (var m in family.Members)
+                    {
+                        if (m.Uid != null)
+                        {
+                            supabaseMembers.Add(new PgFamilyMember
+                            {
+                                FamilyId = familyId,
+                                UserId = m.Uid,
+                                Role = m.Role
+                            });
+                        }
+                    }
+                }
+            }
+
+            if (supabaseFamilies.Count == 0)
+            {
+                _logger.LogInformation("No families to upsert into Supabase.");
+                return;
+            }
+
+            await using var conn = CreateNpgsqlConnection();
+            await conn.OpenAsync();
+
+            const string famSql = @"INSERT INTO families (id, name, owner_uid, created_at, updated_at)
+                VALUES (@id, @name, @owner_uid, @created_at, @updated_at)
+                ON CONFLICT (id) DO UPDATE SET
+                    name = COALESCE(EXCLUDED.name, families.name),
+                    owner_uid = COALESCE(EXCLUDED.owner_uid, families.owner_uid),
+                    created_at = COALESCE(families.created_at, EXCLUDED.created_at),
+                    updated_at = COALESCE(EXCLUDED.updated_at, families.updated_at);";
+
+            await using var transaction = await conn.BeginTransactionAsync();
+            foreach (var f in supabaseFamilies)
+            {
+                await using var cmd = new NpgsqlCommand(famSql, conn, transaction);
+                cmd.Parameters.AddWithValue("id", f.Id);
+                cmd.Parameters.AddWithValue("name", f.Name);
+                cmd.Parameters.AddWithValue("owner_uid", (object?)f.OwnerUid ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("created_at", f.CreatedAt);
+                cmd.Parameters.AddWithValue("updated_at", f.UpdatedAt);
+                await cmd.ExecuteNonQueryAsync();
+            }
+            await transaction.CommitAsync();
+
+            if (supabaseMembers.Count == 0)
+            {
+                _logger.LogInformation("No family members to upsert into Supabase.");
+                return;
+            }
+
+            await using var memberTx = await conn.BeginTransactionAsync();
+            foreach (var group in supabaseMembers.GroupBy(m => m.FamilyId))
+            {
+                await using var delCmd = new NpgsqlCommand("DELETE FROM family_members WHERE family_id=@fid", conn, memberTx);
+                delCmd.Parameters.AddWithValue("fid", group.Key);
+                await delCmd.ExecuteNonQueryAsync();
+
+                foreach (var m in group)
+                {
+                    await using var cmd = new NpgsqlCommand(@"INSERT INTO family_members (family_id, user_id, role)
+                        VALUES (@fid, @uid, @role)", conn, memberTx);
+                    cmd.Parameters.AddWithValue("fid", m.FamilyId);
+                    cmd.Parameters.AddWithValue("uid", m.UserId);
+                    cmd.Parameters.AddWithValue("role", (object?)m.Role ?? DBNull.Value);
+                    await cmd.ExecuteNonQueryAsync();
+                }
+            }
+            await memberTx.CommitAsync();
         }
 
         private async Task SyncAccountsAsync(DateTime? updatedSince)
@@ -754,6 +915,39 @@ namespace FamilyBudgetApi.Services
         public Guid? EntityId { get; set; }
         public DateTime? CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
+    }
+
+    /// <summary>
+    /// Represents the 'users' table.
+    /// </summary>
+    public class PgUser
+    {
+        public string Uid { get; set; } = string.Empty;
+        public string? Email { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
+    }
+
+    /// <summary>
+    /// Represents the 'families' table.
+    /// </summary>
+    public class PgFamily
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string? OwnerUid { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
+    }
+
+    /// <summary>
+    /// Represents rows in the 'family_members' table.
+    /// </summary>
+    public class PgFamilyMember
+    {
+        public Guid FamilyId { get; set; }
+        public string UserId { get; set; } = string.Empty;
+        public string? Role { get; set; }
     }
 
     /// <summary>
