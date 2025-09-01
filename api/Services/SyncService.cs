@@ -249,11 +249,13 @@ namespace FamilyBudgetApi.Services
                         updatedAt = familyDoc.UpdateTime?.ToDateTime() ?? createdAt;
                     }
 
+                    var accountId = TryParseGuid(account.Id) ?? Guid.NewGuid();
+                    var userGuid = TryParseGuid(account.UserId);
                     supabaseAccounts.Add(new PgAccount
                     {
-                        Id = account.Id,
+                        Id = accountId,
                         FamilyId = familyGuid,
-                        UserId = account.UserId,
+                        UserId = userGuid,
                         Name = account.Name,
                         Type = account.Type,
                         Category = account.Category,
@@ -979,9 +981,9 @@ namespace FamilyBudgetApi.Services
     /// </summary>
     public class PgAccount
     {
-        public string Id { get; set; } = string.Empty;
+        public Guid Id { get; set; }
         public Guid? FamilyId { get; set; }
-        public string? UserId { get; set; }
+        public Guid? UserId { get; set; }
         public string Name { get; set; } = string.Empty;
         public string Type { get; set; } = string.Empty;
         public string Category { get; set; } = string.Empty;
