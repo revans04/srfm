@@ -255,10 +255,7 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
 
         if (budget.Transactions != null && budget.Transactions.Count > 0)
         {
-            foreach (var tx in budget.Transactions)
-            {
-                await SaveTransaction(budgetId, tx, userId, userEmail);
-            }
+            await BatchSaveTransactions(budgetId, budget.Transactions, userId, userEmail);
         }
         await LogEdit(conn, budgetId, userId, userEmail, "save-budget");
         _logger.LogInformation("Budget {BudgetId} saved with {TxCount} transactions", budgetId, budget.Transactions?.Count ?? 0);
