@@ -253,6 +253,10 @@
               </div>
             </q-card-section>
           </q-card>
+          <SavingsConversionPrompt
+            v-if="legacySavingsCategories.length"
+            :categories="legacySavingsCategories"
+          />
 
           <GoalsGroupCard
             :entity-id="familyStore.selectedEntityId || ''"
@@ -390,6 +394,7 @@ import EntitySelector from '../components/EntitySelector.vue';
 import GoalsGroupCard from '../components/goals/GoalsGroupCard.vue';
 import GoalDialog from '../components/goals/GoalDialog.vue';
 import ContributeDialog from '../components/goals/ContributeDialog.vue';
+import SavingsConversionPrompt from '../components/goals/SavingsConversionPrompt.vue';
 import type { Transaction, Budget, IncomeTarget, BudgetCategoryTrx, BudgetCategory, Goal } from '../types';
 import { EntityType } from '../types';
 import version from '../version';
@@ -458,6 +463,9 @@ const goals = ref<Goal[]>([]);
 const goalDialog = ref(false);
 const contributeDialog = ref(false);
 const selectedGoal = ref<Goal | null>(null);
+const legacySavingsCategories = computed(() =>
+  budget.value.categories.filter((c) => c.isFund)
+);
 const ownerUid = ref<string | null>(null);
 const budgetId = computed(() => {
   if (!ownerUid.value || !familyStore.selectedEntityId) return '';
