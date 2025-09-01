@@ -269,7 +269,9 @@ watch(
   (t, old) => {
     if (old === 'budget') budgetFilters.value = { ...filters.value };
     if (old === 'register') registerFilters.value = { ...filters.value };
-    applyStoredFilters(t);
+    if (t === 'budget' || t === 'register') {
+      applyStoredFilters(t);
+    }
   },
   { immediate: true },
 );
