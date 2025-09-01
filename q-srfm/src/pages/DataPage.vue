@@ -19,16 +19,26 @@
             <q-card flat bordered class="bg-white q-pa-md" rounded>
               <q-card-section>Import Data</q-card-section>
               <q-card-section>
-                <q-select v-model="importType" :items="importTypes" label="Select Import Type" outlined class="q-mb-lg"></q-select>
+                <q-select
+                  v-model="importType"
+                  :options="importTypes"
+                  label="Select Import Type"
+                  outlined
+                  class="q-mb-lg"
+                  emit-value
+                  map-options
+                ></q-select>
 
                 <!-- Entity Selection or Creation -->
                 <div class="row" v-if="entityOptions.length > 0 && importType !== 'bankTransactions' && importType !== 'accountsAndSnapshots'">
                   <div class="col col-12 col-md-6">
                     <q-select
                       v-model="selectedEntityId"
-                      :items="entityOptions"
-                      item-title="name"
-                      item-value="id"
+                      :options="entityOptions"
+                      option-label="name"
+                      option-value="id"
+                      emit-value
+                      map-options
                       label="Select Entity"
                       outlined
                       dense
@@ -58,9 +68,11 @@
                     <div class="col col-12 col-md-6">
                       <q-select
                         v-model="selectedAccountId"
-                        :items="formattedAccounts"
-                        item-title="title"
-                        item-value="value"
+                        :options="formattedAccounts"
+                        option-label="title"
+                        option-value="value"
+                        emit-value
+                        map-options
                         label="Select Account for Transactions"
                         outlined
                         :rules="[(v) => !!v || 'Account selection is required']"
@@ -90,10 +102,12 @@
                         <h3>Map CSV Columns to Fields</h3>
                         <q-select
                           v-model="amountFormat"
-                          :items="amountFormatOptions"
+                          :options="amountFormatOptions"
                           label="How are Credits/Debits Represented?"
                           outlined
                           class="q-mb-lg"
+                          emit-value
+                          map-options
                         ></q-select>
 
                         <!-- Common Fields -->
@@ -101,7 +115,7 @@
                           <div class="col col-12 col-md-6">
                             <q-select
                               v-model="fieldMapping[field.key]"
-                              :items="csvHeaders"
+                              :options="csvHeaders"
                               :label="field.label"
                               outlined
                               clearable
@@ -116,7 +130,7 @@
                             <div class="col col-12 col-md-6">
                               <q-select
                                 v-model="fieldMapping.creditAmount"
-                                :items="csvHeaders"
+                                :options="csvHeaders"
                                 label="Credit Amount"
                                 outlined
                                 clearable
@@ -128,7 +142,7 @@
                             <div class="col col-12 col-md-6">
                               <q-select
                                 v-model="fieldMapping.debitAmount"
-                                :items="csvHeaders"
+                                :options="csvHeaders"
                                 label="Debit Amount"
                                 outlined
                                 clearable
@@ -142,7 +156,7 @@
                             <div class="col col-12 col-md-6">
                               <q-select
                                 v-model="fieldMapping.transactionType"
-                                :items="csvHeaders"
+                                :options="csvHeaders"
                                 label="Transaction Type Column"
                                 outlined
                                 clearable
@@ -174,7 +188,7 @@
                             <div class="col col-12 col-md-6">
                               <q-select
                                 v-model="fieldMapping.amount"
-                                :items="csvHeaders"
+                                :options="csvHeaders"
                                 label="Amount"
                                 outlined
                                 clearable
@@ -188,7 +202,7 @@
                             <div class="col col-12 col-md-6">
                               <q-select
                                 v-model="fieldMapping.amount"
-                                :items="csvHeaders"
+                                :options="csvHeaders"
                                 label="Amount (Positive = Credit, Negative = Debit)"
                                 outlined
                                 clearable

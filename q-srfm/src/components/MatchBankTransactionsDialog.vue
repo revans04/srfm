@@ -27,12 +27,14 @@
                   <div class="col col-12 col-md-4">
                     <q-select
                       v-model="smartMatchesSortField"
-                      :items="smartMatchesSortFields"
+                      :options="smartMatchesSortFields"
+                      option-label="text"
+                      option-value="value"
+                      emit-value
+                      map-options
                       label="Sort By"
                       variant="outlined"
                       density="compact"
-                      item-title="text"
-                      item-value="value"
                       @update:model-value="sortSmartMatches"
                     ></q-select>
                   </div>
@@ -158,9 +160,11 @@
                     <div class="col col-12 col-md-3">
                       <q-select
                         v-model="split.entityId"
-                        :items="entityOptions"
-                        item-title="name"
-                        item-value="id"
+                        :options="entityOptions"
+                        option-label="name"
+                        option-value="id"
+                        emit-value
+                        map-options
                         label="Entity"
                         variant="outlined"
                         density="compact"
@@ -170,7 +174,7 @@
                     <div class="col col-12 col-md-3">
                       <q-select
                         v-model="split.category"
-                        :items="props.categoryOptions"
+                        :options="props.categoryOptions"
                         label="Category"
                         variant="outlined"
                         density="compact"
@@ -206,12 +210,14 @@
                   <div class="col col-12 col-md-4">
                     <q-select
                       v-model="potentialMatchesSortField"
-                      :items="potentialMatchesSortFields"
+                      :options="potentialMatchesSortFields"
+                      option-label="text"
+                      option-value="value"
+                      emit-value
+                      map-options
                       label="Sort By"
                       variant="outlined"
                       density="compact"
-                      item-title="text"
-                      item-value="value"
                       @update:model-value="sortPotentialMatches"
                     ></q-select>
                   </div>

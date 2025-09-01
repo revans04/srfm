@@ -19,10 +19,12 @@
           <div class="col col-12 col-md-6">
             <q-select
               v-model="selectedBudgets"
-              :items="budgetOptions"
+              :options="budgetOptions"
+              option-label="month"
+              option-value="budgetId"
+              emit-value
+              map-options
               label="Select Budgets"
-              item-title="month"
-              item-value="budgetId"
               multiple
               variant="outlined"
               chips
@@ -36,7 +38,7 @@
           <div class="col col-12 col-md-6">
             <q-select
               v-model="excludedGroups"
-              :items="groupOptions"
+              :options="groupOptions"
               label="Exclude Groups"
               multiple
               variant="outlined"
@@ -48,7 +50,7 @@
           <div class="col col-12 col-md-6">
             <q-select
               v-model="excludedCategories"
-              :items="categoryOptions"
+              :options="categoryOptions"
               label="Exclude Categories"
               multiple
               variant="outlined"

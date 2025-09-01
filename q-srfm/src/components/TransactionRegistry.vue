@@ -5,11 +5,13 @@
       <div class="col col-12 col-md-4">
         <q-select
           v-model="selectedStatementId"
-          :items="statementOptions"
+          :options="statementOptions"
+          option-label="title"
+          option-value="id"
+          emit-value
+          map-options
           label="Select Statement"
           variant="outlined"
-          item-title="title"
-          item-value="id"
         ></q-select>
       </div>
       <div class="col col-auto">
@@ -70,11 +72,13 @@
           <div class="col col-12 col-md-4">
             <q-select
               v-model="selectedAccount"
-              :items="accountOptions"
+              :options="accountOptions"
+              option-label="title"
+              option-value="value"
+              emit-value
+              map-options
               placeholder="Account"
               variant="outlined"
-              item-title="title"
-              item-value="value"
               clearable
               @update:modelValue="loadTransactions"
             ></q-select>
@@ -286,13 +290,15 @@
               <div class="col">
                 <q-select
                   v-model="selectedEntityId"
-                  :items="entityOptions"
+                  :options="entityOptions"
+                  option-label="name"
+                  option-value="id"
+                  emit-value
+                  map-options
                   label="Select Entity"
                   variant="outlined"
                   density="compact"
                   :rules="requiredField"
-                  item-title="name"
-                  item-value="id"
                 ></q-select>
               </div>
             </div>
@@ -305,7 +311,7 @@
                   <q-input v-model="entry.merchant" label="Merchant" dense :rules="requiredField" />
                 </q-item-section>
                 <q-item-section>
-                  <q-select v-model="entry.category" :items="categoryOptions" label="Category" dense :rules="requiredField" />
+                  <q-select v-model="entry.category" :options="categoryOptions" label="Category" dense :rules="requiredField" />
                 </q-item-section>
               </q-item>
             </q-list>

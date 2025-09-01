@@ -13,7 +13,11 @@
             <q-select
               v-model="entityType"
               label="Entity Type"
-              :items="entityTypeOptions"
+              :options="entityTypeOptions"
+              option-label="title"
+              option-value="value"
+              emit-value
+              map-options
               required
               density="compact"
               :rules="[(v: string) => !!v || 'Entity Type is required']"
@@ -26,9 +30,11 @@
             <q-select
               v-model="entityTaxFormIds"
               label="Applicable Tax Forms"
-              :items="availableTaxForms"
-              item-title="name"
-              item-value="id"
+              :options="availableTaxForms"
+              option-label="name"
+              option-value="id"
+              emit-value
+              map-options
               multiple
               chips
               closable-chips
