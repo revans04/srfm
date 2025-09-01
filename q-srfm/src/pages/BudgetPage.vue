@@ -293,8 +293,9 @@
                           name="savings"
                         />
                         <span>{{ item.name }}</span>
+                        <!-- show the convert icon if the category is in legacySavingsCategories -->
                         <q-icon
-                          v-if="item.isFund"
+                          v-if="legacySavingsCategories.find((c) => c.name === item.name)"
                           name="change_circle"
                           size="xs"
                           class="q-ml-xs cursor-pointer"
