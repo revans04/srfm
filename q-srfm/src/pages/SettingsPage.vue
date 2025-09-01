@@ -3,14 +3,14 @@
   <q-page>
     <h1>Settings</h1>
 
-    <q-banner v-if="userEmail && !emailVerified" type="warning" class="mb-4">
+    <q-banner v-if="userEmail && !emailVerified" type="warning" class="q-mb-lg">
       Your email ({{ userEmail }}) is not verified. Please check your inbox or resend the verification email.
       <template v-slot:action>
         <q-btn variant="plain" @click="sendVerificationEmail" :loading="resending">Resend</q-btn>
       </template>
     </q-banner>
 
-    <q-tabs v-model="activeTab" color="primary" class="mt-4">
+    <q-tabs v-model="activeTab" color="primary" class="q-mt-lg">
       <q-tab name="group" label="Manage Family/Group" />
       <q-tab name="entity" label="Manage Entities" />
       <q-tab name="manageTransactions" label="Manage Imports" />
@@ -20,7 +20,7 @@
     <q-tab-panels v-model="activeTab">
       <!-- Group Management Tab -->
       <q-tab-panel name="group">
-        <q-card class="mt-4">
+        <q-card class="q-mt-lg">
           <q-card-section>Family/Group Information</q-card-section>
           <q-card-section>
             <q-list>
@@ -39,7 +39,7 @@
           </q-card-section>
         </q-card>
 
-        <q-card class="mt-4">
+        <q-card class="q-mt-lg">
           <q-card-section>Data Sync</q-card-section>
           <q-card-section>
             <div class="row items-center q-col-gutter-sm">
@@ -87,22 +87,50 @@
             <div class="text-caption q-mt-sm text-secondary">
               Runs an incremental sync for changes since the selected date/time.
             </div>
+
+            <q-separator class="q-my-md" />
+
+            <div class="row q-col-gutter-sm q-mt-sm">
+              <div class="col-auto">
+                <q-btn color="primary" :loading="syncingUsers" @click="syncUsersNow">
+                  <q-icon name="person" class="q-mr-sm" /> Sync Users
+                </q-btn>
+              </div>
+              <div class="col-auto">
+                <q-btn color="primary" :loading="syncingFamilies" @click="syncFamiliesNow">
+                  <q-icon name="groups" class="q-mr-sm" /> Sync Families
+                </q-btn>
+              </div>
+              <div class="col-auto">
+                <q-btn color="primary" :loading="syncingAccounts" @click="syncAccountsNow">
+                  <q-icon name="account_balance" class="q-mr-sm" /> Sync Accounts
+                </q-btn>
+              </div>
+              <div class="col-auto">
+                <q-btn color="primary" :loading="syncingSnapshots" @click="syncSnapshotsNow">
+                  <q-icon name="photo_camera" class="q-mr-sm" /> Sync Snapshots
+                </q-btn>
+              </div>
+            </div>
+            <div class="text-caption q-mt-sm text-secondary">
+              Run targeted syncs for individual datasets.
+            </div>
           </q-card-section>
         </q-card>
       </q-tab-panel>
 
       <!-- Entity Management Tab -->
       <q-tab-panel name="entity">
-        <q-card class="mt-4">
+        <q-card class="q-mt-lg">
           <q-card-section>Entities</q-card-section>
           <q-card-section>
-            <q-btn color="primary" @click="openCreateEntityDialog" class="mb-4">Add Entity</q-btn>
+            <q-btn color="primary" @click="openCreateEntityDialog" class="q-mb-lg">Add Entity</q-btn>
             <q-list>
               <q-item v-for="entity in entities" :key="entity.id">
                 <div class="row dense">
                   <div class="col">
                     {{ entity.name }} ({{ entity.type }}) - Owner: {{ entity.members.find((m) => m.role === "Admin")?.email || "N/A" }}
-                    <q-chip v-if="entity.templateBudget" color="positive" size="small" class="ml-2">Has Template</q-chip>
+                    <q-chip v-if="entity.templateBudget" color="positive" size="small" class="q-ml-sm">Has Template</q-chip>
                   </div>
                   <div class="col col-auto">
                     <q-btn variant="plain" color="primary" @click="openEditEntityDialog(entity)" icon="edit" />
@@ -125,22 +153,33 @@
             <q-card>
               <q-card-section>Imported Transaction</q-card-section>
               <q-card-section>
-                <q-table :columns="transactionDocColumns" :rows="importedTransactionDocs" :pagination="{ rowsPerPage: 10 }" class="elevation-1">
+                <q-table
+                  :columns="transactionDocColumns"
+                  :rows="importedTransactionDocs"
+                  :pagination="{ rowsPerPage: 10 }"
+                  class="elevation-1"
+                >
                   <template #body-cell-createdAt="props">
-                    {{ getDateRange(props.row) }}
+                    <q-td :props="props">
+                      {{ getDateRange(props.row) }}
+                    </q-td>
                   </template>
                   <template #body-cell-account="props">
-                    {{ getAccountInfo(props.row) }}
+                    <q-td :props="props">
+                      {{ getAccountInfo(props.row) }}
+                    </q-td>
                   </template>
                   <template #body-cell-actions="props">
-                    <q-btn
-                      density="compact"
-                      variant="plain"
-                      color="negative"
-                      @click.stop="confirmDeleteTransactionDoc(props.row)"
-                      title="Delete Transaction Document"
-                      icon="o_delete"
-                    />
+                    <q-td :props="props">
+                      <q-btn
+                        density="compact"
+                        variant="plain"
+                        color="negative"
+                        @click.stop="confirmDeleteTransactionDoc(props.row)"
+                        title="Delete Transaction Document"
+                        icon="o_delete"
+                      />
+                    </q-td>
                   </template>
                 </q-table>
                 <div class="q-mt-md">
@@ -161,15 +200,33 @@
             <q-card>
               <q-card-section>Monthly Budgets</q-card-section>
               <q-card-section>
-                <q-table :columns="budgetColumns" :rows="budgets" :pagination="{ rowsPerPage: 10 }" class="elevation-1">
+                <q-table
+                  :columns="budgetColumns"
+                  :rows="budgets"
+                  :pagination="{ rowsPerPage: 10 }"
+                  class="elevation-1"
+                >
                   <template #body-cell-entityName="props">
-                    {{ getEntityName(props.row.entityId) }}
+                    <q-td :props="props">
+                      {{ getEntityName(props.row.entityId) }}
+                    </q-td>
                   </template>
                   <template #body-cell-transactionCount="props">
-                    {{ props.row.transactions?.length || 0 }}
+                    <q-td :props="props">
+                      {{ props.row.transactions?.length || 0 }}
+                    </q-td>
                   </template>
                   <template #body-cell-actions="props">
-                    <q-btn density="compact" variant="plain" color="negative" @click.stop="confirmDeleteBudget(props.row)" title="Delete Budget" icon="o_delete" />
+                    <q-td :props="props">
+                      <q-btn
+                        density="compact"
+                        variant="plain"
+                        color="negative"
+                        @click.stop="confirmDeleteBudget(props.row)"
+                        title="Delete Budget"
+                        icon="o_delete"
+                      />
+                    </q-td>
                   </template>
                 </q-table>
                 <div class="q-mt-md">
@@ -293,6 +350,10 @@ const validatingBudgets = ref(false);
 const validatingImports = ref(false);
 const syncing = ref(false);
 const syncingIncremental = ref(false);
+const syncingUsers = ref(false);
+const syncingFamilies = ref(false);
+const syncingAccounts = ref(false);
+const syncingSnapshots = ref(false);
 const syncSinceDate = ref<string>(''); // format: YYYY-MM-DD
 const syncSinceTime = ref<string>(''); // format: HH:mm (24h)
 
@@ -335,7 +396,7 @@ const budgetColumns = [
 onMounted(async () => {
   const currentUser = auth.currentUser;
   if (!currentUser) {
-    showSnackbar("Please log in to view settings", "error");
+    showSnackbar("Please log in to view settings", "negative");
     return;
   }
   user.value = currentUser;
@@ -378,7 +439,7 @@ async function loadAllData() {
     budgets.value = await dataAccess.loadAccessibleBudgets(user.uid);
     importedTransactionDocs.value = await dataAccess.getImportedTransactionDocs();
   } catch (error: unknown) {
-    showSnackbar(`Error loading data: ${errorMessage(error)}`, "error");
+    showSnackbar(`Error loading data: ${errorMessage(error)}`, "negative");
   }
 }
 
@@ -419,18 +480,18 @@ function getDateRange(item: ImportedTransactionDoc): string {
 async function inviteMember() {
   const user = auth.currentUser;
   if (!user) {
-    showSnackbar("Please log in to invite users", "error");
+    showSnackbar("Please log in to invite users", "negative");
     return;
   }
 
   const normalizedEmail = inviteEmail.value.toLowerCase().trim();
   if (!normalizedEmail) {
-    showSnackbar("Please enter an email address", "error");
+    showSnackbar("Please enter an email address", "negative");
     return;
   }
 
   if (normalizedEmail === user.email?.toLowerCase()) {
-    showSnackbar("You cannot invite yourself", "error");
+    showSnackbar("You cannot invite yourself", "negative");
     return;
   }
 
@@ -445,7 +506,7 @@ async function inviteMember() {
     inviteEmail.value = "";
     await loadAllData();
   } catch (error: unknown) {
-    showSnackbar(`Error inviting user: ${errorMessage(error)}`, "error");
+    showSnackbar(`Error inviting user: ${errorMessage(error)}`, "negative");
   } finally {
     inviting.value = false;
   }
@@ -454,7 +515,7 @@ async function inviteMember() {
 async function removeMember(uid: string) {
   const user = auth.currentUser;
   if (!user || !family.value || !uid) {
-    showSnackbar("Cannot remove member: invalid family or user data", "error");
+    showSnackbar("Cannot remove member: invalid family or user data", "negative");
     return;
   }
 
@@ -463,14 +524,14 @@ async function removeMember(uid: string) {
     showSnackbar("Member removed");
     await loadAllData();
   } catch (error: unknown) {
-    showSnackbar(`Error removing member: ${errorMessage(error)}`, "error");
+    showSnackbar(`Error removing member: ${errorMessage(error)}`, "negative");
   }
 }
 
 async function sendVerificationEmail() {
   const user = auth.currentUser;
   if (!user) {
-    showSnackbar("Please log in to resend verification email", "error");
+    showSnackbar("Please log in to resend verification email", "negative");
     return;
   }
 
@@ -479,7 +540,7 @@ async function sendVerificationEmail() {
     await dataAccess.resendVerificationEmail();
     showSnackbar("Verification email sent. Please check your inbox.", "success");
   } catch (error: unknown) {
-    showSnackbar(`Error sending verification email: ${errorMessage(error)}`, "error");
+    showSnackbar(`Error sending verification email: ${errorMessage(error)}`, "negative");
   } finally {
     resending.value = false;
   }
@@ -523,7 +584,7 @@ async function deleteEntity() {
   try {
     // Prevent deletion if there are associated budgets
     if (associatedBudgets.value.length > 0) {
-      showSnackbar("Cannot delete entity: associated budgets exist. Delete budgets first.", "error");
+      showSnackbar("Cannot delete entity: associated budgets exist. Delete budgets first.", "negative");
       return;
     }
 
@@ -532,7 +593,7 @@ async function deleteEntity() {
     await loadAllData();
   } catch (error: unknown) {
     console.error("Error deleting entity:", error);
-    showSnackbar(`Error deleting entity: ${errorMessage(error)}`, "error");
+    showSnackbar(`Error deleting entity: ${errorMessage(error)}`, "negative");
   } finally {
     showDeleteEntityDialog.value = false;
     entityToDelete.value = null;
@@ -558,7 +619,7 @@ async function deleteTransactionDoc() {
     showSnackbar(`Transaction document ${docId} deleted successfully`, "success");
   } catch (error: unknown) {
     console.error("Error deleting transaction document:", error);
-    showSnackbar(`Error deleting transaction document: ${errorMessage(error)}`, "error");
+    showSnackbar(`Error deleting transaction document: ${errorMessage(error)}`, "negative");
   } finally {
     showDeleteDialog.value = false;
     transactionDocToDelete.value = null;
@@ -588,7 +649,7 @@ async function deleteBudget() {
     showSnackbar(`Budget ${budgetId} deleted successfully`, "success");
   } catch (error: unknown) {
     console.error("Error deleting budget:", error);
-    showSnackbar(`Error deleting budget: ${errorMessage(error)}`, "error");
+    showSnackbar(`Error deleting budget: ${errorMessage(error)}`, "negative");
   } finally {
     showDeleteBudgetDialog.value = false;
     budgetToDelete.value = null;
@@ -607,7 +668,7 @@ async function validateBudgetTransactions() {
   try {
     const currentUser = auth.currentUser;
     if (!currentUser) {
-      showSnackbar('User not authenticated', 'error');
+      showSnackbar('User not authenticated', 'negative');
       return;
     }
 
@@ -636,7 +697,7 @@ async function validateBudgetTransactions() {
     showSnackbar(`Validation complete. Updated ${budgetUpdates.length} budget transactions`, 'success');
   } catch (error: unknown) {
     console.error('Error validating budgets:', error);
-    showSnackbar(`Error validating budgets: ${errorMessage(error)}`, 'error');
+    showSnackbar(`Error validating budgets: ${errorMessage(error)}`, 'negative');
   } finally {
     $q.loading.hide();
     validatingBudgets.value = false;
@@ -678,7 +739,7 @@ async function validateImportedTransactions() {
     showSnackbar(`Validation complete. Updated ${importedUpdates.length} imported transactions`, 'success');
   } catch (error: unknown) {
     console.error('Error validating imported transactions:', error);
-    showSnackbar(`Error validating imported transactions: ${errorMessage(error)}`, 'error');
+    showSnackbar(`Error validating imported transactions: ${errorMessage(error)}`, 'negative');
   } finally {
     $q.loading.hide();
     validatingImports.value = false;
@@ -758,6 +819,62 @@ async function syncIncrementalNow() {
     showSnackbar(`Incremental sync failed: ${msg}`, 'negative');
   } finally {
     syncingIncremental.value = false;
+  }
+}
+
+async function syncUsersNow() {
+  syncingUsers.value = true;
+  try {
+    const msg = await dataAccess.syncUsers();
+    showSnackbar(msg || 'User sync completed', 'positive');
+  } catch (error: unknown) {
+    console.error('User sync error:', error);
+    const msg = toErrorMessage(error);
+    showSnackbar(`User sync failed: ${msg}`, 'negative');
+  } finally {
+    syncingUsers.value = false;
+  }
+}
+
+async function syncFamiliesNow() {
+  syncingFamilies.value = true;
+  try {
+    const msg = await dataAccess.syncFamilies();
+    showSnackbar(msg || 'Family sync completed', 'positive');
+  } catch (error: unknown) {
+    console.error('Family sync error:', error);
+    const msg = toErrorMessage(error);
+    showSnackbar(`Family sync failed: ${msg}`, 'negative');
+  } finally {
+    syncingFamilies.value = false;
+  }
+}
+
+async function syncAccountsNow() {
+  syncingAccounts.value = true;
+  try {
+    const msg = await dataAccess.syncAccounts();
+    showSnackbar(msg || 'Account sync completed', 'positive');
+  } catch (error: unknown) {
+    console.error('Account sync error:', error);
+    const msg = toErrorMessage(error);
+    showSnackbar(`Account sync failed: ${msg}`, 'negative');
+  } finally {
+    syncingAccounts.value = false;
+  }
+}
+
+async function syncSnapshotsNow() {
+  syncingSnapshots.value = true;
+  try {
+    const msg = await dataAccess.syncSnapshots();
+    showSnackbar(msg || 'Snapshot sync completed', 'positive');
+  } catch (error: unknown) {
+    console.error('Snapshot sync error:', error);
+    const msg = toErrorMessage(error);
+    showSnackbar(`Snapshot sync failed: ${msg}`, 'negative');
+  } finally {
+    syncingSnapshots.value = false;
   }
 }
 </script>

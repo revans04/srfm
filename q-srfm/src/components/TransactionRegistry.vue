@@ -5,11 +5,13 @@
       <div class="col col-12 col-md-4">
         <q-select
           v-model="selectedStatementId"
-          :items="statementOptions"
+          :options="statementOptions"
+          option-label="title"
+          option-value="id"
+          emit-value
+          map-options
           label="Select Statement"
           variant="outlined"
-          item-title="title"
-          item-value="id"
         ></q-select>
       </div>
       <div class="col col-auto">
@@ -27,7 +29,7 @@
     </div>
 
     <!-- Balance Display -->
-    <q-card class="mb-4" v-if="selectedAccount">
+    <q-card class="q-mb-lg" v-if="selectedAccount">
       <q-card-section>Account Balance</q-card-section>
       <q-card-section>
         <div class="row">
@@ -53,7 +55,7 @@
       </q-card-section>
     </q-card>
 
-    <q-card class="mb-4" v-if="selectedStatement">
+    <q-card class="q-mb-lg" v-if="selectedStatement">
       <q-card-section>Statement Totals</q-card-section>
       <q-card-section>
         <p>Start Balance: {{ formatCurrency(selectedStatement.startingBalance) }}</p>
@@ -63,18 +65,20 @@
 
     <!-- Loading handled via $q.loading -->
 
-    <q-card class="mb-4">
+    <q-card class="q-mb-lg">
       <q-card-section>Filters</q-card-section>
       <q-card-section>
         <div class="row">
           <div class="col col-12 col-md-4">
             <q-select
               v-model="selectedAccount"
-              :items="accountOptions"
+              :options="accountOptions"
+              option-label="title"
+              option-value="value"
+              emit-value
+              map-options
               placeholder="Account"
               variant="outlined"
-              item-title="title"
-              item-value="value"
               clearable
               @update:modelValue="loadTransactions"
             ></q-select>
@@ -157,7 +161,7 @@
           v-if="selectedRows.length > 0"
           color="primary"
           @click="openBatchMatchDialog"
-          class="mb-4"
+          class="q-mb-lg"
           :disabled="loading || !selectedRows.every(id => {
             const tx = displayTransactions.find((t: DisplayTransaction) => t.id === id);
             return tx && tx.status === 'U';
@@ -168,7 +172,7 @@
         <q-btn
           v-if="selectedRows.length > 0"
           color="warning"
-          class="mb-4 ml-2"
+          class="q-mb-lg q-ml-sm"
           @click="confirmBatchAction('Ignore')"
           :disabled="loading || !selectedRows.every(id => {
             const tx = displayTransactions.find((t: DisplayTransaction) => t.id === id);
@@ -180,7 +184,7 @@
         <q-btn
           v-if="selectedRows.length > 0"
           color="negative"
-          class="mb-4 ml-2"
+          class="q-mb-lg q-ml-sm"
           @click="confirmBatchAction('Delete')"
           :disabled="loading || !selectedRows.every(id => {
             const tx = displayTransactions.find((t: DisplayTransaction) => t.id === id);
@@ -286,13 +290,15 @@
               <div class="col">
                 <q-select
                   v-model="selectedEntityId"
-                  :items="entityOptions"
+                  :options="entityOptions"
+                  option-label="name"
+                  option-value="id"
+                  emit-value
+                  map-options
                   label="Select Entity"
                   variant="outlined"
                   density="compact"
                   :rules="requiredField"
-                  item-title="name"
-                  item-value="id"
                 ></q-select>
               </div>
             </div>
@@ -305,7 +311,7 @@
                   <q-input v-model="entry.merchant" label="Merchant" dense :rules="requiredField" />
                 </q-item-section>
                 <q-item-section>
-                  <q-select v-model="entry.category" :items="categoryOptions" label="Category" dense :rules="requiredField" />
+                  <q-select v-model="entry.category" :options="categoryOptions" label="Category" dense :rules="requiredField" />
                 </q-item-section>
               </q-item>
             </q-list>
@@ -443,14 +449,14 @@
               </div>
             </div>
             <q-btn type="submit" color="primary" :loading="saving">Save Adjustment</q-btn>
-            <q-btn color="grey" variant="text" @click="closeBalanceAdjustmentDialog" class="ml-2">Cancel</q-btn>
+            <q-btn color="grey" variant="text" @click="closeBalanceAdjustmentDialog" class="q-ml-sm">Cancel</q-btn>
           </q-form>
         </q-card-section>
       </q-card>
     </q-dialog>
 
     <!-- Reconcile Summary -->
-    <q-card class="mt-4" v-if="reconciling && selectedStatement">
+    <q-card class="q-mt-lg" v-if="reconciling && selectedStatement">
       <q-card-section class="bg-primary q-py-md">
         <span class="text-white">Reconcile Statement</span>
       </q-card-section>
@@ -459,12 +465,12 @@
           Select transactions to reconcile for
           {{ selectedStatement.startDate }} - {{ selectedStatement.endDate }}
         </p>
-        <div class="mt-4">
+        <div class="q-mt-lg">
           <p>Starting Balance: {{ formatCurrency(selectedStatement.startingBalance) }}</p>
           <p>Selected Total: {{ formatCurrency(selectedTransactionsTotal) }}</p>
           <p>Calculated Ending Balance: {{ formatCurrency(calculatedEndingBalance) }}</p>
           <p :class="{ 'text-negative': !reconcileMatches }">Statement Ending Balance: {{ formatCurrency(selectedStatement.endingBalance) }}</p>
-          <q-banner type="warning" v-if="!reconcileMatches" class="mt-2" dense>
+          <q-banner type="warning" v-if="!reconcileMatches" class="q-mt-sm" dense>
             Calculated ending balance does not match statement ending balance.
           </q-banner>
         </div>
@@ -854,7 +860,7 @@ async function loadData() {
   try {
     const user = auth.currentUser;
     if (!user) {
-      showSnackbar("Please log in to view transactions", "error");
+      showSnackbar("Please log in to view transactions", "negative");
       return;
     }
 
@@ -868,7 +874,7 @@ async function loadData() {
     // Load accounts
     const family = await familyStore.getFamily();
     if (!family) {
-      showSnackbar("No family found", "error");
+      showSnackbar("No family found", "negative");
       return;
     }
     accounts.value = await dataAccess.getAccounts(family.id);
@@ -886,7 +892,7 @@ async function loadData() {
   } catch (error: unknown) {
     const err = error as Error;
     console.error("Error loading data:", err);
-    showSnackbar(`Error loading data: ${err.message}`, "error");
+    showSnackbar(`Error loading data: ${err.message}`, "negative");
   } finally {
     loading.value = false;
   }
@@ -914,7 +920,7 @@ async function loadImportedTransactions(reset = false) {
   } catch (error: unknown) {
     const err = error as Error;
     console.error("Error loading imported transactions:", err);
-    showSnackbar(`Error loading imported transactions: ${err.message}`, "error");
+    showSnackbar(`Error loading imported transactions: ${err.message}`, "negative");
   } finally {
     loadingMore.value = false;
   }
@@ -942,7 +948,7 @@ async function loadTransactions() {
   } catch (error: unknown) {
     const err = error as Error;
     console.error("Error loading transactions:", err);
-    showSnackbar(`Error loading transactions: ${err.message}`, "error");
+    showSnackbar(`Error loading transactions: ${err.message}`, "negative");
   } finally {
     loading.value = false;
   }
@@ -983,7 +989,7 @@ async function executeAction() {
   try {
     const { budgetId, id } = transactionToAction.value;
     if (!id) {
-      showSnackbar("Invalid transaction data", "error");
+      showSnackbar("Invalid transaction data", "negative");
       return;
     }
 
@@ -994,19 +1000,19 @@ async function executeAction() {
 
     if (transactionAction.value == "Disconnect" || budgetId) {
       if (!budgetId) {
-        showSnackbar("Invalid transaction data (no budget info)", "error");
+        showSnackbar("Invalid transaction data (no budget info)", "negative");
         return;
       }
 
       const budget = budgetStore.getBudget(budgetId);
       if (!budget) {
-        showSnackbar("Budget not found", "error");
+        showSnackbar("Budget not found", "negative");
         return;
       }
 
       const budgetTx = budget.transactions.find((tx) => tx.id === id);
       if (!budgetTx) {
-        showSnackbar("Budget transaction not found", "error");
+        showSnackbar("Budget transaction not found", "negative");
         return;
       }
 
@@ -1076,7 +1082,7 @@ async function executeAction() {
   } catch (error: unknown) {
     const err = error as Error;
     console.error(`Error performing ${transactionAction.value} action:`, err);
-    showSnackbar(`Error performing ${transactionAction.value} action: ${err.message}`, "error");
+    showSnackbar(`Error performing ${transactionAction.value} action: ${err.message}`, "negative");
   } finally {
     loading.value = false;
     showActionDialog.value = false;
@@ -1093,11 +1099,11 @@ function openBatchMatchDialog() {
       return tx && tx.status === "U";
     })
   ) {
-    showSnackbar("Please select unmatched transactions to match", "error");
+    showSnackbar("Please select unmatched transactions to match", "negative");
     return;
   }
   if (!entityOptions.value.length) {
-    showSnackbar("No entities available. Please set up entities first.", "error");
+    showSnackbar("No entities available. Please set up entities first.", "negative");
     return;
   }
   batchEntries.value = selectedRows.value.map((id) => {
@@ -1120,7 +1126,7 @@ async function executeBatchMatch() {
 
   const valid = await batchMatchForm.value.validate();
   if (!valid) {
-    showSnackbar("Please fill in all required fields", "error");
+    showSnackbar("Please fill in all required fields", "negative");
     return;
   }
 
@@ -1128,13 +1134,13 @@ async function executeBatchMatch() {
   try {
     const user = auth.currentUser;
     if (!user) {
-      showSnackbar("User not authenticated", "error");
+      showSnackbar("User not authenticated", "negative");
       return;
     }
 
     const family = await familyStore.getFamily();
     if (!family) {
-      showSnackbar("No family found", "error");
+      showSnackbar("No family found", "negative");
       return;
     }
 
@@ -1247,7 +1253,7 @@ async function executeBatchMatch() {
   } catch (error: unknown) {
     const err = error as Error;
     console.error("Error performing batch match:", err);
-    showSnackbar(`Error performing batch match: ${err.message}`, "error");
+    showSnackbar(`Error performing batch match: ${err.message}`, "negative");
   } finally {
     saving.value = false;
   }
@@ -1261,7 +1267,7 @@ function confirmBatchAction(action: string) {
       return tx && tx.status === "U" && !tx.budgetId;
     })
   ) {
-    showSnackbar("Please select unmatched imported transactions", "error");
+    showSnackbar("Please select unmatched imported transactions", "negative");
     return;
   }
   batchAction.value = action;
@@ -1302,7 +1308,7 @@ async function executeBatchAction() {
   } catch (error: unknown) {
     const err = error as Error;
     console.error("Error performing batch action:", err);
-    showSnackbar(`Error performing batch action: ${err.message}`, "error");
+    showSnackbar(`Error performing batch action: ${err.message}`, "negative");
   } finally {
     saving.value = false;
     showBatchActionDialog.value = false;
@@ -1334,7 +1340,7 @@ async function saveBalanceAdjustment() {
 
   const valid = await adjustmentForm.value.validate();
   if (!valid) {
-    showSnackbar("Please fill in all required fields", "error");
+    showSnackbar("Please fill in all required fields", "negative");
     return;
   }
 
@@ -1342,19 +1348,19 @@ async function saveBalanceAdjustment() {
   try {
     const user = auth.currentUser;
     if (!user) {
-      showSnackbar("User not authenticated", "error");
+      showSnackbar("User not authenticated", "negative");
       return;
     }
 
     const family = await familyStore.getFamily();
     if (!family) {
-      showSnackbar("No family found", "error");
+      showSnackbar("No family found", "negative");
       return;
     }
 
     const selectedAcc = accounts.value.find((acc) => acc.accountNumber === selectedAccount.value);
     if (!selectedAcc) {
-      showSnackbar("Selected account not found", "error");
+      showSnackbar("Selected account not found", "negative");
       return;
     }
 
@@ -1389,7 +1395,7 @@ async function saveBalanceAdjustment() {
   } catch (error: unknown) {
     const err = error as Error;
     console.error("Error saving balance adjustment:", err);
-    showSnackbar(`Error saving balance adjustment: ${err.message}`, "error");
+    showSnackbar(`Error saving balance adjustment: ${err.message}`, "negative");
   } finally {
     saving.value = false;
   }
@@ -1430,7 +1436,7 @@ async function saveStatement() {
 
   const valid = await statementForm.value.validate();
   if (!valid) {
-    showSnackbar("Please fill in all required fields", "error");
+    showSnackbar("Please fill in all required fields", "negative");
     return;
   }
 
@@ -1450,7 +1456,7 @@ async function saveStatement() {
   } catch (error: unknown) {
     const err = error as Error;
     console.error("Error saving statement:", err);
-    showSnackbar(`Error saving statement: ${err.message}`, "error");
+    showSnackbar(`Error saving statement: ${err.message}`, "negative");
   } finally {
     saving.value = false;
   }
@@ -1514,7 +1520,7 @@ async function markStatementReconciled() {
   } catch (error: unknown) {
     const err = error as Error;
     console.error("Error reconciling statement:", err);
-    showSnackbar(`Error reconciling statement: ${err.message}`, "error");
+    showSnackbar(`Error reconciling statement: ${err.message}`, "negative");
   } finally {
     saving.value = false;
   }
@@ -1574,7 +1580,7 @@ async function unreconcileStatement() {
   } catch (error: unknown) {
     const err = error as Error;
     console.error("Error unreconciling statement:", err);
-    showSnackbar(`Error unreconciling statement: ${err.message}`, "error");
+    showSnackbar(`Error unreconciling statement: ${err.message}`, "negative");
   } finally {
     saving.value = false;
   }
@@ -1642,7 +1648,7 @@ async function deleteStatement() {
   } catch (error: unknown) {
     const err = error as Error;
     console.error("Error deleting statement:", err);
-    showSnackbar(`Error deleting statement: ${err.message}`, "error");
+    showSnackbar(`Error deleting statement: ${err.message}`, "negative");
   } finally {
     saving.value = false;
   }

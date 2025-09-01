@@ -37,7 +37,7 @@ public class AccountService
         }
 
         const string sql =
-            "SELECT id, user_id, name, type, category, account_number, institution, balance, interest_rate, appraised_value, maturity_date, address, created_at, updated_at FROM accounts WHERE family_id=@fid";
+            "SELECT id, user_id, name, type, category, account_number, institution, balance, interest_rate, appraised_value, maturity_date, address, created_at, updated_at FROM accounts WHERE family_id::uuid=@fid";
         await using var cmd = new Npgsql.NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("fid", fid);
         await using var reader = await cmd.ExecuteReaderAsync();
@@ -67,7 +67,7 @@ public class AccountService
         }
 
         const string sql =
-            "SELECT id, user_id, name, type, category, account_number, institution, balance, interest_rate, appraised_value, maturity_date, address, created_at, updated_at FROM accounts WHERE family_id=@fid AND id=@id";
+            "SELECT id, user_id, name, type, category, account_number, institution, balance, interest_rate, appraised_value, maturity_date, address, created_at, updated_at FROM accounts WHERE family_id::uuid=@fid AND id=@id";
         await using var cmd = new Npgsql.NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("fid", fid);
         cmd.Parameters.AddWithValue("id", aid);
@@ -149,7 +149,7 @@ public class AccountService
             return;
         }
 
-        const string sql = "DELETE FROM accounts WHERE family_id=@fid AND id=@id";
+        const string sql = "DELETE FROM accounts WHERE family_id::uuid=@fid AND id=@id";
         await using var cmd = new Npgsql.NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("fid", fid);
         cmd.Parameters.AddWithValue("id", aid);
@@ -178,7 +178,7 @@ public class AccountService
                                     sa.account_id, sa.account_name, sa.value, sa.account_type
                              FROM snapshots s
                              LEFT JOIN snapshot_accounts sa ON s.id = sa.snapshot_id
-                             WHERE s.family_id=@fid
+                             WHERE s.family_id::uuid=@fid
                              ORDER BY s.snapshot_date";
 
         await using var cmd = new NpgsqlCommand(sql, conn);
@@ -291,7 +291,7 @@ public class AccountService
             await cmdAcc.ExecuteNonQueryAsync();
         }
 
-        const string sqlSnap = "DELETE FROM snapshots WHERE family_id=@fid AND id=@sid";
+        const string sqlSnap = "DELETE FROM snapshots WHERE family_id::uuid=@fid AND id=@sid";
         await using var cmd = new NpgsqlCommand(sqlSnap, conn);
         cmd.Parameters.AddWithValue("fid", fid);
         cmd.Parameters.AddWithValue("sid", sid);
@@ -317,7 +317,7 @@ public class AccountService
             return false;
         }
 
-        const string sql = "SELECT 1 FROM family_members WHERE family_id=@fid AND user_id=@uid LIMIT 1";
+        const string sql = "SELECT 1 FROM family_members WHERE family_id::uuid=@fid AND user_id=@uid LIMIT 1";
         await using var cmd = new Npgsql.NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("fid", fid);
         cmd.Parameters.AddWithValue("uid", userId);

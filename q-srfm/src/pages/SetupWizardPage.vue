@@ -2,8 +2,8 @@
 <template>
   <q-page fluid>
     <h1>Setup Wizard</h1>
-    <div class="text-subtitle-1 mb-2">Step {{ currentStepIndex + 1 }} of {{ wizardSteps.length }}</div>
-    <q-stepper v-model="currentStepValue" class="mt-4 wizard-stepper" hide-actions aria-label="Setup Wizard Steps">
+    <div class="text-subtitle-1 q-mb-sm">Step {{ currentStepIndex + 1 }} of {{ wizardSteps.length }}</div>
+    <q-stepper v-model="currentStepValue" class="q-mt-lg wizard-stepper" hide-actions aria-label="Setup Wizard Steps">
       <template v-for="step in wizardSteps" :key="`item-${step.value}`">
         <q-stepper-item
           :value="step.value"
@@ -17,7 +17,7 @@
         </q-stepper-item>
       </template>
 
-      <q-stepper-window class="mt-1">
+      <q-stepper-window class="q-mt-xs">
         <template v-for="step in wizardSteps" :key="`window-${step.value}`">
           <q-stepper-window-item :value="step.value" class="wizard-step-content-wrapper">
             <template v-if="step.value === 'family'">
@@ -39,7 +39,7 @@
                   An entity could be a family budget, rental property, or some kind of business. The reason you would want to add an entity would be to track
                   budgets and expenses related to that entity. You will also be able to run reports that are isolated to entities. Each entity will have monthly
                   budgets with expense categories. Each entity should also have some income source.<br /><br />
-                  <q-list v-if="savedEntities.length > 0" class="mb-4 full-width">
+                  <q-list v-if="savedEntities.length > 0" class="q-mb-lg full-width">
                     <div class="row full-width align-center" >
                       <div class="col text-h6" >Saved Entities</div>
                       <div class="col text-right col-auto" >
@@ -56,7 +56,7 @@
                       <div>{{ entity.name }} ({{ entity.type }})</div>
                     </q-item>
                   </q-list>
-                  <q-btn v-else color="primary" @click="initNewEntity" class="mb-4" aria-label="Add New Entity"> Add New Entity </q-btn>
+                  <q-btn v-else color="primary" @click="initNewEntity" class="q-mb-lg" aria-label="Add New Entity"> Add New Entity </q-btn>
                   <entity-form
                     v-if="selectedEntityId !== ''"
                     :key="selectedEntityId"
@@ -70,7 +70,7 @@
                 <q-card-actions class="q-pa-lg">
                   <q-btn color="secondary" variant="text" @click="navigateStep('back')"> Back </q-btn>
                   <q-space />
-                  <q-btn color="primary" @click="navigateStep('next')" class="ml-2"> Next </q-btn>
+                  <q-btn color="primary" @click="navigateStep('next')" class="q-ml-sm"> Next </q-btn>
                 </q-card-actions>
               </q-card>
             </template>
@@ -81,25 +81,25 @@
                   <span>{{ step.title }}</span>
                 </q-card-section>
                 <q-card-section>
-                  <p v-if="step.accountType == AccountType.Bank" class="mb-4">
+                  <p v-if="step.accountType == AccountType.Bank" class="q-mb-lg">
                     Add your bank accounts (savings or checking) here. Adding accounts here will allow you to track their value over time (via account
                     snapshots) and you'll be able to track transactions for those accounts for reconciliation purposes. If you would rather, you can also add
                     accounts via import from Data Management later.
                   </p>
-                  <p v-else-if="step.accountType == AccountType.CreditCard" class="mb-4">
+                  <p v-else-if="step.accountType == AccountType.CreditCard" class="q-mb-lg">
                     Add your credit card accounts here. Because your credit cards represent liabilities (loans), enter positive values and we'll treat them as
                     debts (with negative values) automatically. For instance, if you currently owe $1200 on a credit card, enter the value as 1200 (positive).
                     We'll display that as a negative value because it is an owed value.
                   </p>
-                  <p v-else-if="step.accountType == AccountType.Investment" class="mb-4">
+                  <p v-else-if="step.accountType == AccountType.Investment" class="q-mb-lg">
                     If you have any investment accounts (retirement, ESAs, annuities, etc.), add them here. We'll use these when calculating and tracking your
                     net worth.
                   </p>
-                  <p v-else-if="step.accountType == AccountType.Property" class="mb-4">
+                  <p v-else-if="step.accountType == AccountType.Property" class="q-mb-lg">
                     This section is for any property that you might own (even if you have a loan or mortgage on the property). These properties could be real
                     estate, cars, jewelry, art, or other items which you would like to be included in your net worth.
                   </p>
-                  <p v-else class="mb-4">Add your {{ step.accountType?.toLowerCase() }} accounts here. You can add as many as you need.</p>
+                  <p v-else class="q-mb-lg">Add your {{ step.accountType?.toLowerCase() }} accounts here. You can add as many as you need.</p>
                   <AccountList
                     :accounts="getAccountsByType(step.accountType!) as Account[]"
                     :type="step.accountType!"
@@ -111,9 +111,9 @@
                 <q-card-actions class="q-pa-lg">
                   <q-btn color="secondary" variant="text" @click="navigateStep('back')"> Back </q-btn>
                   <q-space />
-                  <q-btn v-if="!isLastStep && step.accountType" color="secondary" variant="text" @click="navigateStep('next')" class="ml-2"> Skip </q-btn>
-                  <q-btn v-if="!isLastStep" color="primary" @click="navigateStep('next')" class="ml-2"> Next </q-btn>
-                  <q-btn v-else color="primary" @click="finishSetup" :loading="finishingSetup" class="ml-2"> Finish </q-btn>
+                  <q-btn v-if="!isLastStep && step.accountType" color="secondary" variant="text" @click="navigateStep('next')" class="q-ml-sm"> Skip </q-btn>
+                  <q-btn v-if="!isLastStep" color="primary" @click="navigateStep('next')" class="q-ml-sm"> Next </q-btn>
+                  <q-btn v-else color="primary" @click="finishSetup" :loading="finishingSetup" class="q-ml-sm"> Finish </q-btn>
                 </q-card-actions>
               </q-card>
             </template>

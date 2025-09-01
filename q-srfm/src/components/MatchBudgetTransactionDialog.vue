@@ -29,10 +29,10 @@
             </q-markup-table>
           </div>
         </div>
-        <div class="row mt-4" >
+        <div class="row q-mt-lg" >
           <div class="col">
             <h3>Select Bank Transaction to Match</h3>
-            <div class="row mb-2" >
+            <div class="row q-mb-sm" >
               <div class="col col-12 col-md-4">
                 <q-input v-model="searchAmount" label="Amount" type="number" variant="outlined"></q-input>
               </div>

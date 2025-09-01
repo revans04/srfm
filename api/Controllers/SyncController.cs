@@ -26,7 +26,8 @@ namespace FamilyBudgetApi.Controllers
 
         /// <summary>
         /// Perform a full synchronization from Firestore to Supabase.
-        /// This will upsert all budgets and transactions.
+        /// This will upsert families, users, accounts, snapshots,
+        /// budgets, transactions, and imported transactions.
         /// </summary>
         [HttpPost("full")]
         public async Task<IActionResult> FullSync()
@@ -62,6 +63,46 @@ namespace FamilyBudgetApi.Controllers
             }
             await _syncService.IncrementalSyncFirestoreToSupabaseAsync(sinceUtc);
             return Ok(new { message = $"Incremental sync completed since {sinceUtc:o}" });
+        }
+
+        /// <summary>
+        /// Sync only user records from Firestore to Supabase.
+        /// </summary>
+        [HttpPost("users")]
+        public async Task<IActionResult> SyncUsers()
+        {
+            await _syncService.SyncUsersAsync(null);
+            return Ok(new { message = "User sync completed" });
+        }
+
+        /// <summary>
+        /// Sync only family records from Firestore to Supabase.
+        /// </summary>
+        [HttpPost("families")]
+        public async Task<IActionResult> SyncFamilies()
+        {
+            await _syncService.SyncFamiliesAsync(null);
+            return Ok(new { message = "Family sync completed" });
+        }
+
+        /// <summary>
+        /// Sync only account records from Firestore to Supabase.
+        /// </summary>
+        [HttpPost("accounts")]
+        public async Task<IActionResult> SyncAccounts()
+        {
+            await _syncService.SyncAccountsAsync(null);
+            return Ok(new { message = "Account sync completed" });
+        }
+
+        /// <summary>
+        /// Sync only snapshot records from Firestore to Supabase.
+        /// </summary>
+        [HttpPost("snapshots")]
+        public async Task<IActionResult> SyncSnapshots()
+        {
+            await _syncService.SyncSnapshotsAsync(null);
+            return Ok(new { message = "Snapshot sync completed" });
         }
     }
 }

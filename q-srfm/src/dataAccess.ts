@@ -955,6 +955,66 @@ export class DataAccess {
     }
   }
 
+  async syncUsers(): Promise<string> {
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(`${this.apiBaseUrl}/sync/users`, { method: 'POST', headers });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Failed to sync users: ${response.status} ${response.statusText} - ${text}`);
+    }
+    try {
+      const body = (await response.json()) as { message?: string };
+      return body?.message || 'User sync completed';
+    } catch {
+      return 'User sync completed';
+    }
+  }
+
+  async syncFamilies(): Promise<string> {
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(`${this.apiBaseUrl}/sync/families`, { method: 'POST', headers });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Failed to sync families: ${response.status} ${response.statusText} - ${text}`);
+    }
+    try {
+      const body = (await response.json()) as { message?: string };
+      return body?.message || 'Family sync completed';
+    } catch {
+      return 'Family sync completed';
+    }
+  }
+
+  async syncAccounts(): Promise<string> {
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(`${this.apiBaseUrl}/sync/accounts`, { method: 'POST', headers });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Failed to sync accounts: ${response.status} ${response.statusText} - ${text}`);
+    }
+    try {
+      const body = (await response.json()) as { message?: string };
+      return body?.message || 'Account sync completed';
+    } catch {
+      return 'Account sync completed';
+    }
+  }
+
+  async syncSnapshots(): Promise<string> {
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(`${this.apiBaseUrl}/sync/snapshots`, { method: 'POST', headers });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Failed to sync snapshots: ${response.status} ${response.statusText} - ${text}`);
+    }
+    try {
+      const body = (await response.json()) as { message?: string };
+      return body?.message || 'Snapshot sync completed';
+    } catch {
+      return 'Snapshot sync completed';
+    }
+  }
+
   async saveStatement(
     familyId: string,
     accountNumber: string,

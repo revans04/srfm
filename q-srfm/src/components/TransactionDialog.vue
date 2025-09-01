@@ -14,8 +14,8 @@
         <q-btn
           flat
           dense
-          color="negative"
-          label="X"
+          icon="close"
+          color="white"
           class="q-ml-auto"
           @click="handleCancel"
         />

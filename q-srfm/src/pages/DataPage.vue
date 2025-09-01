@@ -6,7 +6,7 @@
     <!-- Loading handled via $q.loading -->
 
     <!-- Tabs -->
-    <q-tabs v-model="activeTab" color="primary" class="bg-white rounded-borders q-mb-md">
+    <q-tabs v-model="activeTab" color="primary" class="bg-white q-mb-md" style="border-radius: 4px">
       <q-tab name="import" label="Import" />
       <q-tab name="export" label="Export" />
     </q-tabs>
@@ -16,58 +16,76 @@
       <q-tab-panel name="import">
         <div class="row">
           <div class="col col-12">
-            <q-card flat bordered class="bg-white q-pa-md rounded-borders">
+            <q-card flat bordered class="bg-white q-pa-md" rounded>
               <q-card-section>Import Data</q-card-section>
               <q-card-section>
-                <q-select v-model="importType" :items="importTypes" label="Select Import Type" outlined class="mb-4"></q-select>
+                <q-select
+                  v-model="importType"
+                  :options="importTypes"
+                  label="Select Import Type"
+                  outlined
+                  class="q-mb-lg"
+                  emit-value
+                  map-options
+                ></q-select>
 
                 <!-- Entity Selection or Creation -->
                 <div class="row" v-if="entityOptions.length > 0 && importType !== 'bankTransactions' && importType !== 'accountsAndSnapshots'">
                   <div class="col col-12 col-md-6">
                     <q-select
                       v-model="selectedEntityId"
-                      :items="entityOptions"
-                      item-title="name"
-                      item-value="id"
+                      :options="entityOptions"
+                      option-label="name"
+                      option-value="id"
+                      emit-value
+                      map-options
                       label="Select Entity"
                       outlined
                       dense
                       clearable
                       :rules="importType !== 'entities' ? [(v) => !!v || 'Entity selection is required'] : []"
-                      class="mb-4"
+                      class="q-mb-lg"
                     ></q-select>
                   </div>
                   <div class="col col-12 col-md-6">
-                    <q-btn color="primary" @click="openCreateEntityDialog" class="mt-2">Create New Entity</q-btn>
+                    <q-btn color="primary" @click="openCreateEntityDialog" class="q-mt-sm">Create New Entity</q-btn>
                   </div>
                 </div>
                 <div class="row" v-else-if="importType !== 'bankTransactions' && importType !== 'accountsAndSnapshots'">
                   <div class="col col-12">
-                    <q-banner type="info" class="mb-4">
+                    <q-banner type="info" class="q-mb-lg">
                       No entities found. Please create a new entity or import entities before importing budgets or transactions.
                     </q-banner>
-                    <q-btn color="primary" @click="openCreateEntityDialog" class="mr-4">Create Entity</q-btn>
+                    <q-btn color="primary" @click="openCreateEntityDialog" class="q-mr-lg">Create Entity</q-btn>
                     <q-btn color="secondary" @click="importType = 'entities'">Import Entities</q-btn>
                   </div>
                 </div>
 
                 <!-- File Input for Imports -->
+                <q-banner v-if="importError" type="negative" class="q-mb-lg">
+                  {{ importError }}
+                </q-banner>
+                <q-banner v-if="importSuccess" type="positive" class="q-mb-lg">
+                  {{ importSuccess }}
+                </q-banner>
                 <div v-if="importType === 'bankTransactions'">
                   <!-- Bank transaction import UI -->
                   <div class="row">
                     <div class="col col-12 col-md-6">
                       <q-select
                         v-model="selectedAccountId"
-                        :items="formattedAccounts"
-                        item-title="title"
-                        item-value="value"
+                        :options="formattedAccounts"
+                        option-label="title"
+                        option-value="value"
+                        emit-value
+                        map-options
                         label="Select Account for Transactions"
                         outlined
                         :rules="[(v) => !!v || 'Account selection is required']"
                         :disabled="importing || availableAccounts.length === 0"
-                        class="mb-4"
+                        class="q-mb-lg"
                       ></q-select>
-                      <q-banner v-if="availableAccounts.length === 0" type="warning" class="mb-4">
+                      <q-banner v-if="availableAccounts.length === 0" type="warning" class="q-mb-lg">
                         No bank or credit card accounts found. Please create an account in the Accounts section before importing transactions.
                       </q-banner>
                     </div>
@@ -78,7 +96,7 @@
                         v-model="bankTransactionsFile"
                         label="Upload Bank/Card Transactions CSV"
                         accept=".csv"
-                        @change="handleBankTransactionsFileUpload"
+                        @update:model-value="handleBankTransactionsFileUpload"
                         :disabled="importing || !selectedAccountId"
                       ></q-file>
                     </div>
@@ -90,10 +108,12 @@
                         <h3>Map CSV Columns to Fields</h3>
                         <q-select
                           v-model="amountFormat"
-                          :items="amountFormatOptions"
+                          :options="amountFormatOptions"
                           label="How are Credits/Debits Represented?"
                           outlined
-                          class="mb-4"
+                          class="q-mb-lg"
+                          emit-value
+                          map-options
                         ></q-select>
 
                         <!-- Common Fields -->
@@ -101,7 +121,7 @@
                           <div class="col col-12 col-md-6">
                             <q-select
                               v-model="fieldMapping[field.key]"
-                              :items="csvHeaders"
+                              :options="csvHeaders"
                               :label="field.label"
                               outlined
                               clearable
@@ -116,7 +136,7 @@
                             <div class="col col-12 col-md-6">
                               <q-select
                                 v-model="fieldMapping.creditAmount"
-                                :items="csvHeaders"
+                                :options="csvHeaders"
                                 label="Credit Amount"
                                 outlined
                                 clearable
@@ -128,7 +148,7 @@
                             <div class="col col-12 col-md-6">
                               <q-select
                                 v-model="fieldMapping.debitAmount"
-                                :items="csvHeaders"
+                                :options="csvHeaders"
                                 label="Debit Amount"
                                 outlined
                                 clearable
@@ -142,7 +162,7 @@
                             <div class="col col-12 col-md-6">
                               <q-select
                                 v-model="fieldMapping.transactionType"
-                                :items="csvHeaders"
+                                :options="csvHeaders"
                                 label="Transaction Type Column"
                                 outlined
                                 clearable
@@ -174,7 +194,7 @@
                             <div class="col col-12 col-md-6">
                               <q-select
                                 v-model="fieldMapping.amount"
-                                :items="csvHeaders"
+                                :options="csvHeaders"
                                 label="Amount"
                                 outlined
                                 clearable
@@ -188,7 +208,7 @@
                             <div class="col col-12 col-md-6">
                               <q-select
                                 v-model="fieldMapping.amount"
-                                :items="csvHeaders"
+                                :options="csvHeaders"
                                 label="Amount (Positive = Credit, Negative = Debit)"
                                 outlined
                                 clearable
@@ -212,7 +232,7 @@
                     v-model="entitiesFile"
                     label="Upload Entities CSV/JSON"
                     accept=".csv,.json"
-                    @change="handleFileUpload"
+                    @update:model-value="handleFileUpload"
                     :disabled="importing"
                   ></q-file>
                 </div>
@@ -221,7 +241,7 @@
                     v-model="accountsSnapshotsFile"
                     label="Upload Accounts and Snapshots CSV"
                     accept=".csv"
-                    @change="handleAccountsAndSnapshotsImport"
+                    @update:model-value="handleAccountsAndSnapshotsImport"
                     :disabled="importing"
                   ></q-file>
                 </div>
@@ -231,7 +251,7 @@
                     label="Upload Budget or Transactions CSV/JSON"
                     accept=".csv,.json"
                     multiple
-                    @change="handleFileUpload"
+                    @update:model-value="handleFileUpload"
                     :disabled="importing || (!selectedEntityId && importType !== 'entities')"
                   ></q-file>
                 </div>
@@ -250,13 +270,13 @@
                       </q-tabs>
                       <q-tab-panels v-model="previewTab">
                         <q-tab-panel name="entities">
-                          <q-table :columns="entityColumns" :rows="previewData.entities" :pagination="{ rowsPerPage: 5 }" class="mt-4"></q-table>
+                          <q-table :columns="entityColumns" :rows="previewData.entities" :pagination="{ rowsPerPage: 5 }" class="q-mt-lg"></q-table>
                         </q-tab-panel>
                         <q-tab-panel name="categories">
-                          <q-table :columns="categoryColumns" :rows="previewData.categories" :pagination="{ rowsPerPage: 5 }" class="mt-4"></q-table>
+                          <q-table :columns="categoryColumns" :rows="previewData.categories" :pagination="{ rowsPerPage: 5 }" class="q-mt-lg"></q-table>
                         </q-tab-panel>
                         <q-tab-panel name="transactions">
-                          <q-table :columns="transactionColumns" :rows="previewData.transactions" :pagination="{ rowsPerPage: 5 }" class="mt-4">
+                          <q-table :columns="transactionColumns" :rows="previewData.transactions" :pagination="{ rowsPerPage: 5 }" class="q-mt-lg">
                             <template #body-cell-categories="slotProps">
                               <span>{{ formatCategories(slotProps.row.categories) }}</span>
                             </template>
@@ -267,7 +287,7 @@
                             :columns="bankTransactionPreviewColumns"
                             :rows="previewBankTransactions"
                             :pagination="{ rowsPerPage: 5 }"
-                            class="mt-4"
+                            class="q-mt-lg"
                           ></q-table>
                         </q-tab-panel>
                         <q-tab-panel name="accountsAndSnapshots">
@@ -275,11 +295,11 @@
                             :columns="accountsAndSnapshotsColumns"
                             :rows="previewData.accountsAndSnapshots"
                             :pagination="{ rowsPerPage: 5 }"
-                            class="mt-4"
+                            class="q-mt-lg"
                           ></q-table>
                         </q-tab-panel>
                       </q-tab-panels>
-                      <q-banner v-if="previewErrors.length > 0" type="negative" class="mt-4">
+                      <q-banner v-if="previewErrors.length > 0" type="negative" class="q-mt-lg">
                         <ul>
                           <li v-for="(error, index) in previewErrors" :key="index">
                             {{ error }}
@@ -327,7 +347,7 @@
       <q-tab-panel name="export">
         <div class="row">
           <div class="col col-12">
-            <q-card flat bordered class="bg-white q-pa-md rounded-borders">
+            <q-card flat bordered class="bg-white q-pa-md" rounded>
               <q-card-section>Export Data</q-card-section>
               <q-card-section>
                 <q-btn color="primary" @click="exportDataToCSV" :loading="exporting">Export All Data</q-btn>
@@ -349,7 +369,7 @@
 
 <script setup lang="ts">
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unnecessary-type-assertion */
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import { useQuasar, QSpinner } from 'quasar';
 import { auth } from "../firebase/init";
 import { dataAccess } from "../dataAccess";
@@ -406,11 +426,27 @@ const pendingImportData = ref<{
 const previewTab = ref("categories");
 const importType = ref("bankTransactions");
 const importTypes = [
-  { title: "Entities", value: "entities" },
-  { title: "Budget/Transactions", value: "budgetTransactions" },
-  { title: "Bank/Card Transactions", value: "bankTransactions" },
-  { title: "Accounts/Snapshots", value: "accountsAndSnapshots" },
+  { label: "Entities", value: "entities" },
+  { label: "Budget/Transactions", value: "budgetTransactions" },
+  { label: "Bank/Card Transactions", value: "bankTransactions" },
+  { label: "Accounts/Snapshots", value: "accountsAndSnapshots" },
 ];
+
+watch(importType, async (val) => {
+  if (val === "bankTransactions" && availableAccounts.value.length === 0 && familyId.value) {
+    try {
+      const accounts = await dataAccess.getAccounts(familyId.value);
+      availableAccounts.value = accounts.filter(
+        (account) => account.type === "Bank" || account.type === "CreditCard"
+      );
+      if (availableAccounts.value.length > 0 && !selectedAccountId.value) {
+        selectedAccountId.value = availableAccounts.value[0].id;
+      }
+    } catch (err: any) {
+      showSnackbar(`Error loading accounts: ${err.message}`, "negative");
+    }
+  }
+});
 const selectedFiles = ref<File[]>([]);
 const bankTransactionsFile = ref<File | null>(null);
 const entitiesFile = ref<File | null>(null);
@@ -429,9 +465,9 @@ const commonBankTransactionFields = ref([
 const fieldMapping = ref<Record<string, string>>({});
 const amountFormat = ref<"separate" | "type" | "single">("separate");
 const amountFormatOptions = [
-  { title: "Separate Credit/Debit Columns", value: "separate" },
-  { title: "Transaction Type Column", value: "type" },
-  { title: "Single Amount (Positive/Negative)", value: "single" },
+  { label: "Separate Credit/Debit Columns", value: "separate" },
+  { label: "Transaction Type Column", value: "type" },
+  { label: "Single Amount (Positive/Negative)", value: "single" },
 ];
 const creditTypeValue = ref("Credit");
 const debitTypeValue = ref("Debit");
@@ -564,7 +600,7 @@ async function loadAllData() {
     }
   } catch (error: any) {
     console.error("Error loading data:", error);
-    showSnackbar(`Error loading data: ${error.message}`, "error");
+    showSnackbar(`Error loading data: ${error.message}`, "negative");
   } finally {
     $q.loading.hide();
   }
@@ -577,7 +613,7 @@ function openCreateEntityDialog() {
 async function handleEntitySave() {
   const user = auth.currentUser;
   if (!user || !familyId.value) {
-    showSnackbar("Cannot create entity: invalid user or family data", "error");
+    showSnackbar("Cannot create entity: invalid user or family data", "negative");
     return;
   }
 
@@ -590,7 +626,7 @@ async function handleEntitySave() {
     showSnackbar("Entity created successfully", "success");
     showEntityForm.value = false;
   } catch (error: any) {
-    showSnackbar(`Error creating entity: ${error.message}`, "error");
+    showSnackbar(`Error creating entity: ${error.message}`, "negative");
   }
 }
 
@@ -1316,11 +1352,11 @@ function previewBankTransactionsData() {
 async function confirmImport() {
   const user = auth.currentUser;
   if (!user) {
-    showSnackbar("User not authenticated", "error");
+    showSnackbar("User not authenticated", "negative");
     return;
   }
   if (!familyId.value) {
-    showSnackbar("Cannot import without a Family/Org", "error");
+    showSnackbar("Cannot import without a Family/Org", "negative");
     return;
   }
 
@@ -1346,7 +1382,7 @@ async function confirmImport() {
       previewData.value.entities = [];
     } catch (error: any) {
       console.error("Error importing entities:", error);
-      showSnackbar(`Failed to import entities: ${error.message}`, "error");
+      showSnackbar(`Failed to import entities: ${error.message}`, "negative");
     } finally {
       $q.loading.hide();
       pendingImportData.value = null;
@@ -1483,7 +1519,7 @@ async function confirmImport() {
       }
     } catch (e: any) {
       console.error("Error during import:", e);
-      showSnackbar(`Error during import: ${e.message}`, "error");
+      showSnackbar(`Error during import: ${e.message}`, "negative");
     } finally {
       importRunning.value = false;
     }
@@ -1498,13 +1534,13 @@ async function confirmImport() {
       });
       const accountId = selectedAccountId.value;
       if (!accountId) {
-        showSnackbar("No account selected for import", "error");
+        showSnackbar("No account selected for import", "negative");
         return;
       }
 
       const selectedAccount = availableAccounts.value.find((account) => account.id === accountId);
       if (!selectedAccount) {
-        showSnackbar("Selected account not found", "error");
+        showSnackbar("Selected account not found", "negative");
         return;
       }
 
@@ -1599,7 +1635,7 @@ async function confirmImport() {
       if (familyId.value) {
         const accountRef = await dataAccess.getAccount(familyId.value, accountId);
         if (!accountRef) {
-          showSnackbar("Failed to fetch account for balance update", "error");
+          showSnackbar("Failed to fetch account for balance update", "negative");
         } else {
           const currentBalance = accountRef.balance || 0;
           const newBalance = currentBalance + totalBalanceChange;
@@ -1631,7 +1667,7 @@ async function confirmImport() {
       fieldMapping.value = {};
     } catch (error: any) {
       console.error("Error importing bank transactions:", error);
-      showSnackbar(`Failed to import bank transactions: ${error.message}`, "error");
+      showSnackbar(`Failed to import bank transactions: ${error.message}`, "negative");
     } finally {
       $q.loading.hide();
       importRunning.value = false;
@@ -1649,7 +1685,7 @@ async function confirmImport() {
       });
       const entries = pendingImportData.value?.accountsAndSnapshots || [];
       if (entries.length === 0) {
-        showSnackbar("No accounts/snapshots data to import", "error");
+        showSnackbar("No accounts/snapshots data to import", "negative");
         return;
       }
 
@@ -1660,7 +1696,7 @@ async function confirmImport() {
       previewData.value.accountsAndSnapshots = [];
     } catch (error: any) {
       console.error("Error importing accounts and snapshots:", error);
-      showSnackbar(`Failed to import accounts and snapshots: ${error.message}`, "error");
+      showSnackbar(`Failed to import accounts and snapshots: ${error.message}`, "negative");
     } finally {
       $q.loading.hide();
       pendingImportData.value = null;
@@ -1709,7 +1745,7 @@ async function proceedWithImport() {
     }
   } catch (error: any) {
     console.error("Error confirming import:", error);
-    showSnackbar(`Failed to import data: ${error.message}`, "error");
+    showSnackbar(`Failed to import data: ${error.message}`, "negative");
   } finally {
     $q.loading.hide();
     importRunning.value = false;
@@ -1734,7 +1770,7 @@ async function exportDataToCSV() {
   try {
     const user = auth.currentUser;
     if (!user || !familyId.value) {
-      showSnackbar("User not authenticated or no family selected", "error");
+      showSnackbar("User not authenticated or no family selected", "negative");
       return;
     }
 
@@ -1863,7 +1899,7 @@ async function exportDataToCSV() {
     showSnackbar("Data exported successfully", "success");
   } catch (error: any) {
     console.error("Error exporting data:", error);
-    showSnackbar(`Error exporting data: ${error.message}`, "error");
+    showSnackbar(`Error exporting data: ${error.message}`, "negative");
   } finally {
     $q.loading.hide();
   }

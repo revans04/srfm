@@ -6,7 +6,7 @@
     <!-- Loading handled via $q.loading -->
 
     <!-- Family Prompt -->
-    <q-banner v-if="!familyId" type="warning" class="mb-4"> Please create or join a family to manage accounts. </q-banner>
+    <q-banner v-if="!familyId" type="warning" class="q-mb-lg"> Please create or join a family to manage accounts. </q-banner>
 
     <!-- Tabs -->
     <q-tabs v-model="tab" color="primary" :disabled="!familyId">
@@ -120,14 +120,14 @@
                     <q-btn
                       flat
                       dense
-                      color="error"
+                      color="negative"
                       icon="delete"
                       @click.stop="confirmDeleteSnapshot(props.row.id)"
                     />
                   </q-td>
                 </template>
               </q-table>
-            <div class="mt-4">
+            <div class="q-mt-lg">
               <p>Net worth trend chart coming soon!</p>
             </div>
           </q-card-section>
@@ -186,8 +186,8 @@
                 </q-td>
               </template>
             </q-table>
-            <q-btn type="submit" color="primary" :loading="saving" class="mt-4"> Save Snapshot </q-btn>
-            <q-btn color="grey" variant="text" @click="showSnapshotDialog = false" class="ml-2"> Cancel </q-btn>
+            <q-btn type="submit" color="primary" :loading="saving" class="q-mt-lg"> Save Snapshot </q-btn>
+            <q-btn color="grey" variant="text" @click="showSnapshotDialog = false" class="q-ml-sm"> Cancel </q-btn>
           </q-form>
         </q-card-section>
       </q-card>
@@ -258,7 +258,7 @@
                 </q-td>
               </template>
             </q-table>
-            <div class="text-right mt-4">
+            <div class="text-right q-mt-lg">
               <strong>Net Worth: {{ snapshotDetails ? formatCurrency(snapshotDetails.netWorth) : '' }}</strong>
             </div>
           </q-card-section>
@@ -430,7 +430,7 @@ function viewSnapshotDetails(_: unknown, row: Snapshot) {
 onMounted(async () => {
   const user = auth.currentUser;
   if (!user) {
-    showSnackbar("Please log in to view accounts", "error");
+    showSnackbar("Please log in to view accounts", "negative");
     return;
   }
 
@@ -444,14 +444,14 @@ onMounted(async () => {
   try {
     const family = await familyStore.getFamily();
     if (!family) {
-      showSnackbar("No family found. Please create or join a family.", "error");
+      showSnackbar("No family found. Please create or join a family.", "negative");
       return;
     }
     familyId.value = family.id;
     await loadData();
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : JSON.stringify(error);
-    showSnackbar(`Error loading data: ${msg}`, "error");
+    showSnackbar(`Error loading data: ${msg}`, "negative");
     console.error("Error during onMounted:", error);
   } finally {
     $q.loading.hide();
@@ -467,7 +467,7 @@ async function loadData() {
   } catch (error: unknown) {
     console.error("Error loading data:", error);
     const msg = error instanceof Error ? error.message : JSON.stringify(error);
-    showSnackbar(`Error loading data: ${msg}`, "error");
+    showSnackbar(`Error loading data: ${msg}`, "negative");
   }
 }
 
@@ -588,7 +588,7 @@ async function saveAccount(account: Account, isPersonal: boolean) {
     closeAccountDialog();
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : JSON.stringify(error);
-    showSnackbar(`Error saving account: ${msg}`, "error");
+    showSnackbar(`Error saving account: ${msg}`, "negative");
     console.error("Error saving account:", error);
   } finally {
     saving.value = false;
@@ -614,7 +614,7 @@ async function confirmUpdateBudgetTransactions() {
     }
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : JSON.stringify(error);
-    showSnackbar(`Error updating budget transactions: ${msg}`, "error");
+    showSnackbar(`Error updating budget transactions: ${msg}`, "negative");
     console.error("Error updating budget transactions:", error);
   } finally {
     showUpdateBudgetTransactionsDialog.value = false;
@@ -653,7 +653,7 @@ async function executeDeleteAccount() {
     showSnackbar("Account deleted successfully", "success");
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : JSON.stringify(error);
-    showSnackbar(`Error deleting account: ${msg}`, "error");
+    showSnackbar(`Error deleting account: ${msg}`, "negative");
   } finally {
     showDeleteAccountDialog.value = false;
     accountToDelete.value = null;
@@ -683,7 +683,7 @@ function openSnapshotDialog() {
 
 async function saveSnapshot() {
   if (!newSnapshot.value.date) {
-    showSnackbar("Snapshot date is required", "error");
+    showSnackbar("Snapshot date is required", "negative");
     return;
   }
 
@@ -705,7 +705,7 @@ async function saveSnapshot() {
     showSnapshotDialog.value = false;
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : JSON.stringify(error);
-    showSnackbar(`Error saving snapshot: ${msg}`, "error");
+    showSnackbar(`Error saving snapshot: ${msg}`, "negative");
     console.log(error);
   } finally {
     saving.value = false;
@@ -728,7 +728,7 @@ async function executeDeleteSnapshot() {
     showSnackbar("Snapshot deleted successfully", "success");
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : JSON.stringify(error);
-    showSnackbar(`Error deleting snapshot: ${msg}`, "error");
+    showSnackbar(`Error deleting snapshot: ${msg}`, "negative");
   } finally {
     showDeleteSnapshotDialog.value = false;
     snapshotToDelete.value = null;
@@ -753,7 +753,7 @@ async function executeBatchDeleteSnapshots() {
     showSnackbar(`${deletedCount} snapshot(s) deleted successfully`, "success");
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : JSON.stringify(error);
-    showSnackbar(`Error deleting snapshots: ${msg}`, "error");
+    showSnackbar(`Error deleting snapshots: ${msg}`, "negative");
   } finally {
     showBatchDeleteSnapshotDialog.value = false;
     deleting.value = false;

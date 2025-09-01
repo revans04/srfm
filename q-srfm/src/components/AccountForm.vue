@@ -60,9 +60,9 @@
       hint="Enter the current balance or value as of today"
       :rules="[(v: number | null) => v !== null || 'Balance is required']"
     ></q-input>
-    <div class="mt-4">
+    <div class="q-mt-lg">
       <q-btn type="submit" color="primary" :loading="saving" :disabled="!validForm"> Save </q-btn>
-      <q-btn color="grey" variant="text" @click="cancel" class="ml-2"> Cancel </q-btn>
+      <q-btn color="grey" variant="text" @click="cancel" class="q-ml-sm"> Cancel </q-btn>
     </div>
   </q-form>
 </template>

@@ -17,22 +17,24 @@
           </div>
         </div>
         <!-- Smart Matches -->
-        <div class="row mt-4">
+        <div class="row q-mt-lg">
               <div class="col">
                 <h3>Smart Matches ({{ smartMatches.length }})</h3>
                 <p class="text-caption q-pb-sm">These imported transactions have exactly one potential match. Review and confirm below (max 50 at a time).</p>
 
                 <!-- Sort Controls -->
-                <div class="row mb-4" >
+                <div class="row q-mb-lg" >
                   <div class="col col-12 col-md-4">
                     <q-select
                       v-model="smartMatchesSortField"
-                      :items="smartMatchesSortFields"
+                      :options="smartMatchesSortFields"
+                      option-label="text"
+                      option-value="value"
+                      emit-value
+                      map-options
                       label="Sort By"
                       variant="outlined"
                       density="compact"
-                      item-title="text"
-                      item-value="value"
                       @update:model-value="sortSmartMatches"
                     ></q-select>
                   </div>
@@ -62,14 +64,14 @@
                   </div>
                 </div>
 
-                <q-table
+                  <q-table
                   v-if="smartMatches.length > 0"
                   :columns="smartMatchColumns"
                   :rows="sortedSmartMatches"
                   row-key="importedTransaction.id"
                   selection="multiple"
                   v-model:selected="selectedSmartMatchesInternal"
-                  class="mt-4"
+                  class="q-mt-lg"
                   hide-bottom
                   :pagination="{ rowsPerPage: 50 }"
                 >
@@ -87,14 +89,14 @@
                   </template>
                 </q-table>
 
-                <q-banner v-else type="info" class="mt-4">
+                <q-banner v-else type="info" class="q-mt-lg">
                   No smart matches found. Check Remaining Transactions for potential conflicts.
                 </q-banner>
               </div>
             </div>
 
         <!-- Remaining Transactions -->
-        <div class="row mt-4" v-if="remainingImportedTransactions.length > 0">
+        <div class="row q-mt-lg" v-if="remainingImportedTransactions.length > 0">
               <div class="col">
                 <h3>Remaining Transactions ({{ currentBankTransactionIndex + 1 }} of {{ remainingImportedTransactions.length }})</h3>
                 <q-markup-table>
@@ -125,7 +127,7 @@
                 </q-markup-table>
 
                 <!-- Search Filters -->
-                <div class="row mt-4" >
+                <div class="row q-mt-lg" >
                   <div class="col col-12 col-md-4">
                     <q-input v-model="searchAmount" label="Amount" type="number" variant="outlined" readonly></q-input>
                   </div>
@@ -144,7 +146,7 @@
                 </div>
 
                 <!-- Split Transaction Option -->
-                <div class="row mt-4" >
+                <div class="row q-mt-lg" >
                   <div class="col">
                     <q-btn color="primary" @click="toggleSplitTransaction" :disabled="props.matching">
                       {{ showSplitForm ? "Cancel Split" : "Split Transaction" }}
@@ -153,14 +155,16 @@
                 </div>
 
                 <!-- Split Transaction Form -->
-                <q-form v-if="showSplitForm" ref="splitForm" @submit.prevent="saveSplitTransaction" class="mt-4">
+                <q-form v-if="showSplitForm" ref="splitForm" @submit.prevent="saveSplitTransaction" class="q-mt-lg">
                   <div class="row align-center" v-for="(split, index) in transactionSplits" :key="index" >
                     <div class="col col-12 col-md-3">
                       <q-select
                         v-model="split.entityId"
-                        :items="entityOptions"
-                        item-title="name"
-                        item-value="id"
+                        :options="entityOptions"
+                        option-label="name"
+                        option-value="id"
+                        emit-value
+                        map-options
                         label="Entity"
                         variant="outlined"
                         density="compact"
@@ -170,7 +174,7 @@
                     <div class="col col-12 col-md-3">
                       <q-select
                         v-model="split.category"
-                        :items="props.categoryOptions"
+                        :options="props.categoryOptions"
                         label="Category"
                         variant="outlined"
                         density="compact"
@@ -191,27 +195,29 @@
                       <q-btn color="negative" icon="close" @click="removeSplit(index)" variant="plain"></q-btn>
                     </div>
                   </div>
-                  <q-banner v-if="remainingSplitAmount !== 0" :type="remainingSplitAmount < 0 ? 'error' : 'warning'" class="mb-4">
+                  <q-banner v-if="remainingSplitAmount !== 0" :type="remainingSplitAmount < 0 ? 'error' : 'warning'" class="q-mb-lg">
                     <div v-if="remainingSplitAmount > 0">Remaining ${{ toDollars(toCents(remainingSplitAmount)) }}</div>
                     <div v-else>Over allocated ${{ toDollars(toCents(Math.abs(remainingSplitAmount))) }}</div>
                   </q-banner>
                   <q-btn color="primary" @click="addSplitTransaction">Add Split</q-btn>
-                  <q-btn color="positive" type="submit" :disabled="remainingSplitAmount !== 0 || props.matching" :loading="props.matching" class="ml-2">
+                  <q-btn color="positive" type="submit" :disabled="remainingSplitAmount !== 0 || props.matching" :loading="props.matching" class="q-ml-sm">
                     Save Splits
                   </q-btn>
                 </q-form>
 
                 <!-- Potential Matches -->
-                <div class="row mb-4" v-if="!showSplitForm" >
+                <div class="row q-mb-lg" v-if="!showSplitForm" >
                   <div class="col col-12 col-md-4">
                     <q-select
                       v-model="potentialMatchesSortField"
-                      :items="potentialMatchesSortFields"
+                      :options="potentialMatchesSortFields"
+                      option-label="text"
+                      option-value="value"
+                      emit-value
+                      map-options
                       label="Sort By"
                       variant="outlined"
                       density="compact"
-                      item-title="text"
-                      item-value="value"
                       @update:model-value="sortPotentialMatches"
                     ></q-select>
                   </div>
@@ -247,8 +253,8 @@
                     </q-btn>
                   </template>
                 </q-table>
-                <div v-else-if="!showSplitForm" class="mt-4">
-                  <q-banner type="info" class="mb-4"> No potential matches found. Adjust the search criteria or add a new transaction. </q-banner>
+                <div v-else-if="!showSplitForm" class="q-mt-lg">
+                  <q-banner type="info" class="q-mb-lg"> No potential matches found. Adjust the search criteria or add a new transaction. </q-banner>
                   <q-btn color="primary" @click="addNewTransaction" :disabled="props.matching"> Add New Transaction </q-btn>
                 </div>
               </div>
@@ -582,7 +588,7 @@ function closeDialog(value: boolean) {
 
 async function confirmSmartMatches() {
   if (selectedSmartMatchIds.value.length === 0) {
-    showSnackbar("No smart matches selected to confirm", "error");
+    showSnackbar("No smart matches selected to confirm", "negative");
     return;
   }
 
@@ -639,7 +645,7 @@ async function confirmSmartMatches() {
   } catch (error: unknown) {
     const err = error as Error;
     console.error("Error confirming smart matches:", err);
-    showSnackbar(`Error confirming smart matches: ${err.message}`, "error");
+    showSnackbar(`Error confirming smart matches: ${err.message}`, "negative");
   } finally {
     emit("update:matching", false);
   }
@@ -647,7 +653,7 @@ async function confirmSmartMatches() {
 
 async function matchBankTransaction(budgetTransaction: Transaction) {
   if (!selectedBankTransaction.value || !budgetTransaction) {
-    showSnackbar("Please select a budget transaction to match", "error");
+    showSnackbar("Please select a budget transaction to match", "negative");
     return;
   }
 
@@ -709,7 +715,7 @@ async function matchBankTransaction(budgetTransaction: Transaction) {
   } catch (error: unknown) {
     const err = error as Error;
     console.log(err);
-    showSnackbar(`Error matching transaction: ${err.message}`, "error");
+    showSnackbar(`Error matching transaction: ${err.message}`, "negative");
   } finally {
     emit("update:matching", false);
   }
@@ -717,7 +723,7 @@ async function matchBankTransaction(budgetTransaction: Transaction) {
 
 async function ignoreBankTransaction() {
   if (!selectedBankTransaction.value) {
-    showSnackbar("No bank transaction selected to ignore", "error");
+    showSnackbar("No bank transaction selected to ignore", "negative");
     return;
   }
 
@@ -736,7 +742,7 @@ async function ignoreBankTransaction() {
     skipBankTransaction();
   } catch (error: unknown) {
     const err = error as Error;
-    showSnackbar(`Error ignoring transaction: ${err.message}`, "error");
+    showSnackbar(`Error ignoring transaction: ${err.message}`, "negative");
   } finally {
     emit("update:matching", false);
   }
@@ -761,7 +767,7 @@ function skipBankTransaction() {
 
 async function saveSplitTransaction() {
   if (!selectedBankTransaction.value || remainingSplitAmount.value !== 0) {
-    showSnackbar("Invalid split amounts or no bank transaction selected", "error");
+    showSnackbar("Invalid split amounts or no bank transaction selected", "negative");
     return;
   }
 
@@ -769,7 +775,7 @@ async function saveSplitTransaction() {
 
   const valid = await splitForm.value.validate();
   if (!valid) {
-    showSnackbar("Please fill in all required fields", "error");
+    showSnackbar("Please fill in all required fields", "negative");
     return;
   }
 
@@ -849,7 +855,7 @@ async function saveSplitTransaction() {
     resetSplitForm();
   } catch (error: unknown) {
     const err = error as Error;
-    showSnackbar(`Error saving split transaction: ${err.message}`, "error");
+    showSnackbar(`Error saving split transaction: ${err.message}`, "negative");
   } finally {
     emit("update:matching", false);
   }
@@ -897,7 +903,7 @@ async function handleTransactionAdded(savedTransaction: Transaction) {
     emit("transactions-updated");
   } catch (error: unknown) {
     const err = error as Error;
-    showSnackbar(`Error adding transaction: ${err.message}`, "error");
+    showSnackbar(`Error adding transaction: ${err.message}`, "negative");
   } finally {
     emit("update:matching", false);
     showTransactionDialog.value = false;
@@ -906,12 +912,12 @@ async function handleTransactionAdded(savedTransaction: Transaction) {
 
 function addNewTransaction() {
   if (!selectedBankTransaction.value) {
-    showSnackbar("No bank transaction selected to add", "error");
+    showSnackbar("No bank transaction selected to add", "negative");
     return;
   }
 
   if (!familyStore.selectedEntityId) {
-    showSnackbar("Please select an entity before adding a transaction", "error");
+    showSnackbar("Please select an entity before adding a transaction", "negative");
     return;
   }
 

@@ -13,7 +13,11 @@
             <q-select
               v-model="entityType"
               label="Entity Type"
-              :items="entityTypeOptions"
+              :options="entityTypeOptions"
+              option-label="title"
+              option-value="value"
+              emit-value
+              map-options
               required
               density="compact"
               :rules="[(v: string) => !!v || 'Entity Type is required']"
@@ -26,9 +30,11 @@
             <q-select
               v-model="entityTaxFormIds"
               label="Applicable Tax Forms"
-              :items="availableTaxForms"
-              item-title="name"
-              item-value="id"
+              :options="availableTaxForms"
+              option-label="name"
+              option-value="id"
+              emit-value
+              map-options
               multiple
               chips
               closable-chips
@@ -49,7 +55,7 @@
           </div>
           <div class="col col-12">
             <!-- Help Section -->
-            <q-expansion-panels class="mb-4">
+            <q-expansion-panels class="q-mb-lg">
               <q-expansion-panel title="Need help with creating a budget template?">
                 <q-expansion-panel-text class="q-px-lg">
                   <strong>Create Your First Budget Template</strong>
@@ -267,7 +273,7 @@ watch(hasUnsavedChanges, (newValue) => {
 onMounted(async () => {
   const userId = auth.currentUser?.uid;
   if (!userId) {
-    showSnackbar('Please log in to load budgets.', 'error');
+    showSnackbar('Please log in to load budgets.', 'negative');
     return;
   }
   await budgetStore.loadBudgets(userId, props.entityId);
@@ -326,7 +332,7 @@ function importCategories() {
   } catch (error: unknown) {
     const err = error as Error;
     console.error('Error importing categories:', err.message);
-    showSnackbar(`Error importing categories: ${err.message}`, 'error');
+    showSnackbar(`Error importing categories: ${err.message}`, 'negative');
   } finally {
     importing.value = false;
   }
@@ -345,7 +351,7 @@ function removeCategory(index: number) {
 
 async function save() {
   if (!entityName.value || !entityType.value) {
-    showSnackbar('Please provide Entity Name and Type', 'error');
+    showSnackbar('Please provide Entity Name and Type', 'negative');
     return;
   }
 
@@ -386,7 +392,7 @@ async function save() {
   } catch (error: unknown) {
     const err = error as Error;
     console.error('Error saving entity:', err);
-    showSnackbar(`Error saving entity: ${err.message}`, 'error');
+    showSnackbar(`Error saving entity: ${err.message}`, 'negative');
   } finally {
     saving.value = false;
   }
