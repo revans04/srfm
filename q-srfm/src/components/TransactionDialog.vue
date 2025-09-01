@@ -6,7 +6,7 @@
     :fullscreen="isMobile"
     @update:modelValue="handleDialogClose"
   >
-    <q-card>
+    <q-card class="full-width">
       <q-card-section class="bg-primary row items-center">
         <div class="text-h6 text-white">
           {{ editMode ? `Edit ${transaction.merchant} Transaction` : "Add Transaction" }}

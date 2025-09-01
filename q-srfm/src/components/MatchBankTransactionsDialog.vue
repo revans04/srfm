@@ -5,9 +5,9 @@
       <q-card-section>
         <div class="row justify-end">
           <div class="col-auto">
-            <q-btn color="secondary" @click="checkBatchMatches" :loading="checkingBatchMatches">
+            <q-btn color="secondary" @click="findSmartMatches" :loading="findingSmartMatches">
               <q-icon start name="playlist_add_check"></q-icon>
-              Check Batch Matches
+              Find Smart Matches
             </q-btn>
           </div>
         </div>
@@ -335,7 +335,7 @@ const selectedBankTransaction = ref<ImportedTransaction | null>(props.selectedBa
 
 // Snackbar timeout state for notifications
 const timeout = ref(3000);
-const checkingBatchMatches = ref(false);
+const findingSmartMatches = ref(false);
 
 // Local state for Smart Matches sorting
 const selectedSmartMatchIds = ref<string[]>([]);
@@ -575,26 +575,21 @@ watch(
 );
 
 // Methods
-async function checkBatchMatches() {
-  if (!selectedBankTransaction.value?.accountId) {
-    showSnackbar("No bank account available to check", "negative");
-    return;
-  }
-  checkingBatchMatches.value = true;
+function findSmartMatches() {
+  findingSmartMatches.value = true;
   try {
-    const matches = await dataAccess.getBudgetTransactionsMatchedToImported(
-      selectedBankTransaction.value.accountId
-    );
+    smartMatches.value = [];
+    computeSmartMatchesLocal();
     showSnackbar(
-      `Checked ${matches.length} batch match${matches.length !== 1 ? "es" : ""}`,
+      `Found ${smartMatches.value.length} smart match${smartMatches.value.length !== 1 ? "es" : ""}`,
       "info"
     );
   } catch (error: unknown) {
     const err = error as Error;
-    console.error("Error checking batch matches:", err);
-    showSnackbar(`Error checking batch matches: ${err.message}`, "negative");
+    console.error("Error finding smart matches:", err);
+    showSnackbar(`Error finding smart matches: ${err.message}`, "negative");
   } finally {
-    checkingBatchMatches.value = false;
+    findingSmartMatches.value = false;
   }
 }
 
