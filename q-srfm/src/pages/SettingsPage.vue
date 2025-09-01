@@ -87,6 +87,34 @@
             <div class="text-caption q-mt-sm text-secondary">
               Runs an incremental sync for changes since the selected date/time.
             </div>
+
+            <q-separator class="q-my-md" />
+
+            <div class="row q-col-gutter-sm q-mt-sm">
+              <div class="col-auto">
+                <q-btn color="primary" :loading="syncingUsers" @click="syncUsersNow">
+                  <q-icon name="person" class="q-mr-sm" /> Sync Users
+                </q-btn>
+              </div>
+              <div class="col-auto">
+                <q-btn color="primary" :loading="syncingFamilies" @click="syncFamiliesNow">
+                  <q-icon name="groups" class="q-mr-sm" /> Sync Families
+                </q-btn>
+              </div>
+              <div class="col-auto">
+                <q-btn color="primary" :loading="syncingAccounts" @click="syncAccountsNow">
+                  <q-icon name="account_balance" class="q-mr-sm" /> Sync Accounts
+                </q-btn>
+              </div>
+              <div class="col-auto">
+                <q-btn color="primary" :loading="syncingSnapshots" @click="syncSnapshotsNow">
+                  <q-icon name="photo_camera" class="q-mr-sm" /> Sync Snapshots
+                </q-btn>
+              </div>
+            </div>
+            <div class="text-caption q-mt-sm text-secondary">
+              Run targeted syncs for individual datasets.
+            </div>
           </q-card-section>
         </q-card>
       </q-tab-panel>
@@ -322,6 +350,10 @@ const validatingBudgets = ref(false);
 const validatingImports = ref(false);
 const syncing = ref(false);
 const syncingIncremental = ref(false);
+const syncingUsers = ref(false);
+const syncingFamilies = ref(false);
+const syncingAccounts = ref(false);
+const syncingSnapshots = ref(false);
 const syncSinceDate = ref<string>(''); // format: YYYY-MM-DD
 const syncSinceTime = ref<string>(''); // format: HH:mm (24h)
 
@@ -787,6 +819,62 @@ async function syncIncrementalNow() {
     showSnackbar(`Incremental sync failed: ${msg}`, 'negative');
   } finally {
     syncingIncremental.value = false;
+  }
+}
+
+async function syncUsersNow() {
+  syncingUsers.value = true;
+  try {
+    const msg = await dataAccess.syncUsers();
+    showSnackbar(msg || 'User sync completed', 'positive');
+  } catch (error: unknown) {
+    console.error('User sync error:', error);
+    const msg = toErrorMessage(error);
+    showSnackbar(`User sync failed: ${msg}`, 'negative');
+  } finally {
+    syncingUsers.value = false;
+  }
+}
+
+async function syncFamiliesNow() {
+  syncingFamilies.value = true;
+  try {
+    const msg = await dataAccess.syncFamilies();
+    showSnackbar(msg || 'Family sync completed', 'positive');
+  } catch (error: unknown) {
+    console.error('Family sync error:', error);
+    const msg = toErrorMessage(error);
+    showSnackbar(`Family sync failed: ${msg}`, 'negative');
+  } finally {
+    syncingFamilies.value = false;
+  }
+}
+
+async function syncAccountsNow() {
+  syncingAccounts.value = true;
+  try {
+    const msg = await dataAccess.syncAccounts();
+    showSnackbar(msg || 'Account sync completed', 'positive');
+  } catch (error: unknown) {
+    console.error('Account sync error:', error);
+    const msg = toErrorMessage(error);
+    showSnackbar(`Account sync failed: ${msg}`, 'negative');
+  } finally {
+    syncingAccounts.value = false;
+  }
+}
+
+async function syncSnapshotsNow() {
+  syncingSnapshots.value = true;
+  try {
+    const msg = await dataAccess.syncSnapshots();
+    showSnackbar(msg || 'Snapshot sync completed', 'positive');
+  } catch (error: unknown) {
+    console.error('Snapshot sync error:', error);
+    const msg = toErrorMessage(error);
+    showSnackbar(`Snapshot sync failed: ${msg}`, 'negative');
+  } finally {
+    syncingSnapshots.value = false;
   }
 }
 </script>

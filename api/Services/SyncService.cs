@@ -59,7 +59,7 @@ namespace FamilyBudgetApi.Services
             _logger.LogInformation("Completed incremental Firestore → Supabase sync.");
         }
 
-        private async Task SyncUsersAsync(DateTime? updatedSince)
+        public async Task SyncUsersAsync(DateTime? updatedSince)
         {
             Query query = _firestoreDb.Collection("users");
             if (updatedSince.HasValue)
@@ -114,7 +114,7 @@ namespace FamilyBudgetApi.Services
             await transaction.CommitAsync();
         }
 
-        private async Task SyncFamiliesAsync(DateTime? updatedSince)
+        public async Task SyncFamiliesAsync(DateTime? updatedSince)
         {
             Query query = _firestoreDb.Collection("families");
             if (updatedSince.HasValue)
@@ -216,7 +216,7 @@ namespace FamilyBudgetApi.Services
             await memberTx.CommitAsync();
         }
 
-        private async Task SyncAccountsAsync(DateTime? updatedSince)
+        public async Task SyncAccountsAsync(DateTime? updatedSince)
         {
             // Avoid collection group index requirement by iterating families and querying their
             // nested "accounts" subcollection individually.
@@ -326,7 +326,7 @@ namespace FamilyBudgetApi.Services
             await transaction.CommitAsync();
         }
 
-        private async Task SyncSnapshotsAsync(DateTime? updatedSince)
+        public async Task SyncSnapshotsAsync(DateTime? updatedSince)
         {
             var supabaseSnapshots = new List<PgSnapshot>();
             var supabaseSnapshotAccounts = new List<PgSnapshotAccount>();
