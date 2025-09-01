@@ -51,9 +51,10 @@ watch(
 );
 
 function onSave() {
-  const payload: Partial<Goal> = { ...form.value };
-  if (form.value.targetDate) {
-    payload.targetDate = new Date(form.value.targetDate) as unknown as Timestamp;
+  const { targetDate, ...rest } = form.value;
+  const payload: Partial<Goal> = { ...rest };
+  if (targetDate) {
+    payload.targetDate = new Date(targetDate) as unknown as Timestamp;
   }
   emit('save', payload);
   model.value = false;
