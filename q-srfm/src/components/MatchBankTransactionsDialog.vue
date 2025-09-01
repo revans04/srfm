@@ -72,15 +72,25 @@
                   hide-bottom
                   :pagination="{ rowsPerPage: 50 }"
                 >
-                  <template #body-cell-bankAmount="{ row }"> ${{ toDollars(toCents(row.bankAmount)) }} </template>
-                  <template #body-cell-budgetAmount="{ row }"> ${{ toDollars(toCents(row.budgetAmount)) }} </template>
-                  <template #body-cell-actions="{ row }">
-                    <q-icon
-                      v-if="isBudgetTxMatchedMultiple(row.budgetTransaction.id)"
-                      color="warning"
-                      title="This budget transaction matches multiple bank transactions"
-                      name="warning"
-                    ></q-icon>
+                  <template #body-cell-bankAmount="slotProps">
+                    <q-td :props="slotProps" class="text-right">
+                      ${{ toDollars(toCents(slotProps.row.bankAmount)) }}
+                    </q-td>
+                  </template>
+                  <template #body-cell-budgetAmount="slotProps">
+                    <q-td :props="slotProps" class="text-right">
+                      ${{ toDollars(toCents(slotProps.row.budgetAmount)) }}
+                    </q-td>
+                  </template>
+                  <template #body-cell-actions="slotProps">
+                    <q-td :props="slotProps">
+                      <q-icon
+                        v-if="isBudgetTxMatchedMultiple(slotProps.row.budgetTransaction.id)"
+                        color="warning"
+                        title="This budget transaction matches multiple bank transactions"
+                        name="warning"
+                      ></q-icon>
+                    </q-td>
                   </template>
                 </q-table>
 
@@ -230,20 +240,28 @@
                   selection="single"
                   v-model:selected="selectedBudgetTransactionForMatch"
                 >
-                  <template #body-cell-amount="{ row }"> ${{ toDollars(toCents(row.amount)) }} </template>
-                  <template #body-cell-type="{ row }">
-                    {{ row.isIncome ? "Income" : "Expense" }}
+                  <template #body-cell-amount="slotProps">
+                    <q-td :props="slotProps" class="text-right">
+                      ${{ toDollars(toCents(slotProps.row.amount)) }}
+                    </q-td>
                   </template>
-                  <template #body-cell-actions="{ row }">
-                    <q-btn
-                      color="primary"
-                      small
-                      @click="matchBankTransaction(row)"
-                      :disabled="!selectedBudgetTransactionForMatch.length || props.matching"
-                      :loading="props.matching"
-                    >
-                      Match
-                    </q-btn>
+                  <template #body-cell-type="slotProps">
+                    <q-td :props="slotProps">
+                      {{ slotProps.row.isIncome ? "Income" : "Expense" }}
+                    </q-td>
+                  </template>
+                  <template #body-cell-actions="slotProps">
+                    <q-td :props="slotProps">
+                      <q-btn
+                        color="primary"
+                        small
+                        @click="matchBankTransaction(slotProps.row)"
+                        :disabled="!selectedBudgetTransactionForMatch.length || props.matching"
+                        :loading="props.matching"
+                      >
+                        Match
+                      </q-btn>
+                    </q-td>
                   </template>
                 </q-table>
                 <div v-else-if="!showSplitForm" class="q-mt-lg">
