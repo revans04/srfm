@@ -127,19 +127,41 @@ Key props/usage:
           @load-more="fetchMore"
           @row-click="onRowClick"
         />
-        <TransactionDialog
-          v-if="editTx"
-          :show-dialog="showTxDialog"
-          :initial-transaction="editTx"
-          :edit-mode="true"
-          :loading="false"
-          :category-options="editCategoryOptions"
-          :budget-id="editBudgetId"
-          :user-id="auth.user?.uid || ''"
-          @update:showDialog="(val) => { showTxDialog = val; if (!val) editTx = null; }"
-          @save="onTransactionSaved"
-          @cancel="() => { showTxDialog = false; editTx = null; }"
-        />
+        <q-dialog
+          v-model="showTxDialog"
+          :width="!isMobile ? '550px' : undefined"
+          :fullscreen="isMobile"
+          @hide="onTxCancel"
+        >
+          <q-card>
+            <q-card-section class="bg-primary row items-center">
+              <div class="text-h6 text-white">
+                Edit {{ editTx?.merchant }} Transaction
+              </div>
+              <q-btn
+                flat
+                dense
+                icon="close"
+                color="white"
+                class="q-ml-auto"
+                @click="onTxCancel"
+              />
+            </q-card-section>
+            <q-card-section>
+              <TransactionForm
+                v-if="showTxDialog && editTx"
+                :initial-transaction="editTx"
+                :category-options="editCategoryOptions"
+                :budget-id="editBudgetId"
+                :user-id="auth.user?.uid || ''"
+                :show-cancel="true"
+                :loading="false"
+                @save="onTransactionSaved"
+                @cancel="onTxCancel"
+              />
+            </q-card-section>
+          </q-card>
+        </q-dialog>
       </q-tab-panel>
 
       <!-- Account Register Tab -->
@@ -197,12 +219,13 @@ Key props/usage:
 
 <script setup lang="ts">
 import { computed, ref, watch, onMounted } from 'vue';
+import { useQuasar } from 'quasar';
 import { storeToRefs } from 'pinia';
 import LedgerTable from 'src/components/LedgerTable.vue';
 import StatementHeader from 'src/components/StatementHeader.vue';
 import MatchBankPanel from 'src/components/MatchBankPanel.vue';
 import EntitySelector from 'src/components/EntitySelector.vue';
-import TransactionDialog from 'src/components/TransactionDialog.vue';
+import TransactionForm from 'src/components/TransactionForm.vue';
 import { useTransactions } from 'src/composables/useTransactions';
 import type { LedgerFilters, LedgerRow } from 'src/composables/useTransactions';
 import { useBudgetStore } from 'src/store/budget';
@@ -258,6 +281,8 @@ const maxAmtInput = ref('');
 const showTxDialog = ref(false);
 const editTx = ref<Transaction | null>(null);
 const editBudgetId = ref('');
+const $q = useQuasar();
+const isMobile = computed(() => $q.screen.lt.md);
 const editCategoryOptions = computed(() =>
   editBudgetId.value
     ? budgetStore.getBudget(editBudgetId.value)?.categories.map((c) => c.name) || []
@@ -447,6 +472,11 @@ async function onTransactionSaved(updated: Transaction) {
     else budget.transactions.push(updated);
   }
   await loadInitial(selectedBudgetIds.value);
+  editTx.value = null;
+}
+
+function onTxCancel() {
+  showTxDialog.value = false;
   editTx.value = null;
 }
 
