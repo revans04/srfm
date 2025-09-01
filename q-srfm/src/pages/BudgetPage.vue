@@ -845,6 +845,24 @@ watch(
   },
 );
 
+function deriveCategoriesFromTransactions(transactions: Transaction[] = []): BudgetCategory[] {
+  const map = new Map<string, BudgetCategory>();
+  transactions.forEach((t) => {
+    t.categories.forEach((c) => {
+      if (!map.has(c.category)) {
+        map.set(c.category, {
+          name: c.category,
+          target: 0,
+          isFund: false,
+          group: t.isIncome ? 'Income' : 'Expenses',
+          carryover: 0,
+        });
+      }
+    });
+  });
+  return Array.from(map.values());
+}
+
 const updateBudgetForMonth = debounce(async () => {
   log('updateBudgetForMonth start', {
     selectedEntityId: familyStore.selectedEntityId,
@@ -885,6 +903,10 @@ const updateBudgetForMonth = debounce(async () => {
         ...fullBudget,
         budgetId: key,
         transactions: fullBudget.transactions || [],
+        categories:
+          fullBudget.categories && fullBudget.categories.length > 0
+            ? fullBudget.categories
+            : deriveCategoriesFromTransactions(fullBudget.transactions || []),
       };
       budget.value = normalized;
       budgetStore.updateBudget(key, normalized);
@@ -894,6 +916,10 @@ const updateBudgetForMonth = debounce(async () => {
         ...defaultBudget,
         budgetId: key,
         transactions: defaultBudget.transactions || [],
+        categories:
+          defaultBudget.categories && defaultBudget.categories.length > 0
+            ? defaultBudget.categories
+            : deriveCategoriesFromTransactions(defaultBudget.transactions || []),
       };
     }
 
