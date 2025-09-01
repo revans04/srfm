@@ -5,7 +5,8 @@ const routes: RouteRecordRaw[] = [
     path: '/',
     component: () => import('layouts/MainLayout.vue'),
     children: [
-      { path: '', component: () => import('pages/DashboardPage.vue'), meta: { title: 'Budget' } },
+      { path: '', component: () => import('pages/DashboardPage.vue'), meta: { title: 'Dashboard' } },
+      { path: 'budget', component: () => import('pages/BudgetPage.vue'), meta: { title: 'Budget' } },
       { path: 'setup', component: () => import('pages/SetupWizardPage.vue'), meta: { title: 'Setup' } },
       { path: 'transactions', component: () => import('pages/TransactionsPage.vue'), meta: { title: 'Transactions' } },
       { path: 'settings', component: () => import('pages/SettingsPage.vue'), meta: { title: 'Settings' } },

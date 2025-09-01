@@ -91,7 +91,8 @@ const isLoginRoute = computed(() => route.path === '/login');
 const appVersion = version;
 
 const navItems = [
-  { title: 'Budget', path: '/', icon: 'savings', desktop: true, mobile: true },
+  { title: 'Dashboard', path: '/', icon: 'dashboard', desktop: true, mobile: true },
+  { title: 'Budget', path: '/budget', icon: 'savings', desktop: true, mobile: true },
   { title: 'Transactions', path: '/transactions', icon: 'format_list_bulleted', desktop: true, mobile: true },
   { title: 'Accounts', path: '/accounts', icon: 'account_balance', desktop: true, mobile: true },
   { title: 'Reports', path: '/reports', icon: 'trending_up', desktop: true, mobile: false },
