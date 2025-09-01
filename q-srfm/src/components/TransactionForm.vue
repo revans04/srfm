@@ -120,6 +120,21 @@
         </div>
       </div>
 
+      <div class="row form-row">
+        <div class="col form-col-label col-auto">Fund from Goal</div>
+        <div class="col text-right">
+          <q-select
+            v-model="locTrnsx.fundedByGoalId"
+            :options="goalOptions"
+            dense
+            borderless
+            emit-value
+            map-options
+            clearable
+          />
+        </div>
+      </div>
+
       <q-checkbox v-model="locTrnsx.recurring" label="Recurring"></q-checkbox>
       <q-select v-if="locTrnsx.recurring" v-model="locTrnsx.recurringInterval" :options="intervals" label="Recurring Interval" dense borderless />
 
@@ -191,17 +206,21 @@
 import { ref, computed, onMounted, reactive } from "vue";
 import { useQuasar } from 'quasar';
 import { dataAccess } from "../dataAccess";
-import type { Budget, Transaction } from "../types";
+import type { Budget, Transaction, Goal } from "../types";
 import { toCents, toDollars, todayISO, currentMonthISO } from "../utils/helpers";
 import CurrencyInput from "./CurrencyInput.vue";
 import ToggleButton from "./ToggleButton.vue";
 import { QForm } from "quasar";
 import { useMerchantStore } from "../store/merchants";
 import { useBudgetStore } from "../store/budget";
+import { useGoals } from '../composables/useGoals';
+import { useFamilyStore } from '../store/family';
 
 const merchantStore = useMerchantStore();
 const budgetStore = useBudgetStore();
 const $q = useQuasar();
+const familyStore = useFamilyStore();
+const { listGoals, addGoalSpend } = useGoals();
 
 const props = defineProps<{
   initialTransaction: Transaction;
@@ -254,6 +273,9 @@ const transactions = ref<Transaction[]>([]);
 const isLoading = ref(false);
 const intervals = ref(["Daily", "Weekly", "Bi-Weekly", "Monthly", "Quarterly", "Bi-Annually", "Yearly"]);
 const isMobile = computed(() => $q.screen.lt.md);
+
+const goalList = ref<Goal[]>([]);
+const goalOptions = computed(() => goalList.value.map((g) => ({ label: g.name, value: g.id })));
 
 const merchantNames = computed(() => merchantStore.merchantNames);
 
@@ -311,6 +333,10 @@ onMounted(async () => {
   }
 
   isInitialized.value = true;
+
+  if (familyStore.selectedEntityId) {
+    goalList.value = listGoals(familyStore.selectedEntityId);
+  }
 });
 
 function scrollToNoteField(event: FocusEvent) {
@@ -446,6 +472,14 @@ async function save() {
         }
         emit("update-transactions", transactions.value);
 
+        if (locTrnsx.fundedByGoalId) {
+          addGoalSpend(
+            locTrnsx.fundedByGoalId,
+            savedTransaction.id,
+            Math.abs(savedTransaction.amount),
+            savedTransaction.date,
+          );
+        }
         emit("save", savedTransaction);
         showSnackbar("Transaction saved successfully", "success");
       } else {

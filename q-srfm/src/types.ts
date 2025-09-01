@@ -66,6 +66,7 @@ export interface Transaction {
   entityId?: string;
   taxMetadata: TaxMetadata[]; // Array to support multiple forms/entities
   receiptUrl?: string; // Firebase Storage link for receipts
+  fundedByGoalId?: string; // Savings goal funding source
   // Local-only metadata to track previous id during de-duplication workflows
   originalId?: string;
 }
@@ -127,6 +128,37 @@ export interface BudgetInfo extends Budget {
 
 export interface TemplateBudget {
   categories: BudgetCategory[];
+}
+
+export interface Goal {
+  id: string;
+  name: string;
+  totalTarget: number;
+  monthlyTarget: number;
+  savedToDate: number;
+  spentToDate: number;
+  status: 'in_progress' | 'reached' | 'spent_out';
+  targetDate?: Timestamp;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  entityId: string;
+  notes?: string;
+  archived?: boolean;
+}
+
+export interface GoalContribution {
+  goalId: string;
+  month: string; // YYYY-MM
+  amount: number;
+  note?: string;
+}
+
+export interface GoalSpend {
+  goalId: string;
+  txId: string;
+  amount: number;
+  txDate: string; // ISO date
+  note?: string;
 }
 
 export interface PendingInvite {

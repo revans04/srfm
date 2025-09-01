@@ -63,6 +63,9 @@
                 <div class="col text-truncate" style="flex: 1; min-width: 0">
                   {{ transaction.merchant }}
                 </div>
+                <div class="col-auto q-ml-sm">
+                  <GoalFundingPill :goal="goalMap[transaction.fundedByGoalId || '']" />
+                </div>
                 <div class="col text-right no-wrap col-auto" :class="transaction.isIncome ? 'text-green' : ''" style="min-width: 60px">
                   ${{ Math.abs(getCategoryAmount(transaction)).toFixed(2) }}
                 </div>
@@ -144,9 +147,12 @@ import { ref, computed, onMounted } from 'vue';
 import { useQuasar, QSpinner } from 'quasar';
 import { dataAccess } from '../dataAccess';
 import TransactionForm from './TransactionForm.vue';
-import type { BudgetCategory, Transaction } from '../types';
+import GoalFundingPill from './transactions/GoalFundingPill.vue';
+import type { BudgetCategory, Transaction, Goal } from '../types';
 import { toDollars, toCents, formatCurrency } from '../utils/helpers';
 import { useBudgetStore } from '../store/budget';
+import { useGoals } from '../composables/useGoals';
+import { useFamilyStore } from '../store/family';
 
 const props = defineProps<{
   category: BudgetCategory;
@@ -169,6 +175,9 @@ const showEditDialog = ref(false);
 const transactionToEdit = ref<Transaction | null>(null);
 const showDeleteDialog = ref(false);
 const transactionToDelete = ref<Transaction | null>(null);
+const familyStore = useFamilyStore();
+const { listGoals } = useGoals();
+const goalMap = ref<Record<string, Goal>>({});
 
 const spent = computed(() => {
   let spentTotal = 0;
@@ -325,6 +334,10 @@ onMounted(() => {
   const budget = budgetStore.getBudget(props.budgetId);
   if (!budget) {
     console.error(`Budget ${props.budgetId} not found in store`);
+  }
+  if (familyStore.selectedEntityId) {
+    const gs = listGoals(familyStore.selectedEntityId);
+    goalMap.value = Object.fromEntries(gs.map((g) => [g.id, g]));
   }
 });
 </script>
