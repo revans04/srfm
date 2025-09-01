@@ -89,6 +89,7 @@ export class DataAccess {
       recurring: Boolean(tx.recurring ?? false),
       recurringInterval: (tx.recurringInterval as Transaction['recurringInterval']) ?? 'Monthly',
       userId: typeof tx.userId === 'string' ? tx.userId : '',
+      familyId: typeof tx.familyId === 'string' ? tx.familyId : undefined,
       isIncome: Boolean(tx.isIncome ?? false),
       accountNumber: typeof tx.accountNumber === 'string' ? tx.accountNumber : undefined,
       accountSource: typeof tx.accountSource === 'string' ? tx.accountSource : undefined,

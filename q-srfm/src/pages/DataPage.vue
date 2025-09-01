@@ -1413,7 +1413,14 @@ async function confirmImport() {
           const firebaseBudgetId = `${user.uid}_${selectedEntityId.value}_${month}`; // New ID format
           budgetIdMap.set(originalBudgetId, firebaseBudgetId);
           // Create or update the budget
-          const budget = await createBudgetForMonth(month, familyId.value!, user.uid, selectedEntityId.value);
+          const budget = await createBudgetForMonth(
+            month,
+            familyId.value!,
+            user.uid,
+            selectedEntityId.value,
+          );
+          budget.familyId = familyId.value!;
+          budget.entityId = selectedEntityId.value;
           budgetsById.set(firebaseBudgetId, budget);
         }
 
@@ -1469,6 +1476,7 @@ async function confirmImport() {
           const transactionData: Transaction = {
             id: transactionId,
             userId: user.uid,
+            familyId: familyId.value || "",
             budgetMonth: budget.month,
             budgetId: firebaseBudgetId,
             date: txPreview.transactiondate,
