@@ -104,6 +104,9 @@
                               :label="field.label"
                               variant="outlined"
                               clearable
+                              use-input
+                              input-debounce="0"
+                              @new-value="(val, done) => { done(val); fieldMapping[field.key] = val; }"
                               placeholder="Select a column or type a value"
                             ></q-select>
                           </div>
@@ -119,6 +122,9 @@
                                 label="Credit Amount"
                                 variant="outlined"
                                 clearable
+                                use-input
+                                input-debounce="0"
+                                @new-value="(val, done) => { done(val); fieldMapping.creditAmount = val; }"
                                 placeholder="Select a column or type a value"
                               ></q-select>
                             </div>
@@ -131,6 +137,9 @@
                                 label="Debit Amount"
                                 variant="outlined"
                                 clearable
+                                use-input
+                                input-debounce="0"
+                                @new-value="(val, done) => { done(val); fieldMapping.debitAmount = val; }"
                                 placeholder="Select a column or type a value"
                               ></q-select>
                             </div>
@@ -145,6 +154,9 @@
                                 label="Transaction Type Column"
                                 variant="outlined"
                                 clearable
+                                use-input
+                                input-debounce="0"
+                                @new-value="(val, done) => { done(val); fieldMapping.transactionType = val; }"
                                 placeholder="Select a column or type a value"
                               ></q-select>
                             </div>
@@ -177,6 +189,9 @@
                                 label="Amount"
                                 variant="outlined"
                                 clearable
+                                use-input
+                                input-debounce="0"
+                                @new-value="(val, done) => { done(val); fieldMapping.amount = val; }"
                                 placeholder="Select a column or type a value"
                               ></q-select>
                             </div>
@@ -191,6 +206,9 @@
                                 label="Amount (Positive = Credit, Negative = Debit)"
                                 variant="outlined"
                                 clearable
+                                use-input
+                                input-debounce="0"
+                                @new-value="(val, done) => { done(val); fieldMapping.amount = val; }"
                                 placeholder="Select a column or type a value"
                               ></q-select>
                             </div>
