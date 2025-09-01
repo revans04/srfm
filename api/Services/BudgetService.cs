@@ -278,27 +278,47 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
         try { await cmd.ExecuteNonQueryAsync(); } catch { /* ignore if table missing */ }
     }
 
-    private void BindTransactionParameters(NpgsqlCommand cmd, string budgetId, Transaction tx)
+    private void BindTransactionParameters(NpgsqlParameterCollection parameters, string budgetId, Transaction tx)
     {
-        cmd.Parameters.AddWithValue("id", tx.Id);
-        cmd.Parameters.AddWithValue("budget_id", budgetId);
-        cmd.Parameters.AddWithValue("date", (object?)ParseDate(tx.Date) ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("budget_month", (object?)tx.BudgetMonth ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("merchant", (object?)tx.Merchant ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("amount", (decimal)tx.Amount);
-        cmd.Parameters.AddWithValue("notes", (object?)tx.Notes ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("recurring", tx.Recurring);
-        cmd.Parameters.AddWithValue("recurring_interval", (object?)tx.RecurringInterval ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("user_id", (object?)tx.UserId ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("is_income", tx.IsIncome);
-        cmd.Parameters.AddWithValue("account_number", (object?)tx.AccountNumber ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("account_source", (object?)tx.AccountSource ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("posted_date", (object?)ParseDate(tx.PostedDate) ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("imported_merchant", (object?)tx.ImportedMerchant ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("status", (object?)tx.Status ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("check_number", (object?)tx.CheckNumber ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("deleted", tx.Deleted.HasValue ? (object)tx.Deleted.Value : DBNull.Value);
-        cmd.Parameters.AddWithValue("entity_id", string.IsNullOrEmpty(tx.EntityId) ? (object)DBNull.Value : Guid.Parse(tx.EntityId));
+        parameters.AddWithValue("id", tx.Id);
+        parameters.AddWithValue("budget_id", budgetId);
+        parameters.AddWithValue("date", (object?)ParseDate(tx.Date) ?? DBNull.Value);
+        parameters.AddWithValue("budget_month", (object?)tx.BudgetMonth ?? DBNull.Value);
+        parameters.AddWithValue("merchant", (object?)tx.Merchant ?? DBNull.Value);
+        parameters.AddWithValue("amount", (decimal)tx.Amount);
+        parameters.AddWithValue("notes", (object?)tx.Notes ?? DBNull.Value);
+        parameters.AddWithValue("recurring", tx.Recurring);
+        parameters.AddWithValue("recurring_interval", (object?)tx.RecurringInterval ?? DBNull.Value);
+        parameters.AddWithValue("user_id", (object?)tx.UserId ?? DBNull.Value);
+        parameters.AddWithValue("is_income", tx.IsIncome);
+        parameters.AddWithValue("account_number", (object?)tx.AccountNumber ?? DBNull.Value);
+        parameters.AddWithValue("account_source", (object?)tx.AccountSource ?? DBNull.Value);
+        parameters.AddWithValue("posted_date", (object?)ParseDate(tx.PostedDate) ?? DBNull.Value);
+        parameters.AddWithValue("imported_merchant", (object?)tx.ImportedMerchant ?? DBNull.Value);
+        parameters.AddWithValue("status", (object?)tx.Status ?? DBNull.Value);
+        parameters.AddWithValue("check_number", (object?)tx.CheckNumber ?? DBNull.Value);
+        parameters.AddWithValue("deleted", tx.Deleted.HasValue ? (object)tx.Deleted.Value : DBNull.Value);
+        parameters.AddWithValue("entity_id", string.IsNullOrEmpty(tx.EntityId) ? (object)DBNull.Value : Guid.Parse(tx.EntityId));
+    }
+
+    private void AddCategoryCommands(NpgsqlBatch batch, string txId, List<TransactionCategory>? categories)
+    {
+        const string delSql = "DELETE FROM transaction_categories WHERE transaction_id=@id";
+        var delCmd = new NpgsqlBatchCommand(delSql);
+        delCmd.Parameters.AddWithValue("id", txId);
+        batch.BatchCommands.Add(delCmd);
+
+        if (categories == null) return;
+
+        const string insSql = "INSERT INTO transaction_categories (transaction_id, category_name, amount) VALUES (@id,@name,@amount)";
+        foreach (var cat in categories)
+        {
+            var insCmd = new NpgsqlBatchCommand(insSql);
+            insCmd.Parameters.AddWithValue("id", txId);
+            insCmd.Parameters.AddWithValue("name", cat.Category ?? string.Empty);
+            insCmd.Parameters.AddWithValue("amount", (decimal)cat.Amount);
+            batch.BatchCommands.Add(insCmd);
+        }
     }
 
     private async Task SaveCategories(NpgsqlConnection conn, string txId, List<TransactionCategory>? categories)
@@ -381,7 +401,7 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
 VALUES (@id,@budget_id,@date,@budget_month,@merchant,@amount,@notes,@recurring,@recurring_interval,@user_id,@is_income,@account_number,@account_source,@posted_date,@imported_merchant,@status,@check_number,@deleted,@entity_id, now(), now())
 ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date, budget_month=EXCLUDED.budget_month, merchant=EXCLUDED.merchant, amount=EXCLUDED.amount, notes=EXCLUDED.notes, recurring=EXCLUDED.recurring, recurring_interval=EXCLUDED.recurring_interval, user_id=EXCLUDED.user_id, is_income=EXCLUDED.is_income, account_number=EXCLUDED.account_number, account_source=EXCLUDED.account_source, posted_date=EXCLUDED.posted_date, imported_merchant=EXCLUDED.imported_merchant, status=EXCLUDED.status, check_number=EXCLUDED.check_number, deleted=EXCLUDED.deleted, entity_id=EXCLUDED.entity_id, updated_at=now();";
         await using var cmd = new NpgsqlCommand(sql, conn);
-        BindTransactionParameters(cmd, budgetId, transaction);
+        BindTransactionParameters(cmd.Parameters, budgetId, transaction);
         await cmd.ExecuteNonQueryAsync();
         // Ensure at least one split row exists. If none provided, create a default
         // split using either 'Income' or 'Uncategorized' for the full amount.
@@ -414,10 +434,53 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
 
     public async Task BatchSaveTransactions(string budgetId, List<Transaction> transactions, string userId, string userEmail)
     {
+        await using var conn = await _db.GetOpenConnectionAsync();
+        await using var dbTx = await conn.BeginTransactionAsync();
+
+        const string sql = @"INSERT INTO transactions (id, budget_id, date, budget_month, merchant, amount, notes, recurring, recurring_interval, user_id, is_income, account_number, account_source, posted_date, imported_merchant, status, check_number, deleted, entity_id, created_at, updated_at)
+VALUES (@id,@budget_id,@date,@budget_month,@merchant,@amount,@notes,@recurring,@recurring_interval,@user_id,@is_income,@account_number,@account_source,@posted_date,@imported_merchant,@status,@check_number,@deleted,@entity_id, now(), now())
+ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date, budget_month=EXCLUDED.budget_month, merchant=EXCLUDED.merchant, amount=EXCLUDED.amount, notes=EXCLUDED.notes, recurring=EXCLUDED.recurring, recurring_interval=EXCLUDED.recurring_interval, user_id=EXCLUDED.user_id, is_income=EXCLUDED.is_income, account_number=EXCLUDED.account_number, account_source=EXCLUDED.account_source, posted_date=EXCLUDED.posted_date, imported_merchant=EXCLUDED.imported_merchant, status=EXCLUDED.status, check_number=EXCLUDED.check_number, deleted=EXCLUDED.deleted, entity_id=EXCLUDED.entity_id, updated_at=now();";
+
+        const string logSql = "INSERT INTO budget_edit_history (budget_id, user_id, user_email, timestamp, action) VALUES (@bid,@uid,@email, now(), @action)";
+
+        var batch = new NpgsqlBatch(conn) { Transaction = dbTx };
+
         foreach (var tx in transactions)
         {
-            await SaveTransaction(budgetId, tx, userId, userEmail);
+            if (string.IsNullOrEmpty(tx.Id))
+                tx.Id = Guid.NewGuid().ToString();
+
+            var txCmd = new NpgsqlBatchCommand(sql);
+            BindTransactionParameters(txCmd.Parameters, budgetId, tx);
+            batch.BatchCommands.Add(txCmd);
+
+            // Ensure at least one split row exists. If none provided, create a default
+            // split using either 'Income' or 'Uncategorized' for the full amount.
+            var cats = tx.Categories;
+            if (cats == null || cats.Count == 0)
+            {
+                cats = new List<TransactionCategory>
+                {
+                    new TransactionCategory
+                    {
+                        Category = tx.IsIncome ? "Income" : "Uncategorized",
+                        Amount = tx.Amount
+                    }
+                };
+            }
+
+            AddCategoryCommands(batch, tx.Id, cats);
+
+            var logCmd = new NpgsqlBatchCommand(logSql);
+            logCmd.Parameters.AddWithValue("bid", budgetId);
+            logCmd.Parameters.AddWithValue("uid", (object?)userId ?? DBNull.Value);
+            logCmd.Parameters.AddWithValue("email", (object?)userEmail ?? DBNull.Value);
+            logCmd.Parameters.AddWithValue("action", "save-transaction");
+            batch.BatchCommands.Add(logCmd);
         }
+
+        await batch.ExecuteNonQueryAsync();
+        await dbTx.CommitAsync();
     }
 
     public async Task<string> SaveImportedTransactions(string userId, ImportedTransactionDoc doc)
