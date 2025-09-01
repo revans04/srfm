@@ -218,37 +218,35 @@ namespace FamilyBudgetApi.Services
 
         public async Task SyncAccountsAsync(DateTime? updatedSince)
         {
-            // Avoid collection group index requirement by iterating families and querying their
-            // nested "accounts" subcollection individually.
+            // Accounts are stored as an array on each family document, not a subcollection.
+            // Iterate families and upsert their embedded accounts.
             var supabaseAccounts = new List<PgAccount>();
             var familiesSnap = await _firestoreDb.Collection("families").GetSnapshotAsync();
-            var ts = updatedSince.HasValue
-                ? Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(updatedSince.Value.ToUniversalTime())
-                : null;
 
             foreach (var familyDoc in familiesSnap.Documents)
             {
+                var family = familyDoc.ConvertTo<Family>();
                 var familyGuid = TryParseGuid(familyDoc.Id);
-                var accountsRef = familyDoc.Reference.Collection("accounts");
-                Query q = accountsRef;
-                if (ts != null)
+                var accounts = family.Accounts ?? new List<Account>();
+
+                if (updatedSince.HasValue)
                 {
-                    q = q.WhereGreaterThanOrEqualTo("updatedAt", ts);
+                    accounts = accounts
+                        .Where(a => a.UpdatedAt.ToDateTime() >= updatedSince.Value.ToUniversalTime())
+                        .ToList();
                 }
 
-                var accountSnap = await q.GetSnapshotAsync();
-                foreach (var doc in accountSnap.Documents)
+                foreach (var account in accounts)
                 {
-                    var account = doc.ConvertTo<Account>();
                     var createdAt = account.CreatedAt.ToDateTime();
                     var updatedAt = account.UpdatedAt.ToDateTime();
                     if (createdAt == DateTime.MinValue)
                     {
-                        createdAt = doc.CreateTime?.ToDateTime() ?? DateTime.UtcNow;
+                        createdAt = familyDoc.CreateTime?.ToDateTime() ?? DateTime.UtcNow;
                     }
                     if (updatedAt == DateTime.MinValue)
                     {
-                        updatedAt = doc.UpdateTime?.ToDateTime() ?? createdAt;
+                        updatedAt = familyDoc.UpdateTime?.ToDateTime() ?? createdAt;
                     }
 
                     supabaseAccounts.Add(new PgAccount
