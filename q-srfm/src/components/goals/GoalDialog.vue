@@ -34,18 +34,21 @@ watch(
 watch(model, (v) => emit('update:modelValue', v));
 
 type GoalForm = Omit<Partial<Goal>, 'targetDate'> & { targetDate?: string };
-const form = ref<GoalForm>({});
+// Initialize numeric fields to avoid undefined being passed to CurrencyInput
+const form = ref<GoalForm>({ totalTarget: 0, monthlyTarget: 0 });
 watch(
   () => props.goal,
   (g) => {
     form.value = g
       ? {
           ...g,
+          totalTarget: g.totalTarget ?? 0,
+          monthlyTarget: g.monthlyTarget ?? 0,
           targetDate: g.targetDate
             ? (g.targetDate as unknown as Date).toISOString().slice(0, 10)
             : undefined,
         }
-      : {};
+      : { totalTarget: 0, monthlyTarget: 0 };
   },
   { immediate: true },
 );
