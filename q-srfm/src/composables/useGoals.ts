@@ -38,6 +38,7 @@ export function useGoals() {
       createdAt: now as unknown as Timestamp,
       updatedAt: now as unknown as Timestamp,
       entityId: data.entityId || '',
+      notes: data.notes,
       archived: false,
     };
     goals.value.push(goal);

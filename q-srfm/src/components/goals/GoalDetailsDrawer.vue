@@ -27,6 +27,7 @@
 import { ref, watch } from 'vue';
 import { formatCurrency } from '../../utils/helpers';
 import type { Goal } from '../../types';
+import type { QTableColumn } from 'quasar';
 
 const props = defineProps<{ modelValue: boolean; goal?: Goal }>();
 const emit = defineEmits<{ (e: 'update:modelValue', v: boolean): void }>();
@@ -43,11 +44,11 @@ watch(
 );
 watch(model, (v) => emit('update:modelValue', v));
 
-const contribCols = [
+const contribCols: QTableColumn[] = [
   { name: 'month', label: 'Month', field: 'month' },
   { name: 'amount', label: 'Amount', field: 'amount', align: 'right' },
 ];
-const spendCols = [
+const spendCols: QTableColumn[] = [
   { name: 'date', label: 'Date', field: 'txDate' },
   { name: 'amount', label: 'Amount', field: 'amount', align: 'right' },
 ];

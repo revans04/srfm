@@ -21,6 +21,7 @@
 import { ref, watch } from 'vue';
 import CurrencyInput from '../CurrencyInput.vue';
 import type { Goal } from '../../types';
+import type { Timestamp } from 'firebase/firestore';
 
 const props = defineProps<{ modelValue: boolean; goal?: Goal }>();
 const emit = defineEmits<{ (e: 'update:modelValue', v: boolean): void; (e: 'save', data: Partial<Goal>): void }>();
@@ -32,17 +33,29 @@ watch(
 );
 watch(model, (v) => emit('update:modelValue', v));
 
-const form = ref<Partial<Goal>>({});
+type GoalForm = Omit<Partial<Goal>, 'targetDate'> & { targetDate?: string };
+const form = ref<GoalForm>({});
 watch(
   () => props.goal,
   (g) => {
-    form.value = g ? { ...g } : {};
+    form.value = g
+      ? {
+          ...g,
+          targetDate: g.targetDate
+            ? (g.targetDate as unknown as Date).toISOString().slice(0, 10)
+            : undefined,
+        }
+      : {};
   },
   { immediate: true },
 );
 
 function onSave() {
-  emit('save', form.value);
+  const payload: Partial<Goal> = { ...form.value };
+  if (form.value.targetDate) {
+    payload.targetDate = new Date(form.value.targetDate) as unknown as Timestamp;
+  }
+  emit('save', payload);
   model.value = false;
 }
 </script>

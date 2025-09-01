@@ -141,6 +141,7 @@ export interface Goal {
   createdAt: Timestamp;
   updatedAt: Timestamp;
   entityId: string;
+  notes?: string;
   archived?: boolean;
 }
 

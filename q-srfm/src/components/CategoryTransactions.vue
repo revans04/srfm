@@ -336,9 +336,8 @@ onMounted(() => {
     console.error(`Budget ${props.budgetId} not found in store`);
   }
   if (familyStore.selectedEntityId) {
-    void listGoals(familyStore.selectedEntityId).then((gs) => {
-      goalMap.value = Object.fromEntries(gs.map((g) => [g.id, g]));
-    });
+    const gs = listGoals(familyStore.selectedEntityId);
+    goalMap.value = Object.fromEntries(gs.map((g) => [g.id, g]));
   }
 });
 </script>
