@@ -169,18 +169,23 @@ export function useTransactions() {
   async function hydrateBudgets(budgetIds: string[]) {
     const out: LedgerRow[] = [];
     for (const id of budgetIds) {
-      let full = budgetStore.getBudget(id);
-      if (!full || !full.transactions || full.transactions.length === 0) {
-        full = await dataAccess.getBudget(id);
-        if (full) {
-          budgetStore.updateBudget(id, full);
+      try {
+        let full = budgetStore.getBudget(id);
+        if (!full || !full.transactions || full.transactions.length === 0) {
+          full = await dataAccess.getBudget(id);
+          if (full) {
+            budgetStore.updateBudget(id, full);
+          }
         }
-      }
-      if (full) {
-        const mapped = (full.transactions || [])
-          .filter((t) => !t.deleted)
-          .map((t) => mapTxToRow(t, full));
-        out.push(...mapped);
+        if (full) {
+          const mapped = (full.transactions || [])
+            .filter((t) => !t.deleted)
+            .map((t) => mapTxToRow(t, full));
+          out.push(...mapped);
+        }
+      } catch (err) {
+        // Skip budgets that fail to load but continue processing others
+        console.error('Failed to hydrate budget', id, err);
       }
     }
     // Sort desc by date
