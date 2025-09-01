@@ -98,7 +98,7 @@ public class AccountService
 
         const string sql = @"INSERT INTO accounts
             (id, family_id, user_id, name, type, category, account_number, institution, balance, interest_rate, appraised_value, maturity_date, address, created_at, updated_at)
-            VALUES (@id, @fid, @uid, @name, @type, @cat, @acctNum, @inst, @bal, @ir, @appVal, @mat, @addr, now(), now())
+            VALUES (@id, @fid, @uid, @name, @type::account_type, @cat::account_category, @acctNum, @inst, @bal, @ir, @appVal, @mat, @addr, now(), now())
             ON CONFLICT (id) DO UPDATE SET
             user_id=EXCLUDED.user_id,
             name=EXCLUDED.name,
