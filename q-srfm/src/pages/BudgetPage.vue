@@ -800,17 +800,18 @@ const updateBudgetForMonth = debounce(async () => {
       ownerUid.value = userId.value;
     }
 
-    budget.value = { ...defaultBudget, budgetId: budgetId.value };
-    // If transactions weren't included in the accessible budgets payload,
-    // fetch the full budget so the transaction list is populated.
-    if (!defaultBudget.transactions || defaultBudget.transactions.length === 0) {
-      const fullBudget = await dataAccess.getBudget(budgetId.value);
-      if (fullBudget) {
-        budget.value = { ...fullBudget, budgetId: budgetId.value };
-        budgetStore.updateBudget(budgetId.value, fullBudget);
-      }
+    // Always load the full budget so transactions are available
+    const key = defaultBudget.budgetId || budgetId.value;
+    const fullBudget = await dataAccess.getBudget(key);
+    if (fullBudget) {
+      budget.value = { ...fullBudget, budgetId: key };
+      budgetStore.updateBudget(key, fullBudget);
+    } else {
+      // Fallback to accessible budget if full fetch fails
+      budget.value = { ...defaultBudget, budgetId: key };
     }
-    categoryOptions.value = defaultBudget.categories.map((cat) => cat.name);
+
+    categoryOptions.value = (budget.value.categories || []).map((cat) => cat.name);
     if (!categoryOptions.value.includes('Income')) {
       categoryOptions.value.push('Income');
     }
