@@ -48,6 +48,10 @@ public class SupabaseLogger : ILogger
             cmd.Parameters.AddWithValue("@exception", (object?)exception?.ToString() ?? DBNull.Value);
             await cmd.ExecuteNonQueryAsync();
         }
+        catch (PostgresException ex) when (ex.SqlState == "42P01")
+        {
+            // Suppress errors when the logs table is missing
+        }
         catch (Exception ex)
         {
             Console.WriteLine($"Error writing log to Supabase: {ex.Message}");
