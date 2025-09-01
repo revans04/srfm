@@ -463,9 +463,22 @@ const goals = ref<Goal[]>([]);
 const goalDialog = ref(false);
 const contributeDialog = ref(false);
 const selectedGoal = ref<Goal | null>(null);
-const legacySavingsCategories = computed(() =>
-  budget.value.categories.filter((c) => c.isFund)
-);
+const legacySavingsCategories = computed(() => {
+  const unique = new Map<string, BudgetCategory>();
+  for (const b of budgetStore.budgets.values()) {
+    for (const c of b.categories) {
+      if (
+        c.isFund &&
+        c.group &&
+        c.group.toLowerCase().includes('savings') &&
+        !unique.has(c.name)
+      ) {
+        unique.set(c.name, c);
+      }
+    }
+  }
+  return Array.from(unique.values());
+});
 const ownerUid = ref<string | null>(null);
 const budgetId = computed(() => {
   if (!ownerUid.value || !familyStore.selectedEntityId) return '';

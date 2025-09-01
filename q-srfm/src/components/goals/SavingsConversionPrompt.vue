@@ -42,6 +42,7 @@
             <li>Match the goal's Total Target and Monthly Target to the category's values.</li>
             <li>Add a contribution equal to the amount you have already saved.</li>
             <li>Archive the old Savings category so it no longer affects your budget.</li>
+            <li>Repeat for past budget months where the category appears.</li>
           </ol>
         </q-card-section>
         <q-card-actions align="right">
