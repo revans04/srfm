@@ -1732,7 +1732,26 @@ async function proceedWithImport() {
     pendingImportData.value = null;
 
     for (const [budgetId, budget] of budgetsById) {
+      // Delete any existing budget to avoid merging old data
+      try {
+        await dataAccess.deleteBudget(budgetId);
+      } catch {
+        // Ignore if budget does not exist
+      }
+
+      // Recalculate merchants from imported transactions
+      const merchantCounts = budget.transactions
+        .filter((t) => t.merchant && t.merchant.trim() !== "")
+        .reduce((acc, t) => {
+          acc[t.merchant] = (acc[t.merchant] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+      budget.merchants = Object.entries(merchantCounts)
+        .map(([name, usageCount]) => ({ name, usageCount }))
+        .sort((a, b) => b.usageCount - a.usageCount);
+
       await dataAccess.saveBudget(budgetId, budget);
+      budgetStore.updateBudget(budgetId, budget);
       showSnackbar(`Saved budget ${budget.month} with ${budget.transactions.length} transactions`);
     }
 
