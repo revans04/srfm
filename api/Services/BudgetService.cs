@@ -474,12 +474,14 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
     public async Task<string> SaveImportedTransactions(string userId, ImportedTransactionDoc doc)
     {
         await using var conn = await _db.GetOpenConnectionAsync();
+        await using var dbTx = await conn.BeginTransactionAsync();
+
         var docId = Guid.TryParse(doc.Id, out var parsed) ? parsed : Guid.NewGuid();
         doc.Id = docId.ToString();
         var fid = Guid.Parse(doc.FamilyId);
 
         const string sqlDoc = "INSERT INTO imported_transaction_docs (id, family_id, user_id, created_at) VALUES (@id,@fid,@uid, now())";
-        await using var docCmd = new NpgsqlCommand(sqlDoc, conn);
+        await using var docCmd = new NpgsqlCommand(sqlDoc, conn, dbTx);
         docCmd.Parameters.AddWithValue("id", docId);
         docCmd.Parameters.AddWithValue("fid", fid);
         docCmd.Parameters.AddWithValue("uid", userId);
@@ -487,10 +489,15 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
 
         const string sqlTx = @"INSERT INTO imported_transactions (id, document_id, account_id, account_number, account_source, payee, posted_date, amount, status, debit_amount, credit_amount, check_number, deleted, matched, ignored)
                                  VALUES (@id,@doc,@account_id,@acct_num,@acct_src,@payee,@posted,@amount,@status,@debit,@credit,@check,@deleted,@matched,@ignored)";
+
+        var batch = new NpgsqlBatch(conn) { Transaction = dbTx };
+
         foreach (var tx in doc.importedTransactions)
         {
-            if (string.IsNullOrEmpty(tx.Id)) tx.Id = Guid.NewGuid().ToString();
-            await using var txCmd = new NpgsqlCommand(sqlTx, conn);
+            if (string.IsNullOrEmpty(tx.Id))
+                tx.Id = Guid.NewGuid().ToString();
+
+            var txCmd = new NpgsqlBatchCommand(sqlTx);
             txCmd.Parameters.AddWithValue("id", tx.Id);
             txCmd.Parameters.AddWithValue("doc", docId);
             txCmd.Parameters.AddWithValue("account_id", Guid.Parse(tx.AccountId));
@@ -506,9 +513,13 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
             txCmd.Parameters.AddWithValue("deleted", tx.Deleted.HasValue ? (object)tx.Deleted.Value : DBNull.Value);
             txCmd.Parameters.AddWithValue("matched", tx.Matched);
             txCmd.Parameters.AddWithValue("ignored", tx.Ignored);
-            await txCmd.ExecuteNonQueryAsync();
+            batch.BatchCommands.Add(txCmd);
         }
 
+        if (batch.BatchCommands.Count > 0)
+            await batch.ExecuteNonQueryAsync();
+
+        await dbTx.CommitAsync();
         return doc.Id;
     }
 
