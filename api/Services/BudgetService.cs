@@ -438,8 +438,6 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
 VALUES (@id,@budget_id,@date,@budget_month,@merchant,@amount,@notes,@recurring,@recurring_interval,@user_id,@is_income,@account_number,@account_source,@posted_date,@imported_merchant,@status,@check_number,@deleted,@entity_id, now(), now())
 ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date, budget_month=EXCLUDED.budget_month, merchant=EXCLUDED.merchant, amount=EXCLUDED.amount, notes=EXCLUDED.notes, recurring=EXCLUDED.recurring, recurring_interval=EXCLUDED.recurring_interval, user_id=EXCLUDED.user_id, is_income=EXCLUDED.is_income, account_number=EXCLUDED.account_number, account_source=EXCLUDED.account_source, posted_date=EXCLUDED.posted_date, imported_merchant=EXCLUDED.imported_merchant, status=EXCLUDED.status, check_number=EXCLUDED.check_number, deleted=EXCLUDED.deleted, entity_id=EXCLUDED.entity_id, updated_at=now();";
 
-        const string logSql = "INSERT INTO budget_edit_history (budget_id, user_id, user_email, timestamp, action) VALUES (@bid,@uid,@email, now(), @action)";
-
         var batch = new NpgsqlBatch(conn) { Transaction = dbTx };
 
         foreach (var tx in transactions)
@@ -467,13 +465,6 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
             }
 
             AddCategoryCommands(batch, tx.Id, cats);
-
-            var logCmd = new NpgsqlBatchCommand(logSql);
-            logCmd.Parameters.AddWithValue("bid", budgetId);
-            logCmd.Parameters.AddWithValue("uid", (object?)userId ?? DBNull.Value);
-            logCmd.Parameters.AddWithValue("email", (object?)userEmail ?? DBNull.Value);
-            logCmd.Parameters.AddWithValue("action", "save-transaction");
-            batch.BatchCommands.Add(logCmd);
         }
 
         await batch.ExecuteNonQueryAsync();
