@@ -49,7 +49,13 @@
         />
       </q-tab-panel>
       <q-tab-panel name="property">
-        <AccountList :accounts="propertyAccounts" type="Property" @add="openAccountDialog(AccountType.Property)" @edit="editAccount" @delete="confirmDeleteAccount" />
+        <AccountList
+          :accounts="propertyAccounts"
+          type="Property"
+          @add="openAccountDialog(AccountType.Property)"
+          @edit="editAccount"
+          @delete="confirmDeleteAccount"
+        />
       </q-tab-panel>
       <q-tab-panel name="loan">
         <AccountList :accounts="loanAccounts" type="Loan" @add="openAccountDialog(AccountType.Loan)" @edit="editAccount" @delete="confirmDeleteAccount" />
@@ -58,15 +64,7 @@
         <q-card>
           <q-card-section>Net Worth Over Time</q-card-section>
           <q-card-section>
-            <q-btn
-              color="primary"
-              flat
-              dense
-              class="q-mb-md q-mr-sm"
-              icon="photo_camera"
-              @click="openSnapshotDialog"
-              :disabled="accounts.length === 0"
-            >
+            <q-btn color="primary" flat dense class="q-mb-md q-mr-sm" icon="photo_camera" @click="openSnapshotDialog" :disabled="accounts.length === 0">
               Capture Snapshot
             </q-btn>
             <q-btn
@@ -81,52 +79,40 @@
             >
               Delete Selected
             </q-btn>
-              <q-table
-                :columns="snapshotColumns"
-                :rows="snapshotsWithSelection"
-                class="elevation-1"
-                :pagination="{ rowsPerPage: 10 }"
-                row-key="id"
-                @row-click="viewSnapshotDetails"
-              >
-                <template #header-cell-select="props">
-                  <q-th :props="props">
-                    <q-checkbox v-model="selectAll" @update:modelValue="toggleSelectAll" dense @click.stop />
-                  </q-th>
-                </template>
-                <template #body-cell-select="props">
-                  <q-td :props="props">
-                    <q-checkbox
-                      v-model="selectedSnapshots"
-                      :value="props.row.id"
-                      dense
-                      @update:modelValue="updateSelectAll"
-                      @click.stop
-                    />
-                  </q-td>
-                </template>
-                <template #body-cell-date="props">
-                  <q-td :props="props">
-                    {{ formatTimestamp(props.row.date) }}
-                  </q-td>
-                </template>
-                <template #body-cell-netWorth="props">
-                  <q-td :props="props">
-                    {{ formatCurrency(props.row.netWorth) }}
-                  </q-td>
-                </template>
-                <template #body-cell-actions="props">
-                  <q-td :props="props">
-                    <q-btn
-                      flat
-                      dense
-                      color="negative"
-                      icon="delete"
-                      @click.stop="confirmDeleteSnapshot(props.row.id)"
-                    />
-                  </q-td>
-                </template>
-              </q-table>
+            <q-table
+              :columns="snapshotColumns"
+              :rows="snapshotsWithSelection"
+              class="elevation-1"
+              :pagination="{ rowsPerPage: 10 }"
+              row-key="id"
+              @row-click="viewSnapshotDetails"
+            >
+              <template #header-cell-select="props">
+                <q-th :props="props">
+                  <q-checkbox v-model="selectAll" @update:modelValue="toggleSelectAll" dense @click.stop />
+                </q-th>
+              </template>
+              <template #body-cell-select="props">
+                <q-td :props="props">
+                  <q-checkbox v-model="selectedSnapshots" :value="props.row.id" dense @update:modelValue="updateSelectAll" @click.stop />
+                </q-td>
+              </template>
+              <template #body-cell-date="props">
+                <q-td :props="props">
+                  {{ formatTimestamp(props.row.date) }}
+                </q-td>
+              </template>
+              <template #body-cell-netWorth="props">
+                <q-td :props="props">
+                  {{ formatCurrency(props.row.netWorth) }}
+                </q-td>
+              </template>
+              <template #body-cell-actions="props">
+                <q-td :props="props">
+                  <q-btn flat dense color="negative" icon="delete" @click.stop="confirmDeleteSnapshot(props.row.id)" />
+                </q-td>
+              </template>
+            </q-table>
             <div class="q-mt-lg">
               <p>Net worth trend chart coming soon!</p>
             </div>
@@ -138,18 +124,18 @@
     <!-- Account Dialog -->
     <q-dialog v-model="showAccountDialog" max-width="600px">
       <q-card>
-          <q-card-section>{{ editMode ? "Edit" : "Add" }} {{ accountType }} Account</q-card-section>
-          <q-card-section>
-            <AccountForm
-              :account-type="accountType"
-              :account="editMode ? newAccount : undefined"
-              :show-personal-option="true"
-              @save="saveAccount"
-              @cancel="closeAccountDialog"
-            />
-          </q-card-section>
-        </q-card>
-      </q-dialog>
+        <q-card-section>{{ editMode ? 'Edit' : 'Add' }} {{ accountType }} Account</q-card-section>
+        <q-card-section>
+          <AccountForm
+            :account-type="accountType"
+            :account="editMode ? newAccount : undefined"
+            :show-personal-option="true"
+            @save="saveAccount"
+            @cancel="closeAccountDialog"
+          />
+        </q-card-section>
+      </q-card>
+    </q-dialog>
 
     <!-- Snapshot Dialog -->
     <q-dialog v-model="showSnapshotDialog" max-width="800px">
@@ -158,12 +144,7 @@
         <q-card-section>
           <q-form @submit.prevent="saveSnapshot">
             <q-input v-model="newSnapshot.date" label="Snapshot Date" type="date" variant="outlined" density="compact" required></q-input>
-            <q-table
-              :columns="snapshotAccountColumns"
-              :rows="newSnapshot.accounts"
-              hide-bottom
-              :pagination="{ rowsPerPage: 100 }"
-            >
+            <q-table :columns="snapshotAccountColumns" :rows="newSnapshot.accounts" hide-bottom :pagination="{ rowsPerPage: 100 }">
               <template #body-cell-name="props">
                 <q-td :props="props">
                   {{ getAccountName(props.row.accountId) }}
@@ -235,38 +216,30 @@
           <q-btn color="grey" variant="text" @click="showBatchDeleteSnapshotDialog = false"> Cancel </q-btn>
           <q-btn color="negative" variant="flat" @click="executeBatchDeleteSnapshots"> Delete </q-btn>
         </q-card-actions>
-        </q-card>
-      </q-dialog>
+      </q-card>
+    </q-dialog>
 
-      <!-- Snapshot Details Dialog -->
-      <q-dialog v-model="showSnapshotDetailsDialog" max-width="600px">
-        <q-card>
-          <q-card-section>
-            Snapshot on {{ snapshotDetails ? formatTimestamp(snapshotDetails.date) : '' }}
-          </q-card-section>
-          <q-card-section>
-            <q-table
-              :columns="snapshotDetailColumns"
-              :rows="snapshotDetails ? snapshotDetails.accounts : []"
-              hide-bottom
-              :pagination="{ rowsPerPage: 0 }"
-              flat
-            >
-              <template #body-cell-value="props">
-                <q-td :props="props">
-                  {{ formatCurrency(props.row.value) }}
-                </q-td>
-              </template>
-            </q-table>
-            <div class="text-right q-mt-lg">
-              <strong>Net Worth: {{ snapshotDetails ? formatCurrency(snapshotDetails.netWorth) : '' }}</strong>
-            </div>
-          </q-card-section>
-          <q-card-actions class="justify-end">
-            <q-btn color="primary" variant="text" @click="showSnapshotDetailsDialog = false">Close</q-btn>
-          </q-card-actions>
-        </q-card>
-      </q-dialog>
+    <!-- Snapshot Details Dialog -->
+    <q-dialog v-model="showSnapshotDetailsDialog" max-width="600px">
+      <q-card>
+        <q-card-section> Snapshot on {{ snapshotDetails ? formatTimestamp(snapshotDetails.date) : '' }} </q-card-section>
+        <q-card-section>
+          <q-table :columns="snapshotDetailColumns" :rows="snapshotDetails ? snapshotDetails.accounts : []" hide-bottom :pagination="{ rowsPerPage: 0 }" flat>
+            <template #body-cell-value="props">
+              <q-td :props="props">
+                {{ formatCurrency(props.row.value) }}
+              </q-td>
+            </template>
+          </q-table>
+          <div class="text-right q-mt-lg">
+            <strong>Net Worth: {{ snapshotDetails ? formatCurrency(snapshotDetails.netWorth) : '' }}</strong>
+          </div>
+        </q-card-section>
+        <q-card-actions class="justify-end">
+          <q-btn color="primary" variant="text" @click="showSnapshotDetailsDialog = false">Close</q-btn>
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
 
     <!-- Update Budget Transactions Confirmation Dialog -->
     <q-dialog v-model="showUpdateBudgetTransactionsDialog" max-width="500px">
@@ -290,23 +263,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
-import { auth } from "../firebase/init";
-import { dataAccess } from "../dataAccess";
-import { useFamilyStore } from "../store/family";
-import AccountList from "../components/AccountList.vue";
-import AccountForm from "../components/AccountForm.vue"; // Import AccountForm directly
-import type { Account, Snapshot, ImportedTransaction } from "../types";
-import { AccountType } from "../types";
-import { formatCurrency, formatTimestamp, todayISO, timestampToMillis } from "../utils/helpers";
+import { ref, computed, onMounted } from 'vue';
+import { auth } from '../firebase/init';
+import { dataAccess } from '../dataAccess';
+import { useFamilyStore } from '../store/family';
+import AccountList from '../components/AccountList.vue';
+import AccountForm from '../components/AccountForm.vue'; // Import AccountForm directly
+import type { Account, Snapshot, ImportedTransaction } from '../types';
+import { AccountType } from '../types';
+import { formatCurrency, formatTimestamp, todayISO, timestampToMillis } from '../utils/helpers';
 import { useQuasar, QSpinner } from 'quasar';
-import { v4 as uuidv4 } from "uuid";
-import { Timestamp } from "firebase/firestore";
+import { v4 as uuidv4 } from 'uuid';
+import { Timestamp } from 'firebase/firestore';
 
 const familyStore = useFamilyStore();
 const $q = useQuasar();
 
-const tab = ref("bank");
+const tab = ref('bank');
 const saving = ref(false);
 const deleting = ref(false);
 const accounts = ref<Account[]>([]);
@@ -325,15 +298,15 @@ const editMode = ref(false);
 const isPersonalAccount = ref(false);
 const selectAll = ref(false);
 const selectedSnapshots = ref<string[]>([]);
-const originalAccountNumber = ref<string | undefined>("");
-const originalAccountName = ref<string>("");
+const originalAccountNumber = ref<string | undefined>('');
+const originalAccountName = ref<string>('');
 const affectedImportedTransactionCount = ref(0);
 const affectedBudgetTransactionCount = ref(0);
 const newAccount = ref<Account>({
   id: uuidv4(),
-  name: "",
+  name: '',
   type: AccountType.Bank,
-  category: "Asset",
+  category: 'Asset',
   createdAt: Timestamp.now(),
   updatedAt: Timestamp.now(),
   details: {},
@@ -354,34 +327,14 @@ const newSnapshot = ref<{
 const accountToDelete = ref<string | null>(null);
 const snapshotToDelete = ref<string | null>(null);
 
-const userId = computed(() => auth.currentUser?.uid || "");
-const familyId = ref<string>("");
+const userId = computed(() => auth.currentUser?.uid || '');
+const familyId = ref<string>('');
 
-const bankAccounts = computed(() =>
-  accounts.value
-    .filter((acc) => acc.type === "Bank")
-    .sort((a, b) => a.name.localeCompare(b.name))
-);
-const creditCardAccounts = computed(() =>
-  accounts.value
-    .filter((acc) => acc.type === "CreditCard")
-    .sort((a, b) => a.name.localeCompare(b.name))
-);
-const investmentAccounts = computed(() =>
-  accounts.value
-    .filter((acc) => acc.type === "Investment")
-    .sort((a, b) => a.name.localeCompare(b.name))
-);
-const propertyAccounts = computed(() =>
-  accounts.value
-    .filter((acc) => acc.type === "Property")
-    .sort((a, b) => a.name.localeCompare(b.name))
-);
-const loanAccounts = computed(() =>
-  accounts.value
-    .filter((acc) => acc.type === "Loan")
-    .sort((a, b) => a.name.localeCompare(b.name))
-);
+const bankAccounts = computed(() => accounts.value.filter((acc) => acc.type === 'Bank').sort((a, b) => a.name.localeCompare(b.name)));
+const creditCardAccounts = computed(() => accounts.value.filter((acc) => acc.type === 'CreditCard').sort((a, b) => a.name.localeCompare(b.name)));
+const investmentAccounts = computed(() => accounts.value.filter((acc) => acc.type === 'Investment').sort((a, b) => a.name.localeCompare(b.name)));
+const propertyAccounts = computed(() => accounts.value.filter((acc) => acc.type === 'Property').sort((a, b) => a.name.localeCompare(b.name)));
+const loanAccounts = computed(() => accounts.value.filter((acc) => acc.type === 'Loan').sort((a, b) => a.name.localeCompare(b.name)));
 
 const snapshotColumns = [
   { name: 'select', label: '', field: 'select', sortable: false },
@@ -430,7 +383,7 @@ function viewSnapshotDetails(_: unknown, row: Snapshot) {
 onMounted(async () => {
   const user = auth.currentUser;
   if (!user) {
-    showSnackbar("Please log in to view accounts", "negative");
+    showSnackbar('Please log in to view accounts', 'negative');
     return;
   }
 
@@ -444,15 +397,15 @@ onMounted(async () => {
   try {
     const family = await familyStore.getFamily();
     if (!family) {
-      showSnackbar("No family found. Please create or join a family.", "negative");
+      showSnackbar('No family found. Please create or join a family.', 'negative');
       return;
     }
     familyId.value = family.id;
     await loadData();
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : JSON.stringify(error);
-    showSnackbar(`Error loading data: ${msg}`, "negative");
-    console.error("Error during onMounted:", error);
+    showSnackbar(`Error loading data: ${msg}`, 'negative');
+    console.error('Error during onMounted:', error);
   } finally {
     $q.loading.hide();
   }
@@ -465,9 +418,9 @@ async function loadData() {
     importedTransactions.value = await dataAccess.getImportedTransactions();
     snapshots.value = await dataAccess.getSnapshots(familyId.value);
   } catch (error: unknown) {
-    console.error("Error loading data:", error);
+    console.error('Error loading data:', error);
     const msg = error instanceof Error ? error.message : JSON.stringify(error);
-    showSnackbar(`Error loading data: ${msg}`, "negative");
+    showSnackbar(`Error loading data: ${msg}`, 'negative');
   }
 }
 
@@ -477,9 +430,9 @@ function openAccountDialog(type: AccountType) {
   isPersonalAccount.value = false;
   newAccount.value = {
     id: uuidv4(),
-    name: "",
+    name: '',
     type,
-    category: type === AccountType.CreditCard || type === AccountType.Loan ? "Liability" : "Asset",
+    category: type === AccountType.CreditCard || type === AccountType.Loan ? 'Liability' : 'Asset',
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
     details: {},
@@ -527,10 +480,16 @@ async function saveAccount(account: Account, isPersonal: boolean) {
             accountId: account.id,
             accountName: account.name,
             type: account.type,
-            value: (() => { const bal = account.balance ?? 0; return account.category === 'Liability' && bal > 0 ? -bal : bal; })(),
+            value: (() => {
+              const bal = account.balance ?? 0;
+              return account.category === 'Liability' && bal > 0 ? -bal : bal;
+            })(),
           },
         ],
-        netWorth: (() => { const bal = account.balance ?? 0; return account.category === 'Liability' && bal > 0 ? -bal : bal; })(),
+        netWorth: (() => {
+          const bal = account.balance ?? 0;
+          return account.category === 'Liability' && bal > 0 ? -bal : bal;
+        })(),
         createdAt: Timestamp.now(),
       };
       await dataAccess.saveSnapshot(familyId.value, snapshot);
@@ -584,12 +543,12 @@ async function saveAccount(account: Account, isPersonal: boolean) {
       }
     }
 
-    showSnackbar(`${accountType.value} account saved successfully`, "success");
+    showSnackbar(`${accountType.value} account saved successfully`, 'success');
     closeAccountDialog();
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : JSON.stringify(error);
-    showSnackbar(`Error saving account: ${msg}`, "negative");
-    console.error("Error saving account:", error);
+    showSnackbar(`Error saving account: ${msg}`, 'negative');
+    console.error('Error saving account:', error);
   } finally {
     saving.value = false;
   }
@@ -610,12 +569,12 @@ async function confirmUpdateBudgetTransactions() {
         },
       }));
       await dataAccess.updateBudgetTransactions(updatedBudgetTxs);
-      showSnackbar(`${budgetTxsWithBudgetId.length} budget transactions updated successfully`, "success");
+      showSnackbar(`${budgetTxsWithBudgetId.length} budget transactions updated successfully`, 'success');
     }
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : JSON.stringify(error);
-    showSnackbar(`Error updating budget transactions: ${msg}`, "negative");
-    console.error("Error updating budget transactions:", error);
+    showSnackbar(`Error updating budget transactions: ${msg}`, 'negative');
+    console.error('Error updating budget transactions:', error);
   } finally {
     showUpdateBudgetTransactionsDialog.value = false;
     closeAccountDialog();
@@ -624,15 +583,15 @@ async function confirmUpdateBudgetTransactions() {
 
 function closeAccountDialog() {
   showAccountDialog.value = false;
-  originalAccountNumber.value = "";
-  originalAccountName.value = "";
+  originalAccountNumber.value = '';
+  originalAccountName.value = '';
   affectedImportedTransactionCount.value = 0;
   affectedBudgetTransactionCount.value = 0;
   newAccount.value = {
     id: uuidv4(),
-    name: "",
+    name: '',
     type: AccountType.Bank,
-    category: "Asset",
+    category: 'Asset',
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
     details: {},
@@ -650,10 +609,10 @@ async function executeDeleteAccount() {
   try {
     await dataAccess.deleteAccount(familyId.value, accountToDelete.value);
     accounts.value = accounts.value.filter((acc) => acc.id !== accountToDelete.value);
-    showSnackbar("Account deleted successfully", "success");
+    showSnackbar('Account deleted successfully', 'success');
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : JSON.stringify(error);
-    showSnackbar(`Error deleting account: ${msg}`, "negative");
+    showSnackbar(`Error deleting account: ${msg}`, 'negative');
   } finally {
     showDeleteAccountDialog.value = false;
     accountToDelete.value = null;
@@ -683,7 +642,7 @@ function openSnapshotDialog() {
 
 async function saveSnapshot() {
   if (!newSnapshot.value.date) {
-    showSnackbar("Snapshot date is required", "negative");
+    showSnackbar('Snapshot date is required', 'negative');
     return;
   }
 
@@ -693,7 +652,7 @@ async function saveSnapshot() {
       id: uuidv4(),
       date: Timestamp.fromDate(new Date(newSnapshot.value.date)),
       accounts: newSnapshot.value.accounts,
-      netWorth: newSnapshot.value.accounts.reduce((sum, a) => sum + (getAccountCategory(a.accountId) === "Liability" && a.value > 0 ? -a.value : a.value), 0),
+      netWorth: newSnapshot.value.accounts.reduce((sum, a) => sum + (getAccountCategory(a.accountId) === 'Liability' && a.value > 0 ? -a.value : a.value), 0),
       createdAt: Timestamp.now(),
     };
 
@@ -701,11 +660,11 @@ async function saveSnapshot() {
     snapshots.value.push(snapshot);
     snapshots.value.sort((a, b) => timestampToMillis(b.date) - timestampToMillis(a.date));
 
-    showSnackbar("Snapshot saved successfully", "success");
+    showSnackbar('Snapshot saved successfully', 'success');
     showSnapshotDialog.value = false;
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : JSON.stringify(error);
-    showSnackbar(`Error saving snapshot: ${msg}`, "negative");
+    showSnackbar(`Error saving snapshot: ${msg}`, 'negative');
     console.log(error);
   } finally {
     saving.value = false;
@@ -725,10 +684,10 @@ async function executeDeleteSnapshot() {
     snapshots.value = snapshots.value.filter((s) => s.id !== snapshotToDelete.value);
     selectedSnapshots.value = selectedSnapshots.value.filter((id) => id !== snapshotToDelete.value);
     updateSelectAll();
-    showSnackbar("Snapshot deleted successfully", "success");
+    showSnackbar('Snapshot deleted successfully', 'success');
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : JSON.stringify(error);
-    showSnackbar(`Error deleting snapshot: ${msg}`, "negative");
+    showSnackbar(`Error deleting snapshot: ${msg}`, 'negative');
   } finally {
     showDeleteSnapshotDialog.value = false;
     snapshotToDelete.value = null;
@@ -750,10 +709,10 @@ async function executeBatchDeleteSnapshots() {
     const deletedCount = selectedSnapshots.value.length;
     selectedSnapshots.value = [];
     updateSelectAll();
-    showSnackbar(`${deletedCount} snapshot(s) deleted successfully`, "success");
+    showSnackbar(`${deletedCount} snapshot(s) deleted successfully`, 'success');
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : JSON.stringify(error);
-    showSnackbar(`Error deleting snapshots: ${msg}`, "negative");
+    showSnackbar(`Error deleting snapshots: ${msg}`, 'negative');
   } finally {
     showBatchDeleteSnapshotDialog.value = false;
     deleting.value = false;
@@ -762,20 +721,20 @@ async function executeBatchDeleteSnapshots() {
 
 function getAccountName(accountId: string) {
   const account = accounts.value.find((a) => a.id === accountId);
-  return account ? account.name : "Unknown";
+  return account ? account.name : 'Unknown';
 }
 
 function getAccountType(accountId: string) {
   const account = accounts.value.find((a) => a.id === accountId);
-  return account ? account.type : "Unknown";
+  return account ? account.type : 'Unknown';
 }
 
 function getAccountCategory(accountId: string) {
   const account = accounts.value.find((a) => a.id === accountId);
-  return account ? account.category : "Asset";
+  return account ? account.category : 'Asset';
 }
 
-function showSnackbar(text: string, color = "success") {
+function showSnackbar(text: string, color = 'success') {
   $q.notify({
     message: text,
     color,
