@@ -54,6 +54,7 @@ export interface Transaction {
     | "Bi-Annually"
     | "Yearly";
   userId: string;
+  familyId?: string;
   isIncome: boolean;
   accountNumber?: string;
   accountSource?: string;
