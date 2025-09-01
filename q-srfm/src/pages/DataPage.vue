@@ -406,10 +406,10 @@ const pendingImportData = ref<{
 const previewTab = ref("categories");
 const importType = ref("bankTransactions");
 const importTypes = [
-  { title: "Entities", value: "entities" },
-  { title: "Budget/Transactions", value: "budgetTransactions" },
-  { title: "Bank/Card Transactions", value: "bankTransactions" },
-  { title: "Accounts/Snapshots", value: "accountsAndSnapshots" },
+  { label: "Entities", value: "entities" },
+  { label: "Budget/Transactions", value: "budgetTransactions" },
+  { label: "Bank/Card Transactions", value: "bankTransactions" },
+  { label: "Accounts/Snapshots", value: "accountsAndSnapshots" },
 ];
 
 watch(importType, async (val) => {
@@ -445,9 +445,9 @@ const commonBankTransactionFields = ref([
 const fieldMapping = ref<Record<string, string>>({});
 const amountFormat = ref<"separate" | "type" | "single">("separate");
 const amountFormatOptions = [
-  { title: "Separate Credit/Debit Columns", value: "separate" },
-  { title: "Transaction Type Column", value: "type" },
-  { title: "Single Amount (Positive/Negative)", value: "single" },
+  { label: "Separate Credit/Debit Columns", value: "separate" },
+  { label: "Transaction Type Column", value: "type" },
+  { label: "Single Amount (Positive/Negative)", value: "single" },
 ];
 const creditTypeValue = ref("Credit");
 const debitTypeValue = ref("Debit");
