@@ -444,6 +444,7 @@ const budget = ref<Budget>({
   merchants: [],
 });
 const categoryOptions = ref<string[]>(['Income']);
+const futureCategories = ref<BudgetCategory[]>([]);
 const saving = ref(false);
 const isEditing = ref(false);
 const showTransactionDialog = ref(false);
@@ -1173,6 +1174,9 @@ async function saveBudget() {
     budget.value.entityId = familyStore.selectedEntityId;
     budget.value.budgetId = budgetId.value;
     await dataAccess.saveBudget(budgetId.value, budget.value);
+    if (futureCategories.value.length > 0) {
+      await applyFutureCategories();
+    }
     showSnackbar('Budget saved successfully');
     isEditing.value = false;
   } catch (error: unknown) {
@@ -1185,13 +1189,29 @@ async function saveBudget() {
   }
 }
 
-function addCategory() {
-  budget.value.categories.push({
+async function addCategory() {
+  const newCat: BudgetCategory = {
     name: '',
     target: 0,
     isFund: false,
     group: '',
+  };
+  budget.value.categories.push(newCat);
+  const include = await new Promise<boolean>((resolve) => {
+    $q
+      .dialog({
+        title: 'Include Category',
+        message: 'Include this category in future budgets?',
+        cancel: true,
+        persistent: true,
+      })
+      .onOk(() => resolve(true))
+      .onCancel(() => resolve(false))
+      .onDismiss(() => resolve(false));
   });
+  if (include) {
+    futureCategories.value.push(newCat);
+  }
 }
 
 function addIncomeCategory() {
@@ -1205,7 +1225,46 @@ function addIncomeCategory() {
 }
 
 function removeCategory(index: number) {
-  budget.value.categories.splice(index, 1);
+  const removed = budget.value.categories.splice(index, 1)[0];
+  futureCategories.value = futureCategories.value.filter((c) => c !== removed);
+}
+
+async function applyFutureCategories() {
+  const entityId = familyStore.selectedEntityId;
+  const family = await familyStore.getFamily();
+  if (!entityId || !family) {
+    futureCategories.value = [];
+    return;
+  }
+
+  const entity = family.entities?.find((e) => e.id === entityId);
+  if (entity) {
+    const templateCats = entity.templateBudget?.categories || [];
+    for (const cat of futureCategories.value) {
+      if (!templateCats.some((c) => c.name === cat.name)) {
+        templateCats.push({ name: cat.name, target: cat.target, isFund: cat.isFund, group: cat.group });
+      }
+    }
+    entity.templateBudget = { categories: templateCats };
+    await familyStore.updateEntity(family.id, entity);
+  }
+
+  const futureBudgets = budgets.value.filter(
+    (b) => b.entityId === entityId && b.month > budget.value.month,
+  );
+  for (const fb of futureBudgets) {
+    for (const cat of futureCategories.value) {
+      if (!fb.categories.some((c) => c.name === cat.name)) {
+        fb.categories.push({ ...cat });
+      }
+    }
+    if (fb.budgetId) {
+      await dataAccess.saveBudget(fb.budgetId, fb);
+      budgetStore.updateBudget(fb.budgetId, fb);
+    }
+  }
+
+  futureCategories.value = [];
 }
 
 function addMerchant() {
