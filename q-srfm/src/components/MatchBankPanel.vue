@@ -1,16 +1,21 @@
 <template>
-  <MatchBankTransactionsDialog
-    v-if="ready"
-    :remaining-imported-transactions="remainingImportedTransactions"
-    :selected-bank-transaction="selectedBankTransaction"
-    :transactions="transactions"
-    :budget-id="budgetId"
-    :matching="matching"
-    :category-options="categoryOptions"
-    :user-id="userId"
-    @update:matching="matching = $event"
-    @transactions-updated="loadData"
-  />
+  <div class="relative-position" :class="{ 'cursor-wait': !ready }" style="min-height: 200px">
+    <MatchBankTransactionsDialog
+      v-if="ready"
+      :remaining-imported-transactions="remainingImportedTransactions"
+      :selected-bank-transaction="selectedBankTransaction"
+      :transactions="transactions"
+      :budget-id="budgetId"
+      :matching="matching"
+      :category-options="categoryOptions"
+      :user-id="userId"
+      @update:matching="matching = $event"
+      @transactions-updated="loadData"
+    />
+    <q-inner-loading :showing="!ready">
+      <q-spinner color="primary" />
+    </q-inner-loading>
+  </div>
 </template>
 
 <script setup lang="ts">
