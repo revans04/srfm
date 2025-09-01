@@ -663,6 +663,15 @@ const updateBudgetForMonth = debounce(async () => {
     }
 
     budget.value = { ...defaultBudget, budgetId: budgetId.value };
+    // If transactions weren't included in the accessible budgets payload,
+    // fetch the full budget so the transaction list is populated.
+    if (!defaultBudget.transactions || defaultBudget.transactions.length === 0) {
+      const fullBudget = await dataAccess.getBudget(budgetId.value);
+      if (fullBudget) {
+        budget.value = { ...fullBudget, budgetId: budgetId.value };
+        budgetStore.updateBudget(budgetId.value, fullBudget);
+      }
+    }
     categoryOptions.value = defaultBudget.categories.map((cat) => cat.name);
     if (!categoryOptions.value.includes('Income')) {
       categoryOptions.value.push('Income');
