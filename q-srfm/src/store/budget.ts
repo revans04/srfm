@@ -1,10 +1,10 @@
 /** budget.ts */
-import { defineStore } from "pinia";
-import { computed, ref } from "vue";
-import type { Budget } from "../types";
-import { dataAccess } from "../dataAccess";
+import { defineStore } from 'pinia';
+import { computed, ref } from 'vue';
+import type { Budget } from '../types';
+import { dataAccess } from '../dataAccess';
 
-export const useBudgetStore = defineStore("budgets", () => {
+export const useBudgetStore = defineStore('budgets', () => {
   const budgets = ref<Map<string, Budget>>(new Map());
 
   async function loadBudgets(userId: string, entityId?: string) {
@@ -20,7 +20,7 @@ export const useBudgetStore = defineStore("budgets", () => {
       }
       budgets.value = newBudgets;
     } catch (error) {
-      console.error("Error loading budgets:", error);
+      console.error('Error loading budgets:', error);
     }
   }
 
@@ -44,7 +44,9 @@ export const useBudgetStore = defineStore("budgets", () => {
 
   // Add a computed property to expose available budget months
   const availableBudgetMonths = computed(() => {
-    const months = Array.from(budgets.value.values()).map(budget => budget.month).sort();
+    const months = Array.from(budgets.value.values())
+      .map((budget) => budget.month)
+      .sort();
     return months;
   });
 

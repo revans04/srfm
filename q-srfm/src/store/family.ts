@@ -1,33 +1,32 @@
-import { defineStore } from "pinia";
-import { ref } from "vue";
-import type { Family, Entity} from "../types";
-import { EntityType } from "../types";
-import { dataAccess } from "../dataAccess";
-import { useAuthStore } from "./auth";
+import { defineStore } from 'pinia';
+import { ref } from 'vue';
+import type { Family, Entity } from '../types';
+import { EntityType } from '../types';
+import { dataAccess } from '../dataAccess';
+import { useAuthStore } from './auth';
 
-export const useFamilyStore = defineStore("family", () => {
+export const useFamilyStore = defineStore('family', () => {
   const auth = useAuthStore();
   const family = ref<Family>();
-  const selectedEntityId = ref<string>(""); // Track selected entity for filtering
+  const selectedEntityId = ref<string>(''); // Track selected entity for filtering
 
-  async function loadFamily(userId: string = "") {
+  async function loadFamily(userId: string = '') {
     try {
       if (family.value) return family.value;
-      if (!userId) userId = auth.user ? auth.user.uid : "";
+      if (!userId) userId = auth.user ? auth.user.uid : '';
       const f = await dataAccess.getUserFamily(userId);
       if (f) {
         family.value = f;
         // Set default entity (e.g., first "Family" type entity)
         if (f.entities?.length) {
-          const defaultEntity =
-            f.entities.find((e: Entity) => e.type === EntityType.Family) || f.entities[0];
-          selectedEntityId.value = defaultEntity ? defaultEntity.id : "";
+          const defaultEntity = f.entities.find((e: Entity) => e.type === EntityType.Family) || f.entities[0];
+          selectedEntityId.value = defaultEntity ? defaultEntity.id : '';
         }
         return f;
       }
     } catch (error: unknown) {
       const err = error as Error;
-      console.error("Error loading Family", err);
+      console.error('Error loading Family', err);
     }
     return null;
   }
@@ -40,7 +39,7 @@ export const useFamilyStore = defineStore("family", () => {
       return family.value;
     } catch (error: unknown) {
       const err = error as Error;
-      console.error("Error getting Family", err);
+      console.error('Error getting Family', err);
     }
     return null;
   }
@@ -58,7 +57,7 @@ export const useFamilyStore = defineStore("family", () => {
       return response.entityId;
     } catch (error: unknown) {
       const err = error as Error;
-      console.error("Error creating entity", err);
+      console.error('Error creating entity', err);
       throw err;
     }
   }
@@ -67,12 +66,11 @@ export const useFamilyStore = defineStore("family", () => {
     try {
       await dataAccess.updateEntity(familyId, entity);
       if (family.value) {
-        family.value.entities =
-          family.value.entities?.map((e: Entity) => (e.id === entity.id ? entity : e)) || [];
+        family.value.entities = family.value.entities?.map((e: Entity) => (e.id === entity.id ? entity : e)) || [];
       }
     } catch (error: unknown) {
       const err = error as Error;
-      console.error("Error updating entity", err);
+      console.error('Error updating entity', err);
       throw err;
     }
   }
@@ -83,12 +81,12 @@ export const useFamilyStore = defineStore("family", () => {
       if (family.value) {
         family.value.entities = family.value.entities?.filter((e: Entity) => e.id !== entityId) || [];
         if (selectedEntityId.value === entityId) {
-          selectedEntityId.value = family.value.entities[0]?.id || "";
+          selectedEntityId.value = family.value.entities[0]?.id || '';
         }
       }
     } catch (error: unknown) {
       const err = error as Error;
-      console.error("Error deleting entity", err);
+      console.error('Error deleting entity', err);
       throw err;
     }
   }
@@ -107,7 +105,7 @@ export const useFamilyStore = defineStore("family", () => {
       }
     } catch (error: unknown) {
       const err = error as Error;
-      console.error("Error adding entity member", err);
+      console.error('Error adding entity member', err);
       throw err;
     }
   }
@@ -123,7 +121,7 @@ export const useFamilyStore = defineStore("family", () => {
       }
     } catch (error: unknown) {
       const err = error as Error;
-      console.error("Error removing entity member", err);
+      console.error('Error removing entity member', err);
       throw err;
     }
   }

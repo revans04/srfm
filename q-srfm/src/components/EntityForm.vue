@@ -55,23 +55,20 @@
           </div>
           <div class="col col-12">
             <!-- Help Section -->
-            <q-expansion-item
-              class="q-mb-lg"
-              label="Need help with creating a budget template?"
-            >
+            <q-expansion-item class="q-mb-lg" label="Need help with creating a budget template?">
               <div class="q-px-lg">
                 <strong>Create Your First Budget Template</strong>
                 A budget template helps you plan how to use your money each month. Follow these simple steps:
                 <ol>
                   <li>
-                    <strong>Add Your Income</strong>: List at least one source of money you receive regularly, like your salary or freelance earnings. The
-                    Group should be Income and the category can be something like Salary or the name of the income source. Example: "Monthly Salary: $3,000."
+                    <strong>Add Your Income</strong>: List at least one source of money you receive regularly, like your salary or freelance earnings. The Group
+                    should be Income and the category can be something like Salary or the name of the income source. Example: "Monthly Salary: $3,000."
                   </li>
                   <li>
                     <strong>List Spending and Saving Categories</strong>: Create categories for where your money goes, such as rent, groceries, or savings.
-                    Group similar categories together (e.g., "Housing" for rent and utilities, "Daily Needs" for groceries and gas). <br /><strong>Tip</strong
-                    >: Click the "Add Categories from Type" button to get sample categories and groups based on your entity type. You can edit these to fit
-                    your needs.
+                    Group similar categories together (e.g., "Housing" for rent and utilities, "Daily Needs" for groceries and gas). <br /><strong>Tip</strong>:
+                    Click the "Add Categories from Type" button to get sample categories and groups based on your entity type. You can edit these to fit your
+                    needs.
                   </li>
                   <li>
                     <strong>Assign Your Income</strong>: Divide your total income among your categories to cover all expenses and savings. Example: $1,000 for
@@ -262,8 +259,7 @@ const hasUnsavedChanges = computed(() => {
     currentEntity.name !== initialEntity.value?.name ||
     currentEntity.type !== initialEntity.value?.type ||
     JSON.stringify(currentEntity.taxFormIds) !== JSON.stringify(initialEntity.value?.taxFormIds) ||
-    JSON.stringify(currentEntity.templateBudget?.categories) !==
-      JSON.stringify(initialEntity.value?.templateBudget?.categories)
+    JSON.stringify(currentEntity.templateBudget?.categories) !== JSON.stringify(initialEntity.value?.templateBudget?.categories)
   );
 });
 
@@ -280,12 +276,12 @@ onMounted(async () => {
   await budgetStore.loadBudgets(userId, props.entityId);
   if (isEditing.value) {
     const entity = familyStore.family?.entities.find((e) => e.id === props.entityId);
-      if (entity) {
-        initialEntity.value = entity;
-        const ownerUid = initialEntity.value?.ownerUid;
-        const o = ownerUid ? entity.members.find((m) => m.uid === ownerUid) : undefined;
-        entityName.value = initialEntity.value.name;
-        entityType.value = initialEntity.value.type;
+    if (entity) {
+      initialEntity.value = entity;
+      const ownerUid = initialEntity.value?.ownerUid;
+      const o = ownerUid ? entity.members.find((m) => m.uid === ownerUid) : undefined;
+      entityName.value = initialEntity.value.name;
+      entityType.value = initialEntity.value.type;
       entityEmail.value = o?.email ?? entityEmail.value;
       entityTaxFormIds.value = initialEntity.value.taxFormIds ?? [];
       budget.value.categories = initialEntity.value.templateBudget?.categories ?? [];

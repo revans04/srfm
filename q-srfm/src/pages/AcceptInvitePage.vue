@@ -15,10 +15,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
-import { useRouter, useRoute } from "vue-router";
-import { auth } from "../firebase/init";
-import { dataAccess } from "../dataAccess";
+import { ref, onMounted } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+import { auth } from '../firebase/init';
+import { dataAccess } from '../dataAccess';
 
 const router = useRouter();
 const route = useRoute();
@@ -30,7 +30,7 @@ const user = ref(auth.currentUser);
 onMounted(() => {
   const token = route.query.token as string;
   if (!token) {
-    error.value = "No invite token provided";
+    error.value = 'No invite token provided';
     loading.value = false;
     return;
   }
@@ -43,7 +43,7 @@ onMounted(() => {
           await dataAccess.acceptInvite(token);
           accepted.value = true;
           setTimeout(() => {
-            void router.push("/");
+            void router.push('/');
           }, 2000);
         } catch (err: unknown) {
           error.value = err instanceof Error ? err.message : JSON.stringify(err);
@@ -59,15 +59,15 @@ onMounted(() => {
 
 function login() {
   void router.push({
-    path: "/login",
-    query: { redirect: "/accept-invite", token: typeof route.query.token === "string" ? route.query.token : "" },
+    path: '/login',
+    query: { redirect: '/accept-invite', token: typeof route.query.token === 'string' ? route.query.token : '' },
   });
 }
 
 function signup() {
   void router.push({
-    path: "/signup",
-    query: { redirect: "/accept-invite", token: typeof route.query.token === "string" ? route.query.token : "" },
+    path: '/signup',
+    query: { redirect: '/accept-invite', token: typeof route.query.token === 'string' ? route.query.token : '' },
   });
 }
 </script>

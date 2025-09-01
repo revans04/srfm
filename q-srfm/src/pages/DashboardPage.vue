@@ -6,22 +6,10 @@
         <div class="text-subtitle2 text-primary q-mb-md">
           {{ budgetLabel }}
         </div>
-        <q-banner
-          v-for="nudge in nudges"
-          :key="nudge"
-          class="q-mb-sm"
-          color="warning"
-          text-color="white"
-          icon="savings"
-        >
+        <q-banner v-for="nudge in nudges" :key="nudge" class="q-mb-sm" color="warning" text-color="white" icon="savings">
           {{ nudge }}
         </q-banner>
-        <DashboardTiles
-          :budget-id="budgetId"
-          :family-id="familyId"
-          @open-bills="onOpenBills"
-          @create-goal="onCreateGoal"
-        />
+        <DashboardTiles :budget-id="budgetId" :family-id="familyId" @open-bills="onOpenBills" @create-goal="onCreateGoal" />
       </div>
       <div class="col-12 q-mt-sm">
         <q-btn color="primary" class="full-width q-py-sm" rounded unelevated size="lg" label="View Transactions" to="/transactions" />

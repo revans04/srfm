@@ -1198,13 +1198,12 @@ async function addCategory() {
   };
   budget.value.categories.push(newCat);
   const include = await new Promise<boolean>((resolve) => {
-    $q
-      .dialog({
-        title: 'Include Category',
-        message: 'Include this category in future budgets?',
-        cancel: true,
-        persistent: true,
-      })
+    $q.dialog({
+      title: 'Include Category',
+      message: 'Include this category in future budgets?',
+      cancel: true,
+      persistent: true,
+    })
       .onOk(() => resolve(true))
       .onCancel(() => resolve(false))
       .onDismiss(() => resolve(false));
@@ -1249,9 +1248,7 @@ async function applyFutureCategories() {
     await familyStore.updateEntity(family.id, entity);
   }
 
-  const futureBudgets = budgets.value.filter(
-    (b) => b.entityId === entityId && b.month > budget.value.month,
-  );
+  const futureBudgets = budgets.value.filter((b) => b.entityId === entityId && b.month > budget.value.month);
   for (const fb of futureBudgets) {
     for (const cat of futureCategories.value) {
       if (!fb.categories.some((c) => c.name === cat.name)) {

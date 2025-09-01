@@ -46,65 +46,60 @@
         </div>
         <q-card flat class="bg-white" rounded>
           <q-list dense>
-          <q-item
-            v-for="transaction in categoryTransactions"
-            :key="transaction.id"
-            class="transaction-item"
-            dense
-            clickable
-            @click="editTransaction(transaction)"
-            style="border-bottom: 1px solid rgb(var(--v-theme-light))"
-          >
-            <q-item-section class="d-flex align-center">
-              <div class="row q-pa-sm align-center no-gutters">
-                <div class="col q-pt-sm font-weight-bold text-primary col-2" style="min-width: 60px; font-size: 10px">
-                  {{ formatDate(transaction.date) }}
+            <q-item
+              v-for="transaction in categoryTransactions"
+              :key="transaction.id"
+              class="transaction-item"
+              dense
+              clickable
+              @click="editTransaction(transaction)"
+              style="border-bottom: 1px solid rgb(var(--v-theme-light))"
+            >
+              <q-item-section class="d-flex align-center">
+                <div class="row q-pa-sm align-center no-gutters">
+                  <div class="col q-pt-sm font-weight-bold text-primary col-2" style="min-width: 60px; font-size: 10px">
+                    {{ formatDate(transaction.date) }}
+                  </div>
+                  <div class="col text-truncate" style="flex: 1; min-width: 0">
+                    {{ transaction.merchant }}
+                  </div>
+                  <div class="col-auto q-ml-sm">
+                    <GoalFundingPill :goal="goalMap[transaction.fundedByGoalId || '']" />
+                  </div>
+                  <div class="col text-right no-wrap col-auto" :class="transaction.isIncome ? 'text-green' : ''" style="min-width: 60px">
+                    ${{ Math.abs(getCategoryAmount(transaction)).toFixed(2) }}
+                  </div>
+                  <div class="col text-right col-auto" style="min-width: 40px">
+                    <q-icon small name="delete" color="negative" title="Move to Trash" @click.stop="confirmDelete(transaction)" />
+                  </div>
                 </div>
-                <div class="col text-truncate" style="flex: 1; min-width: 0">
-                  {{ transaction.merchant }}
-                </div>
-                <div class="col-auto q-ml-sm">
-                  <GoalFundingPill :goal="goalMap[transaction.fundedByGoalId || '']" />
-                </div>
-                <div class="col text-right no-wrap col-auto" :class="transaction.isIncome ? 'text-green' : ''" style="min-width: 60px">
-                  ${{ Math.abs(getCategoryAmount(transaction)).toFixed(2) }}
-                </div>
-                <div class="col text-right col-auto" style="min-width: 40px">
-                  <q-icon
-                    small
-                    name="delete"
-                    color="negative"
-                    title="Move to Trash"
-                    @click.stop="confirmDelete(transaction)"
-                  />
-                </div>
-              </div>
-            </q-item-section>
-          </q-item>
-          <q-item v-if="categoryTransactions.length === 0">
-            <q-item-label>No transactions for this category.</q-item-label>
-          </q-item>
+              </q-item-section>
+            </q-item>
+            <q-item v-if="categoryTransactions.length === 0">
+              <q-item-label>No transactions for this category.</q-item-label>
+            </q-item>
           </q-list>
         </q-card>
       </div>
     </div>
 
     <!-- Floating Action Button -->
-    <q-fab icon="add" :app="true" color="primary" @click="$emit('add-transaction')" location="bottom left" class="q-ml-sm" :class="isMobile ? 'q-mb-xl' : 'q-mb-sm'" />
+    <q-fab
+      icon="add"
+      :app="true"
+      color="primary"
+      @click="$emit('add-transaction')"
+      location="bottom left"
+      class="q-ml-sm"
+      :class="isMobile ? 'q-mb-xl' : 'q-mb-sm'"
+    />
 
     <!-- Edit Transaction Dialog -->
     <q-dialog v-model="showEditDialog" :width="!isMobile ? '550px' : undefined" :fullscreen="isMobile">
       <q-card dense>
         <q-card-section class="bg-primary row items-center q-py-md">
           <div class="text-white">Edit {{ transactionToEdit?.merchant }} Transaction</div>
-          <q-btn
-            flat
-            dense
-            color="white"
-            label="X"
-            class="q-ml-auto"
-            @click="showEditDialog = false"
-          />
+          <q-btn flat dense color="white" label="X" class="q-ml-auto" @click="showEditDialog = false" />
         </q-card-section>
         <q-card-section>
           <transaction-form

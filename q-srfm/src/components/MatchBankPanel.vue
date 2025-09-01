@@ -72,9 +72,7 @@ async function loadData() {
         continue;
       }
     }
-    (full.transactions || [])
-      .filter((t) => !t.deleted && (!t.status || t.status === 'U'))
-      .forEach((t) => txs.push(t));
+    (full.transactions || []).filter((t) => !t.deleted && (!t.status || t.status === 'U')).forEach((t) => txs.push(t));
     (full.categories || []).forEach((c) => cats.add(c.name));
   }
 

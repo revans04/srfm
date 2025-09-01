@@ -1,5 +1,5 @@
 /** types.ts */
-import type { Timestamp } from "firebase/firestore";
+import type { Timestamp } from 'firebase/firestore';
 
 export interface Family {
   id: string;
@@ -25,10 +25,10 @@ export interface Entity {
 }
 
 export enum EntityType {
-  Family = "Family",
-  Business = "Business",
-  RentalProperty = "RentalProperty",
-  Other = "Other",
+  Family = 'Family',
+  Business = 'Business',
+  RentalProperty = 'RentalProperty',
+  Other = 'Other',
 }
 
 export interface Transaction {
@@ -45,14 +45,7 @@ export interface Transaction {
   amount: number;
   notes: string;
   recurring: boolean;
-  recurringInterval:
-    | "Daily"
-    | "Weekly"
-    | "Bi-Weekly"
-    | "Monthly"
-    | "Quarterly"
-    | "Bi-Annually"
-    | "Yearly";
+  recurringInterval: 'Daily' | 'Weekly' | 'Bi-Weekly' | 'Monthly' | 'Quarterly' | 'Bi-Annually' | 'Yearly';
   userId: string;
   familyId?: string;
   isIncome: boolean;
@@ -60,7 +53,7 @@ export interface Transaction {
   accountSource?: string;
   postedDate?: string;
   importedMerchant?: string;
-  status?: "U" | "C" | "R";
+  status?: 'U' | 'C' | 'R';
   checkNumber?: string;
   deleted?: boolean;
   entityId?: string;
@@ -84,7 +77,7 @@ export interface ImportedTransaction {
   checkNumber?: string;
   matched?: boolean;
   ignored?: boolean;
-  status: "U" | "C" | "R";
+  status: 'U' | 'C' | 'R';
   deleted?: boolean;
   taxMetadata?: TaxMetadata[]; // Optional, for manual tagging before matching
   entityId?: string; // Frontend convenience (not persisted by API)
@@ -162,13 +155,13 @@ export interface GoalSpend {
 }
 
 export interface PendingInvite {
- inviterUid?: string;
- inviterEmail?: string;
- inviteeEmail?: string;
- budgetIds: string[];
- token?: string;
- createdAt: { seconds: number; nanoseconds: number };
- expiresAt: { seconds: number; nanoseconds: number };
+  inviterUid?: string;
+  inviterEmail?: string;
+  inviteeEmail?: string;
+  budgetIds: string[];
+  token?: string;
+  createdAt: { seconds: number; nanoseconds: number };
+  expiresAt: { seconds: number; nanoseconds: number };
 }
 
 export interface IncomeTarget {
@@ -212,8 +205,8 @@ export interface Account {
   id: string;
   userId?: string; // Optional, for personal accounts
   name: string;
-  type: "Bank" | "CreditCard" | "Investment" | "Property" | "Loan";
-  category: "Asset" | "Liability";
+  type: 'Bank' | 'CreditCard' | 'Investment' | 'Property' | 'Loan';
+  category: 'Asset' | 'Liability';
   accountNumber?: string; // For Bank/CreditCard, links to ImportedTransaction.accountNumber
   institution?: string;
   createdAt: Timestamp;
@@ -251,7 +244,7 @@ export interface TaxMetadata {
 // Tax rule for automatic categorization
 export interface TaxRule {
   id: string;
-  entityType: EntityType
+  entityType: EntityType;
   budgetCategory: string; // e.g., "Maintenance", "Inventory"
   taxCategory: string; // e.g., "Repairs", "COGS"
   irsForm: string; // e.g., "Schedule E", "Schedule C"
@@ -270,11 +263,11 @@ export interface TaxForm {
 }
 
 export enum AccountType {
-  Bank = "Bank",
-  CreditCard = "CreditCard",
-  Investment = "Investment",
-  Property = "Property",
-  Loan = "Loan",
+  Bank = 'Bank',
+  CreditCard = 'CreditCard',
+  Investment = 'Investment',
+  Property = 'Property',
+  Loan = 'Loan',
 }
 
 export interface Statement {

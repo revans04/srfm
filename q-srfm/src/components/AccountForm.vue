@@ -68,12 +68,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, defineProps, defineEmits } from "vue";
-import type { Account, AccountType } from "../types";
-import { Timestamp } from "firebase/firestore";
-import { v4 as uuidv4 } from "uuid";
+import { ref, watch, defineProps, defineEmits } from 'vue';
+import type { Account, AccountType } from '../types';
+import { Timestamp } from 'firebase/firestore';
+import { v4 as uuidv4 } from 'uuid';
 
-type AccountTypeLiteral = Account["type"]; // "Bank" | "CreditCard" | ...
+type AccountTypeLiteral = Account['type']; // "Bank" | "CreditCard" | ...
 
 const props = defineProps<{
   // Accept either the string literal union or the enum value
@@ -84,15 +84,15 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (e: "save", account: Account, isPersonal: boolean): void;
-  (e: "cancel"): void;
+  (e: 'save', account: Account, isPersonal: boolean): void;
+  (e: 'cancel'): void;
 }>();
 
 const validForm = ref(false);
 const saving = ref(false);
 const isPersonalAccount = ref(false);
 
-type AccountWithDetails = Account & { details: NonNullable<Account["details"]> };
+type AccountWithDetails = Account & { details: NonNullable<Account['details']> };
 
 function normalizeType(t: AccountType | AccountTypeLiteral): AccountTypeLiteral {
   // AccountType is a string enum, so a straight cast to the literal union is fine
@@ -101,9 +101,9 @@ function normalizeType(t: AccountType | AccountTypeLiteral): AccountTypeLiteral 
 
 const localAccount = ref<AccountWithDetails>({
   id: uuidv4(),
-  name: "",
+  name: '',
   type: normalizeType(props.accountType),
-  category: normalizeType(props.accountType) === "CreditCard" || normalizeType(props.accountType) === "Loan" ? "Liability" : "Asset",
+  category: normalizeType(props.accountType) === 'CreditCard' || normalizeType(props.accountType) === 'Loan' ? 'Liability' : 'Asset',
   createdAt: Timestamp.now(),
   updatedAt: Timestamp.now(),
   details: {},
@@ -116,7 +116,7 @@ watch(
       localAccount.value = {
         // Fill required fields while preserving provided values
         id: newAccount.id || localAccount.value.id,
-        name: newAccount.name || "",
+        name: newAccount.name || '',
         type: normalizeType(newAccount.type ?? localAccount.value.type),
         category: newAccount.category ?? localAccount.value.category,
         accountNumber: newAccount.accountNumber,
@@ -129,7 +129,7 @@ watch(
       isPersonalAccount.value = !!newAccount.userId;
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 watch(
@@ -137,18 +137,18 @@ watch(
   (newType) => {
     const t = normalizeType(newType);
     localAccount.value.type = t;
-    localAccount.value.category = t === "CreditCard" || t === "Loan" ? "Liability" : "Asset";
-  }
+    localAccount.value.category = t === 'CreditCard' || t === 'Loan' ? 'Liability' : 'Asset';
+  },
 );
 
 function save() {
   saving.value = true;
   localAccount.value.updatedAt = Timestamp.now();
-  emit("save", localAccount.value, isPersonalAccount.value);
+  emit('save', localAccount.value, isPersonalAccount.value);
   saving.value = false;
 }
 
 function cancel() {
-  emit("cancel");
+  emit('cancel');
 }
 </script>

@@ -1,14 +1,14 @@
 // src/store/merchants.ts
-import type { Transaction } from "../types";
-import { defineStore } from "pinia";
-import { ref, computed } from "vue";
+import type { Transaction } from '../types';
+import { defineStore } from 'pinia';
+import { ref, computed } from 'vue';
 
 interface MerchantUsage {
   name: string;
   usageCount: number;
 }
 
-export const useMerchantStore = defineStore("merchants", () => {
+export const useMerchantStore = defineStore('merchants', () => {
   // State: List of merchants sorted by usage
   const merchants = ref<MerchantUsage[]>([]);
 
@@ -19,8 +19,7 @@ export const useMerchantStore = defineStore("merchants", () => {
 
     transactions.forEach((transaction) => {
       if (!transaction.deleted && transaction.merchant) {
-        merchantCounts[transaction.merchant] =
-          (merchantCounts[transaction.merchant] || 0) + 1;
+        merchantCounts[transaction.merchant] = (merchantCounts[transaction.merchant] || 0) + 1;
       }
     });
 

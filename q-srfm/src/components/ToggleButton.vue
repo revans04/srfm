@@ -27,7 +27,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, watch } from 'vue';
 
 // Define the props with TypeScript types
 const props = withDefaults(
@@ -38,16 +38,16 @@ const props = withDefaults(
     cssClass?: string;
   }>(),
   {
-    activeText: "Active",
-    inactiveText: "Inactive",
+    activeText: 'Active',
+    inactiveText: 'Inactive',
     modelValue: true,
-    cssClass: "text-right",
-  }
+    cssClass: 'text-right',
+  },
 );
 
 // Define the emit types for TypeScript
 const emit = defineEmits<{
-  (e: "update:modelValue", value: boolean): void;
+  (e: 'update:modelValue', value: boolean): void;
 }>();
 
 // Reactive state for the selected option
@@ -56,7 +56,7 @@ const selectedOption = ref<boolean>(props.modelValue);
 // Function to handle option selection
 const selectOption = (option: boolean) => {
   selectedOption.value = option;
-  emit("update:modelValue", option); // Emit the selected option to the parent
+  emit('update:modelValue', option); // Emit the selected option to the parent
 };
 
 // Watch for changes in modelValue prop to sync with parent
@@ -64,7 +64,7 @@ watch(
   () => props.modelValue,
   (newValue) => {
     selectedOption.value = newValue;
-  }
+  },
 );
 </script>
 

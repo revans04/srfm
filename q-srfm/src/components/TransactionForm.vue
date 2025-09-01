@@ -1,49 +1,25 @@
 <!-- src/components/TransactionForm.vue -->
 <template>
   <div v-if="isInitialized && locTrnsx?.categories">
-      <div class="row q-pa-none">
-        <div class="col col-6">
-          <q-btn flat type="submit" color="primary" :loading="isLoading" @click="save" label="Save" />
-        </div>
-        <div class="col text-right col-6">
-          <q-btn
-            v-if="showCancel"
-            @click="emit('cancel')"
-            flat
-            type="button"
-            color="primary"
-            :loading="isLoading"
-            label="Cancel"
-          />
-        </div>
+    <div class="row q-pa-none">
+      <div class="col col-6">
+        <q-btn flat type="submit" color="primary" :loading="isLoading" @click="save" label="Save" />
       </div>
+      <div class="col text-right col-6">
+        <q-btn v-if="showCancel" @click="emit('cancel')" flat type="button" color="primary" :loading="isLoading" label="Cancel" />
+      </div>
+    </div>
     <q-form ref="form" @submit.prevent="save">
       <div class="row form-row">
         <div class="col form-col-label">Date</div>
         <div class="col form-col col-auto">
-          <q-input
-            v-model="locTrnsx.date"
-            type="date"
-            :rules="requiredField"
-            @input="updateBudgetMonth"
-            dense
-            borderless
-            class="text-right"
-          />
+          <q-input v-model="locTrnsx.date" type="date" :rules="requiredField" @input="updateBudgetMonth" dense borderless class="text-right" />
         </div>
       </div>
       <div class="row form-row">
         <div class="col form-col-label q-pr-xl">Merchant</div>
         <div class="col form-col col-auto" style="min-width: 150px">
-          <q-select
-            v-model="locTrnsx.merchant"
-            :options="merchantNames"
-            :rules="requiredField"
-            dense
-            borderless
-            menu-icon=""
-            class="text-right"
-          />
+          <q-select v-model="locTrnsx.merchant" :options="merchantNames" :rules="requiredField" dense borderless menu-icon="" class="text-right" />
         </div>
       </div>
       <div class="row form-row">
@@ -114,7 +90,7 @@
         </div>
       </div>
 
-      <div class="row q-mt-sm" v-if="availableMonths.length === 0" >
+      <div class="row q-mt-sm" v-if="availableMonths.length === 0">
         <div class="col">
           <q-banner type="warning">No budgets available. Please create a budget in the Dashboard.</q-banner>
         </div>
@@ -123,15 +99,7 @@
       <div class="row form-row">
         <div class="col form-col-label col-auto">Fund from Goal</div>
         <div class="col text-right">
-          <q-select
-            v-model="locTrnsx.fundedByGoalId"
-            :options="goalOptions"
-            dense
-            borderless
-            emit-value
-            map-options
-            clearable
-          />
+          <q-select v-model="locTrnsx.fundedByGoalId" :options="goalOptions" dense borderless emit-value map-options clearable />
         </div>
       </div>
 
@@ -139,47 +107,44 @@
       <q-select v-if="locTrnsx.recurring" v-model="locTrnsx.recurringInterval" :options="intervals" label="Recurring Interval" dense borderless />
 
       <!-- Imported Transaction Fields (Shown only if matched) -->
-      <div
-        v-if="locTrnsx.status && (locTrnsx.status === 'C' || locTrnsx.status === 'R')"
-        class="q-mt-lg"
-      >
-        <div class="row form-row" >
-          <div class="col form-col-label" >Posted Date</div>
-          <div class="col form-col" >
-          <q-input v-model="locTrnsx.postedDate" type="date" dense borderless readonly></q-input>
+      <div v-if="locTrnsx.status && (locTrnsx.status === 'C' || locTrnsx.status === 'R')" class="q-mt-lg">
+        <div class="row form-row">
+          <div class="col form-col-label">Posted Date</div>
+          <div class="col form-col">
+            <q-input v-model="locTrnsx.postedDate" type="date" dense borderless readonly></q-input>
           </div>
         </div>
-        <div class="row form-row" >
-          <div class="col form-col-label q-pr-xl" >Imported Merchant</div>
-          <div class="col form-col"  style="min-width: 150px">
-          <q-input v-model="locTrnsx.importedMerchant" dense borderless readonly></q-input>
+        <div class="row form-row">
+          <div class="col form-col-label q-pr-xl">Imported Merchant</div>
+          <div class="col form-col" style="min-width: 150px">
+            <q-input v-model="locTrnsx.importedMerchant" dense borderless readonly></q-input>
           </div>
         </div>
-        <div class="row form-row" >
-          <div class="col form-col-label" >Account Source</div>
-          <div class="col form-col" >
-          <q-input v-model="locTrnsx.accountSource" dense borderless readonly></q-input>
+        <div class="row form-row">
+          <div class="col form-col-label">Account Source</div>
+          <div class="col form-col">
+            <q-input v-model="locTrnsx.accountSource" dense borderless readonly></q-input>
           </div>
         </div>
-        <div class="row form-row" >
-          <div class="col form-col-label" >Account Number</div>
-          <div class="col form-col" >
-          <q-input v-model="locTrnsx.accountNumber" dense borderless readonly></q-input>
+        <div class="row form-row">
+          <div class="col form-col-label">Account Number</div>
+          <div class="col form-col">
+            <q-input v-model="locTrnsx.accountNumber" dense borderless readonly></q-input>
           </div>
         </div>
-        <div class="row form-row" >
-          <div class="col form-col-label" >Check Number</div>
-          <div class="col form-col" >
-          <q-input v-model="locTrnsx.checkNumber" dense borderless readonly></q-input>
+        <div class="row form-row">
+          <div class="col form-col-label">Check Number</div>
+          <div class="col form-col">
+            <q-input v-model="locTrnsx.checkNumber" dense borderless readonly></q-input>
           </div>
         </div>
-        <div class="row form-row" >
-          <div class="col form-col-label" >Status</div>
-          <div class="col form-col" >
-          <q-input v-model="locTrnsx.status" dense borderless readonly></q-input>
+        <div class="row form-row">
+          <div class="col form-col-label">Status</div>
+          <div class="col form-col">
+            <q-input v-model="locTrnsx.status" dense borderless readonly></q-input>
           </div>
         </div>
-        <div class="row form-row" >
+        <div class="row form-row">
           <div class="col">
             <q-btn variant="text" color="warning" :loading="isLoading" @click="resetMatch">Reset Match</q-btn>
           </div>
@@ -187,32 +152,24 @@
       </div>
 
       <div class="text-center">
-        <q-btn
-          v-if="locTrnsx.id"
-          variant="text"
-          color="negative"
-          :loading="isLoading"
-          @click="deleteTransaction"
-          label="Delete Transaction"
-        />
+        <q-btn v-if="locTrnsx.id" variant="text" color="negative" :loading="isLoading" @click="deleteTransaction" label="Delete Transaction" />
       </div>
     </q-form>
   </div>
   <div v-else>Loading...</div>
-
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, reactive } from "vue";
+import { ref, computed, onMounted, reactive } from 'vue';
 import { useQuasar } from 'quasar';
-import { dataAccess } from "../dataAccess";
-import type { Budget, Transaction, Goal } from "../types";
-import { toCents, toDollars, todayISO, currentMonthISO } from "../utils/helpers";
-import CurrencyInput from "./CurrencyInput.vue";
-import ToggleButton from "./ToggleButton.vue";
-import { QForm } from "quasar";
-import { useMerchantStore } from "../store/merchants";
-import { useBudgetStore } from "../store/budget";
+import { dataAccess } from '../dataAccess';
+import type { Budget, Transaction, Goal } from '../types';
+import { toCents, toDollars, todayISO, currentMonthISO } from '../utils/helpers';
+import CurrencyInput from './CurrencyInput.vue';
+import ToggleButton from './ToggleButton.vue';
+import { QForm } from 'quasar';
+import { useMerchantStore } from '../store/merchants';
+import { useBudgetStore } from '../store/budget';
 import { useGoals } from '../composables/useGoals';
 import { useFamilyStore } from '../store/family';
 
@@ -232,26 +189,25 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (e: "save", transaction: Transaction): void;
-  (e: "cancel"): void;
-  (e: "update-transactions", transactions: Transaction[]): void;
+  (e: 'save', transaction: Transaction): void;
+  (e: 'cancel'): void;
+  (e: 'update-transactions', transactions: Transaction[]): void;
 }>();
 
-
-const requiredField = [(value: string | null) => !!value || "This field is required", (value: string | null) => value !== "" || "This field is required"];
+const requiredField = [(value: string | null) => !!value || 'This field is required', (value: string | null) => value !== '' || 'This field is required'];
 
 const form = ref<InstanceType<typeof QForm> | null>(null);
 
 const defaultTransaction: Transaction = {
-  id: "",
+  id: '',
   budgetMonth: currentMonthISO(),
   date: todayISO(),
-  merchant: "",
-  categories: [{ category: "", amount: 0 }],
+  merchant: '',
+  categories: [{ category: '', amount: 0 }],
   amount: 0,
-  notes: "",
+  notes: '',
   recurring: false,
-  recurringInterval: "Monthly",
+  recurringInterval: 'Monthly',
   userId: props.userId,
   isIncome: false,
   taxMetadata: [],
@@ -262,16 +218,16 @@ const locTrnsx = reactive<Transaction>(
     ? {
         ...defaultTransaction,
         ...props.initialTransaction,
-        categories: props.initialTransaction.categories ? [...props.initialTransaction.categories] : [{ category: "", amount: 0 }],
+        categories: props.initialTransaction.categories ? [...props.initialTransaction.categories] : [{ category: '', amount: 0 }],
       }
-    : { ...defaultTransaction }
+    : { ...defaultTransaction },
 );
 
 const isInitialized = ref(false);
 const budget = ref<Budget | null>(null);
 const transactions = ref<Transaction[]>([]);
 const isLoading = ref(false);
-const intervals = ref(["Daily", "Weekly", "Bi-Weekly", "Monthly", "Quarterly", "Bi-Annually", "Yearly"]);
+const intervals = ref(['Daily', 'Weekly', 'Bi-Weekly', 'Monthly', 'Quarterly', 'Bi-Annually', 'Yearly']);
 const isMobile = computed(() => $q.screen.lt.md);
 
 const goalList = ref<Goal[]>([]);
@@ -291,9 +247,9 @@ const remainingCategories = computed(() => {
   const categoryNames = new Set(locTrnsx.categories.map((entry) => entry.category));
   return props.categoryOptions.filter((str) => {
     if (locTrnsx.isIncome) {
-      return str === "Income" && !categoryNames.has(str);
+      return str === 'Income' && !categoryNames.has(str);
     } else {
-      return str !== "Income" && !categoryNames.has(str);
+      return str !== 'Income' && !categoryNames.has(str);
     }
   });
 });
@@ -314,20 +270,18 @@ onMounted(async () => {
   }
 
   if (availableMonths.value.length === 0) {
-    showSnackbar("No budgets available. Please create a budget in the Dashboard.", "warning");
+    showSnackbar('No budgets available. Please create a budget in the Dashboard.', 'warning');
   } else {
     if (!locTrnsx.budgetMonth || !availableMonths.value.includes(locTrnsx.budgetMonth)) {
-      locTrnsx.budgetMonth = availableMonths.value[0] || "";
+      locTrnsx.budgetMonth = availableMonths.value[0] || '';
     }
   }
 
   transactions.value = await dataAccess.getTransactions(props.budgetId);
-  emit("update-transactions", transactions.value);
+  emit('update-transactions', transactions.value);
 
   if (budget.value?.merchants && budget.value.merchants.length > 0) {
-    merchantStore.updateMerchantsFromCounts(
-      Object.fromEntries(budget.value.merchants.map((m) => [m.name, m.usageCount]))
-    );
+    merchantStore.updateMerchantsFromCounts(Object.fromEntries(budget.value.merchants.map((m) => [m.name, m.usageCount])));
   } else {
     merchantStore.updateMerchants(transactions.value);
   }
@@ -342,7 +296,7 @@ onMounted(async () => {
 function scrollToNoteField(event: FocusEvent) {
   if (isMobile.value) {
     setTimeout(() => {
-      (event.target as HTMLElement).scrollIntoView({ behavior: "smooth", block: "center" });
+      (event.target as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 300); // Delay to account for keyboard appearance
   }
 }
@@ -353,13 +307,13 @@ function updateBudgetMonth() {
     if (availableMonths.value.includes(potentialMonth)) {
       locTrnsx.budgetMonth = potentialMonth;
     } else {
-      locTrnsx.budgetMonth = availableMonths.value[0] || "";
+      locTrnsx.budgetMonth = availableMonths.value[0] || '';
     }
   }
 }
 
 function addSplit() {
-  locTrnsx.categories.push({ category: "", amount: 0 });
+  locTrnsx.categories.push({ category: '', amount: 0 });
 }
 
 function removeSplit(index: number) {
@@ -378,19 +332,19 @@ async function resetMatch() {
   isLoading.value = true;
   try {
     // Update local transaction to reset imported fields
-    locTrnsx.status = "U";
-    locTrnsx.accountSource = "";
-    locTrnsx.accountNumber = "";
-    locTrnsx.postedDate = "";
-    locTrnsx.checkNumber = "";
-    locTrnsx.importedMerchant = "";
+    locTrnsx.status = 'U';
+    locTrnsx.accountSource = '';
+    locTrnsx.accountNumber = '';
+    locTrnsx.postedDate = '';
+    locTrnsx.checkNumber = '';
+    locTrnsx.importedMerchant = '';
 
     // Save the updated transaction
     if (!budget.value) {
       throw new Error(`Budget ${props.budgetId} not found`);
     }
 
-    const [, entityId, currentBudgetMonth] = props.budgetId.split("_");
+    const [, entityId, currentBudgetMonth] = props.budgetId.split('_');
     const targetBudgetMonth = locTrnsx.budgetMonth;
     const targetBudgetId = currentBudgetMonth === targetBudgetMonth ? props.budgetId : `${props.userId}_${entityId}_${targetBudgetMonth}`;
 
@@ -403,16 +357,16 @@ async function resetMatch() {
       } else {
         transactions.value.push(savedTransaction);
       }
-      emit("update-transactions", transactions.value);
-      emit("save", savedTransaction);
-      showSnackbar("Transaction match reset successfully", "success");
+      emit('update-transactions', transactions.value);
+      emit('save', savedTransaction);
+      showSnackbar('Transaction match reset successfully', 'success');
     } else {
-      showSnackbar("Could not reset match, Budget does not exist!", "negative");
+      showSnackbar('Could not reset match, Budget does not exist!', 'negative');
     }
   } catch (error: unknown) {
     const err = error as Error;
-    console.error("Error resetting transaction match:", err.message);
-    showSnackbar(`Error resetting transaction match: ${err.message}`, "negative");
+    console.error('Error resetting transaction match:', err.message);
+    showSnackbar(`Error resetting transaction match: ${err.message}`, 'negative');
   } finally {
     isLoading.value = false;
   }
@@ -432,13 +386,13 @@ async function save() {
       }
       locTrnsx.userId = props.userId;
       if (!locTrnsx.status) {
-        locTrnsx.status = "U";
+        locTrnsx.status = 'U';
       }
       if (!budget.value) {
         throw new Error(`Budget ${props.budgetId} not found`);
       }
 
-      const [, entityId, currentBudgetMonth] = props.budgetId.split("_");
+      const [, entityId, currentBudgetMonth] = props.budgetId.split('_');
       const targetBudgetMonth = locTrnsx.budgetMonth;
       const targetBudgetId = currentBudgetMonth === targetBudgetMonth ? props.budgetId : `${props.userId}_${entityId}_${targetBudgetMonth}`;
 
@@ -470,31 +424,26 @@ async function save() {
             transactions.value.push(savedTransaction);
           }
         }
-        emit("update-transactions", transactions.value);
+        emit('update-transactions', transactions.value);
 
         if (locTrnsx.fundedByGoalId) {
-          addGoalSpend(
-            locTrnsx.fundedByGoalId,
-            savedTransaction.id,
-            Math.abs(savedTransaction.amount),
-            savedTransaction.date,
-          );
+          addGoalSpend(locTrnsx.fundedByGoalId, savedTransaction.id, Math.abs(savedTransaction.amount), savedTransaction.date);
         }
-        emit("save", savedTransaction);
-        showSnackbar("Transaction saved successfully", "success");
+        emit('save', savedTransaction);
+        showSnackbar('Transaction saved successfully', 'success');
       } else {
-        showSnackbar("Could not save Transaction, Budget does not exist!", "negative");
+        showSnackbar('Could not save Transaction, Budget does not exist!', 'negative');
       }
     } catch (error: unknown) {
       const err = error as Error;
-      console.error("Error saving transaction:", err.message);
-      showSnackbar(`Error saving transaction: ${err.message}`, "negative");
+      console.error('Error saving transaction:', err.message);
+      showSnackbar(`Error saving transaction: ${err.message}`, 'negative');
     } finally {
       isLoading.value = false;
     }
   } else {
-    console.log("Form validation failed");
-    showSnackbar("Form validation failed", "negative");
+    console.log('Form validation failed');
+    showSnackbar('Form validation failed', 'negative');
   }
 }
 
@@ -509,18 +458,18 @@ async function deleteTransaction() {
     await dataAccess.deleteTransaction(budget.value, locTrnsx.id, !isLastMonth.value);
 
     transactions.value = transactions.value.filter((t) => t.id !== locTrnsx.id);
-    emit("update-transactions", transactions.value);
+    emit('update-transactions', transactions.value);
 
-    emit("cancel");
+    emit('cancel');
   } catch (error: unknown) {
     const err = error as Error;
-    console.error("Error deleting transaction:", err.message);
+    console.error('Error deleting transaction:', err.message);
   } finally {
     isLoading.value = false;
   }
 }
 
-function showSnackbar(text: string, color = "success") {
+function showSnackbar(text: string, color = 'success') {
   $q.notify({
     message: text,
     color,

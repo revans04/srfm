@@ -20,4 +20,3 @@ import { ref } from 'vue';
 const begin = ref(0);
 const end = ref(0);
 </script>
-

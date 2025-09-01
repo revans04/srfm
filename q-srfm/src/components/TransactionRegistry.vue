@@ -150,7 +150,7 @@
           <div class="col">Transaction Registry</div>
           <div class="col col-auto">
             <q-btn variant="plain" @click="downloadCsv" :disabled="displayTransactions.length === 0">
-                <q-icon name="download"></q-icon>
+              <q-icon name="download"></q-icon>
               <q-tooltip activator="parent" location="top">Download CSV</q-tooltip>
             </q-btn>
           </div>
@@ -162,22 +162,28 @@
           color="primary"
           @click="openBatchMatchDialog"
           class="q-mb-lg"
-          :disabled="loading || !selectedRows.every(id => {
-            const tx = displayTransactions.find((t: DisplayTransaction) => t.id === id);
-            return tx && tx.status === 'U';
-          })"
+          :disabled="
+            loading ||
+            !selectedRows.every((id) => {
+              const tx = displayTransactions.find((t: DisplayTransaction) => t.id === id);
+              return tx && tx.status === 'U';
+            })
+          "
         >
-           Create {{ selectedRows.length }} Budget Transaction{{ selectedRows.length > 1 ? "s" : "" }}
+          Create {{ selectedRows.length }} Budget Transaction{{ selectedRows.length > 1 ? 's' : '' }}
         </q-btn>
         <q-btn
           v-if="selectedRows.length > 0"
           color="warning"
           class="q-mb-lg q-ml-sm"
           @click="confirmBatchAction('Ignore')"
-          :disabled="loading || !selectedRows.every(id => {
-            const tx = displayTransactions.find((t: DisplayTransaction) => t.id === id);
-            return tx && tx.status === 'U' && !tx.budgetId;
-          })"
+          :disabled="
+            loading ||
+            !selectedRows.every((id) => {
+              const tx = displayTransactions.find((t: DisplayTransaction) => t.id === id);
+              return tx && tx.status === 'U' && !tx.budgetId;
+            })
+          "
         >
           Ignore {{ selectedRows.length }}
         </q-btn>
@@ -186,10 +192,13 @@
           color="negative"
           class="q-mb-lg q-ml-sm"
           @click="confirmBatchAction('Delete')"
-          :disabled="loading || !selectedRows.every(id => {
-            const tx = displayTransactions.find((t: DisplayTransaction) => t.id === id);
-            return tx && tx.status === 'U' && !tx.budgetId;
-          })"
+          :disabled="
+            loading ||
+            !selectedRows.every((id) => {
+              const tx = displayTransactions.find((t: DisplayTransaction) => t.id === id);
+              return tx && tx.status === 'U' && !tx.budgetId;
+            })
+          "
         >
           Delete {{ selectedRows.length }}
         </q-btn>
@@ -230,7 +239,7 @@
             @click.stop="confirmAction(row, 'Disconnect')"
             title="Disconnect Transaction"
           >
-              <q-icon name="link_off"></q-icon>
+            <q-icon name="link_off"></q-icon>
           </q-btn>
           <q-btn
             v-if="row.status != 'C' && row.id"
@@ -240,7 +249,7 @@
             @click.stop="confirmAction(row, 'Ignore')"
             title="Ignore Imported Transaction"
           >
-              <q-icon name="visibility_off"></q-icon>
+            <q-icon name="visibility_off"></q-icon>
           </q-btn>
           <q-btn
             v-if="row.status != 'C' && row.id"
@@ -250,7 +259,7 @@
             @click.stop="confirmAction(row, 'Delete')"
             title="Delete Imported Transaction"
           >
-              <q-icon name="delete_outline"></q-icon>
+            <q-icon name="delete_outline"></q-icon>
           </q-btn>
         </template>
       </q-table>
@@ -285,7 +294,7 @@
         </q-card-section>
         <q-card-section class="q-pt-lg">
           <q-form ref="batchMatchForm">
-            <p>Assign an entity, merchant, and category for {{ selectedRows.length }} unmatched transaction{{ selectedRows.length > 1 ? "s" : "" }}.</p>
+            <p>Assign an entity, merchant, and category for {{ selectedRows.length }} unmatched transaction{{ selectedRows.length > 1 ? 's' : '' }}.</p>
             <div class="row">
               <div class="col">
                 <q-select
@@ -335,14 +344,7 @@
           <q-form ref="statementForm">
             <div class="row">
               <div class="col">
-                <q-input
-                  v-model="newStatement.startDate"
-                  label="Start Date"
-                  type="date"
-                  variant="outlined"
-                  density="compact"
-                  :rules="requiredField"
-                ></q-input>
+                <q-input v-model="newStatement.startDate" label="Start Date" type="date" variant="outlined" density="compact" :rules="requiredField"></q-input>
               </div>
               <div class="col">
                 <q-input
@@ -357,14 +359,7 @@
             </div>
             <div class="row">
               <div class="col">
-                <q-input
-                  v-model="newStatement.endDate"
-                  label="End Date"
-                  type="date"
-                  variant="outlined"
-                  density="compact"
-                  :rules="requiredField"
-                ></q-input>
+                <q-input v-model="newStatement.endDate" label="End Date" type="date" variant="outlined" density="compact" :rules="requiredField"></q-input>
               </div>
               <div class="col">
                 <q-input
@@ -394,7 +389,7 @@
           <span class="text-white">{{ batchAction }} Selected Transactions</span>
         </q-card-section>
         <q-card-section class="q-pt-lg">
-          Are you sure you want to {{ batchAction.toLowerCase() }} {{ selectedRows.length }} transaction{{ selectedRows.length > 1 ? "s" : "" }}?
+          Are you sure you want to {{ batchAction.toLowerCase() }} {{ selectedRows.length }} transaction{{ selectedRows.length > 1 ? 's' : '' }}?
         </q-card-section>
         <q-card-actions>
           <q-space></q-space>
@@ -438,14 +433,7 @@
             </div>
             <div class="row">
               <div class="col">
-                <q-input
-                  v-model="adjustmentDate"
-                  label="Adjustment Date"
-                  type="date"
-                  variant="outlined"
-                  density="compact"
-                  :rules="requiredField"
-                ></q-input>
+                <q-input v-model="adjustmentDate" label="Adjustment Date" type="date" variant="outlined" density="compact" :rules="requiredField"></q-input>
               </div>
             </div>
             <q-btn type="submit" color="primary" :loading="saving">Save Adjustment</q-btn>
@@ -487,22 +475,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed } from 'vue';
 import { useQuasar } from 'quasar';
-import { storeToRefs } from "pinia";
-import { auth } from "../firebase/init";
-import { dataAccess } from "../dataAccess";
-import Papa from "papaparse";
-import { saveAs } from "file-saver";
-import { useBudgetStore } from "../store/budget";
-import { useFamilyStore } from "../store/family";
-import { useStatementStore } from "../store/statements";
-import { useUIStore } from "../store/ui";
-import type { Transaction, ImportedTransaction, Budget, Account, ImportedTransactionDoc, Statement } from "../types";
-import { formatCurrency, todayISO } from "../utils/helpers";
-import { QForm } from "quasar";
-import { v4 as uuidv4 } from "uuid";
-import { createBudgetForMonth } from "../utils/budget";
+import { storeToRefs } from 'pinia';
+import { auth } from '../firebase/init';
+import { dataAccess } from '../dataAccess';
+import Papa from 'papaparse';
+import { saveAs } from 'file-saver';
+import { useBudgetStore } from '../store/budget';
+import { useFamilyStore } from '../store/family';
+import { useStatementStore } from '../store/statements';
+import { useUIStore } from '../store/ui';
+import type { Transaction, ImportedTransaction, Budget, Account, ImportedTransactionDoc, Statement } from '../types';
+import { formatCurrency, todayISO } from '../utils/helpers';
+import { QForm } from 'quasar';
+import { v4 as uuidv4 } from 'uuid';
+import { createBudgetForMonth } from '../utils/budget';
 
 // Interface for displayTransactions items
 interface DisplayTransaction {
@@ -513,7 +501,7 @@ interface DisplayTransaction {
   entityId?: string;
   amount: number;
   isIncome?: boolean;
-  status: "C" | "U" | "R";
+  status: 'C' | 'U' | 'R';
   notes?: string;
   balance?: number;
   order?: number;
@@ -524,21 +512,12 @@ const budgetStore = useBudgetStore();
 const familyStore = useFamilyStore();
 const statementStore = useStatementStore();
 const $q = useQuasar();
-const familyId = computed(() => familyStore.family?.id || "");
+const familyId = computed(() => familyStore.family?.id || '');
 
 const loading = ref(false);
 const saving = ref(false);
 const uiStore = useUIStore();
-const {
-  selectedAccount,
-  search,
-  filterMerchant,
-  filterMatched,
-  filterAmount,
-  filterImportedMerchant,
-  filterStartDate,
-  filterEndDate,
-} = storeToRefs(uiStore);
+const { selectedAccount, search, filterMerchant, filterMatched, filterAmount, filterImportedMerchant, filterStartDate, filterEndDate } = storeToRefs(uiStore);
 const budgets = ref<Budget[]>([]);
 const importedTransactions = ref<ImportedTransaction[]>([]);
 const importedOffset = ref(0);
@@ -549,7 +528,7 @@ const accounts = ref<Account[]>([]);
 const accountOptions = ref<{ title: string; value: string }[]>([]);
 const statements = ref<Statement[]>([]);
 const statementOptions = computed(() => [
-  { title: "All", id: "ALL" },
+  { title: 'All', id: 'ALL' },
   ...statements.value.map((s) => ({
     title: `${s.startDate} - ${s.endDate}`,
     id: s.id,
@@ -558,7 +537,7 @@ const statementOptions = computed(() => [
 const selectedStatementId = ref<string | null>(null);
 const showActionDialog = ref(false);
 const transactionToAction = ref<DisplayTransaction | null>(null);
-const transactionAction = ref("");
+const transactionAction = ref('');
 const showBalanceAdjustmentDialog = ref(false);
 const adjustmentAmount = ref<number>(0);
 const adjustmentDate = ref<string>(todayISO());
@@ -567,29 +546,29 @@ const selectedRows = ref<string[]>([]);
 const showBatchMatchDialog = ref(false);
 const batchMatchForm = ref<InstanceType<typeof QForm> | null>(null);
 const batchEntries = ref<Array<{ id: string; date: string; amount: number; merchant: string; category: string; isIncome: boolean }>>([]);
-const selectedEntityId = ref<string>("");
+const selectedEntityId = ref<string>('');
 const showBatchActionDialog = ref(false);
-const batchAction = ref<string>("");
+const batchAction = ref<string>('');
 const showStatementDialog = ref(false);
 const statementForm = ref<InstanceType<typeof QForm> | null>(null);
 const newStatement = ref<Statement>({
-  id: "",
-  accountNumber: "",
-  startDate: "",
+  id: '',
+  accountNumber: '',
+  startDate: '',
   startingBalance: 0,
-  endDate: "",
+  endDate: '',
   endingBalance: 0,
   reconciled: false,
 });
 const reconciling = ref(false);
 const selectedStatement = computed(() => {
-  if (!selectedStatementId.value || selectedStatementId.value === "ALL") {
+  if (!selectedStatementId.value || selectedStatementId.value === 'ALL') {
     return null;
   }
   return statements.value.find((s) => s.id === selectedStatementId.value) || null;
 });
 const categoryOptions = computed(() => {
-  const categories = new Set<string>(["Income"]);
+  const categories = new Set<string>(['Income']);
   budgets.value.forEach((budget) => {
     budget.categories.forEach((cat) => categories.add(cat.name));
   });
@@ -605,8 +584,8 @@ const entityOptions = computed(() => {
 });
 
 // Validation rules
-const requiredField = [(value: string) => !!value || "This field is required"];
-const adjustmentRules = [(value: number) => value !== undefined || "Amount is required", (value: number) => !isNaN(value) || "Amount must be a number"];
+const requiredField = [(value: string) => !!value || 'This field is required'];
+const adjustmentRules = [(value: number) => value !== undefined || 'Amount is required', (value: number) => !isNaN(value) || 'Amount must be a number'];
 
 // Computed properties
 const currentBalance = computed(() => {
@@ -619,8 +598,8 @@ const latestTransactionBalance = computed(() => {
   const first = displayTransactions.value?.[0];
   if (!first) return 0;
   if (selectedAccount.value && accounts.value) {
-    const [acc] = accounts.value.filter((a) => (a.accountNumber ?? "") === selectedAccount.value);
-    if (acc && (acc.type === "CreditCard" || acc.type === "Loan")) {
+    const [acc] = accounts.value.filter((a) => (a.accountNumber ?? '') === selectedAccount.value);
+    if (acc && (acc.type === 'CreditCard' || acc.type === 'Loan')) {
       return Math.abs(first.balance ?? 0);
     }
   }
@@ -662,24 +641,24 @@ const displayTransactions = computed((): DisplayTransaction[] => {
       (budget.transactions || []).map((tx) => ({
         tx,
         budget,
-      }))
+      })),
     )
     .filter(
       ({ tx }) =>
         tx.accountNumber === selectedAccount.value &&
-        tx.status === "C" &&
+        tx.status === 'C' &&
         !tx.deleted &&
-        (!selectedStatement.value || (tx.date >= selectedStatement.value.startDate && tx.date <= selectedStatement.value.endDate))
+        (!selectedStatement.value || (tx.date >= selectedStatement.value.startDate && tx.date <= selectedStatement.value.endDate)),
     )
     .map(({ tx, budget }) => ({
       id: tx.id,
       date: tx.date,
-      merchant: tx.importedMerchant || tx.merchant || "N/A",
-      category: tx.categories?.[0]?.category ?? "N/A",
+      merchant: tx.importedMerchant || tx.merchant || 'N/A',
+      category: tx.categories?.[0]?.category ?? 'N/A',
       amount: tx.isIncome || false ? tx.amount : -1 * tx.amount,
       isIncome: tx.isIncome || false,
-      status: tx.status || "C",
-      notes: tx.notes || "",
+      status: tx.status || 'C',
+      notes: tx.notes || '',
       ...(tx.entityId || budget.entityId ? { entityId: tx.entityId ?? budget.entityId } : {}),
       ...(budget.budgetId ? { budgetId: budget.budgetId } : {}),
     }));
@@ -690,20 +669,18 @@ const displayTransactions = computed((): DisplayTransaction[] => {
         tx.accountNumber === selectedAccount.value &&
         !tx.matched &&
         !tx.deleted &&
-        (!selectedStatement.value ||
-          (tx.postedDate >= selectedStatement.value.startDate &&
-            tx.postedDate <= selectedStatement.value.endDate))
+        (!selectedStatement.value || (tx.postedDate >= selectedStatement.value.startDate && tx.postedDate <= selectedStatement.value.endDate)),
     )
     .map((tx) => ({
       id: tx.id,
       date: tx.postedDate,
-      merchant: tx.payee || "N/A",
-      category: "",
-      entityId: "",
-      amount: tx.debitAmount && tx.debitAmount > 0 ? -tx.debitAmount : tx.creditAmount ?? 0,
+      merchant: tx.payee || 'N/A',
+      category: '',
+      entityId: '',
+      amount: tx.debitAmount && tx.debitAmount > 0 ? -tx.debitAmount : (tx.creditAmount ?? 0),
       isIncome: (tx.creditAmount ?? 0) > 0,
-      status: tx.status || "U",
-      notes: "",
+      status: tx.status || 'U',
+      notes: '',
       ignored: !!tx.ignored,
     }));
 
@@ -748,7 +725,7 @@ const displayTransactions = computed((): DisplayTransaction[] => {
     const searchLower = search.value.toLowerCase();
     matchedTxs = matchedTxs.filter((t) => t.merchant.toLowerCase().includes(searchLower) || Math.abs(t.amount).toString().toLowerCase().includes(searchLower));
     unmatchedTxs = unmatchedTxs.filter(
-      (t) => t.merchant.toLowerCase().includes(searchLower) || Math.abs(t.amount).toString().toLowerCase().includes(searchLower)
+      (t) => t.merchant.toLowerCase().includes(searchLower) || Math.abs(t.amount).toString().toLowerCase().includes(searchLower),
     );
   }
 
@@ -814,9 +791,9 @@ const statementTransactions = computed((): DisplayTransaction[] => {
     .map(({ tx, budget }) => ({
       id: tx.id,
       date: tx.date,
-      merchant: tx.importedMerchant || tx.merchant || "N/A",
+      merchant: tx.importedMerchant || tx.merchant || 'N/A',
       amount: tx.isIncome ? tx.amount : -1 * tx.amount,
-      status: tx.status || "U",
+      status: tx.status || 'U',
       ...(budget.budgetId ? { budgetId: budget.budgetId } : {}),
     }));
 
@@ -825,9 +802,9 @@ const statementTransactions = computed((): DisplayTransaction[] => {
     .map((itx) => ({
       id: itx.id,
       date: itx.postedDate,
-      merchant: itx.payee || "N/A",
-      amount: itx.debitAmount && itx.debitAmount > 0 ? -itx.debitAmount : itx.creditAmount ?? 0,
-      status: itx.status || "U",
+      merchant: itx.payee || 'N/A',
+      amount: itx.debitAmount && itx.debitAmount > 0 ? -itx.debitAmount : (itx.creditAmount ?? 0),
+      status: itx.status || 'U',
     }));
 
   return [...budgetTxs, ...importedTxs].sort((a, b) => a.date.localeCompare(b.date));
@@ -860,7 +837,7 @@ async function loadData() {
   try {
     const user = auth.currentUser;
     if (!user) {
-      showSnackbar("Please log in to view transactions", "negative");
+      showSnackbar('Please log in to view transactions', 'negative');
       return;
     }
 
@@ -874,13 +851,13 @@ async function loadData() {
     // Load accounts
     const family = await familyStore.getFamily();
     if (!family) {
-      showSnackbar("No family found", "negative");
+      showSnackbar('No family found', 'negative');
       return;
     }
     accounts.value = await dataAccess.getAccounts(family.id);
 
     accountOptions.value = accounts.value
-      .filter((acc) => ["Bank", "CreditCard", "Investment"].includes(acc.type) && acc.accountNumber)
+      .filter((acc) => ['Bank', 'CreditCard', 'Investment'].includes(acc.type) && acc.accountNumber)
       .sort((a, b) => a.name.localeCompare(b.name))
       .map((acc) => ({ title: acc.name, value: acc.accountNumber }));
 
@@ -891,8 +868,8 @@ async function loadData() {
     }
   } catch (error: unknown) {
     const err = error as Error;
-    console.error("Error loading data:", err);
-    showSnackbar(`Error loading data: ${err.message}`, "negative");
+    console.error('Error loading data:', err);
+    showSnackbar(`Error loading data: ${err.message}`, 'negative');
   } finally {
     loading.value = false;
   }
@@ -907,11 +884,7 @@ async function loadImportedTransactions(reset = false) {
   }
   loadingMore.value = true;
   try {
-    const txs = await dataAccess.getImportedTransactionsByAccountId(
-      selectedAccount.value,
-      importedOffset.value,
-      pageSize
-    );
+    const txs = await dataAccess.getImportedTransactionsByAccountId(selectedAccount.value, importedOffset.value, pageSize);
     importedTransactions.value = [...importedTransactions.value, ...txs];
     importedOffset.value += txs.length;
     if (txs.length < pageSize) {
@@ -919,8 +892,8 @@ async function loadImportedTransactions(reset = false) {
     }
   } catch (error: unknown) {
     const err = error as Error;
-    console.error("Error loading imported transactions:", err);
-    showSnackbar(`Error loading imported transactions: ${err.message}`, "negative");
+    console.error('Error loading imported transactions:', err);
+    showSnackbar(`Error loading imported transactions: ${err.message}`, 'negative');
   } finally {
     loadingMore.value = false;
   }
@@ -943,34 +916,34 @@ async function loadTransactions() {
     if (statements.value.length > 0) {
       selectedStatementId.value = statements.value[statements.value.length - 1].id;
     } else {
-      selectedStatementId.value = "ALL";
+      selectedStatementId.value = 'ALL';
     }
   } catch (error: unknown) {
     const err = error as Error;
-    console.error("Error loading transactions:", err);
-    showSnackbar(`Error loading transactions: ${err.message}`, "negative");
+    console.error('Error loading transactions:', err);
+    showSnackbar(`Error loading transactions: ${err.message}`, 'negative');
   } finally {
     loading.value = false;
   }
 }
 
 function getEntityName(entityId?: string): string {
-  if (!entityId) return "N/A";
+  if (!entityId) return 'N/A';
   const entity = familyStore.family?.entities?.find((e) => e.id === entityId);
   if (entity) return entity.name;
   // Fallback: Check if entityId is a budgetId and get entityId from budget
   const budget = budgetStore.getBudget(entityId);
   if (budget?.entityId) {
     const budgetEntity = familyStore.family?.entities?.find((e) => e.id === budget.entityId);
-    return budgetEntity ? budgetEntity.name : "N/A";
+    return budgetEntity ? budgetEntity.name : 'N/A';
   }
-  return "N/A";
+  return 'N/A';
 }
 
 function getRowClass(item: DisplayTransaction) {
-  if (item.status === "U") return "status-u";
-  if (item.status === "C") return "status-c";
-  return "";
+  if (item.status === 'U') return 'status-u';
+  if (item.status === 'C') return 'status-c';
+  return '';
 }
 
 function confirmAction(transaction: DisplayTransaction, action: string) {
@@ -989,30 +962,30 @@ async function executeAction() {
   try {
     const { budgetId, id } = transactionToAction.value;
     if (!id) {
-      showSnackbar("Invalid transaction data", "negative");
+      showSnackbar('Invalid transaction data', 'negative');
       return;
     }
 
     let updatedBudgetTx: Transaction;
 
-    const parts = id.split("-");
-    const docId = parts.slice(0, -1).join("-");
+    const parts = id.split('-');
+    const docId = parts.slice(0, -1).join('-');
 
-    if (transactionAction.value == "Disconnect" || budgetId) {
+    if (transactionAction.value == 'Disconnect' || budgetId) {
       if (!budgetId) {
-        showSnackbar("Invalid transaction data (no budget info)", "negative");
+        showSnackbar('Invalid transaction data (no budget info)', 'negative');
         return;
       }
 
       const budget = budgetStore.getBudget(budgetId);
       if (!budget) {
-        showSnackbar("Budget not found", "negative");
+        showSnackbar('Budget not found', 'negative');
         return;
       }
 
       const budgetTx = budget.transactions.find((tx) => tx.id === id);
       if (!budgetTx) {
-        showSnackbar("Budget transaction not found", "negative");
+        showSnackbar('Budget transaction not found', 'negative');
         return;
       }
 
@@ -1022,7 +995,7 @@ async function executeAction() {
           tx.matched &&
           tx.payee == budgetTx.importedMerchant &&
           tx.postedDate == budgetTx.postedDate &&
-          (tx.debitAmount == budgetTx.amount || tx.creditAmount == budgetTx.amount)
+          (tx.debitAmount == budgetTx.amount || tx.creditAmount == budgetTx.amount),
       );
 
       const rest: Partial<Transaction> = { ...budgetTx };
@@ -1033,7 +1006,7 @@ async function executeAction() {
       delete rest.checkNumber;
       updatedBudgetTx = {
         ...rest,
-        status: "U",
+        status: 'U',
         taxMetadata: budgetTx.taxMetadata || [],
       } as Transaction;
 
@@ -1057,7 +1030,7 @@ async function executeAction() {
       }
     }
 
-    if (!budgetId && transactionAction.value == "Delete") {
+    if (!budgetId && transactionAction.value == 'Delete') {
       await dataAccess.deleteImportedTransaction(docId, id);
       const importedTxIndex = importedTransactions.value.findIndex((tx) => tx.id === id);
       if (importedTxIndex !== -1) {
@@ -1066,7 +1039,7 @@ async function executeAction() {
           itx.deleted = true;
         }
       }
-    } else if (!budgetId && transactionAction.value == "Ignore") {
+    } else if (!budgetId && transactionAction.value == 'Ignore') {
       await dataAccess.updateImportedTransaction(docId, id, false, true);
       const importedTxIndex = importedTransactions.value.findIndex((tx) => tx.id === id);
       if (importedTxIndex !== -1) {
@@ -1078,16 +1051,16 @@ async function executeAction() {
       }
     }
 
-    showSnackbar(`${transactionAction.value} action completed successfully`, "success");
+    showSnackbar(`${transactionAction.value} action completed successfully`, 'success');
   } catch (error: unknown) {
     const err = error as Error;
     console.error(`Error performing ${transactionAction.value} action:`, err);
-    showSnackbar(`Error performing ${transactionAction.value} action: ${err.message}`, "negative");
+    showSnackbar(`Error performing ${transactionAction.value} action: ${err.message}`, 'negative');
   } finally {
     loading.value = false;
     showActionDialog.value = false;
     transactionToAction.value = null;
-    transactionAction.value = "";
+    transactionAction.value = '';
   }
 }
 
@@ -1096,28 +1069,28 @@ function openBatchMatchDialog() {
     selectedRows.value.length === 0 ||
     !selectedRows.value.every((id) => {
       const tx = displayTransactions.value?.find((t) => t.id === id);
-      return tx && tx.status === "U";
+      return tx && tx.status === 'U';
     })
   ) {
-    showSnackbar("Please select unmatched transactions to match", "negative");
+    showSnackbar('Please select unmatched transactions to match', 'negative');
     return;
   }
   if (!entityOptions.value.length) {
-    showSnackbar("No entities available. Please set up entities first.", "negative");
+    showSnackbar('No entities available. Please set up entities first.', 'negative');
     return;
   }
   batchEntries.value = selectedRows.value.map((id) => {
     const tx = displayTransactions.value?.find((t) => t.id === id);
     return {
       id,
-      date: tx?.date || "",
+      date: tx?.date || '',
       amount: tx?.amount || 0,
       isIncome: tx?.isIncome || false,
-      merchant: filterMerchant.value || (tx ? tx.merchant : ""),
-      category: "",
+      merchant: filterMerchant.value || (tx ? tx.merchant : ''),
+      category: '',
     };
   });
-  selectedEntityId.value = familyStore.selectedEntityId || "";
+  selectedEntityId.value = familyStore.selectedEntityId || '';
   showBatchMatchDialog.value = true;
 }
 
@@ -1126,7 +1099,7 @@ async function executeBatchMatch() {
 
   const valid = await batchMatchForm.value.validate();
   if (!valid) {
-    showSnackbar("Please fill in all required fields", "negative");
+    showSnackbar('Please fill in all required fields', 'negative');
     return;
   }
 
@@ -1134,13 +1107,13 @@ async function executeBatchMatch() {
   try {
     const user = auth.currentUser;
     if (!user) {
-      showSnackbar("User not authenticated", "negative");
+      showSnackbar('User not authenticated', 'negative');
       return;
     }
 
     const family = await familyStore.getFamily();
     if (!family) {
-      showSnackbar("No family found", "negative");
+      showSnackbar('No family found', 'negative');
       return;
     }
 
@@ -1155,9 +1128,9 @@ async function executeBatchMatch() {
       }
 
       const { id, date, amount, isIncome } = transaction;
-      const parts = id.split("-");
+      const parts = id.split('-');
       const importedTxId = id;
-      const docId = parts.slice(0, -1).join("-");
+      const docId = parts.slice(0, -1).join('-');
       const importedTx = importedTransactions.value.find((tx) => tx.id === id);
       if (!importedTx) {
         console.error(`Imported transaction ${id} not found`);
@@ -1182,7 +1155,7 @@ async function executeBatchMatch() {
           name: entry.category,
           target: 0,
           isFund: false,
-          group: "Ungrouped",
+          group: 'Ungrouped',
         });
         await dataAccess.saveBudget(budgetId, targetBudget);
         budgetStore.updateBudget(budgetId, targetBudget);
@@ -1197,17 +1170,17 @@ async function executeBatchMatch() {
         merchant: entry.merchant,
         categories: [{ category: entry.category, amount: Math.abs(amount) }],
         amount: Math.abs(amount),
-        notes: "",
+        notes: '',
         recurring: false,
-        recurringInterval: "Monthly",
+        recurringInterval: 'Monthly',
         userId: user.uid,
         isIncome: !!isIncome,
-        accountSource: importedTx.accountSource || "",
-        accountNumber: importedTx.accountNumber || "",
-        postedDate: importedTx.postedDate || "",
-        checkNumber: importedTx.checkNumber || "",
-        importedMerchant: importedTx.payee || "",
-        status: "C",
+        accountSource: importedTx.accountSource || '',
+        accountNumber: importedTx.accountNumber || '',
+        postedDate: importedTx.postedDate || '',
+        checkNumber: importedTx.checkNumber || '',
+        importedMerchant: importedTx.payee || '',
+        status: 'C',
         entityId: selectedEntityId.value,
         taxMetadata: [],
       };
@@ -1242,18 +1215,18 @@ async function executeBatchMatch() {
       }
     }
 
-    showSnackbar(`Successfully matched ${selectedRows.value.length} transaction${selectedRows.value.length > 1 ? "s" : ""}`, "success");
+    showSnackbar(`Successfully matched ${selectedRows.value.length} transaction${selectedRows.value.length > 1 ? 's' : ''}`, 'success');
     selectedRows.value = [];
     showBatchMatchDialog.value = false;
-    selectedEntityId.value = "";
+    selectedEntityId.value = '';
     batchEntries.value = [];
     const acct = selectedAccount.value;
     await loadData(); // Refresh data to reflect changes
     selectedAccount.value = acct;
   } catch (error: unknown) {
     const err = error as Error;
-    console.error("Error performing batch match:", err);
-    showSnackbar(`Error performing batch match: ${err.message}`, "negative");
+    console.error('Error performing batch match:', err);
+    showSnackbar(`Error performing batch match: ${err.message}`, 'negative');
   } finally {
     saving.value = false;
   }
@@ -1264,10 +1237,10 @@ function confirmBatchAction(action: string) {
     selectedRows.value.length === 0 ||
     !selectedRows.value.every((id) => {
       const tx = displayTransactions.value?.find((t) => t.id === id);
-      return tx && tx.status === "U" && !tx.budgetId;
+      return tx && tx.status === 'U' && !tx.budgetId;
     })
   ) {
-    showSnackbar("Please select unmatched imported transactions", "negative");
+    showSnackbar('Please select unmatched imported transactions', 'negative');
     return;
   }
   batchAction.value = action;
@@ -1275,7 +1248,7 @@ function confirmBatchAction(action: string) {
 }
 
 async function executeBatchAction() {
-  if (!["Ignore", "Delete"].includes(batchAction.value)) {
+  if (!['Ignore', 'Delete'].includes(batchAction.value)) {
     showBatchActionDialog.value = false;
     return;
   }
@@ -1284,14 +1257,14 @@ async function executeBatchAction() {
   try {
     for (const txId of selectedRows.value) {
       const tx = displayTransactions.value?.find((t) => t.id === txId);
-      if (!tx || tx.status !== "U" || tx.budgetId) continue;
-      const parts = tx.id.split("-");
-      const docId = parts.slice(0, -1).join("-");
-      if (batchAction.value === "Delete") {
+      if (!tx || tx.status !== 'U' || tx.budgetId) continue;
+      const parts = tx.id.split('-');
+      const docId = parts.slice(0, -1).join('-');
+      if (batchAction.value === 'Delete') {
         await dataAccess.deleteImportedTransaction(docId, tx.id);
         const index = importedTransactions.value.findIndex((itx) => itx.id === tx.id);
         if (index !== -1) importedTransactions.value.splice(index, 1);
-      } else if (batchAction.value === "Ignore") {
+      } else if (batchAction.value === 'Ignore') {
         await dataAccess.updateImportedTransaction(docId, tx.id, false, true);
         const index = importedTransactions.value.findIndex((itx) => itx.id === tx.id);
         if (index !== -1) {
@@ -1301,21 +1274,20 @@ async function executeBatchAction() {
       }
     }
     showSnackbar(
-      `Successfully ${batchAction.value.toLowerCase()}d ${selectedRows.value.length} transaction${selectedRows.value.length > 1 ? "s" : ""}`,
-      "success"
+      `Successfully ${batchAction.value.toLowerCase()}d ${selectedRows.value.length} transaction${selectedRows.value.length > 1 ? 's' : ''}`,
+      'success',
     );
     selectedRows.value = [];
   } catch (error: unknown) {
     const err = error as Error;
-    console.error("Error performing batch action:", err);
-    showSnackbar(`Error performing batch action: ${err.message}`, "negative");
+    console.error('Error performing batch action:', err);
+    showSnackbar(`Error performing batch action: ${err.message}`, 'negative');
   } finally {
     saving.value = false;
     showBatchActionDialog.value = false;
-    batchAction.value = "";
+    batchAction.value = '';
   }
 }
-
 
 function openBalanceAdjustmentDialog() {
   if (currentBalance.value !== latestTransactionBalance.value) {
@@ -1340,7 +1312,7 @@ async function saveBalanceAdjustment() {
 
   const valid = await adjustmentForm.value.validate();
   if (!valid) {
-    showSnackbar("Please fill in all required fields", "negative");
+    showSnackbar('Please fill in all required fields', 'negative');
     return;
   }
 
@@ -1348,19 +1320,19 @@ async function saveBalanceAdjustment() {
   try {
     const user = auth.currentUser;
     if (!user) {
-      showSnackbar("User not authenticated", "negative");
+      showSnackbar('User not authenticated', 'negative');
       return;
     }
 
     const family = await familyStore.getFamily();
     if (!family) {
-      showSnackbar("No family found", "negative");
+      showSnackbar('No family found', 'negative');
       return;
     }
 
     const selectedAcc = accounts.value.find((acc) => acc.accountNumber === selectedAccount.value);
     if (!selectedAcc) {
-      showSnackbar("Selected account not found", "negative");
+      showSnackbar('Selected account not found', 'negative');
       return;
     }
 
@@ -1369,13 +1341,13 @@ async function saveBalanceAdjustment() {
       id: `${newDocId}-0`,
       accountId: selectedAcc.id,
       accountNumber: selectedAccount.value,
-      accountSource: selectedAcc.institution || "",
-      payee: "Initial Balance Adjustment",
+      accountSource: selectedAcc.institution || '',
+      payee: 'Initial Balance Adjustment',
       postedDate: adjustmentDate.value,
-      status: "U",
+      status: 'U',
       creditAmount: adjustmentAmount.value >= 0 ? Math.abs(adjustmentAmount.value) : 0,
       debitAmount: adjustmentAmount.value < 0 ? Math.abs(adjustmentAmount.value) : 0,
-      checkNumber: "",
+      checkNumber: '',
       matched: false,
       ignored: true,
     };
@@ -1390,12 +1362,12 @@ async function saveBalanceAdjustment() {
     await dataAccess.saveImportedTransactions(importedDoc);
     importedTransactions.value.push(adjustmentTransaction);
 
-    showSnackbar("Balance adjustment saved successfully", "success");
+    showSnackbar('Balance adjustment saved successfully', 'success');
     closeBalanceAdjustmentDialog();
   } catch (error: unknown) {
     const err = error as Error;
-    console.error("Error saving balance adjustment:", err);
-    showSnackbar(`Error saving balance adjustment: ${err.message}`, "negative");
+    console.error('Error saving balance adjustment:', err);
+    showSnackbar(`Error saving balance adjustment: ${err.message}`, 'negative');
   } finally {
     saving.value = false;
   }
@@ -1414,10 +1386,7 @@ async function refreshData() {
   if (prevAccount) {
     selectedAccount.value = prevAccount;
     await loadTransactions();
-    if (
-      prevStatement === "ALL" ||
-      (prevStatement && statements.value.some((s) => s.id === prevStatement))
-    ) {
+    if (prevStatement === 'ALL' || (prevStatement && statements.value.some((s) => s.id === prevStatement))) {
       selectedStatementId.value = prevStatement;
     }
   }
@@ -1436,7 +1405,7 @@ async function saveStatement() {
 
   const valid = await statementForm.value.validate();
   if (!valid) {
-    showSnackbar("Please fill in all required fields", "negative");
+    showSnackbar('Please fill in all required fields', 'negative');
     return;
   }
 
@@ -1451,12 +1420,12 @@ async function saveStatement() {
     await statementStore.saveStatement(familyId.value, selectedAccount.value, st, []);
     statements.value = statementStore.getStatements(familyId.value, selectedAccount.value);
     selectedStatementId.value = st.id;
-    showSnackbar("Statement saved successfully", "success");
+    showSnackbar('Statement saved successfully', 'success');
     closeStatementDialog();
   } catch (error: unknown) {
     const err = error as Error;
-    console.error("Error saving statement:", err);
-    showSnackbar(`Error saving statement: ${err.message}`, "negative");
+    console.error('Error saving statement:', err);
+    showSnackbar(`Error saving statement: ${err.message}`, 'negative');
   } finally {
     saving.value = false;
   }
@@ -1465,11 +1434,11 @@ async function saveStatement() {
 function closeStatementDialog() {
   showStatementDialog.value = false;
   newStatement.value = {
-    id: "",
-    accountNumber: "",
-    startDate: "",
+    id: '',
+    accountNumber: '',
+    startDate: '',
     startingBalance: 0,
-    endDate: "",
+    endDate: '',
     endingBalance: 0,
     reconciled: false,
   };
@@ -1485,7 +1454,7 @@ async function markStatementReconciled() {
       let updated = false;
       for (const tx of budget.transactions) {
         if (selectedRows.value.includes(tx.id)) {
-          tx.status = "R";
+          tx.status = 'R';
           if (budget.budgetId) {
             txRefs.push({ budgetId: budget.budgetId, transactionId: tx.id });
             updated = true;
@@ -1500,12 +1469,12 @@ async function markStatementReconciled() {
     for (const id of selectedRows.value) {
       const idx = importedTransactions.value.findIndex((itx) => itx.id === id);
       if (idx !== -1) {
-        const parts = id.split("-");
-        const docId = parts.slice(0, -1).join("-");
+        const parts = id.split('-');
+        const docId = parts.slice(0, -1).join('-');
         const baseItx = importedTransactions.value[idx];
         if (baseItx) {
-          const updatedTx: ImportedTransaction = { ...baseItx, status: "R" };
-          importedTransactions.value[idx].status = "R";
+          const updatedTx: ImportedTransaction = { ...baseItx, status: 'R' };
+          importedTransactions.value[idx].status = 'R';
           await dataAccess.updateImportedTransaction(docId, updatedTx);
         }
       }
@@ -1514,13 +1483,13 @@ async function markStatementReconciled() {
     const updated: Statement = { ...selectedStatement.value, reconciled: true };
     await statementStore.saveStatement(familyId.value, selectedAccount.value, updated, txRefs);
     statements.value = statementStore.getStatements(familyId.value, selectedAccount.value);
-    showSnackbar("Statement reconciled", "success");
+    showSnackbar('Statement reconciled', 'success');
     reconciling.value = false;
     selectedRows.value = [];
   } catch (error: unknown) {
     const err = error as Error;
-    console.error("Error reconciling statement:", err);
-    showSnackbar(`Error reconciling statement: ${err.message}`, "negative");
+    console.error('Error reconciling statement:', err);
+    showSnackbar(`Error reconciling statement: ${err.message}`, 'negative');
   } finally {
     saving.value = false;
   }
@@ -1539,9 +1508,9 @@ async function unreconcileStatement() {
           tx.accountNumber === selectedAccount.value &&
           tx.date >= selectedStatement.value.startDate &&
           tx.date <= selectedStatement.value.endDate &&
-          tx.status === "R"
+          tx.status === 'R'
         ) {
-          tx.status = "C";
+          tx.status = 'C';
           if (budget.budgetId) {
             txRefs.push({ budgetId: budget.budgetId, transactionId: tx.id });
             updated = true;
@@ -1556,31 +1525,23 @@ async function unreconcileStatement() {
         itx.accountNumber === selectedAccount.value &&
         itx.postedDate >= selectedStatement.value.startDate &&
         itx.postedDate <= selectedStatement.value.endDate &&
-        itx.status === "R"
+        itx.status === 'R'
       ) {
-        const parts = itx.id.split("-");
-        const docId = parts.slice(0, -1).join("-");
-        const updatedTx: ImportedTransaction = { ...itx, status: "C" };
-        itx.status = "C";
+        const parts = itx.id.split('-');
+        const docId = parts.slice(0, -1).join('-');
+        const updatedTx: ImportedTransaction = { ...itx, status: 'C' };
+        itx.status = 'C';
         await dataAccess.updateImportedTransaction(docId, updatedTx);
       }
     }
 
-    await statementStore.unreconcileStatement(
-      familyId.value,
-      selectedAccount.value,
-      selectedStatement.value.id,
-      txRefs
-    );
-    statements.value = statementStore.getStatements(
-      familyId.value,
-      selectedAccount.value
-    );
-    showSnackbar("Statement unreconciled", "success");
+    await statementStore.unreconcileStatement(familyId.value, selectedAccount.value, selectedStatement.value.id, txRefs);
+    statements.value = statementStore.getStatements(familyId.value, selectedAccount.value);
+    showSnackbar('Statement unreconciled', 'success');
   } catch (error: unknown) {
     const err = error as Error;
-    console.error("Error unreconciling statement:", err);
-    showSnackbar(`Error unreconciling statement: ${err.message}`, "negative");
+    console.error('Error unreconciling statement:', err);
+    showSnackbar(`Error unreconciling statement: ${err.message}`, 'negative');
   } finally {
     saving.value = false;
   }
@@ -1588,7 +1549,7 @@ async function unreconcileStatement() {
 
 async function deleteStatement() {
   if (!selectedStatement.value || !selectedAccount.value) return;
-  if (!confirm("Delete this statement?")) return;
+  if (!confirm('Delete this statement?')) return;
   saving.value = true;
   try {
     const txRefs: { budgetId: string; transactionId: string }[] = [];
@@ -1600,9 +1561,9 @@ async function deleteStatement() {
           tx.accountNumber === selectedAccount.value &&
           tx.date >= selectedStatement.value.startDate &&
           tx.date <= selectedStatement.value.endDate &&
-          tx.status === "R"
+          tx.status === 'R'
         ) {
-          tx.status = "C";
+          tx.status = 'C';
           if (budget.budgetId) {
             txRefs.push({ budgetId: budget.budgetId, transactionId: tx.id });
             updated = true;
@@ -1617,38 +1578,30 @@ async function deleteStatement() {
         itx.accountNumber === selectedAccount.value &&
         itx.postedDate >= selectedStatement.value.startDate &&
         itx.postedDate <= selectedStatement.value.endDate &&
-        itx.status === "R"
+        itx.status === 'R'
       ) {
-        const parts = itx.id.split("-");
-        const docId = parts.slice(0, -1).join("-");
-        const updatedTx: ImportedTransaction = { ...itx, status: "C" };
-        itx.status = "C";
+        const parts = itx.id.split('-');
+        const docId = parts.slice(0, -1).join('-');
+        const updatedTx: ImportedTransaction = { ...itx, status: 'C' };
+        itx.status = 'C';
         await dataAccess.updateImportedTransaction(docId, updatedTx);
       }
     }
 
-    await statementStore.deleteStatement(
-      familyId.value,
-      selectedAccount.value,
-      selectedStatement.value.id,
-      txRefs
-    );
+    await statementStore.deleteStatement(familyId.value, selectedAccount.value, selectedStatement.value.id, txRefs);
     await statementStore.loadStatements(familyId.value, selectedAccount.value);
-    statements.value = statementStore.getStatements(
-      familyId.value,
-      selectedAccount.value
-    );
+    statements.value = statementStore.getStatements(familyId.value, selectedAccount.value);
     if (statements.value.length > 0) {
       const lastStatement = statements.value[statements.value.length - 1];
-      selectedStatementId.value = lastStatement ? lastStatement.id : "ALL";
+      selectedStatementId.value = lastStatement ? lastStatement.id : 'ALL';
     } else {
-      selectedStatementId.value = "ALL";
+      selectedStatementId.value = 'ALL';
     }
-    showSnackbar("Statement deleted", "success");
+    showSnackbar('Statement deleted', 'success');
   } catch (error: unknown) {
     const err = error as Error;
-    console.error("Error deleting statement:", err);
-    showSnackbar(`Error deleting statement: ${err.message}`, "negative");
+    console.error('Error deleting statement:', err);
+    showSnackbar(`Error deleting statement: ${err.message}`, 'negative');
   } finally {
     saving.value = false;
   }
@@ -1660,22 +1613,22 @@ function downloadCsv() {
     date: tx.date,
     merchant: tx.merchant,
     category: tx.category,
-    entity: getEntityName(tx.entityId || tx.budgetId || ""),
+    entity: getEntityName(tx.entityId || tx.budgetId || ''),
     amount: tx.amount,
-    isIncome: tx.isIncome ? "true" : "false",
+    isIncome: tx.isIncome ? 'true' : 'false',
     status: tx.status,
     notes: tx.notes,
-    balance: tx.balance ?? "",
+    balance: tx.balance ?? '',
   }));
   const csv = Papa.unparse(rows);
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const account = accounts.value.find((a) => a.accountNumber === selectedAccount.value);
-  const name = account ? account.name.replace(/[^a-zA-Z0-9_-]/g, "_").toLowerCase() : "transactions";
+  const name = account ? account.name.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase() : 'transactions';
   const today = todayISO();
   saveAs(blob, `${name}_${today}.csv`);
 }
 
-function showSnackbar(text: string, color = "success") {
+function showSnackbar(text: string, color = 'success') {
   $q.notify({
     message: text,
     color,

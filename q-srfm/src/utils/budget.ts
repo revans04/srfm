@@ -12,12 +12,7 @@ import type { Budget, BudgetCategory, Transaction } from '../types';
  * template or the most recent existing budget. Recurring transactions from the
  * source budget are added to the new budget.
  */
-export async function createBudgetForMonth(
-  month: string,
-  familyId: string,
-  ownerUid: string,
-  entityId: string,
-): Promise<Budget> {
+export async function createBudgetForMonth(month: string, familyId: string, ownerUid: string, entityId: string): Promise<Budget> {
   const budgetStore = useBudgetStore();
   const familyStore = useFamilyStore();
   const budgetId = `${ownerUid}_${entityId}_${month}`;
@@ -74,9 +69,7 @@ export async function createBudgetForMonth(
   }
 
   const availableBudgets = Array.from(budgetStore.budgets.values()).sort((a, b) => a.month.localeCompare(b.month));
-  let sourceBudget = availableBudgets
-    .filter((b) => b.month < month && b.entityId === entityId)
-    .pop();
+  let sourceBudget = availableBudgets.filter((b) => b.month < month && b.entityId === entityId).pop();
   if (!sourceBudget) {
     sourceBudget = availableBudgets.find((b) => b.month > month && b.entityId === entityId);
   }
@@ -108,13 +101,16 @@ export async function createBudgetForMonth(
 
     const recurringTransactions: Transaction[] = [];
     if (sourceBudget.transactions) {
-      const recurringGroups: Record<string, Transaction[]> = sourceBudget.transactions.reduce((groups, trx) => {
-        if (!trx.deleted && trx.recurring) {
-          const key = `${trx.merchant}-${trx.amount}-${trx.recurringInterval}-${trx.userId}-${trx.isIncome}`;
-          (groups[key] = groups[key] || []).push(trx);
-        }
-        return groups;
-      }, {} as Record<string, Transaction[]>);
+      const recurringGroups: Record<string, Transaction[]> = sourceBudget.transactions.reduce(
+        (groups, trx) => {
+          if (!trx.deleted && trx.recurring) {
+            const key = `${trx.merchant}-${trx.amount}-${trx.recurringInterval}-${trx.userId}-${trx.isIncome}`;
+            (groups[key] = groups[key] || []).push(trx);
+          }
+          return groups;
+        },
+        {} as Record<string, Transaction[]>,
+      );
 
       Object.values(recurringGroups).forEach((group) => {
         const firstInstance = group.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
@@ -159,4 +155,3 @@ export async function createBudgetForMonth(
 export function sortBudgetsByMonthDesc(budgets: Budget[]): Budget[] {
   return budgets.slice().sort((a, b) => b.month.localeCompare(a.month));
 }
-

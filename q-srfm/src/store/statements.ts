@@ -1,9 +1,9 @@
-import { defineStore } from "pinia";
-import { ref } from "vue";
-import type { Statement } from "../types";
-import { dataAccess } from "../dataAccess";
+import { defineStore } from 'pinia';
+import { ref } from 'vue';
+import type { Statement } from '../types';
+import { dataAccess } from '../dataAccess';
 
-export const useStatementStore = defineStore("statements", () => {
+export const useStatementStore = defineStore('statements', () => {
   const statements = ref<Record<string, Statement[]>>({});
 
   async function loadStatements(familyId: string, accountNumber: string) {
@@ -16,22 +16,12 @@ export const useStatementStore = defineStore("statements", () => {
     return statements.value[`${familyId}_${accountNumber}`] || [];
   }
 
-  async function saveStatement(
-    familyId: string,
-    accountNumber: string,
-    statement: Statement,
-    transactionRefs: { budgetId: string; transactionId: string }[]
-  ) {
+  async function saveStatement(familyId: string, accountNumber: string, statement: Statement, transactionRefs: { budgetId: string; transactionId: string }[]) {
     await dataAccess.saveStatement(familyId, accountNumber, statement, transactionRefs);
     await loadStatements(familyId, accountNumber);
   }
 
-  async function deleteStatement(
-    familyId: string,
-    accountNumber: string,
-    statementId: string,
-    transactionRefs: { budgetId: string; transactionId: string }[]
-  ) {
+  async function deleteStatement(familyId: string, accountNumber: string, statementId: string, transactionRefs: { budgetId: string; transactionId: string }[]) {
     await dataAccess.deleteStatement(familyId, accountNumber, statementId, transactionRefs);
     await loadStatements(familyId, accountNumber);
   }
@@ -40,7 +30,7 @@ export const useStatementStore = defineStore("statements", () => {
     familyId: string,
     accountNumber: string,
     statementId: string,
-    transactionRefs: { budgetId: string; transactionId: string }[]
+    transactionRefs: { budgetId: string; transactionId: string }[],
   ) {
     await dataAccess.unreconcileStatement(familyId, accountNumber, statementId, transactionRefs);
     await loadStatements(familyId, accountNumber);

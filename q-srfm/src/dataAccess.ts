@@ -20,10 +20,7 @@ import { Timestamp } from 'firebase/firestore';
 type RawAccount = Account & { createdAt?: unknown; updatedAt?: unknown };
 
 export class DataAccess {
-  private apiBaseUrl = (
-    ((import.meta as unknown) as { env?: Record<string, string> }).env?.VITE_API_BASE_URL ||
-    'http://localhost:8080/api'
-  );
+  private apiBaseUrl = (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_API_BASE_URL || 'http://localhost:8080/api';
   // Lazily access the auth store to ensure Pinia is active
   private get authStore() {
     return useAuthStore();
@@ -48,11 +45,7 @@ export class DataAccess {
       const d = new Date(input);
       return isNaN(d.getTime()) ? undefined : Timestamp.fromDate(d);
     }
-    if (
-      typeof input === 'object' &&
-      input !== null &&
-      ('seconds' in input || 'nanoseconds' in input || 'nanosecond' in input)
-    ) {
+    if (typeof input === 'object' && input !== null && ('seconds' in input || 'nanoseconds' in input || 'nanosecond' in input)) {
       const obj = input as {
         seconds?: unknown;
         nanoseconds?: unknown;
@@ -99,9 +92,7 @@ export class DataAccess {
       checkNumber: typeof tx.checkNumber === 'string' ? tx.checkNumber : undefined,
       deleted: Boolean(tx.deleted ?? false),
       entityId: typeof tx.entityId === 'string' ? tx.entityId : undefined,
-      taxMetadata: Array.isArray(tx.taxMetadata)
-        ? (tx.taxMetadata as Transaction['taxMetadata'])
-        : [],
+      taxMetadata: Array.isArray(tx.taxMetadata) ? (tx.taxMetadata as Transaction['taxMetadata']) : [],
       receiptUrl: typeof tx.receiptUrl === 'string' ? tx.receiptUrl : undefined,
     };
   }
@@ -122,9 +113,7 @@ export class DataAccess {
         })
       : [];
 
-    const transactions = Array.isArray(b.transactions)
-      ? (b.transactions as unknown[]).map((t) => this.mapTransaction(t, budgetId))
-      : [];
+    const transactions = Array.isArray(b.transactions) ? (b.transactions as unknown[]).map((t) => this.mapTransaction(t, budgetId)) : [];
 
     return {
       budgetId,
@@ -150,7 +139,7 @@ export class DataAccess {
 
   // Budget Functions
   async loadAccessibleBudgets(userId: string, entityId?: string): Promise<BudgetInfo[]> {
-    console.log("loadAccessibleBudgets", entityId);
+    console.log('loadAccessibleBudgets', entityId);
     if (!userId) throw new Error('User ID is required to load budgets');
 
     const headers = await this.getAuthHeaders();
@@ -444,8 +433,7 @@ export class DataAccess {
     if (budgetList.length === 0) return;
 
     const startBudget =
-      budgetStore.getBudget(`${userId}_${entityId}_${startBudgetMonth}`) ||
-      (await this.getBudget(`${userId}_${entityId}_${startBudgetMonth}`));
+      budgetStore.getBudget(`${userId}_${entityId}_${startBudgetMonth}`) || (await this.getBudget(`${userId}_${entityId}_${startBudgetMonth}`));
     if (!startBudget) return;
 
     const startCarryover = this.calculateCarryOver(startBudget);
@@ -509,9 +497,7 @@ export class DataAccess {
 
   async getImportedTransactions(): Promise<ImportedTransaction[]> {
     const importedDocs = await this.getImportedTransactionDocs();
-    return importedDocs
-      .flatMap((doc) => doc.importedTransactions)
-      .sort((a, b) => b.postedDate.localeCompare(a.postedDate));
+    return importedDocs.flatMap((doc) => doc.importedTransactions).sort((a, b) => b.postedDate.localeCompare(a.postedDate));
   }
 
   async updateImportedTransaction(docId: string, transaction: ImportedTransaction): Promise<void>;
@@ -572,19 +558,14 @@ export class DataAccess {
   async getImportedTransactionsByAccountId(accountId: string, offset = 0, limit = 100): Promise<ImportedTransaction[]> {
     console.log(`Fetching imported transactions for accountId: ${accountId}`);
     const headers = await this.getAuthHeaders();
-    const response = await fetch(
-      `${this.apiBaseUrl}/budget/imported-transactions/by-account/${accountId}?offset=${offset}&limit=${limit}`,
-      { headers }
-    );
+    const response = await fetch(`${this.apiBaseUrl}/budget/imported-transactions/by-account/${accountId}?offset=${offset}&limit=${limit}`, { headers });
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`Failed to fetch imported transactions: ${response.status} ${response.statusText} - ${errorText}`);
       throw new Error(`Failed to fetch imported transactions: ${response.statusText}`);
     }
     const importedTxs = await response.json();
-    return importedTxs.sort((a: ImportedTransaction, b: ImportedTransaction) =>
-      b.postedDate.localeCompare(a.postedDate),
-    );
+    return importedTxs.sort((a: ImportedTransaction, b: ImportedTransaction) => b.postedDate.localeCompare(a.postedDate));
   }
 
   async updateImportedTransactions(transactions: ImportedTransaction[]): Promise<void> {
@@ -615,9 +596,7 @@ export class DataAccess {
     return budgetTxs;
   }
 
-  async updateBudgetTransactions(
-    transactions: { budgetId: string; transaction: Transaction; oldId?: string }[]
-  ): Promise<void> {
+  async updateBudgetTransactions(transactions: { budgetId: string; transaction: Transaction; oldId?: string }[]): Promise<void> {
     console.log(`Updating budget transactions:`, transactions);
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/budget/transactions/batch-update`, {
@@ -634,22 +613,14 @@ export class DataAccess {
 
     const budgetStore = useBudgetStore();
     for (const { budgetId, transaction } of transactions) {
-      const budget =
-        budgetStore.getBudget(budgetId) || (await this.getBudget(budgetId));
+      const budget = budgetStore.getBudget(budgetId) || (await this.getBudget(budgetId));
       if (!budget || !budget.budgetId) continue;
 
       const [uid, entityId, budgetMonth] = budget.budgetId.split('_');
-      const futureBudgetsExist = budgetStore.availableBudgetMonths.some(
-        (m) => m > budgetMonth,
-      );
+      const futureBudgetsExist = budgetStore.availableBudgetMonths.some((m) => m > budgetMonth);
 
       if (futureBudgetsExist && this.hasFundCategory(transaction, budget)) {
-        await this.recalculateCarryoverForFutureBudgets(
-          uid,
-          entityId,
-          budgetMonth,
-          transaction.categories,
-        );
+        await this.recalculateCarryoverForFutureBudgets(uid, entityId, budgetMonth, transaction.categories);
       }
     }
   }
@@ -800,11 +771,13 @@ export class DataAccess {
     const response = await fetch(`${this.apiBaseUrl}/families/${familyId}/accounts`, { headers });
     if (!response.ok) throw new Error(`Failed to fetch accounts: ${response.statusText}`);
     const raw = (await response.json()) as RawAccount[];
-    return raw.map((a): Account => ({
-      ...a,
-      createdAt: this.toTimestamp(a.createdAt) ?? Timestamp.fromDate(new Date()),
-      updatedAt: this.toTimestamp(a.updatedAt) ?? Timestamp.fromDate(new Date()),
-    }));
+    return raw.map(
+      (a): Account => ({
+        ...a,
+        createdAt: this.toTimestamp(a.createdAt) ?? Timestamp.fromDate(new Date()),
+        updatedAt: this.toTimestamp(a.updatedAt) ?? Timestamp.fromDate(new Date()),
+      }),
+    );
   }
 
   async getAccount(familyId: string, accountId: string): Promise<Account | null> {
@@ -867,11 +840,8 @@ export class DataAccess {
         const date = this.toTimestamp(s.date ?? s.Date) ?? Timestamp.fromDate(new Date());
         const createdAt = this.toTimestamp(s.createdAt ?? s.CreatedAt) ?? Timestamp.fromDate(new Date());
         const netWorth = Number(s.netWorth ?? s.NetWorth ?? 0);
-        const id = typeof s.id === 'string' || typeof s.id === 'number'
-          ? String(s.id)
-          : typeof s.Id === 'string' || typeof s.Id === 'number'
-          ? String(s.Id)
-          : '';
+        const id =
+          typeof s.id === 'string' || typeof s.id === 'number' ? String(s.id) : typeof s.Id === 'string' || typeof s.Id === 'number' ? String(s.Id) : '';
         // Keep accounts as-is if present
         const accounts = Array.isArray(s.accounts ?? s.Accounts) ? ((s.accounts ?? s.Accounts) as unknown[]) : [];
         return { id, date, netWorth, createdAt, accounts } as unknown as Snapshot;

@@ -4,8 +4,8 @@
     :columns="visibleColumns"
     row-key="id"
     flat
-  bordered
-  dense
+    bordered
+    dense
     class="ledger-table"
     :style="{ '--header-offset': `${headerOffset}px` }"
     :virtual-scroll="true"
@@ -20,22 +20,14 @@
 
     <template #header="props">
       <q-tr :props="props">
-        <q-th
-          v-for="col in props.cols"
-          :key="col.name"
-          :props="props"
-        >
+        <q-th v-for="col in props.cols" :key="col.name" :props="props">
           {{ col.label }}
         </q-th>
       </q-tr>
     </template>
 
     <template #body="props">
-      <q-tr
-        :props="props"
-        :class="[{ 'dup-row': props.row.isDuplicate }, 'row-striped', 'cursor-pointer']"
-        @click="onRowClick(props.row)"
-      >
+      <q-tr :props="props" :class="[{ 'dup-row': props.row.isDuplicate }, 'row-striped', 'cursor-pointer']" @click="onRowClick(props.row)">
         <q-td key="date" :props="props" class="col-date">{{ formatDate(props.row.date) }}</q-td>
         <q-td key="payee" :props="props" class="col-payee">{{ props.row.payee }}</q-td>
         <q-td key="category" :props="props" class="col-category">{{ props.row.category }}</q-td>
@@ -127,9 +119,7 @@ const visibleColumns = ref<Column<LedgerRow>[]>([]);
 
 function updateCols(mq: MediaQueryList) {
   const cols = baseColumns.value;
-  visibleColumns.value = mq.matches
-    ? cols.filter((c) => !['category', 'notes'].includes(c.name))
-    : cols;
+  visibleColumns.value = mq.matches ? cols.filter((c) => !['category', 'notes'].includes(c.name)) : cols;
 }
 
 onMounted(() => {

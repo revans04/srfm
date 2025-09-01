@@ -72,7 +72,7 @@
             ></q-icon>
           </template>
         </q-table>
-        
+
         <q-banner v-else type="info" class="q-mt-lg"> No smart matches found. Check Remaining Transactions for potential conflicts. </q-banner>
 
         <!-- Remaining Transactions -->
@@ -166,13 +166,11 @@
                   v-model:selected="selectedBudgetTransactionForMatch"
                 >
                   <template #body-cell-amount="slotProps">
-                    <q-td :props="slotProps" class="text-right">
-                      ${{ toDollars(toCents(slotProps.row.amount)) }}
-                    </q-td>
+                    <q-td :props="slotProps" class="text-right"> ${{ toDollars(toCents(slotProps.row.amount)) }} </q-td>
                   </template>
                   <template #body-cell-type="slotProps">
                     <q-td :props="slotProps">
-                      {{ slotProps.row.isIncome ? "Income" : "Expense" }}
+                      {{ slotProps.row.isIncome ? 'Income' : 'Expense' }}
                     </q-td>
                   </template>
                   <template #body-cell-actions="slotProps">
@@ -967,12 +965,6 @@ function toggleSplitTransaction() {
 
 function addSplitTransaction() {
   transactionSplits.value.push({ entityId: familyStore.selectedEntityId || '', category: '', amount: 0 });
-}
-
-function removeSplit(index: number) {
-  if (transactionSplits.value.length > 1) {
-    transactionSplits.value.splice(index, 1);
-  }
 }
 
 function resetSplitForm() {

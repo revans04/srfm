@@ -29,10 +29,10 @@
             </q-markup-table>
           </div>
         </div>
-        <div class="row q-mt-lg" >
+        <div class="row q-mt-lg">
           <div class="col">
             <h3>Select Bank Transaction to Match</h3>
-            <div class="row q-mb-sm" >
+            <div class="row q-mb-sm">
               <div class="col col-12 col-md-4">
                 <q-input v-model="searchAmount" label="Amount" type="number" variant="outlined"></q-input>
               </div>
@@ -53,10 +53,10 @@
               @row-click="selectImportedTransaction"
             >
               <template #body-cell-creditAmount="{ row }">
-                {{ row.creditAmount ? `$${toDollars(toCents(row.creditAmount))}` : "" }}
+                {{ row.creditAmount ? `$${toDollars(toCents(row.creditAmount))}` : '' }}
               </template>
               <template #body-cell-debitAmount="{ row }">
-                {{ row.debitAmount ? `$${toDollars(toCents(row.debitAmount))}` : "" }}
+                {{ row.debitAmount ? `$${toDollars(toCents(row.debitAmount))}` : '' }}
               </template>
               <template #body-cell-accountId="{ row }">
                 {{ getAccountName(row.accountId) }}
@@ -75,10 +75,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from "vue";
+import { ref, watch, computed } from 'vue';
 import { useQuasar } from 'quasar';
-import type { Transaction, ImportedTransaction, Account } from "../types";
-import { toDollars, toCents } from "../utils/helpers";
+import type { Transaction, ImportedTransaction, Account } from '../types';
+import { toDollars, toCents } from '../utils/helpers';
 
 const props = defineProps<{
   showDialog: boolean;
@@ -88,15 +88,15 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (e: "update:showDialog", value: boolean): void;
-  (e: "match-transaction", importedTx: ImportedTransaction): void;
+  (e: 'update:showDialog', value: boolean): void;
+  (e: 'match-transaction', importedTx: ImportedTransaction): void;
 }>();
 
 // Local state
 const localShowDialog = ref(props.showDialog);
 const selectedImportedTransaction = ref<string[]>([]);
-const searchAmount = ref<string>("");
-const searchMerchant = ref<string>("");
+const searchAmount = ref<string>('');
+const searchMerchant = ref<string>('');
 const searchDateRange = ref<number>(4);
 const $q = useQuasar();
 
@@ -162,24 +162,24 @@ watch(
     localShowDialog.value = newVal;
     if (newVal) {
       searchDateRange.value = 7;
-      searchAmount.value = props.selectedBudgetTransaction ? props.selectedBudgetTransaction.amount.toString() : "";
-      searchMerchant.value = "";
+      searchAmount.value = props.selectedBudgetTransaction ? props.selectedBudgetTransaction.amount.toString() : '';
+      searchMerchant.value = '';
     }
     selectedImportedTransaction.value = [];
-  }
+  },
 );
 
 watch(
   () => props.selectedBudgetTransaction,
   () => {
     searchDateRange.value = 7;
-    searchAmount.value = props.selectedBudgetTransaction ? props.selectedBudgetTransaction.amount.toString() : "";
-    searchMerchant.value = "";
-  }
+    searchAmount.value = props.selectedBudgetTransaction ? props.selectedBudgetTransaction.amount.toString() : '';
+    searchMerchant.value = '';
+  },
 );
 
 function handleDialogClose(value: boolean) {
-  emit("update:showDialog", value);
+  emit('update:showDialog', value);
 }
 
 function cancel() {
@@ -194,23 +194,23 @@ function selectImportedTransaction(event: MouseEvent, row: ImportedTransaction) 
 function matchTransaction() {
   if (selectedImportedTransaction.value.length > 0) {
     const firstSelectedTx = props.unmatchedImportedTransactions.find((t) => t.id === selectedImportedTransaction.value[0]);
-    if (firstSelectedTx) emit("match-transaction", firstSelectedTx);
+    if (firstSelectedTx) emit('match-transaction', firstSelectedTx);
   }
 }
 
 function getAccountName(accountId: string): string {
   const account = props.availableAccounts.find((a) => a.id === accountId);
-  return account ? account.name : "Unknown Account";
+  return account ? account.name : 'Unknown Account';
 }
 
 function formatCategories(categories: { category: string; amount: number }[] | undefined | null) {
   if (!categories || !Array.isArray(categories)) {
-    return "No categories";
+    return 'No categories';
   }
   if (categories.length === 1) {
-    return categories[0]?.category ?? "";
+    return categories[0]?.category ?? '';
   }
-  return categories.map((c) => `${c.category} ($${c.amount.toFixed(2)})`).join(",\n");
+  return categories.map((c) => `${c.category} ($${c.amount.toFixed(2)})`).join(',\n');
 }
 </script>
 
