@@ -42,7 +42,7 @@
             <q-btn
               flat
               dense
-              color="error"
+              color="negative"
               icon="delete"
               @click="$emit('delete', props.row.id)"
               :disabled="props.row.userId && props.row.userId !== userId"

@@ -396,7 +396,7 @@ const budgetColumns = [
 onMounted(async () => {
   const currentUser = auth.currentUser;
   if (!currentUser) {
-    showSnackbar("Please log in to view settings", "error");
+    showSnackbar("Please log in to view settings", "negative");
     return;
   }
   user.value = currentUser;
@@ -439,7 +439,7 @@ async function loadAllData() {
     budgets.value = await dataAccess.loadAccessibleBudgets(user.uid);
     importedTransactionDocs.value = await dataAccess.getImportedTransactionDocs();
   } catch (error: unknown) {
-    showSnackbar(`Error loading data: ${errorMessage(error)}`, "error");
+    showSnackbar(`Error loading data: ${errorMessage(error)}`, "negative");
   }
 }
 
@@ -480,18 +480,18 @@ function getDateRange(item: ImportedTransactionDoc): string {
 async function inviteMember() {
   const user = auth.currentUser;
   if (!user) {
-    showSnackbar("Please log in to invite users", "error");
+    showSnackbar("Please log in to invite users", "negative");
     return;
   }
 
   const normalizedEmail = inviteEmail.value.toLowerCase().trim();
   if (!normalizedEmail) {
-    showSnackbar("Please enter an email address", "error");
+    showSnackbar("Please enter an email address", "negative");
     return;
   }
 
   if (normalizedEmail === user.email?.toLowerCase()) {
-    showSnackbar("You cannot invite yourself", "error");
+    showSnackbar("You cannot invite yourself", "negative");
     return;
   }
 
@@ -506,7 +506,7 @@ async function inviteMember() {
     inviteEmail.value = "";
     await loadAllData();
   } catch (error: unknown) {
-    showSnackbar(`Error inviting user: ${errorMessage(error)}`, "error");
+    showSnackbar(`Error inviting user: ${errorMessage(error)}`, "negative");
   } finally {
     inviting.value = false;
   }
@@ -515,7 +515,7 @@ async function inviteMember() {
 async function removeMember(uid: string) {
   const user = auth.currentUser;
   if (!user || !family.value || !uid) {
-    showSnackbar("Cannot remove member: invalid family or user data", "error");
+    showSnackbar("Cannot remove member: invalid family or user data", "negative");
     return;
   }
 
@@ -524,14 +524,14 @@ async function removeMember(uid: string) {
     showSnackbar("Member removed");
     await loadAllData();
   } catch (error: unknown) {
-    showSnackbar(`Error removing member: ${errorMessage(error)}`, "error");
+    showSnackbar(`Error removing member: ${errorMessage(error)}`, "negative");
   }
 }
 
 async function sendVerificationEmail() {
   const user = auth.currentUser;
   if (!user) {
-    showSnackbar("Please log in to resend verification email", "error");
+    showSnackbar("Please log in to resend verification email", "negative");
     return;
   }
 
@@ -540,7 +540,7 @@ async function sendVerificationEmail() {
     await dataAccess.resendVerificationEmail();
     showSnackbar("Verification email sent. Please check your inbox.", "success");
   } catch (error: unknown) {
-    showSnackbar(`Error sending verification email: ${errorMessage(error)}`, "error");
+    showSnackbar(`Error sending verification email: ${errorMessage(error)}`, "negative");
   } finally {
     resending.value = false;
   }
@@ -584,7 +584,7 @@ async function deleteEntity() {
   try {
     // Prevent deletion if there are associated budgets
     if (associatedBudgets.value.length > 0) {
-      showSnackbar("Cannot delete entity: associated budgets exist. Delete budgets first.", "error");
+      showSnackbar("Cannot delete entity: associated budgets exist. Delete budgets first.", "negative");
       return;
     }
 
@@ -593,7 +593,7 @@ async function deleteEntity() {
     await loadAllData();
   } catch (error: unknown) {
     console.error("Error deleting entity:", error);
-    showSnackbar(`Error deleting entity: ${errorMessage(error)}`, "error");
+    showSnackbar(`Error deleting entity: ${errorMessage(error)}`, "negative");
   } finally {
     showDeleteEntityDialog.value = false;
     entityToDelete.value = null;
@@ -619,7 +619,7 @@ async function deleteTransactionDoc() {
     showSnackbar(`Transaction document ${docId} deleted successfully`, "success");
   } catch (error: unknown) {
     console.error("Error deleting transaction document:", error);
-    showSnackbar(`Error deleting transaction document: ${errorMessage(error)}`, "error");
+    showSnackbar(`Error deleting transaction document: ${errorMessage(error)}`, "negative");
   } finally {
     showDeleteDialog.value = false;
     transactionDocToDelete.value = null;
@@ -649,7 +649,7 @@ async function deleteBudget() {
     showSnackbar(`Budget ${budgetId} deleted successfully`, "success");
   } catch (error: unknown) {
     console.error("Error deleting budget:", error);
-    showSnackbar(`Error deleting budget: ${errorMessage(error)}`, "error");
+    showSnackbar(`Error deleting budget: ${errorMessage(error)}`, "negative");
   } finally {
     showDeleteBudgetDialog.value = false;
     budgetToDelete.value = null;
@@ -668,7 +668,7 @@ async function validateBudgetTransactions() {
   try {
     const currentUser = auth.currentUser;
     if (!currentUser) {
-      showSnackbar('User not authenticated', 'error');
+      showSnackbar('User not authenticated', 'negative');
       return;
     }
 
@@ -697,7 +697,7 @@ async function validateBudgetTransactions() {
     showSnackbar(`Validation complete. Updated ${budgetUpdates.length} budget transactions`, 'success');
   } catch (error: unknown) {
     console.error('Error validating budgets:', error);
-    showSnackbar(`Error validating budgets: ${errorMessage(error)}`, 'error');
+    showSnackbar(`Error validating budgets: ${errorMessage(error)}`, 'negative');
   } finally {
     $q.loading.hide();
     validatingBudgets.value = false;
@@ -739,7 +739,7 @@ async function validateImportedTransactions() {
     showSnackbar(`Validation complete. Updated ${importedUpdates.length} imported transactions`, 'success');
   } catch (error: unknown) {
     console.error('Error validating imported transactions:', error);
-    showSnackbar(`Error validating imported transactions: ${errorMessage(error)}`, 'error');
+    showSnackbar(`Error validating imported transactions: ${errorMessage(error)}`, 'negative');
   } finally {
     $q.loading.hide();
     validatingImports.value = false;

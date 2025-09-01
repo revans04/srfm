@@ -381,12 +381,12 @@ async function resetMatch() {
       emit("save", savedTransaction);
       showSnackbar("Transaction match reset successfully", "success");
     } else {
-      showSnackbar("Could not reset match, Budget does not exist!", "error");
+      showSnackbar("Could not reset match, Budget does not exist!", "negative");
     }
   } catch (error: unknown) {
     const err = error as Error;
     console.error("Error resetting transaction match:", err.message);
-    showSnackbar(`Error resetting transaction match: ${err.message}`, "error");
+    showSnackbar(`Error resetting transaction match: ${err.message}`, "negative");
   } finally {
     isLoading.value = false;
   }
@@ -449,18 +449,18 @@ async function save() {
         emit("save", savedTransaction);
         showSnackbar("Transaction saved successfully", "success");
       } else {
-        showSnackbar("Could not save Transaction, Budget does not exist!", "error");
+        showSnackbar("Could not save Transaction, Budget does not exist!", "negative");
       }
     } catch (error: unknown) {
       const err = error as Error;
       console.error("Error saving transaction:", err.message);
-      showSnackbar(`Error saving transaction: ${err.message}`, "error");
+      showSnackbar(`Error saving transaction: ${err.message}`, "negative");
     } finally {
       isLoading.value = false;
     }
   } else {
     console.log("Form validation failed");
-    showSnackbar("Form validation failed", "error");
+    showSnackbar("Form validation failed", "negative");
   }
 }
 

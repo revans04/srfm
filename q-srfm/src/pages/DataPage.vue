@@ -437,7 +437,7 @@ watch(importType, async (val) => {
         selectedAccountId.value = availableAccounts.value[0].id;
       }
     } catch (err: any) {
-      showSnackbar(`Error loading accounts: ${err.message}`, "error");
+      showSnackbar(`Error loading accounts: ${err.message}`, "negative");
     }
   }
 });
@@ -594,7 +594,7 @@ async function loadAllData() {
     }
   } catch (error: any) {
     console.error("Error loading data:", error);
-    showSnackbar(`Error loading data: ${error.message}`, "error");
+    showSnackbar(`Error loading data: ${error.message}`, "negative");
   } finally {
     $q.loading.hide();
   }
@@ -607,7 +607,7 @@ function openCreateEntityDialog() {
 async function handleEntitySave() {
   const user = auth.currentUser;
   if (!user || !familyId.value) {
-    showSnackbar("Cannot create entity: invalid user or family data", "error");
+    showSnackbar("Cannot create entity: invalid user or family data", "negative");
     return;
   }
 
@@ -620,7 +620,7 @@ async function handleEntitySave() {
     showSnackbar("Entity created successfully", "success");
     showEntityForm.value = false;
   } catch (error: any) {
-    showSnackbar(`Error creating entity: ${error.message}`, "error");
+    showSnackbar(`Error creating entity: ${error.message}`, "negative");
   }
 }
 
@@ -1346,11 +1346,11 @@ function previewBankTransactionsData() {
 async function confirmImport() {
   const user = auth.currentUser;
   if (!user) {
-    showSnackbar("User not authenticated", "error");
+    showSnackbar("User not authenticated", "negative");
     return;
   }
   if (!familyId.value) {
-    showSnackbar("Cannot import without a Family/Org", "error");
+    showSnackbar("Cannot import without a Family/Org", "negative");
     return;
   }
 
@@ -1376,7 +1376,7 @@ async function confirmImport() {
       previewData.value.entities = [];
     } catch (error: any) {
       console.error("Error importing entities:", error);
-      showSnackbar(`Failed to import entities: ${error.message}`, "error");
+      showSnackbar(`Failed to import entities: ${error.message}`, "negative");
     } finally {
       $q.loading.hide();
       pendingImportData.value = null;
@@ -1513,7 +1513,7 @@ async function confirmImport() {
       }
     } catch (e: any) {
       console.error("Error during import:", e);
-      showSnackbar(`Error during import: ${e.message}`, "error");
+      showSnackbar(`Error during import: ${e.message}`, "negative");
     } finally {
       importRunning.value = false;
     }
@@ -1528,13 +1528,13 @@ async function confirmImport() {
       });
       const accountId = selectedAccountId.value;
       if (!accountId) {
-        showSnackbar("No account selected for import", "error");
+        showSnackbar("No account selected for import", "negative");
         return;
       }
 
       const selectedAccount = availableAccounts.value.find((account) => account.id === accountId);
       if (!selectedAccount) {
-        showSnackbar("Selected account not found", "error");
+        showSnackbar("Selected account not found", "negative");
         return;
       }
 
@@ -1629,7 +1629,7 @@ async function confirmImport() {
       if (familyId.value) {
         const accountRef = await dataAccess.getAccount(familyId.value, accountId);
         if (!accountRef) {
-          showSnackbar("Failed to fetch account for balance update", "error");
+          showSnackbar("Failed to fetch account for balance update", "negative");
         } else {
           const currentBalance = accountRef.balance || 0;
           const newBalance = currentBalance + totalBalanceChange;
@@ -1661,7 +1661,7 @@ async function confirmImport() {
       fieldMapping.value = {};
     } catch (error: any) {
       console.error("Error importing bank transactions:", error);
-      showSnackbar(`Failed to import bank transactions: ${error.message}`, "error");
+      showSnackbar(`Failed to import bank transactions: ${error.message}`, "negative");
     } finally {
       $q.loading.hide();
       importRunning.value = false;
@@ -1679,7 +1679,7 @@ async function confirmImport() {
       });
       const entries = pendingImportData.value?.accountsAndSnapshots || [];
       if (entries.length === 0) {
-        showSnackbar("No accounts/snapshots data to import", "error");
+        showSnackbar("No accounts/snapshots data to import", "negative");
         return;
       }
 
@@ -1690,7 +1690,7 @@ async function confirmImport() {
       previewData.value.accountsAndSnapshots = [];
     } catch (error: any) {
       console.error("Error importing accounts and snapshots:", error);
-      showSnackbar(`Failed to import accounts and snapshots: ${error.message}`, "error");
+      showSnackbar(`Failed to import accounts and snapshots: ${error.message}`, "negative");
     } finally {
       $q.loading.hide();
       pendingImportData.value = null;
@@ -1739,7 +1739,7 @@ async function proceedWithImport() {
     }
   } catch (error: any) {
     console.error("Error confirming import:", error);
-    showSnackbar(`Failed to import data: ${error.message}`, "error");
+    showSnackbar(`Failed to import data: ${error.message}`, "negative");
   } finally {
     $q.loading.hide();
     importRunning.value = false;
@@ -1764,7 +1764,7 @@ async function exportDataToCSV() {
   try {
     const user = auth.currentUser;
     if (!user || !familyId.value) {
-      showSnackbar("User not authenticated or no family selected", "error");
+      showSnackbar("User not authenticated or no family selected", "negative");
       return;
     }
 
@@ -1893,7 +1893,7 @@ async function exportDataToCSV() {
     showSnackbar("Data exported successfully", "success");
   } catch (error: any) {
     console.error("Error exporting data:", error);
-    showSnackbar(`Error exporting data: ${error.message}`, "error");
+    showSnackbar(`Error exporting data: ${error.message}`, "negative");
   } finally {
     $q.loading.hide();
   }

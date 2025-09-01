@@ -860,7 +860,7 @@ async function loadData() {
   try {
     const user = auth.currentUser;
     if (!user) {
-      showSnackbar("Please log in to view transactions", "error");
+      showSnackbar("Please log in to view transactions", "negative");
       return;
     }
 
@@ -874,7 +874,7 @@ async function loadData() {
     // Load accounts
     const family = await familyStore.getFamily();
     if (!family) {
-      showSnackbar("No family found", "error");
+      showSnackbar("No family found", "negative");
       return;
     }
     accounts.value = await dataAccess.getAccounts(family.id);
@@ -892,7 +892,7 @@ async function loadData() {
   } catch (error: unknown) {
     const err = error as Error;
     console.error("Error loading data:", err);
-    showSnackbar(`Error loading data: ${err.message}`, "error");
+    showSnackbar(`Error loading data: ${err.message}`, "negative");
   } finally {
     loading.value = false;
   }
@@ -920,7 +920,7 @@ async function loadImportedTransactions(reset = false) {
   } catch (error: unknown) {
     const err = error as Error;
     console.error("Error loading imported transactions:", err);
-    showSnackbar(`Error loading imported transactions: ${err.message}`, "error");
+    showSnackbar(`Error loading imported transactions: ${err.message}`, "negative");
   } finally {
     loadingMore.value = false;
   }
@@ -948,7 +948,7 @@ async function loadTransactions() {
   } catch (error: unknown) {
     const err = error as Error;
     console.error("Error loading transactions:", err);
-    showSnackbar(`Error loading transactions: ${err.message}`, "error");
+    showSnackbar(`Error loading transactions: ${err.message}`, "negative");
   } finally {
     loading.value = false;
   }
@@ -989,7 +989,7 @@ async function executeAction() {
   try {
     const { budgetId, id } = transactionToAction.value;
     if (!id) {
-      showSnackbar("Invalid transaction data", "error");
+      showSnackbar("Invalid transaction data", "negative");
       return;
     }
 
@@ -1000,19 +1000,19 @@ async function executeAction() {
 
     if (transactionAction.value == "Disconnect" || budgetId) {
       if (!budgetId) {
-        showSnackbar("Invalid transaction data (no budget info)", "error");
+        showSnackbar("Invalid transaction data (no budget info)", "negative");
         return;
       }
 
       const budget = budgetStore.getBudget(budgetId);
       if (!budget) {
-        showSnackbar("Budget not found", "error");
+        showSnackbar("Budget not found", "negative");
         return;
       }
 
       const budgetTx = budget.transactions.find((tx) => tx.id === id);
       if (!budgetTx) {
-        showSnackbar("Budget transaction not found", "error");
+        showSnackbar("Budget transaction not found", "negative");
         return;
       }
 
@@ -1082,7 +1082,7 @@ async function executeAction() {
   } catch (error: unknown) {
     const err = error as Error;
     console.error(`Error performing ${transactionAction.value} action:`, err);
-    showSnackbar(`Error performing ${transactionAction.value} action: ${err.message}`, "error");
+    showSnackbar(`Error performing ${transactionAction.value} action: ${err.message}`, "negative");
   } finally {
     loading.value = false;
     showActionDialog.value = false;
@@ -1099,11 +1099,11 @@ function openBatchMatchDialog() {
       return tx && tx.status === "U";
     })
   ) {
-    showSnackbar("Please select unmatched transactions to match", "error");
+    showSnackbar("Please select unmatched transactions to match", "negative");
     return;
   }
   if (!entityOptions.value.length) {
-    showSnackbar("No entities available. Please set up entities first.", "error");
+    showSnackbar("No entities available. Please set up entities first.", "negative");
     return;
   }
   batchEntries.value = selectedRows.value.map((id) => {
@@ -1126,7 +1126,7 @@ async function executeBatchMatch() {
 
   const valid = await batchMatchForm.value.validate();
   if (!valid) {
-    showSnackbar("Please fill in all required fields", "error");
+    showSnackbar("Please fill in all required fields", "negative");
     return;
   }
 
@@ -1134,13 +1134,13 @@ async function executeBatchMatch() {
   try {
     const user = auth.currentUser;
     if (!user) {
-      showSnackbar("User not authenticated", "error");
+      showSnackbar("User not authenticated", "negative");
       return;
     }
 
     const family = await familyStore.getFamily();
     if (!family) {
-      showSnackbar("No family found", "error");
+      showSnackbar("No family found", "negative");
       return;
     }
 
@@ -1253,7 +1253,7 @@ async function executeBatchMatch() {
   } catch (error: unknown) {
     const err = error as Error;
     console.error("Error performing batch match:", err);
-    showSnackbar(`Error performing batch match: ${err.message}`, "error");
+    showSnackbar(`Error performing batch match: ${err.message}`, "negative");
   } finally {
     saving.value = false;
   }
@@ -1267,7 +1267,7 @@ function confirmBatchAction(action: string) {
       return tx && tx.status === "U" && !tx.budgetId;
     })
   ) {
-    showSnackbar("Please select unmatched imported transactions", "error");
+    showSnackbar("Please select unmatched imported transactions", "negative");
     return;
   }
   batchAction.value = action;
@@ -1308,7 +1308,7 @@ async function executeBatchAction() {
   } catch (error: unknown) {
     const err = error as Error;
     console.error("Error performing batch action:", err);
-    showSnackbar(`Error performing batch action: ${err.message}`, "error");
+    showSnackbar(`Error performing batch action: ${err.message}`, "negative");
   } finally {
     saving.value = false;
     showBatchActionDialog.value = false;
@@ -1340,7 +1340,7 @@ async function saveBalanceAdjustment() {
 
   const valid = await adjustmentForm.value.validate();
   if (!valid) {
-    showSnackbar("Please fill in all required fields", "error");
+    showSnackbar("Please fill in all required fields", "negative");
     return;
   }
 
@@ -1348,19 +1348,19 @@ async function saveBalanceAdjustment() {
   try {
     const user = auth.currentUser;
     if (!user) {
-      showSnackbar("User not authenticated", "error");
+      showSnackbar("User not authenticated", "negative");
       return;
     }
 
     const family = await familyStore.getFamily();
     if (!family) {
-      showSnackbar("No family found", "error");
+      showSnackbar("No family found", "negative");
       return;
     }
 
     const selectedAcc = accounts.value.find((acc) => acc.accountNumber === selectedAccount.value);
     if (!selectedAcc) {
-      showSnackbar("Selected account not found", "error");
+      showSnackbar("Selected account not found", "negative");
       return;
     }
 
@@ -1395,7 +1395,7 @@ async function saveBalanceAdjustment() {
   } catch (error: unknown) {
     const err = error as Error;
     console.error("Error saving balance adjustment:", err);
-    showSnackbar(`Error saving balance adjustment: ${err.message}`, "error");
+    showSnackbar(`Error saving balance adjustment: ${err.message}`, "negative");
   } finally {
     saving.value = false;
   }
@@ -1436,7 +1436,7 @@ async function saveStatement() {
 
   const valid = await statementForm.value.validate();
   if (!valid) {
-    showSnackbar("Please fill in all required fields", "error");
+    showSnackbar("Please fill in all required fields", "negative");
     return;
   }
 
@@ -1456,7 +1456,7 @@ async function saveStatement() {
   } catch (error: unknown) {
     const err = error as Error;
     console.error("Error saving statement:", err);
-    showSnackbar(`Error saving statement: ${err.message}`, "error");
+    showSnackbar(`Error saving statement: ${err.message}`, "negative");
   } finally {
     saving.value = false;
   }
@@ -1520,7 +1520,7 @@ async function markStatementReconciled() {
   } catch (error: unknown) {
     const err = error as Error;
     console.error("Error reconciling statement:", err);
-    showSnackbar(`Error reconciling statement: ${err.message}`, "error");
+    showSnackbar(`Error reconciling statement: ${err.message}`, "negative");
   } finally {
     saving.value = false;
   }
@@ -1580,7 +1580,7 @@ async function unreconcileStatement() {
   } catch (error: unknown) {
     const err = error as Error;
     console.error("Error unreconciling statement:", err);
-    showSnackbar(`Error unreconciling statement: ${err.message}`, "error");
+    showSnackbar(`Error unreconciling statement: ${err.message}`, "negative");
   } finally {
     saving.value = false;
   }
@@ -1648,7 +1648,7 @@ async function deleteStatement() {
   } catch (error: unknown) {
     const err = error as Error;
     console.error("Error deleting statement:", err);
-    showSnackbar(`Error deleting statement: ${err.message}`, "error");
+    showSnackbar(`Error deleting statement: ${err.message}`, "negative");
   } finally {
     saving.value = false;
   }

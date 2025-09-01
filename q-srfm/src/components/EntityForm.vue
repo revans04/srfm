@@ -273,7 +273,7 @@ watch(hasUnsavedChanges, (newValue) => {
 onMounted(async () => {
   const userId = auth.currentUser?.uid;
   if (!userId) {
-    showSnackbar('Please log in to load budgets.', 'error');
+    showSnackbar('Please log in to load budgets.', 'negative');
     return;
   }
   await budgetStore.loadBudgets(userId, props.entityId);
@@ -332,7 +332,7 @@ function importCategories() {
   } catch (error: unknown) {
     const err = error as Error;
     console.error('Error importing categories:', err.message);
-    showSnackbar(`Error importing categories: ${err.message}`, 'error');
+    showSnackbar(`Error importing categories: ${err.message}`, 'negative');
   } finally {
     importing.value = false;
   }
@@ -351,7 +351,7 @@ function removeCategory(index: number) {
 
 async function save() {
   if (!entityName.value || !entityType.value) {
-    showSnackbar('Please provide Entity Name and Type', 'error');
+    showSnackbar('Please provide Entity Name and Type', 'negative');
     return;
   }
 
@@ -392,7 +392,7 @@ async function save() {
   } catch (error: unknown) {
     const err = error as Error;
     console.error('Error saving entity:', err);
-    showSnackbar(`Error saving entity: ${err.message}`, 'error');
+    showSnackbar(`Error saving entity: ${err.message}`, 'negative');
   } finally {
     saving.value = false;
   }

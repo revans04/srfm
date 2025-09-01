@@ -775,14 +775,14 @@ onMounted(async () => {
     // User should be guaranteed by route guard
     if (!auth.user) {
       console.error('No user found despite route guard');
-      showSnackbar('Authentication error: No user found', 'error');
+      showSnackbar('Authentication error: No user found', 'negative');
       loading.value = false;
       return;
     }
 
     if (auth.authError) {
       console.error('Auth error:', auth.authError);
-      showSnackbar(`Authentication error: ${auth.authError}`, 'error');
+      showSnackbar(`Authentication error: ${auth.authError}`, 'negative');
       loading.value = false;
       return;
     }
@@ -804,7 +804,7 @@ onMounted(async () => {
   } catch (error: unknown) {
     const err = error as Error;
     console.error('Initialization error:', err);
-    showSnackbar(`Error loading data: ${err.message}`, 'error');
+    showSnackbar(`Error loading data: ${err.message}`, 'negative');
   } finally {
     if (loadingTimeout) clearTimeout(loadingTimeout);
     showLoadingMessage.value = false;
@@ -845,7 +845,7 @@ async function loadBudgets() {
   } catch (error: unknown) {
     const err = error as Error;
     console.error('Error loading budgets:', err);
-    showSnackbar(`Error loading budgets: ${err.message}`, 'error');
+    showSnackbar(`Error loading budgets: ${err.message}`, 'negative');
   } finally {
     loading.value = false;
   }
@@ -855,12 +855,12 @@ async function loadBudgets() {
 async function createDefaultBudget() {
   const user = auth.user;
   if (!user) {
-    showSnackbar('Please log in to create a budget', 'error');
+    showSnackbar('Please log in to create a budget', 'negative');
     return;
   }
 
   if (!familyStore.selectedEntityId) {
-    showSnackbar('Please select an entity before creating a budget', 'error');
+    showSnackbar('Please select an entity before creating a budget', 'negative');
     return;
   }
 
@@ -868,7 +868,7 @@ async function createDefaultBudget() {
   try {
     const family = await familyStore.getFamily();
     if (!family) {
-      showSnackbar('No family found for user', 'error');
+      showSnackbar('No family found for user', 'negative');
       return;
     }
 
@@ -877,7 +877,7 @@ async function createDefaultBudget() {
     showSnackbar('Budget created successfully', 'success');
   } catch (error: unknown) {
     const err = error as Error;
-    showSnackbar(`Failed to create budget: ${err.message}`, 'error');
+    showSnackbar(`Failed to create budget: ${err.message}`, 'negative');
   } finally {
     loading.value = false;
   }
@@ -898,7 +898,7 @@ function onTransactionSaved(transaction: Transaction) {
     showSnackbar(isIncomeTransaction.value ? 'Income added successfully' : 'Transaction added successfully');
   } catch (error: unknown) {
     const err = error as Error;
-    showSnackbar(`Error updating transaction: ${err.message}`, 'error');
+    showSnackbar(`Error updating transaction: ${err.message}`, 'negative');
   }
 }
 
@@ -909,7 +909,7 @@ function updateTransactions(newTransactions: Transaction[]) {
     updateMerchants();
   } catch (error: unknown) {
     const err = error as Error;
-    showSnackbar(`Error updating transactions: ${err.message}`, 'error');
+    showSnackbar(`Error updating transactions: ${err.message}`, 'negative');
   }
 }
 
@@ -965,7 +965,7 @@ async function selectMonth(month: string) {
     }
   } catch (error: unknown) {
     const err = error as Error;
-    showSnackbar(`Error loading budget: ${err.message}`, 'error');
+    showSnackbar(`Error loading budget: ${err.message}`, 'negative');
   } finally {
     loading.value = false;
   }
@@ -981,12 +981,12 @@ function onMonthMenuHide() {
 async function saveBudget() {
   const user = auth.user;
   if (!user) {
-    showSnackbar('You don’t have permission to save budgets', 'error');
+    showSnackbar('You don’t have permission to save budgets', 'negative');
     return;
   }
 
   if (!familyStore.selectedEntityId) {
-    showSnackbar('Please select an entity before saving the budget', 'error');
+    showSnackbar('Please select an entity before saving the budget', 'negative');
     return;
   }
 
@@ -999,7 +999,7 @@ async function saveBudget() {
     isEditing.value = false;
   } catch (error: unknown) {
     const err = error as Error;
-    showSnackbar(`Error saving budget: ${err.message}`, 'error', () => {
+    showSnackbar(`Error saving budget: ${err.message}`, 'negative', () => {
       void saveBudget();
     });
   } finally {
@@ -1057,7 +1057,7 @@ function removeMerchant(index: number) {
 
 function addTransaction() {
   if (!familyStore.selectedEntityId) {
-    showSnackbar('Please select an entity before adding a transaction', 'error');
+    showSnackbar('Please select an entity before adding a transaction', 'negative');
     return;
   }
 
@@ -1084,7 +1084,7 @@ function addTransaction() {
 
 function addTransactionForCategory(category: string) {
   if (!familyStore.selectedEntityId) {
-    showSnackbar('Please select an entity before adding a transaction', 'error');
+    showSnackbar('Please select an entity before adding a transaction', 'negative');
     return;
   }
 
@@ -1112,12 +1112,12 @@ function addTransactionForCategory(category: string) {
 async function duplicateCurrentMonth(month: string) {
   const user = auth.user;
   if (!user) {
-    showSnackbar('Please log in to duplicate a budget', 'error');
+    showSnackbar('Please log in to duplicate a budget', 'negative');
     return;
   }
 
   if (!familyStore.selectedEntityId) {
-    showSnackbar('Please select an entity before duplicating a budget', 'error');
+    showSnackbar('Please select an entity before duplicating a budget', 'negative');
     return;
   }
 
@@ -1132,7 +1132,7 @@ async function duplicateCurrentMonth(month: string) {
   try {
     const family = await familyStore.getFamily();
     if (!family) {
-      showSnackbar('No family found for user', 'error');
+      showSnackbar('No family found for user', 'negative');
       return;
     }
 
@@ -1151,7 +1151,7 @@ async function duplicateCurrentMonth(month: string) {
     showSnackbar("Created new month's budget");
   } catch (error: unknown) {
     const err = error as Error;
-    showSnackbar(`Failed to duplicate budget: ${err.message}`, 'error');
+    showSnackbar(`Failed to duplicate budget: ${err.message}`, 'negative');
   } finally {
     $q.loading.hide();
   }
@@ -1251,7 +1251,7 @@ async function saveInlineEdit() {
     showSnackbar('Budget updated');
   } catch (error: unknown) {
     const err = error as Error;
-    showSnackbar(`Error saving budget: ${err.message}`, 'error');
+    showSnackbar(`Error saving budget: ${err.message}`, 'negative');
   }
 
   cancelInlineEdit();

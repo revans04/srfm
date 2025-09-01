@@ -588,7 +588,7 @@ function closeDialog(value: boolean) {
 
 async function confirmSmartMatches() {
   if (selectedSmartMatchIds.value.length === 0) {
-    showSnackbar("No smart matches selected to confirm", "error");
+    showSnackbar("No smart matches selected to confirm", "negative");
     return;
   }
 
@@ -645,7 +645,7 @@ async function confirmSmartMatches() {
   } catch (error: unknown) {
     const err = error as Error;
     console.error("Error confirming smart matches:", err);
-    showSnackbar(`Error confirming smart matches: ${err.message}`, "error");
+    showSnackbar(`Error confirming smart matches: ${err.message}`, "negative");
   } finally {
     emit("update:matching", false);
   }
@@ -653,7 +653,7 @@ async function confirmSmartMatches() {
 
 async function matchBankTransaction(budgetTransaction: Transaction) {
   if (!selectedBankTransaction.value || !budgetTransaction) {
-    showSnackbar("Please select a budget transaction to match", "error");
+    showSnackbar("Please select a budget transaction to match", "negative");
     return;
   }
 
@@ -715,7 +715,7 @@ async function matchBankTransaction(budgetTransaction: Transaction) {
   } catch (error: unknown) {
     const err = error as Error;
     console.log(err);
-    showSnackbar(`Error matching transaction: ${err.message}`, "error");
+    showSnackbar(`Error matching transaction: ${err.message}`, "negative");
   } finally {
     emit("update:matching", false);
   }
@@ -723,7 +723,7 @@ async function matchBankTransaction(budgetTransaction: Transaction) {
 
 async function ignoreBankTransaction() {
   if (!selectedBankTransaction.value) {
-    showSnackbar("No bank transaction selected to ignore", "error");
+    showSnackbar("No bank transaction selected to ignore", "negative");
     return;
   }
 
@@ -742,7 +742,7 @@ async function ignoreBankTransaction() {
     skipBankTransaction();
   } catch (error: unknown) {
     const err = error as Error;
-    showSnackbar(`Error ignoring transaction: ${err.message}`, "error");
+    showSnackbar(`Error ignoring transaction: ${err.message}`, "negative");
   } finally {
     emit("update:matching", false);
   }
@@ -767,7 +767,7 @@ function skipBankTransaction() {
 
 async function saveSplitTransaction() {
   if (!selectedBankTransaction.value || remainingSplitAmount.value !== 0) {
-    showSnackbar("Invalid split amounts or no bank transaction selected", "error");
+    showSnackbar("Invalid split amounts or no bank transaction selected", "negative");
     return;
   }
 
@@ -775,7 +775,7 @@ async function saveSplitTransaction() {
 
   const valid = await splitForm.value.validate();
   if (!valid) {
-    showSnackbar("Please fill in all required fields", "error");
+    showSnackbar("Please fill in all required fields", "negative");
     return;
   }
 
@@ -855,7 +855,7 @@ async function saveSplitTransaction() {
     resetSplitForm();
   } catch (error: unknown) {
     const err = error as Error;
-    showSnackbar(`Error saving split transaction: ${err.message}`, "error");
+    showSnackbar(`Error saving split transaction: ${err.message}`, "negative");
   } finally {
     emit("update:matching", false);
   }
@@ -903,7 +903,7 @@ async function handleTransactionAdded(savedTransaction: Transaction) {
     emit("transactions-updated");
   } catch (error: unknown) {
     const err = error as Error;
-    showSnackbar(`Error adding transaction: ${err.message}`, "error");
+    showSnackbar(`Error adding transaction: ${err.message}`, "negative");
   } finally {
     emit("update:matching", false);
     showTransactionDialog.value = false;
@@ -912,12 +912,12 @@ async function handleTransactionAdded(savedTransaction: Transaction) {
 
 function addNewTransaction() {
   if (!selectedBankTransaction.value) {
-    showSnackbar("No bank transaction selected to add", "error");
+    showSnackbar("No bank transaction selected to add", "negative");
     return;
   }
 
   if (!familyStore.selectedEntityId) {
-    showSnackbar("Please select an entity before adding a transaction", "error");
+    showSnackbar("Please select an entity before adding a transaction", "negative");
     return;
   }
 
