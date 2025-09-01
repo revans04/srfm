@@ -103,12 +103,6 @@
               Refresh
             </q-btn>
           </div>
-          <div class="col col-auto d-flex align-center">
-            <q-btn color="secondary" variant="plain" @click="checkBatchMatches" :loading="checkingBatchMatches">
-              <q-icon start name="playlist_add_check"></q-icon>
-              Check Batch Matches
-            </q-btn>
-          </div>
         </div>
         <div class="row">
           <div class="col col-12 col-md-2">
@@ -534,7 +528,6 @@ const familyId = computed(() => familyStore.family?.id || "");
 
 const loading = ref(false);
 const saving = ref(false);
-const checkingBatchMatches = ref(false);
 const uiStore = useUIStore();
 const {
   selectedAccount,
@@ -958,24 +951,6 @@ async function loadTransactions() {
     showSnackbar(`Error loading transactions: ${err.message}`, "negative");
   } finally {
     loading.value = false;
-  }
-}
-
-async function checkBatchMatches() {
-  if (!selectedAccount.value) {
-    showSnackbar("Please select an account", "negative");
-    return;
-  }
-  checkingBatchMatches.value = true;
-  try {
-    const matches = await dataAccess.getBudgetTransactionsMatchedToImported(selectedAccount.value);
-    showSnackbar(`Checked ${matches.length} batch match${matches.length !== 1 ? "es" : ""}`, "info");
-  } catch (error: unknown) {
-    const err = error as Error;
-    console.error("Error checking batch matches:", err);
-    showSnackbar(`Error checking batch matches: ${err.message}`, "negative");
-  } finally {
-    checkingBatchMatches.value = false;
   }
 }
 

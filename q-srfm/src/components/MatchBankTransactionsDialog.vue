@@ -1,18 +1,13 @@
 <!-- src/components/BankTransactionMatchingDialog.vue -->
 <template>
-  <component
-    :is="props.asPanel ? 'div' : 'q-dialog'"
-    v-if="isReady"
-    v-bind="props.asPanel ? {} : { modelValue: props.showDialog, fullscreen: isMobile, persistent: true }"
-    @update:model-value="(val) => { if (!props.asPanel) closeDialog(val as boolean) }"
-  >
+  <div v-if="isReady">
     <q-card>
       <q-card-section>
-        <div class="row">
-          <div class="col"><q-space></q-space></div>
-          <div class="col-auto text-right" v-if="!props.asPanel">
-            <q-btn color="negative" @click="closeDialog(false)" :disabled="props.matching" variant="plain">
-              <q-icon name="close"></q-icon>
+        <div class="row justify-end">
+          <div class="col-auto">
+            <q-btn color="secondary" @click="checkBatchMatches" :loading="checkingBatchMatches">
+              <q-icon start name="playlist_add_check"></q-icon>
+              Check Batch Matches
             </q-btn>
           </div>
         </div>
@@ -268,8 +263,6 @@
       <q-card-actions>
         <q-btn v-if="remainingImportedTransactions.length > 0" color="warning" @click="ignoreBankTransaction" :disabled="props.matching"> Ignore </q-btn>
         <q-btn v-if="remainingImportedTransactions.length > 0" color="secondary" @click="skipBankTransaction" :disabled="props.matching"> Skip </q-btn>
-        <q-space></q-space>
-        <q-btn v-if="!props.asPanel" color="negative" @click="closeDialog(false)" :disabled="props.matching"> Close </q-btn>
       </q-card-actions>
     </q-card>
 
@@ -289,7 +282,7 @@
     />
 
     <!-- Snackbar handled via $q.notify -->
-  </component>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -311,7 +304,6 @@ const familyStore = useFamilyStore();
 const $q = useQuasar();
 
 const props = defineProps<{
-  showDialog: boolean;
   remainingImportedTransactions: ImportedTransaction[];
   selectedBankTransaction: ImportedTransaction | null;
   transactions: Transaction[];
@@ -319,11 +311,9 @@ const props = defineProps<{
   matching: boolean;
   categoryOptions: string[];
   userId: string;
-  asPanel?: boolean;
 }>();
 
 const emit = defineEmits<{
-  (e: "update:showDialog", value: boolean): void;
   (e: "add-new-transaction", importedTx: ImportedTransaction): void;
   (e: "transactions-updated"): void;
   (e: "update:matching", value: boolean): void;
@@ -345,6 +335,7 @@ const selectedBankTransaction = ref<ImportedTransaction | null>(props.selectedBa
 
 // Snackbar timeout state for notifications
 const timeout = ref(3000);
+const checkingBatchMatches = ref(false);
 
 // Local state for Smart Matches sorting
 const selectedSmartMatchIds = ref<string[]>([]);
@@ -394,7 +385,6 @@ const newTransaction = ref<Transaction>({
 } as Transaction);
 const newTransactionBudgetId = ref<string>(""); // Track budgetId for TransactionDialog
 
-const isMobile = computed(() => $q.screen.lt.md);
 
 const entityOptions = computed(() => {
   return (familyStore.family?.entities || []).map((entity) => ({
@@ -514,15 +504,6 @@ onMounted(async () => {
 });
 
 watch(
-  () => props.showDialog,
-  async (newVal) => {
-    if (newVal) {
-      await initializeState();
-    }
-  }
-);
-
-watch(
   () => smartMatchDateRange.value,
   () => {
     computeSmartMatchesLocal();
@@ -594,12 +575,26 @@ watch(
 );
 
 // Methods
-function closeDialog(value: boolean) {
-  if (props.asPanel) return;
-  emit("update:showDialog", value);
-  if (!value) {
-    emit("transactions-updated");
-    isReady.value = false;
+async function checkBatchMatches() {
+  if (!selectedBankTransaction.value?.accountId) {
+    showSnackbar("No bank account available to check", "negative");
+    return;
+  }
+  checkingBatchMatches.value = true;
+  try {
+    const matches = await dataAccess.getBudgetTransactionsMatchedToImported(
+      selectedBankTransaction.value.accountId
+    );
+    showSnackbar(
+      `Checked ${matches.length} batch match${matches.length !== 1 ? "es" : ""}`,
+      "info"
+    );
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error("Error checking batch matches:", err);
+    showSnackbar(`Error checking batch matches: ${err.message}`, "negative");
+  } finally {
+    checkingBatchMatches.value = false;
   }
 }
 
@@ -773,7 +768,7 @@ function skipBankTransaction() {
     searchBudgetTransactions();
   } else {
     if (smartMatches.value.length === 0) {
-      if (!props.asPanel) closeDialog(false);
+      emit("transactions-updated");
       showSnackbar("All bank transactions have been processed", "success");
     } else {
       currentBankTransactionIndex.value = -1;

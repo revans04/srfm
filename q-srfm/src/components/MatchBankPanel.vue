@@ -1,8 +1,6 @@
 <template>
   <MatchBankTransactionsDialog
     v-if="ready"
-    as-panel
-    :show-dialog="true"
     :remaining-imported-transactions="remainingImportedTransactions"
     :selected-bank-transaction="selectedBankTransaction"
     :transactions="transactions"
