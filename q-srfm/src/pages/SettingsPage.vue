@@ -305,7 +305,6 @@
         :entity-id="selectedEntity.id"
         @cancel="closeEntityForm"
         @save="handleEntitySave"
-        @update:unsaved="closeEntityForm"
       />
     </q-dialog>
 
