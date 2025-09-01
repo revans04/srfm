@@ -46,9 +46,16 @@ Key props/usage:
               <q-btn
                 dense
                 flat
+                label="Refresh"
+                class="col-auto"
+                @click="refreshBudget"
+              />
+              <q-btn
+                dense
+                flat
                 label="Clear All"
                 class="col-auto"
-                @click="clearSelectedBudgets"
+                @click="clearBudgetFilters"
               />
             </div>
             <div class="row q-col-gutter-sm">
@@ -140,6 +147,20 @@ Key props/usage:
             />
             <q-input v-model="filters.search" dense outlined placeholder="Search" class="col" />
             <q-checkbox v-model="filters.cleared" label="Cleared Only" class="col-auto" />
+            <q-btn
+              dense
+              flat
+              label="Refresh"
+              class="col-auto"
+              @click="refreshRegister"
+            />
+            <q-btn
+              dense
+              flat
+              label="Clear All"
+              class="col-auto"
+              @click="clearRegisterFilters"
+            />
           </div>
         </div>
         <ledger-table
@@ -168,6 +189,7 @@ import StatementHeader from 'src/components/StatementHeader.vue';
 import MatchBankPanel from 'src/components/MatchBankPanel.vue';
 import EntitySelector from 'src/components/EntitySelector.vue';
 import { useTransactions } from 'src/composables/useTransactions';
+import type { LedgerFilters } from 'src/composables/useTransactions';
 import { useBudgetStore } from 'src/store/budget';
 import { useFamilyStore } from 'src/store/family';
 import { useUIStore } from 'src/store/ui';
@@ -182,7 +204,7 @@ const familyStore = useFamilyStore();
 const uiStore = useUIStore();
 const auth = useAuthStore();
 
-const { selectedBudgetIds } = storeToRefs(uiStore);
+const { selectedBudgetIds, budgetFilters, registerFilters } = storeToRefs(uiStore);
 const { selectedEntityId } = storeToRefs(familyStore);
 
 const accountOptions = computed(() => {
@@ -209,9 +231,57 @@ const {
   loadingMoreRegister,
   scrollToDate,
   loadImportedTransactions,
+  loadInitial,
 } = useTransactions();
 
 onMounted(loadBudgets);
+
+const minAmtInput = ref('');
+const maxAmtInput = ref('');
+
+const createDefaultFilters = (): LedgerFilters => ({
+  search: '',
+  importedMerchant: '',
+  cleared: false,
+  uncleared: false,
+  reconciled: false,
+  duplicatesOnly: false,
+  minAmt: null,
+  maxAmt: null,
+  start: null,
+  end: null,
+  accountId: null,
+});
+
+function syncInputsFromFilters() {
+  minAmtInput.value = filters.value.minAmt == null ? '' : String(filters.value.minAmt);
+  maxAmtInput.value = filters.value.maxAmt == null ? '' : String(filters.value.maxAmt);
+}
+
+function applyStoredFilters(t: 'budget' | 'register') {
+  const source = t === 'budget' ? budgetFilters.value : registerFilters.value;
+  filters.value = { ...source };
+  syncInputsFromFilters();
+}
+
+watch(
+  tab,
+  (t, old) => {
+    if (old === 'budget') budgetFilters.value = { ...filters.value };
+    if (old === 'register') registerFilters.value = { ...filters.value };
+    applyStoredFilters(t);
+  },
+  { immediate: true },
+);
+
+watch(
+  filters,
+  (f) => {
+    if (tab.value === 'budget') budgetFilters.value = { ...f };
+    else if (tab.value === 'register') registerFilters.value = { ...f };
+  },
+  { deep: true },
+);
 
 async function ensureAccountsLoaded() {
   if (!familyStore.family?.accounts || familyStore.family.accounts.length === 0) {
@@ -248,8 +318,6 @@ watch(tab, async (t) => {
   }
 });
 
-const minAmtInput = ref('');
-const maxAmtInput = ref('');
 watch(minAmtInput, (v) => {
   filters.value.minAmt = v === '' ? null : Number(v);
 });
@@ -314,8 +382,26 @@ watch(
   { immediate: true },
 );
 
-function clearSelectedBudgets() {
+function clearBudgetFilters() {
   selectedBudgetIds.value = [];
+  filters.value = createDefaultFilters();
+  syncInputsFromFilters();
+}
+
+function clearRegisterFilters() {
+  filters.value = createDefaultFilters();
+  syncInputsFromFilters();
+}
+
+async function refreshBudget() {
+  await loadBudgets();
+  if (selectedBudgetIds.value.length > 0) {
+    await loadInitial(selectedBudgetIds.value);
+  }
+}
+
+async function refreshRegister() {
+  await loadImportedTransactions(true);
 }
 
 // Filters come from useTransactions

@@ -529,6 +529,23 @@ watch(
   }
 );
 
+watch(
+  () => props.transactions,
+  () => {
+    computeSmartMatchesLocal();
+  },
+  { deep: true }
+);
+
+watch(
+  () => props.remainingImportedTransactions,
+  (newVal) => {
+    remainingImportedTransactions.value = Array.isArray(newVal) ? [...newVal] : [];
+    computeSmartMatchesLocal();
+  },
+  { deep: true }
+);
+
 async function initializeState() {
   remainingImportedTransactions.value = Array.isArray(props.remainingImportedTransactions) ? [...props.remainingImportedTransactions] : [];
   selectedBankTransaction.value = props.selectedBankTransaction || remainingImportedTransactions.value[0] || null;
