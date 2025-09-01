@@ -6,6 +6,16 @@
         <div class="text-subtitle2 text-primary q-mb-md">
           {{ budgetLabel }}
         </div>
+        <q-banner
+          v-for="nudge in nudges"
+          :key="nudge"
+          class="q-mb-sm"
+          color="warning"
+          text-color="white"
+          icon="savings"
+        >
+          {{ nudge }}
+        </q-banner>
         <DashboardTiles
           :budget-id="budgetId"
           :family-id="familyId"
@@ -31,7 +41,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import DashboardTiles from '../components/DashboardTiles.vue';
 import EntitySelector from '../components/EntitySelector.vue';
 import SpendingByCategoryCard from '../components/charts/SpendingByCategoryCard.vue';
@@ -39,12 +49,18 @@ import IncomeVsExpensesCard from '../components/charts/IncomeVsExpensesCard.vue'
 import { useFamilyStore } from '../store/family';
 import { useAuthStore } from '../store/auth';
 import { currentMonthISO } from '../utils/helpers';
+import { useGoalNudges } from '../composables/useGoalNudges';
 
 const familyStore = useFamilyStore();
 const auth = useAuthStore();
+const { getNudges } = useGoalNudges();
+const nudges = ref<string[]>([]);
 
-onMounted(() => {
-  void familyStore.loadFamily();
+onMounted(async () => {
+  await familyStore.loadFamily();
+  if (entityId.value) {
+    nudges.value = await getNudges(entityId.value);
+  }
 });
 
 const familyId = computed(() => familyStore.family?.id || '');

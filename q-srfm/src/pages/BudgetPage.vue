@@ -87,6 +87,9 @@
               {{ formatCurrency(toDollars(toCents(Math.abs(remainingToBudget)))) }}
               {{ remainingToBudget >= 0 ? 'left to budget' : 'over budget' }}
             </div>
+            <div class="text-caption">
+              Monthly Savings: {{ formatCurrency(toDollars(toCents(savingsTotal))) }}
+            </div>
           </div>
         </div>
 
@@ -134,6 +137,9 @@
           <div class="q-pr-sm q-py-none" :class="{ 'text-left': true, 'text-negative': remainingToBudget < 0 }">
             {{ formatCurrency(toDollars(toCents(Math.abs(remainingToBudget)))) }}
             {{ remainingToBudget >= 0 ? 'left to budget' : 'over budget' }}
+            <div class="text-caption">
+              Monthly Savings: {{ formatCurrency(toDollars(toCents(savingsTotal))) }}
+            </div>
           </div>
         </div>
 
@@ -248,6 +254,12 @@
             </q-card-section>
           </q-card>
 
+          <GoalsGroupCard
+            :entity-id="familyStore.selectedEntityId || ''"
+            @add="onAddGoal"
+            @contribute="onContribute"
+          />
+
           <!-- Category Tables -->
           <div v-if="!isEditing && catTransactions" class="row q-mt-lg">
             <div class="col-12" v-for="(g, gIdx) in groups" :key="gIdx">
@@ -361,6 +373,8 @@
           </q-card-section>
         </q-card>
       </q-dialog>
+      <GoalDialog v-model="goalDialog" @save="saveGoal" />
+      <ContributeDialog v-model="contributeDialog" :goal="selectedGoal || undefined" @save="saveContribution" />
     </div>
   </q-page>
 </template>
@@ -373,7 +387,10 @@ import CurrencyInput from '../components/CurrencyInput.vue';
 import CategoryTransactions from '../components/CategoryTransactions.vue';
 import TransactionForm from '../components/TransactionForm.vue';
 import EntitySelector from '../components/EntitySelector.vue';
-import type { Transaction, Budget, IncomeTarget, BudgetCategoryTrx, BudgetCategory } from '../types';
+import GoalsGroupCard from '../components/goals/GoalsGroupCard.vue';
+import GoalDialog from '../components/goals/GoalDialog.vue';
+import ContributeDialog from '../components/goals/ContributeDialog.vue';
+import type { Transaction, Budget, IncomeTarget, BudgetCategoryTrx, BudgetCategory, Goal } from '../types';
 import { EntityType } from '../types';
 import version from '../version';
 import { toDollars, toCents, formatCurrency, todayISO, currentMonthISO } from '../utils/helpers';
@@ -384,6 +401,7 @@ import { useFamilyStore } from '../store/family';
 import debounce from 'lodash/debounce';
 import { v4 as uuidv4 } from 'uuid';
 import { createBudgetForMonth } from '../utils/budget';
+import { useGoals } from '../composables/useGoals';
 
 // Structured logger for this page
 const DBG = '[Budget]';
@@ -434,6 +452,12 @@ const newTransaction = ref<Transaction>({
   isIncome: false,
   taxMetadata: [],
 });
+const { monthlySavingsTotal, createGoal, addContribution, listGoals } = useGoals();
+const savingsTotal = ref(0);
+const goals = ref<Goal[]>([]);
+const goalDialog = ref(false);
+const contributeDialog = ref(false);
+const selectedGoal = ref<Goal | null>(null);
 const ownerUid = ref<string | null>(null);
 const budgetId = computed(() => {
   if (!ownerUid.value || !familyStore.selectedEntityId) return '';
@@ -448,8 +472,60 @@ const debouncedSearch = ref('');
 const monthOffset = ref(0);
 const menuOpen = ref(false);
 
+watch(
+  [() => familyStore.selectedEntityId, currentMonth],
+  () => {
+    if (familyStore.selectedEntityId) {
+      goals.value = listGoals(familyStore.selectedEntityId);
+      savingsTotal.value = monthlySavingsTotal(
+        familyStore.selectedEntityId,
+        currentMonth.value,
+      );
+    } else {
+      savingsTotal.value = 0;
+      goals.value = [];
+    }
+  },
+  { immediate: true },
+);
+
 let clickTimeout: ReturnType<typeof setTimeout> | null = null;
 let touchTimeout: ReturnType<typeof setTimeout> | null = null;
+
+function onAddGoal() {
+  goalDialog.value = true;
+  selectedGoal.value = null;
+}
+
+function onContribute(goal: Goal) {
+  selectedGoal.value = goal;
+  contributeDialog.value = true;
+}
+
+function saveGoal(data: Partial<Goal>) {
+  createGoal({ ...data, entityId: familyStore.selectedEntityId || '' });
+  goalDialog.value = false;
+  if (familyStore.selectedEntityId) {
+    goals.value = listGoals(familyStore.selectedEntityId);
+    savingsTotal.value = monthlySavingsTotal(
+      familyStore.selectedEntityId,
+      currentMonth.value,
+    );
+  }
+}
+
+function saveContribution(amount: number, note?: string) {
+  if (!selectedGoal.value) return;
+  addContribution(selectedGoal.value.id, amount, currentMonth.value, note);
+  contributeDialog.value = false;
+  if (familyStore.selectedEntityId) {
+    goals.value = listGoals(familyStore.selectedEntityId);
+    savingsTotal.value = monthlySavingsTotal(
+      familyStore.selectedEntityId,
+      currentMonth.value,
+    );
+  }
+}
 
 const inlineEdit = ref({
   item: null as BudgetCategoryTrx | null,
@@ -489,7 +565,7 @@ const budgetedExpenses = computed(() => {
 });
 
 const remainingToBudget = computed(() => {
-  return actualIncome.value - budgetedExpenses.value;
+  return actualIncome.value - budgetedExpenses.value - savingsTotal.value;
 });
 
 const formatLongMonth = (month: string) => {
