@@ -87,9 +87,7 @@
               {{ formatCurrency(toDollars(toCents(Math.abs(remainingToBudget)))) }}
               {{ remainingToBudget >= 0 ? 'left to budget' : 'over budget' }}
             </div>
-            <div class="text-caption">
-              Monthly Savings: {{ formatCurrency(toDollars(toCents(savingsTotal))) }}
-            </div>
+            <div class="text-caption">Monthly Savings: {{ formatCurrency(toDollars(toCents(savingsTotal))) }}</div>
           </div>
         </div>
 
@@ -101,7 +99,15 @@
             <span class="month-selector no-wrap">
               {{ formatLongMonth(currentMonth) }}
               <q-btn flat dense round icon="expand_more" size="sm">
-                <q-menu v-model="menuOpen" anchor="bottom left" self="top left" :offset="[0, 4]" :close-on-content-click="false" @show="onMonthMenuShow" @hide="onMonthMenuHide">
+                <q-menu
+                  v-model="menuOpen"
+                  anchor="bottom left"
+                  self="top left"
+                  :offset="[0, 4]"
+                  :close-on-content-click="false"
+                  @show="onMonthMenuShow"
+                  @hide="onMonthMenuHide"
+                >
                   <q-card class="month-menu">
                     <div class="row no-wrap items-center q-px-sm q-py-xs border-bottom">
                       <div class="col-auto">
@@ -137,9 +143,7 @@
           <div class="q-pr-sm q-py-none" :class="{ 'text-left': true, 'text-negative': remainingToBudget < 0 }">
             {{ formatCurrency(toDollars(toCents(Math.abs(remainingToBudget)))) }}
             {{ remainingToBudget >= 0 ? 'left to budget' : 'over budget' }}
-            <div class="text-caption">
-              Monthly Savings: {{ formatCurrency(toDollars(toCents(savingsTotal))) }}
-            </div>
+            <div class="text-caption">Monthly Savings: {{ formatCurrency(toDollars(toCents(savingsTotal))) }}</div>
           </div>
         </div>
 
@@ -253,17 +257,9 @@
               </div>
             </q-card-section>
           </q-card>
-          <SavingsConversionPrompt
-            v-if="legacySavingsCategories.length"
-            :categories="legacySavingsCategories"
-            @convert="onConvertLegacy"
-          />
+          <SavingsConversionPrompt v-if="legacySavingsCategories.length" :categories="legacySavingsCategories" @convert="onConvertLegacy" />
 
-          <GoalsGroupCard
-            :entity-id="familyStore.selectedEntityId || ''"
-            @add="onAddGoal"
-            @contribute="onContribute"
-          />
+          <GoalsGroupCard :entity-id="familyStore.selectedEntityId || ''" @add="onAddGoal" @contribute="onContribute" />
 
           <!-- Category Tables -->
           <div v-if="!isEditing && catTransactions" class="row q-mt-lg">
@@ -285,13 +281,7 @@
                         @touchend="endTouch"
                         class="col row items-center no-wrap"
                       >
-                        <q-icon
-                          v-if="item.isFund"
-                          size="xs"
-                          class="q-mr-xs"
-                          color="primary"
-                          name="savings"
-                        />
+                        <q-icon v-if="item.isFund" size="xs" class="q-mr-xs" color="primary" name="savings" />
                         <span>{{ item.name }}</span>
                         <!-- show the convert icon if the category is in legacySavingsCategories -->
                         <q-icon
@@ -486,12 +476,7 @@ const legacySavingsCategories = computed(() => {
   const unique = new Map<string, BudgetCategory>();
   for (const b of budgetStore.budgets.values()) {
     for (const c of b.categories) {
-      if (
-        c.isFund &&
-        c.group &&
-        c.group.toLowerCase().includes('savings') &&
-        !unique.has(c.name)
-      ) {
+      if (c.isFund && c.group && c.group.toLowerCase().includes('savings') && !unique.has(c.name)) {
         unique.set(c.name, c);
       }
     }
@@ -517,10 +502,7 @@ watch(
   () => {
     if (familyStore.selectedEntityId) {
       goals.value = listGoals(familyStore.selectedEntityId);
-      savingsTotal.value = monthlySavingsTotal(
-        familyStore.selectedEntityId,
-        currentMonth.value,
-      );
+      savingsTotal.value = monthlySavingsTotal(familyStore.selectedEntityId, currentMonth.value);
     } else {
       savingsTotal.value = 0;
       goals.value = [];
@@ -562,10 +544,7 @@ function saveGoal(data: Partial<Goal>) {
   goalDialog.value = false;
   if (familyStore.selectedEntityId) {
     goals.value = listGoals(familyStore.selectedEntityId);
-    savingsTotal.value = monthlySavingsTotal(
-      familyStore.selectedEntityId,
-      currentMonth.value,
-    );
+    savingsTotal.value = monthlySavingsTotal(familyStore.selectedEntityId, currentMonth.value);
   }
 }
 
@@ -575,10 +554,7 @@ function saveContribution(amount: number, note?: string) {
   contributeDialog.value = false;
   if (familyStore.selectedEntityId) {
     goals.value = listGoals(familyStore.selectedEntityId);
-    savingsTotal.value = monthlySavingsTotal(
-      familyStore.selectedEntityId,
-      currentMonth.value,
-    );
+    savingsTotal.value = monthlySavingsTotal(familyStore.selectedEntityId, currentMonth.value);
   }
 }
 
@@ -648,7 +624,7 @@ const inlineEditNumber = computed<number>({
   },
   set(val: number) {
     inlineEdit.value.value = val;
-  }
+  },
 });
 
 const isMobile = computed(() => $q.screen.lt.md);
@@ -1028,7 +1004,6 @@ onUnmounted(() => {
   if (loadingTimeout) clearTimeout(loadingTimeout);
 });
 
-
 async function loadBudgets() {
   const user = auth.user;
   if (!user) {
@@ -1054,7 +1029,6 @@ async function loadBudgets() {
     loading.value = false;
   }
 }
-
 
 async function createDefaultBudget() {
   const user = auth.user;
