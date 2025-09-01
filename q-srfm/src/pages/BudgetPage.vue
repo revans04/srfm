@@ -256,6 +256,7 @@
           <SavingsConversionPrompt
             v-if="legacySavingsCategories.length"
             :categories="legacySavingsCategories"
+            @convert="onConvertLegacy"
           />
 
           <GoalsGroupCard
@@ -377,7 +378,7 @@
           </q-card-section>
         </q-card>
       </q-dialog>
-      <GoalDialog v-model="goalDialog" @save="saveGoal" />
+      <GoalDialog v-model="goalDialog" :goal="selectedGoal || undefined" @save="saveGoal" />
       <ContributeDialog v-model="contributeDialog" :goal="selectedGoal || undefined" @save="saveContribution" />
     </div>
   </q-page>
@@ -457,12 +458,13 @@ const newTransaction = ref<Transaction>({
   isIncome: false,
   taxMetadata: [],
 });
-const { monthlySavingsTotal, createGoal, addContribution, listGoals } = useGoals();
+const { monthlySavingsTotal, createGoal, addContribution, addGoalSpend, listGoals } = useGoals();
 const savingsTotal = ref(0);
 const goals = ref<Goal[]>([]);
 const goalDialog = ref(false);
 const contributeDialog = ref(false);
 const selectedGoal = ref<Goal | null>(null);
+const convertingCategory = ref<BudgetCategory | null>(null);
 const legacySavingsCategories = computed(() => {
   const unique = new Map<string, BudgetCategory>();
   for (const b of budgetStore.budgets.values()) {
@@ -510,6 +512,10 @@ watch(
   { immediate: true },
 );
 
+watch(goalDialog, (v) => {
+  if (!v) convertingCategory.value = null;
+});
+
 let clickTimeout: ReturnType<typeof setTimeout> | null = null;
 let touchTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -523,8 +529,19 @@ function onContribute(goal: Goal) {
   contributeDialog.value = true;
 }
 
+function onConvertLegacy(cat: BudgetCategory) {
+  convertingCategory.value = cat;
+  selectedGoal.value = { name: cat.name, monthlyTarget: cat.target } as Goal;
+  goalDialog.value = true;
+}
+
 function saveGoal(data: Partial<Goal>) {
-  createGoal({ ...data, entityId: familyStore.selectedEntityId || '' });
+  if (convertingCategory.value) {
+    convertLegacyCategory(convertingCategory.value, data);
+    convertingCategory.value = null;
+  } else {
+    createGoal({ ...data, entityId: familyStore.selectedEntityId || '' });
+  }
   goalDialog.value = false;
   if (familyStore.selectedEntityId) {
     goals.value = listGoals(familyStore.selectedEntityId);
@@ -545,6 +562,59 @@ function saveContribution(amount: number, note?: string) {
       familyStore.selectedEntityId,
       currentMonth.value,
     );
+  }
+}
+
+function convertLegacyCategory(cat: BudgetCategory, data: Partial<Goal>) {
+  const goal = createGoal({
+    ...data,
+    name: data.name || cat.name,
+    monthlyTarget: data.monthlyTarget ?? cat.target,
+    entityId: familyStore.selectedEntityId || '',
+  });
+
+  for (const [id, b] of budgetStore.budgets.entries()) {
+    let changed = false;
+    const catIdx = b.categories.findIndex((c) => c.name === cat.name);
+    if (catIdx !== -1) {
+      b.categories.splice(catIdx, 1);
+      changed = true;
+    }
+
+    const txToRemove: number[] = [];
+    b.transactions.forEach((t, tIdx) => {
+      const originalLen = t.categories.length;
+      t.categories = t.categories.filter((tc) => {
+        if (tc.category === cat.name) {
+          if (t.isIncome) {
+            addGoalSpend(goal.id, t.id, tc.amount, t.date);
+          } else {
+            addContribution(goal.id, tc.amount, b.month);
+          }
+          return false;
+        }
+        return true;
+      });
+      if (t.categories.length === 0 && originalLen > 0) {
+        txToRemove.push(tIdx);
+      }
+      if (t.categories.length !== originalLen) {
+        changed = true;
+      }
+    });
+    for (let i = txToRemove.length - 1; i >= 0; i--) {
+      b.transactions.splice(txToRemove[i], 1);
+    }
+    if (changed) {
+      budgetStore.updateBudget(b.budgetId || id, { ...b });
+    }
+  }
+
+  if (budget.value.categories) {
+    categoryOptions.value = budget.value.categories.map((c) => c.name);
+    if (!categoryOptions.value.includes('Income')) {
+      categoryOptions.value.push('Income');
+    }
   }
 }
 

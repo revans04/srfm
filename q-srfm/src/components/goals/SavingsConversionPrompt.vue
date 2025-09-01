@@ -11,7 +11,23 @@
             We detected legacy Savings categories. Convert them to the new Savings Goals feature.
           </div>
           <ul class="q-pl-md q-my-sm">
-            <li v-for="c in categories" :key="c.name">{{ c.name }}</li>
+            <li
+              v-for="c in categories"
+              :key="c.name"
+              class="row items-center q-gutter-xs"
+            >
+              <div class="col">{{ c.name }}</div>
+              <div class="col-auto">
+                <q-btn
+                  flat
+                  dense
+                  size="sm"
+                  color="primary"
+                  label="Convert"
+                  @click="emit('convert', c)"
+                />
+              </div>
+            </li>
           </ul>
           <q-btn
             flat
@@ -58,6 +74,7 @@ import { ref } from 'vue';
 import type { BudgetCategory } from 'src/types';
 
 defineProps<{ categories: BudgetCategory[] }>();
+const emit = defineEmits<{ (e: 'convert', category: BudgetCategory): void }>();
 
 const showGuide = ref(false);
 const show = ref(true);
