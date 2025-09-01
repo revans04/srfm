@@ -72,7 +72,7 @@
             ></q-icon>
           </template>
         </q-table>
-
+        
         <q-banner v-else type="info" class="q-mt-lg"> No smart matches found. Check Remaining Transactions for potential conflicts. </q-banner>
 
         <!-- Remaining Transactions -->
@@ -155,18 +155,43 @@
                     :rules="[(v: string) => !!v || 'Category is required']"
                   ></q-select>
                 </div>
-                <div class="col col-12 col-md-2">
-                  <q-input
-                    v-model.number="split.amount"
-                    label="Amount"
-                    type="number"
-                    variant="outlined"
-                    density="compact"
-                    :rules="[(v: number) => v > 0 || 'Amount must be greater than 0']"
-                  ></q-input>
-                </div>
-                <div class="col col-12 col-md-1">
-                  <q-btn color="negative" icon="close" @click="removeSplit(index)" variant="plain"></q-btn>
+
+                <q-table
+                  v-if="potentialMatches.length > 0 && !showSplitForm"
+                  :columns="budgetTransactionColumns"
+                  :rows="sortedPotentialMatches"
+                  :pagination="{ rowsPerPage: 5 }"
+                  row-key="id"
+                  selection="single"
+                  v-model:selected="selectedBudgetTransactionForMatch"
+                >
+                  <template #body-cell-amount="slotProps">
+                    <q-td :props="slotProps" class="text-right">
+                      ${{ toDollars(toCents(slotProps.row.amount)) }}
+                    </q-td>
+                  </template>
+                  <template #body-cell-type="slotProps">
+                    <q-td :props="slotProps">
+                      {{ slotProps.row.isIncome ? "Income" : "Expense" }}
+                    </q-td>
+                  </template>
+                  <template #body-cell-actions="slotProps">
+                    <q-td :props="slotProps">
+                      <q-btn
+                        color="primary"
+                        small
+                        @click="matchBankTransaction(slotProps.row)"
+                        :disabled="!selectedBudgetTransactionForMatch.length || props.matching"
+                        :loading="props.matching"
+                      >
+                        Match
+                      </q-btn>
+                    </q-td>
+                  </template>
+                </q-table>
+                <div v-else-if="!showSplitForm" class="q-mt-lg">
+                  <q-banner type="info" class="q-mb-lg"> No potential matches found. Adjust the search criteria or add a new transaction. </q-banner>
+                  <q-btn color="primary" @click="addNewTransaction" :disabled="props.matching"> Add New Transaction </q-btn>
                 </div>
               </div>
               <q-banner v-if="remainingSplitAmount !== 0" :type="remainingSplitAmount < 0 ? 'error' : 'warning'" class="q-mb-lg">
