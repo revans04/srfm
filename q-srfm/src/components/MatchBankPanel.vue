@@ -47,10 +47,23 @@ async function loadData() {
 
   const txs: Transaction[] = [];
   const cats = new Set<string>();
-  budgetStore.budgets.forEach((budget) => {
-    (budget.transactions || []).forEach((t) => txs.push(t));
-    (budget.categories || []).forEach((c) => cats.add(c.name));
-  });
+
+  for (const [id, budget] of budgetStore.budgets.entries()) {
+    let full = budget;
+    if (!full.transactions || full.transactions.length === 0) {
+      full = await dataAccess.getBudget(id);
+      if (full) {
+        budgetStore.updateBudget(id, full);
+      } else {
+        continue;
+      }
+    }
+    (full.transactions || [])
+      .filter((t) => !t.deleted && (!t.status || t.status === 'U'))
+      .forEach((t) => txs.push(t));
+    (full.categories || []).forEach((c) => cats.add(c.name));
+  }
+
   transactions.value = txs;
   categoryOptions.value = ['Income', ...Array.from(cats).sort((a, b) => b.localeCompare(a))];
 
