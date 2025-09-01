@@ -881,11 +881,20 @@ const updateBudgetForMonth = debounce(async () => {
     const key = defaultBudget.budgetId || budgetId.value;
     const fullBudget = await dataAccess.getBudget(key);
     if (fullBudget) {
-      budget.value = { ...fullBudget, budgetId: key };
-      budgetStore.updateBudget(key, fullBudget);
+      const normalized = {
+        ...fullBudget,
+        budgetId: key,
+        transactions: fullBudget.transactions || [],
+      };
+      budget.value = normalized;
+      budgetStore.updateBudget(key, normalized);
     } else {
       // Fallback to accessible budget if full fetch fails
-      budget.value = { ...defaultBudget, budgetId: key };
+      budget.value = {
+        ...defaultBudget,
+        budgetId: key,
+        transactions: defaultBudget.transactions || [],
+      };
     }
 
     categoryOptions.value = (budget.value.categories || []).map((cat) => cat.name);
