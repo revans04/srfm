@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
+import type { LedgerFilters } from "../composables/useTransactions";
 
 export const useUIStore = defineStore("uiState", () => {
   const selectedAccount = ref<string | null>(null);
@@ -23,6 +24,23 @@ export const useUIStore = defineStore("uiState", () => {
   const entriesIncludeDeleted = ref(false);
   const selectedBudgetIds = ref<string[]>([]);
 
+  const defaultFilters: LedgerFilters = {
+    search: "",
+    importedMerchant: "",
+    cleared: false,
+    uncleared: false,
+    reconciled: false,
+    duplicatesOnly: false,
+    minAmt: null,
+    maxAmt: null,
+    start: null,
+    end: null,
+    accountId: null,
+  };
+
+  const budgetFilters = ref<LedgerFilters>({ ...defaultFilters });
+  const registerFilters = ref<LedgerFilters>({ ...defaultFilters });
+
   return {
     selectedAccount,
     search,
@@ -42,5 +60,7 @@ export const useUIStore = defineStore("uiState", () => {
     entriesFilterDuplicates,
     entriesIncludeDeleted,
     selectedBudgetIds,
+    budgetFilters,
+    registerFilters,
   };
 });
