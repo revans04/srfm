@@ -62,6 +62,12 @@
                 </div>
 
                 <!-- File Input for Imports -->
+                <q-banner v-if="importError" type="negative" class="q-mb-lg">
+                  {{ importError }}
+                </q-banner>
+                <q-banner v-if="importSuccess" type="positive" class="q-mb-lg">
+                  {{ importSuccess }}
+                </q-banner>
                 <div v-if="importType === 'bankTransactions'">
                   <!-- Bank transaction import UI -->
                   <div class="row">
@@ -90,7 +96,7 @@
                         v-model="bankTransactionsFile"
                         label="Upload Bank/Card Transactions CSV"
                         accept=".csv"
-                        @change="handleBankTransactionsFileUpload"
+                        @update:model-value="handleBankTransactionsFileUpload"
                         :disabled="importing || !selectedAccountId"
                       ></q-file>
                     </div>
@@ -226,7 +232,7 @@
                     v-model="entitiesFile"
                     label="Upload Entities CSV/JSON"
                     accept=".csv,.json"
-                    @change="handleFileUpload"
+                    @update:model-value="handleFileUpload"
                     :disabled="importing"
                   ></q-file>
                 </div>
@@ -235,7 +241,7 @@
                     v-model="accountsSnapshotsFile"
                     label="Upload Accounts and Snapshots CSV"
                     accept=".csv"
-                    @change="handleAccountsAndSnapshotsImport"
+                    @update:model-value="handleAccountsAndSnapshotsImport"
                     :disabled="importing"
                   ></q-file>
                 </div>
@@ -245,7 +251,7 @@
                     label="Upload Budget or Transactions CSV/JSON"
                     accept=".csv,.json"
                     multiple
-                    @change="handleFileUpload"
+                    @update:model-value="handleFileUpload"
                     :disabled="importing || (!selectedEntityId && importType !== 'entities')"
                   ></q-file>
                 </div>
