@@ -284,7 +284,7 @@ namespace FamilyBudgetApi.Services
             const string sql = @"INSERT INTO accounts
                 (id, family_id, user_id, name, type, category, account_number, institution, balance, interest_rate,
                  appraised_value, maturity_date, address, created_at, updated_at)
-                VALUES (@id, @family_id, @user_id, @name, @type, @category, @account_number, @institution, @balance, @interest_rate,
+                VALUES (@id, @family_id, @user_id, @name, @type::account_type, @category, @account_number, @institution, @balance, @interest_rate,
                         @appraised_value, @maturity_date, @address, @created_at, @updated_at)
                 ON CONFLICT (id) DO UPDATE SET
                     family_id = EXCLUDED.family_id,
@@ -310,7 +310,7 @@ namespace FamilyBudgetApi.Services
                 cmd.Parameters.AddWithValue("family_id", (object?)a.FamilyId ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("user_id", (object?)a.UserId ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("name", a.Name);
-                cmd.Parameters.AddWithValue("type", a.Type);
+                cmd.Parameters.Add("type", NpgsqlDbType.Text).Value = a.Type;
                 cmd.Parameters.AddWithValue("category", a.Category);
                 cmd.Parameters.AddWithValue("account_number", (object?)a.AccountNumber ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("institution", a.Institution);
