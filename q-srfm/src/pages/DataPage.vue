@@ -505,6 +505,7 @@ const accountsAndSnapshotsColumns = [
 const categoryColumns = [
   { name: 'budgetid', label: 'BudgetId', field: 'budgetid' },
   { name: 'budgetmonth', label: 'Budget Month', field: 'budgetmonth' },
+  { name: 'incomeTarget', label: 'Income Target', field: 'incomeTarget' },
   { name: 'category', label: 'Category', field: 'category' },
   { name: 'group', label: 'Group', field: 'group' },
   { name: 'isfund', label: 'IsFund', field: 'isfund' },
@@ -1046,6 +1047,7 @@ async function handleBudgetTransactionImport() {
     const budgetCategories = budget.categories.map((category) => ({
       budgetid: budget.budgetId,
       budgetmonth: budget.budgetMonth,
+      incomeTarget: budget.incomeTarget || 0,
       category: category.name,
       group: category.group || "",
       isfund: (category as any).isFund ?? (category as any).isfund,
@@ -1390,6 +1392,7 @@ async function confirmImport() {
   } else if (importType.value === "budgetTransactions") {
     const budgetsById = new Map<string, Budget>();
     const budgetIdMap = new Map<string, string>();
+    const budgetIdToIncomeTarget = new Map<string, number>();
 
     try {
       importRunning.value = true;
@@ -1406,6 +1409,7 @@ async function confirmImport() {
           const month = fullMonth.slice(0, 7);
           if (!budgetIdToMonth.has(originalBudgetId)) {
             budgetIdToMonth.set(originalBudgetId, month);
+            budgetIdToIncomeTarget.set(originalBudgetId, Number(category.incomeTarget) || 0);
           }
         });
 
@@ -1421,6 +1425,8 @@ async function confirmImport() {
           );
           budget.familyId = familyId.value!;
           budget.entityId = selectedEntityId.value;
+          budget.incomeTarget = budgetIdToIncomeTarget.get(originalBudgetId) || 0;
+          budget.categories = [];
           budgetsById.set(firebaseBudgetId, budget);
         }
 
@@ -1523,6 +1529,7 @@ async function confirmImport() {
         pendingImportData.value = { budgetsById, budgetIdMap, entitiesById: new Map() };
         showOverwriteDialog.value = true;
       } else {
+        pendingImportData.value = { budgetsById, budgetIdMap, entitiesById: new Map() };
         await proceedWithImport();
       }
     } catch (e: any) {
