@@ -283,10 +283,26 @@
                         @dblclick.stop="handleNameDblClick(item)"
                         @touchstart="startTouch(item, 'name')"
                         @touchend="endTouch"
-                        class="col"
+                        class="col row items-center no-wrap"
                       >
-                        <q-icon v-if="item.isFund" size="xs" class="q-mr-xs" color="primary" name="savings" />
-                        {{ item.name }}
+                        <q-icon
+                          v-if="item.isFund"
+                          size="xs"
+                          class="q-mr-xs"
+                          color="primary"
+                          name="savings"
+                        />
+                        <span>{{ item.name }}</span>
+                        <q-icon
+                          v-if="item.isFund"
+                          name="change_circle"
+                          size="xs"
+                          class="q-ml-xs cursor-pointer"
+                          color="accent"
+                          @click.stop="onConvertLegacy(item)"
+                        >
+                          <q-tooltip>Convert to Savings Goal</q-tooltip>
+                        </q-icon>
                       </div>
                       <div v-else class="col">
                         <q-input
