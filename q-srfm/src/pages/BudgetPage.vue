@@ -561,6 +561,16 @@ function saveContribution(amount: number, note?: string) {
 }
 
 async function convertLegacyCategory(cat: BudgetCategory, data: Partial<Goal>) {
+  if (userId.value) {
+    await budgetStore.loadBudgets(userId.value, familyStore.selectedEntityId);
+    for (const [id, b] of budgetStore.budgets.entries()) {
+      if (!b.transactions || b.transactions.length === 0) {
+        const full = await dataAccess.getBudget(b.budgetId || id);
+        if (full) budgetStore.updateBudget(b.budgetId || id, full);
+      }
+    }
+  }
+
   const goal = await createGoal({
     ...data,
     name: data.name || cat.name,
