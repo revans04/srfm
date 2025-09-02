@@ -466,7 +466,7 @@ const newTransaction = ref<Transaction>({
   isIncome: false,
   taxMetadata: [],
 });
-const { monthlySavingsTotal, createGoal, listGoals, loadGoals, addContribution } = useGoals();
+const { monthlySavingsTotal, createGoal, listGoals, loadGoals, addContribution, addGoalSpend } = useGoals();
 const savingsTotal = ref(0);
 const goals = ref<Goal[]>([]);
 const goalDialog = ref(false);
@@ -561,12 +561,38 @@ function saveContribution(amount: number, note?: string) {
 }
 
 async function convertLegacyCategory(cat: BudgetCategory, data: Partial<Goal>) {
-  await createGoal({
+  const goal = await createGoal({
     ...data,
     name: data.name || cat.name,
     monthlyTarget: data.monthlyTarget ?? cat.target,
     entityId: familyStore.selectedEntityId || '',
   });
+
+  // For each existing budget, add contributions for underspend and log goal spends
+  for (const b of budgetStore.budgets.values()) {
+    if (b.entityId && b.entityId !== goal.entityId) continue;
+    if (b.month > currentMonth.value) continue;
+
+    const budgetCat = b.categories.find((c) => c.name === goal.name);
+    if (!budgetCat) continue;
+
+    let spent = 0;
+    for (const t of b.transactions) {
+      if (t.deleted || t.isIncome) continue;
+      for (const tc of t.categories) {
+        if (tc.category === goal.name) {
+          const amt = Math.abs(tc.amount);
+          spent += amt;
+          addGoalSpend(goal.id, t.id, amt, t.date);
+        }
+      }
+    }
+
+    const diff = budgetCat.target - spent;
+    if (diff > 0) {
+      addContribution(goal.id, diff, b.month);
+    }
+  }
 
   if (budget.value.categories) {
     categoryOptions.value = budget.value.categories.map((c) => c.name);
