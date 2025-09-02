@@ -36,6 +36,26 @@ watch(model, (v) => emit('update:modelValue', v));
 type GoalForm = Omit<Partial<Goal>, 'targetDate'> & { targetDate?: string };
 // Initialize numeric fields to avoid undefined being passed to CurrencyInput
 const form = ref<GoalForm>({ totalTarget: 0, monthlyTarget: 0 });
+function normalizeDate(val: unknown): string | undefined {
+  if (!val) return undefined;
+  let date: Date;
+  if (val instanceof Date) {
+    date = val;
+  } else if (typeof val === 'string') {
+    date = new Date(val);
+  } else if (
+    typeof val === 'object' &&
+    val !== null &&
+    'toDate' in val &&
+    typeof (val as { toDate: () => Date }).toDate === 'function'
+  ) {
+    date = (val as { toDate: () => Date }).toDate();
+  } else {
+    return undefined;
+  }
+  return isNaN(date.getTime()) ? undefined : date.toISOString().slice(0, 10);
+}
+
 watch(
   () => props.goal,
   (g) => {
@@ -44,9 +64,7 @@ watch(
           ...g,
           totalTarget: g.totalTarget ?? 0,
           monthlyTarget: g.monthlyTarget ?? 0,
-          targetDate: g.targetDate
-            ? (g.targetDate as unknown as Date).toISOString().slice(0, 10)
-            : undefined,
+          targetDate: normalizeDate((g as { targetDate?: unknown }).targetDate),
         }
       : { totalTarget: 0, monthlyTarget: 0 };
   },
