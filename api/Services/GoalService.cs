@@ -24,10 +24,12 @@ namespace FamilyBudgetApi.Services
             {
                 _logger.LogInformation("Saving goal {GoalId}", goal.Id);
                 await using var conn = await _db.GetOpenConnectionAsync();
-                const string sql = @"INSERT INTO goals (id, entity_id, name, total_target, monthly_target, target_date, archived, created_at, updated_at)
-VALUES (@id,@entity_id,@name,@total_target,@monthly_target,@target_date,@archived, now(), now())
-ON CONFLICT (id) DO UPDATE SET entity_id=EXCLUDED.entity_id, name=EXCLUDED.name, total_target=EXCLUDED.total_target, monthly_target=EXCLUDED.monthly_target, target_date=EXCLUDED.target_date, archived=EXCLUDED.archived, updated_at=now();";
-                await using var cmd = new NpgsqlCommand(sql, conn);
+                const string insertSql = @"INSERT INTO goals (id, entity_id, name, total_target, monthly_target, target_date, archived, created_at, updated_at)
+VALUES (@id,@entity_id,@name,@total_target,@monthly_target,@target_date,@archived, now(), now());";
+
+                const string updateSql = @"UPDATE goals SET entity_id=@entity_id, name=@name, total_target=@total_target, monthly_target=@monthly_target, target_date=@target_date, archived=@archived, updated_at=now() WHERE id=@id";
+
+                await using var cmd = new NpgsqlCommand(updateSql, conn);
 
                 if (!Guid.TryParse(goal.Id, out var goalId))
                 {
@@ -46,7 +48,22 @@ ON CONFLICT (id) DO UPDATE SET entity_id=EXCLUDED.entity_id, name=EXCLUDED.name,
                 cmd.Parameters.AddWithValue("monthly_target", (decimal)goal.MonthlyTarget);
                 cmd.Parameters.AddWithValue("target_date", string.IsNullOrEmpty(goal.TargetDate) ? (object)DBNull.Value : DateTime.Parse(goal.TargetDate));
                 cmd.Parameters.AddWithValue("archived", goal.Archived);
-                await cmd.ExecuteNonQueryAsync();
+                var rows = await cmd.ExecuteNonQueryAsync();
+                if (rows == 0)
+                {
+                    await using var insertCmd = new NpgsqlCommand(insertSql, conn);
+                    insertCmd.Parameters.AddRange(new[]
+                    {
+                        new NpgsqlParameter("id", goalId),
+                        new NpgsqlParameter("entity_id", entityId),
+                        new NpgsqlParameter("name", (object?)goal.Name ?? DBNull.Value),
+                        new NpgsqlParameter("total_target", (decimal)goal.TotalTarget),
+                        new NpgsqlParameter("monthly_target", (decimal)goal.MonthlyTarget),
+                        new NpgsqlParameter("target_date", string.IsNullOrEmpty(goal.TargetDate) ? (object)DBNull.Value : DateTime.Parse(goal.TargetDate)),
+                        new NpgsqlParameter("archived", goal.Archived)
+                    });
+                    await insertCmd.ExecuteNonQueryAsync();
+                }
 
                 // Ensure a matching budget category exists for all budgets under the entity
                 var budgetIds = new List<string>();
@@ -61,18 +78,26 @@ ON CONFLICT (id) DO UPDATE SET entity_id=EXCLUDED.entity_id, name=EXCLUDED.name,
                     }
                 }
 
-                const string catSql = @"INSERT INTO budget_categories (budget_id, name, target, is_fund, ""group"", carryover)
-VALUES (@bid, @name, @target, true, @group, 0)
-ON CONFLICT (budget_id, name) DO UPDATE SET target=EXCLUDED.target, is_fund=true, ""group""=EXCLUDED.""group""";
+                const string deleteCatSql = "DELETE FROM budget_categories WHERE budget_id=@bid AND name=@name";
+                const string insertCatSql = @"INSERT INTO budget_categories (budget_id, name, target, is_fund, ""group"", carryover) VALUES (@bid, @name, @target, true, @group, 0)";
 
                 foreach (var bid in budgetIds)
                 {
-                    await using var catCmd = new NpgsqlCommand(catSql, conn);
-                    catCmd.Parameters.AddWithValue("bid", bid);
-                    catCmd.Parameters.AddWithValue("name", (object?)goal.Name ?? DBNull.Value);
-                    catCmd.Parameters.AddWithValue("target", (decimal)goal.MonthlyTarget);
-                    catCmd.Parameters.AddWithValue("group", "Savings");
-                    await catCmd.ExecuteNonQueryAsync();
+                    await using (var delCmd = new NpgsqlCommand(deleteCatSql, conn))
+                    {
+                        delCmd.Parameters.AddWithValue("bid", bid);
+                        delCmd.Parameters.AddWithValue("name", (object?)goal.Name ?? DBNull.Value);
+                        await delCmd.ExecuteNonQueryAsync();
+                    }
+
+                    await using (var insCmd = new NpgsqlCommand(insertCatSql, conn))
+                    {
+                        insCmd.Parameters.AddWithValue("bid", bid);
+                        insCmd.Parameters.AddWithValue("name", (object?)goal.Name ?? DBNull.Value);
+                        insCmd.Parameters.AddWithValue("target", (decimal)goal.MonthlyTarget);
+                        insCmd.Parameters.AddWithValue("group", "Savings");
+                        await insCmd.ExecuteNonQueryAsync();
+                    }
                 }
 
                 _logger.LogInformation("Goal {GoalId} saved and categories updated", goal.Id);
