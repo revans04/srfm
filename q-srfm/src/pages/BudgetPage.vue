@@ -466,7 +466,7 @@ const newTransaction = ref<Transaction>({
   isIncome: false,
   taxMetadata: [],
 });
-const { monthlySavingsTotal, createGoal, addContribution, addGoalSpend, listGoals } = useGoals();
+const { monthlySavingsTotal, createGoal, addContribution, addGoalSpend, listGoals, loadGoals } = useGoals();
 const savingsTotal = ref(0);
 const goals = ref<Goal[]>([]);
 const goalDialog = ref(false);
@@ -544,6 +544,7 @@ async function saveGoal(data: Partial<Goal>) {
   }
   goalDialog.value = false;
   if (familyStore.selectedEntityId) {
+    await loadGoals(familyStore.selectedEntityId);
     goals.value = listGoals(familyStore.selectedEntityId);
     savingsTotal.value = monthlySavingsTotal(familyStore.selectedEntityId, currentMonth.value);
   }

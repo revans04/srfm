@@ -2,6 +2,7 @@ using FamilyBudgetApi.Models;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace FamilyBudgetApi.Services
@@ -53,6 +54,43 @@ ON CONFLICT (id) DO UPDATE SET entity_id=EXCLUDED.entity_id, name=EXCLUDED.name,
                 _logger.LogError(ex, "Failed to save goal {GoalId}", goal?.Id);
                 throw;
             }
+        }
+
+        public async Task<List<Goal>> GetGoals(string entityId)
+        {
+            var goals = new List<Goal>();
+            try
+            {
+                _logger.LogInformation("Fetching goals for entity {EntityId}", entityId);
+                await using var conn = await _db.GetOpenConnectionAsync();
+                const string sql = "SELECT id, entity_id, name, total_target, monthly_target, target_date, archived FROM goals WHERE entity_id=@eid";
+                await using var cmd = new NpgsqlCommand(sql, conn);
+                if (!Guid.TryParse(entityId, out var eid))
+                {
+                    throw new ArgumentException($"Invalid entity ID: {entityId}");
+                }
+                cmd.Parameters.AddWithValue("eid", eid);
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    goals.Add(new Goal
+                    {
+                        Id = reader.GetGuid(0).ToString(),
+                        EntityId = reader.GetGuid(1).ToString(),
+                        Name = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+                        TotalTarget = reader.IsDBNull(3) ? 0 : (double)reader.GetDecimal(3),
+                        MonthlyTarget = reader.IsDBNull(4) ? 0 : (double)reader.GetDecimal(4),
+                        TargetDate = reader.IsDBNull(5) ? null : reader.GetDateTime(5).ToString("o"),
+                        Archived = reader.IsDBNull(6) ? false : reader.GetBoolean(6)
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to fetch goals for entity {EntityId}", entityId);
+                throw;
+            }
+            return goals;
         }
     }
 }

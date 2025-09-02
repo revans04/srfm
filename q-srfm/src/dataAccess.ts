@@ -1033,6 +1033,13 @@ export class DataAccess {
   }
 
   // Goal Functions
+  async getGoals(entityId: string): Promise<Goal[]> {
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(`${this.apiBaseUrl}/goals?entityId=${entityId}`, { headers });
+    if (!response.ok) throw new Error(`Failed to load goals: ${response.statusText}`);
+    return await response.json();
+  }
+
   async saveGoal(goal: Goal): Promise<void> {
     const headers = await this.getAuthHeaders();
     let targetDate: string | undefined;

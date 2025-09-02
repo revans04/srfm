@@ -16,6 +16,7 @@ import { useFamilyStore } from '../store/family';
 const goals = ref<Goal[]>([]);
 const contributions = ref<Record<string, GoalContribution[]>>({});
 const spends = ref<Record<string, GoalSpend[]>>({});
+const loadedEntities = new Set<string>();
 
 export function useGoals() {
   const familyStore = useFamilyStore();
@@ -25,6 +26,14 @@ export function useGoals() {
 
   function getGoal(goalId: string): Goal | undefined {
     return goals.value.find((g) => g.id === goalId);
+  }
+
+  async function loadGoals(entityId: string): Promise<void> {
+    if (!entityId || loadedEntities.has(entityId)) return;
+    const fetched = await dataAccess.getGoals(entityId);
+    goals.value = goals.value.filter((g) => g.entityId !== entityId);
+    goals.value.push(...fetched);
+    loadedEntities.add(entityId);
   }
 
   async function createGoal(data: Partial<Goal>): Promise<Goal> {
@@ -118,6 +127,7 @@ export function useGoals() {
   return {
     listGoals,
     getGoal,
+    loadGoals,
     createGoal,
     updateGoal,
     archiveGoal,

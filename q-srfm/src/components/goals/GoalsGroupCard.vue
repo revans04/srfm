@@ -37,13 +37,21 @@ import type { Goal } from '../../types';
 
 const props = defineProps<{ entityId: string }>();
 const goals = ref<Goal[]>([]);
-const { listGoals } = useGoals();
+const { listGoals, loadGoals } = useGoals();
 
-function load() {
+async function load() {
   if (!props.entityId) return;
+  await loadGoals(props.entityId);
   goals.value = listGoals(props.entityId);
 }
 
-onMounted(load);
-watch(() => props.entityId, load);
+onMounted(() => {
+  void load();
+});
+watch(
+  () => props.entityId,
+  () => {
+    void load();
+  },
+);
 </script>
