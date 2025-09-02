@@ -13,6 +13,7 @@ import type {
   Snapshot,
   Entity,
   Statement,
+  Goal,
 } from './types';
 import { useBudgetStore } from './store/budget';
 import { Timestamp } from 'firebase/firestore';
@@ -1029,6 +1030,21 @@ export class DataAccess {
       body: JSON.stringify({ transactions: transactionRefs }),
     });
     if (!response.ok) throw new Error(`Failed to unreconcile statement: ${response.statusText}`);
+  }
+
+  // Goal Functions
+  async saveGoal(goal: Goal): Promise<void> {
+    const headers = await this.getAuthHeaders();
+    const payload = {
+      ...goal,
+      targetDate: goal.targetDate ? goal.targetDate.toDate().toISOString() : undefined,
+    };
+    const response = await fetch(`${this.apiBaseUrl}/goals`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) throw new Error(`Failed to save goal: ${response.statusText}`);
   }
 
   // Entity Functions

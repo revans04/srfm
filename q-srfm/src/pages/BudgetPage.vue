@@ -535,12 +535,12 @@ function onConvertLegacy(cat: BudgetCategory) {
   goalDialog.value = true;
 }
 
-function saveGoal(data: Partial<Goal>) {
+async function saveGoal(data: Partial<Goal>) {
   if (convertingCategory.value) {
-    convertLegacyCategory(convertingCategory.value, data);
+    await convertLegacyCategory(convertingCategory.value, data);
     convertingCategory.value = null;
   } else {
-    createGoal({ ...data, entityId: familyStore.selectedEntityId || '' });
+    await createGoal({ ...data, entityId: familyStore.selectedEntityId || '' });
   }
   goalDialog.value = false;
   if (familyStore.selectedEntityId) {
@@ -559,8 +559,8 @@ function saveContribution(amount: number, note?: string) {
   }
 }
 
-function convertLegacyCategory(cat: BudgetCategory, data: Partial<Goal>) {
-  const goal = createGoal({
+async function convertLegacyCategory(cat: BudgetCategory, data: Partial<Goal>) {
+  const goal = await createGoal({
     ...data,
     name: data.name || cat.name,
     monthlyTarget: data.monthlyTarget ?? cat.target,
@@ -601,6 +601,7 @@ function convertLegacyCategory(cat: BudgetCategory, data: Partial<Goal>) {
     }
     if (changed) {
       budgetStore.updateBudget(b.budgetId || id, { ...b });
+      await dataAccess.saveBudget(b.budgetId || id, b);
     }
   }
 

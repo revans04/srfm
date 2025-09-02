@@ -2,6 +2,7 @@ import { ref } from 'vue';
 import { v4 as uuidv4 } from 'uuid';
 import type { Goal, GoalContribution, GoalSpend } from '../types';
 import type { Timestamp } from 'firebase/firestore';
+import { dataAccess } from '../dataAccess';
 
 /**
  * Composable for managing savings goals.
@@ -24,7 +25,7 @@ export function useGoals() {
     return goals.value.find((g) => g.id === goalId);
   }
 
-  function createGoal(data: Partial<Goal>): Goal {
+  async function createGoal(data: Partial<Goal>): Promise<Goal> {
     const now = new Date();
     const goal: Goal = {
       id: uuidv4(),
@@ -42,19 +43,25 @@ export function useGoals() {
       archived: false,
     };
     goals.value.push(goal);
+    await dataAccess.saveGoal(goal);
     return goal;
   }
 
-  function updateGoal(goalId: string, data: Partial<Goal>): void {
+  async function updateGoal(goalId: string, data: Partial<Goal>): Promise<void> {
     const goal = goals.value.find((g) => g.id === goalId);
     if (goal) {
       Object.assign(goal, data, { updatedAt: new Date() as unknown as Timestamp });
+      await dataAccess.saveGoal(goal);
     }
   }
 
-  function archiveGoal(goalId: string): void {
+  async function archiveGoal(goalId: string): Promise<void> {
     const goal = goals.value.find((g) => g.id === goalId);
-    if (goal) goal.archived = true;
+    if (goal) {
+      goal.archived = true;
+      goal.updatedAt = new Date() as unknown as Timestamp;
+      await dataAccess.saveGoal(goal);
+    }
   }
 
   function addContribution(goalId: string, amount: number, month: string, note?: string): void {
