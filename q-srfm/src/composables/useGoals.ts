@@ -4,6 +4,7 @@ import type { Goal, GoalContribution, GoalSpend } from '../types';
 import type { Timestamp } from 'firebase/firestore';
 import { dataAccess } from '../dataAccess';
 import { useFamilyStore } from '../store/family';
+import { useBudgetStore } from '../store/budget';
 
 /**
  * Composable for managing savings goals.
@@ -20,6 +21,7 @@ const loadedEntities = new Set<string>();
 
 export function useGoals() {
   const familyStore = useFamilyStore();
+  const budgetStore = useBudgetStore();
   function listGoals(entityId: string): Goal[] {
     return goals.value.filter((g) => g.entityId === entityId && !g.archived);
   }
@@ -63,6 +65,28 @@ export function useGoals() {
     };
     goals.value.push(goal);
     await dataAccess.saveGoal(goal);
+
+    for (const [id, b] of budgetStore.budgets.entries()) {
+      if (!b.entityId || b.entityId === goal.entityId) {
+        const existing = b.categories.find((c) => c.name === goal.name);
+        if (existing) {
+          existing.isFund = true;
+          existing.target = goal.monthlyTarget;
+          existing.group = existing.group || 'Savings';
+        } else {
+          b.categories.push({
+            name: goal.name,
+            target: goal.monthlyTarget,
+            isFund: true,
+            group: 'Savings',
+            carryover: 0,
+          });
+        }
+        budgetStore.updateBudget(b.budgetId || id, { ...b });
+        await dataAccess.saveBudget(b.budgetId || id, b);
+      }
+    }
+
     return goal;
   }
 

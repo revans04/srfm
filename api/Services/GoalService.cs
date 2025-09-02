@@ -47,7 +47,35 @@ ON CONFLICT (id) DO UPDATE SET entity_id=EXCLUDED.entity_id, name=EXCLUDED.name,
                 cmd.Parameters.AddWithValue("target_date", string.IsNullOrEmpty(goal.TargetDate) ? (object)DBNull.Value : DateTime.Parse(goal.TargetDate));
                 cmd.Parameters.AddWithValue("archived", goal.Archived);
                 await cmd.ExecuteNonQueryAsync();
-                _logger.LogInformation("Goal {GoalId} saved", goal.Id);
+
+                // Ensure a matching budget category exists for all budgets under the entity
+                var budgetIds = new List<string>();
+                const string budgetSql = "SELECT id FROM budgets WHERE entity_id=@eid";
+                await using (var budgetCmd = new NpgsqlCommand(budgetSql, conn))
+                {
+                    budgetCmd.Parameters.AddWithValue("eid", entityId);
+                    await using var reader = await budgetCmd.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
+                    {
+                        budgetIds.Add(reader.GetString(0));
+                    }
+                }
+
+                const string catSql = @"INSERT INTO budget_categories (budget_id, name, target, is_fund, ""group"", carryover)
+VALUES (@bid, @name, @target, true, @group, 0)
+ON CONFLICT (budget_id, name) DO UPDATE SET target=EXCLUDED.target, is_fund=true, ""group""=EXCLUDED.""group""";
+
+                foreach (var bid in budgetIds)
+                {
+                    await using var catCmd = new NpgsqlCommand(catSql, conn);
+                    catCmd.Parameters.AddWithValue("bid", bid);
+                    catCmd.Parameters.AddWithValue("name", (object?)goal.Name ?? DBNull.Value);
+                    catCmd.Parameters.AddWithValue("target", (decimal)goal.MonthlyTarget);
+                    catCmd.Parameters.AddWithValue("group", "Savings");
+                    await catCmd.ExecuteNonQueryAsync();
+                }
+
+                _logger.LogInformation("Goal {GoalId} saved and categories updated", goal.Id);
             }
             catch (Exception ex)
             {

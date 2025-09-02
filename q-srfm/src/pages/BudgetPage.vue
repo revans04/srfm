@@ -466,7 +466,7 @@ const newTransaction = ref<Transaction>({
   isIncome: false,
   taxMetadata: [],
 });
-const { monthlySavingsTotal, createGoal, addContribution, addGoalSpend, listGoals, loadGoals } = useGoals();
+const { monthlySavingsTotal, createGoal, listGoals, loadGoals } = useGoals();
 const savingsTotal = ref(0);
 const goals = ref<Goal[]>([]);
 const goalDialog = ref(false);
@@ -561,50 +561,12 @@ function saveContribution(amount: number, note?: string) {
 }
 
 async function convertLegacyCategory(cat: BudgetCategory, data: Partial<Goal>) {
-  const goal = await createGoal({
+  await createGoal({
     ...data,
     name: data.name || cat.name,
     monthlyTarget: data.monthlyTarget ?? cat.target,
     entityId: familyStore.selectedEntityId || '',
   });
-
-  for (const [id, b] of budgetStore.budgets.entries()) {
-    let changed = false;
-    const catIdx = b.categories.findIndex((c) => c.name === cat.name);
-    if (catIdx !== -1) {
-      b.categories.splice(catIdx, 1);
-      changed = true;
-    }
-
-    const txToRemove: number[] = [];
-    b.transactions.forEach((t, tIdx) => {
-      const originalLen = t.categories.length;
-      t.categories = t.categories.filter((tc) => {
-        if (tc.category === cat.name) {
-          if (t.isIncome) {
-            addGoalSpend(goal.id, t.id, tc.amount, t.date);
-          } else {
-            addContribution(goal.id, tc.amount, b.month);
-          }
-          return false;
-        }
-        return true;
-      });
-      if (t.categories.length === 0 && originalLen > 0) {
-        txToRemove.push(tIdx);
-      }
-      if (t.categories.length !== originalLen) {
-        changed = true;
-      }
-    });
-    for (let i = txToRemove.length - 1; i >= 0; i--) {
-      b.transactions.splice(txToRemove[i], 1);
-    }
-    if (changed) {
-      budgetStore.updateBudget(b.budgetId || id, { ...b });
-      await dataAccess.saveBudget(b.budgetId || id, b);
-    }
-  }
 
   if (budget.value.categories) {
     categoryOptions.value = budget.value.categories.map((c) => c.name);
