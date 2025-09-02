@@ -13,7 +13,7 @@
           class="row items-center justify-between q-mb-xs"
         >
           <div>{{ g.name }}</div>
-          <div>{{ formatCurrency(g.savedToDate) }} / {{ formatCurrency(g.totalTarget) }}</div>
+          <div>{{ formatCurrency(g.savedToDate || 0) }} / {{ formatCurrency(g.totalTarget) }}</div>
         </div>
         <div v-if="goals.length > 3" class="text-caption q-mt-xs">
           +{{ goals.length - 3 }} more

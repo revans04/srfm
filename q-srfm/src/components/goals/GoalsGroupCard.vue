@@ -11,8 +11,15 @@
         <div class="row items-center">
           <div class="col">
             <div class="text-subtitle1">{{ goal.name }}</div>
-            <q-linear-progress :value="goal.savedToDate / goal.totalTarget" rounded color="primary" class="q-mt-xs" />
-            <div class="text-caption">{{ formatCurrency(goal.savedToDate) }} of {{ formatCurrency(goal.totalTarget) }}</div>
+            <q-linear-progress
+              :value="goal.totalTarget ? (goal.savedToDate || 0) / goal.totalTarget : 0"
+              rounded
+              color="primary"
+              class="q-mt-xs"
+            />
+            <div class="text-caption">
+              {{ formatCurrency(goal.savedToDate || 0) }} of {{ formatCurrency(goal.totalTarget) }}
+            </div>
           </div>
           <div class="col-auto q-mr-sm">
             <q-badge color="primary" :label="formatCurrency(goal.monthlyTarget)" />
