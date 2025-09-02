@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Goal, GoalContribution, GoalSpend } from '../types';
 import type { Timestamp } from 'firebase/firestore';
 import { dataAccess } from '../dataAccess';
+import { useFamilyStore } from '../store/family';
 
 /**
  * Composable for managing savings goals.
@@ -17,6 +18,7 @@ const contributions = ref<Record<string, GoalContribution[]>>({});
 const spends = ref<Record<string, GoalSpend[]>>({});
 
 export function useGoals() {
+  const familyStore = useFamilyStore();
   function listGoals(entityId: string): Goal[] {
     return goals.value.filter((g) => g.entityId === entityId && !g.archived);
   }
@@ -27,6 +29,14 @@ export function useGoals() {
 
   async function createGoal(data: Partial<Goal>): Promise<Goal> {
     const now = new Date();
+    let entityId = data.entityId || familyStore.selectedEntityId;
+    if (!entityId) {
+      await familyStore.loadFamily();
+      entityId = familyStore.selectedEntityId || familyStore.family?.entities?.[0]?.id || '';
+    }
+    if (!entityId) {
+      throw new Error('Entity ID is required to create a goal');
+    }
     const goal: Goal = {
       id: uuidv4(),
       name: data.name || '',
@@ -38,7 +48,7 @@ export function useGoals() {
       targetDate: data.targetDate,
       createdAt: now as unknown as Timestamp,
       updatedAt: now as unknown as Timestamp,
-      entityId: data.entityId || '',
+      entityId,
       notes: data.notes,
       archived: false,
     };

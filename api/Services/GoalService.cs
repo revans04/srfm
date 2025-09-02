@@ -27,8 +27,19 @@ namespace FamilyBudgetApi.Services
 VALUES (@id,@entity_id,@name,@total_target,@monthly_target,@target_date,@notes,@archived, now(), now())
 ON CONFLICT (id) DO UPDATE SET entity_id=EXCLUDED.entity_id, name=EXCLUDED.name, total_target=EXCLUDED.total_target, monthly_target=EXCLUDED.monthly_target, target_date=EXCLUDED.target_date, notes=EXCLUDED.notes, archived=EXCLUDED.archived, updated_at=now();";
                 await using var cmd = new NpgsqlCommand(sql, conn);
-                cmd.Parameters.AddWithValue("id", Guid.Parse(goal.Id));
-                cmd.Parameters.AddWithValue("entity_id", Guid.Parse(goal.EntityId));
+
+                if (!Guid.TryParse(goal.Id, out var goalId))
+                {
+                    throw new ArgumentException($"Invalid goal ID: {goal.Id}");
+                }
+
+                if (!Guid.TryParse(goal.EntityId, out var entityId))
+                {
+                    throw new ArgumentException($"Invalid entity ID: {goal.EntityId}");
+                }
+
+                cmd.Parameters.AddWithValue("id", goalId);
+                cmd.Parameters.AddWithValue("entity_id", entityId);
                 cmd.Parameters.AddWithValue("name", (object?)goal.Name ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("total_target", (decimal)goal.TotalTarget);
                 cmd.Parameters.AddWithValue("monthly_target", (decimal)goal.MonthlyTarget);

@@ -1060,7 +1060,10 @@ export class DataAccess {
       headers,
       body: JSON.stringify(payload),
     });
-    if (!response.ok) throw new Error(`Failed to save goal: ${response.statusText}`);
+    if (!response.ok) {
+      const msg = await response.text();
+      throw new Error(`Failed to save goal: ${msg || response.statusText}`);
+    }
   }
 
   // Entity Functions
