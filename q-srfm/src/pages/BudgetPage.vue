@@ -466,7 +466,7 @@ const newTransaction = ref<Transaction>({
   isIncome: false,
   taxMetadata: [],
 });
-const { monthlySavingsTotal, createGoal, listGoals, loadGoals } = useGoals();
+const { monthlySavingsTotal, createGoal, listGoals, loadGoals, addContribution } = useGoals();
 const savingsTotal = ref(0);
 const goals = ref<Goal[]>([]);
 const goalDialog = ref(false);
