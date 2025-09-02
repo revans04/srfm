@@ -87,7 +87,18 @@
               {{ formatCurrency(toDollars(toCents(Math.abs(remainingToBudget)))) }}
               {{ remainingToBudget >= 0 ? 'left to budget' : 'over budget' }}
             </div>
-            <div class="text-caption">Monthly Savings: {{ formatCurrency(toDollars(toCents(savingsTotal))) }}</div>
+          </div>
+          <div class="q-px-md q-mt-md">
+            <q-input
+              dense
+              label="Search"
+              v-model="search"
+              clearable
+              ref="searchInput"
+              append-icon="search"
+              @keyup.enter="blurSearchInput"
+              @clear="clearSearch"
+            />
           </div>
         </div>
 
