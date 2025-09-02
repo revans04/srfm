@@ -240,10 +240,11 @@ public class BudgetService
     {
         _logger.LogInformation("Saving budget {BudgetId}", budgetId);
         await using var conn = await _db.GetOpenConnectionAsync();
+        await using var dbTx = await conn.BeginTransactionAsync();
         const string sql = @"INSERT INTO budgets (id, family_id, entity_id, month, label, income_target, original_budget_id, created_at, updated_at)
 VALUES (@id,@family_id,@entity_id,@month,@label,@income_target,@original_budget_id, now(), now())
 ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.entity_id, month=EXCLUDED.month, label=EXCLUDED.label, income_target=EXCLUDED.income_target, original_budget_id=EXCLUDED.original_budget_id, updated_at=now();";
-        await using var cmd = new NpgsqlCommand(sql, conn);
+        await using var cmd = new NpgsqlCommand(sql, conn, dbTx);
         cmd.Parameters.AddWithValue("id", budgetId);
         cmd.Parameters.AddWithValue("family_id", Guid.Parse(budget.FamilyId));
         cmd.Parameters.AddWithValue("entity_id", string.IsNullOrEmpty(budget.EntityId) ? (object)DBNull.Value : Guid.Parse(budget.EntityId));
@@ -255,7 +256,7 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
 
         // Replace existing categories and insert current ones
         const string delCatSql = "DELETE FROM budget_categories WHERE budget_id=@bid";
-        await using (var delCatCmd = new NpgsqlCommand(delCatSql, conn))
+        await using (var delCatCmd = new NpgsqlCommand(delCatSql, conn, dbTx))
         {
             delCatCmd.Parameters.AddWithValue("bid", budgetId);
             await delCatCmd.ExecuteNonQueryAsync();
@@ -268,7 +269,7 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
                 VALUES (@budget_id, @name, @target, @is_fund, @group, @carryover)";
             foreach (var cat in budget.Categories)
             {
-                await using var catCmd = new NpgsqlCommand(insCatSql, conn);
+                await using var catCmd = new NpgsqlCommand(insCatSql, conn, dbTx);
                 catCmd.Parameters.AddWithValue("budget_id", budgetId);
                 catCmd.Parameters.AddWithValue("name", (object?)cat.Name ?? DBNull.Value);
                 catCmd.Parameters.AddWithValue("target", (decimal)cat.Target);
@@ -279,12 +280,14 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
             }
         }
 
+        await dbTx.CommitAsync();
+
         if (budget.Transactions != null && budget.Transactions.Count > 0)
         {
             await BatchSaveTransactions(budgetId, budget.Transactions, userId, userEmail);
         }
         await LogEdit(conn, budgetId, userId, userEmail, "save-budget");
-        _logger.LogInformation("Budget {BudgetId} saved with {TxCount} transactions", budgetId, budget.Transactions?.Count ?? 0);
+        _logger.LogInformation("Budget {BudgetId} saved with {CatCount} categories and {TxCount} transactions", budgetId, budget.Categories?.Count ?? 0, budget.Transactions?.Count ?? 0);
     }
 
     private DateTime? ParseDate(string? input) =>

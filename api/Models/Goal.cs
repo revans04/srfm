@@ -23,9 +23,6 @@ namespace FamilyBudgetApi.Models
         [FirestoreProperty("targetDate")]
         public string? TargetDate { get; set; }
 
-        [FirestoreProperty("notes")]
-        public string? Notes { get; set; }
-
         [FirestoreProperty("archived")]
         public bool Archived { get; set; }
     }
