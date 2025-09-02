@@ -38,7 +38,7 @@ type GoalForm = Omit<Partial<Goal>, 'targetDate'> & { targetDate?: string };
 const form = ref<GoalForm>({ totalTarget: 0, monthlyTarget: 0 });
 function normalizeDate(val: unknown): string | undefined {
   if (!val) return undefined;
-  let date: Date;
+  let date: Date | undefined;
   if (val instanceof Date) {
     date = val;
   } else if (typeof val === 'string') {
@@ -50,23 +50,34 @@ function normalizeDate(val: unknown): string | undefined {
     typeof (val as { toDate: () => Date }).toDate === 'function'
   ) {
     date = (val as { toDate: () => Date }).toDate();
-  } else {
-    return undefined;
+  } else if (
+    typeof val === 'object' &&
+    val !== null &&
+    'toISOString' in val &&
+    typeof (val as { toISOString: () => string }).toISOString === 'function'
+  ) {
+    // Some libraries provide a toISOString method directly
+    date = new Date((val as { toISOString: () => string }).toISOString());
   }
-  return isNaN(date.getTime()) ? undefined : date.toISOString().slice(0, 10);
+  return date && !isNaN(date.getTime()) ? date.toISOString().slice(0, 10) : undefined;
 }
 
 watch(
   () => props.goal,
   (g) => {
-    form.value = g
-      ? {
-          ...g,
-          totalTarget: g.totalTarget ?? 0,
-          monthlyTarget: g.monthlyTarget ?? 0,
-          targetDate: normalizeDate((g as { targetDate?: unknown }).targetDate),
-        }
-      : { totalTarget: 0, monthlyTarget: 0 };
+    if (g) {
+      const { targetDate, totalTarget, monthlyTarget, ...rest } = g as Goal & {
+        targetDate?: unknown;
+      };
+      form.value = {
+        ...rest,
+        totalTarget: totalTarget ?? 0,
+        monthlyTarget: monthlyTarget ?? 0,
+        targetDate: normalizeDate(targetDate),
+      };
+    } else {
+      form.value = { totalTarget: 0, monthlyTarget: 0 };
+    }
   },
   { immediate: true },
 );
