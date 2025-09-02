@@ -1035,9 +1035,25 @@ export class DataAccess {
   // Goal Functions
   async saveGoal(goal: Goal): Promise<void> {
     const headers = await this.getAuthHeaders();
+    let targetDate: string | undefined;
+    if (goal.targetDate) {
+      const td = goal.targetDate as unknown;
+      if (
+        typeof td === 'object' &&
+        td !== null &&
+        'toDate' in td &&
+        typeof (td as { toDate: () => Date }).toDate === 'function'
+      ) {
+        targetDate = (td as { toDate: () => Date }).toDate().toISOString();
+      } else if (td instanceof Date) {
+        targetDate = td.toISOString();
+      } else {
+        targetDate = new Date(td as string).toISOString();
+      }
+    }
     const payload = {
       ...goal,
-      targetDate: goal.targetDate ? goal.targetDate.toDate().toISOString() : undefined,
+      targetDate,
     };
     const response = await fetch(`${this.apiBaseUrl}/goals`, {
       method: 'POST',
