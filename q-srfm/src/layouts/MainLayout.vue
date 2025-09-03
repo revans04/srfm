@@ -109,7 +109,7 @@ const navItems = [
   { title: 'Accounts', path: '/accounts', icon: 'account_balance', desktop: true, mobile: true },
   { title: 'Reports', path: '/reports', icon: 'trending_up', desktop: true, mobile: false },
   { title: 'Data Mgmt', path: '/data', icon: 'dataset', desktop: true, mobile: false },
-  { title: 'Settings', path: '/settings', icon: 'manage_accounts', desktop: true, mobile: true },
+  { title: 'Settings', path: '/settings', icon: 'manage_accounts', desktop: true, mobile: false },
   { title: 'Logout', path: '', icon: 'logout', desktop: false, mobile: true },
 ];
 
