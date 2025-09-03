@@ -172,6 +172,7 @@ import { useMerchantStore } from '../store/merchants';
 import { useBudgetStore } from '../store/budget';
 import { useGoals } from '../composables/useGoals';
 import { useFamilyStore } from '../store/family';
+import { createBudgetForMonth } from '../utils/budget';
 
 const merchantStore = useMerchantStore();
 const budgetStore = useBudgetStore();
@@ -344,11 +345,15 @@ async function resetMatch() {
       throw new Error(`Budget ${props.budgetId} not found`);
     }
 
-    const [, entityId, currentBudgetMonth] = props.budgetId.split('_');
+    const entityId = budget.value?.entityId;
+    const currentBudgetMonth = budget.value?.month;
     const targetBudgetMonth = locTrnsx.budgetMonth;
-    const targetBudgetId = currentBudgetMonth === targetBudgetMonth ? props.budgetId : `${props.userId}_${entityId}_${targetBudgetMonth}`;
+    let targetBudget = budget.value;
 
-    const targetBudget = budgetStore.getBudget(targetBudgetId);
+    if (currentBudgetMonth !== targetBudgetMonth && entityId && familyStore.family) {
+      targetBudget = await createBudgetForMonth(targetBudgetMonth, familyStore.family.id, props.userId, entityId);
+    }
+
     if (targetBudget) {
       const savedTransaction = await dataAccess.saveTransaction(targetBudget, locTrnsx, !isLastMonth.value);
       const index = transactions.value.findIndex((t) => t.id === savedTransaction.id);
@@ -392,17 +397,13 @@ async function save() {
         throw new Error(`Budget ${props.budgetId} not found`);
       }
 
-      const [, entityId, currentBudgetMonth] = props.budgetId.split('_');
+      const entityId = budget.value?.entityId;
+      const currentBudgetMonth = budget.value?.month;
       const targetBudgetMonth = locTrnsx.budgetMonth;
-      const targetBudgetId = currentBudgetMonth === targetBudgetMonth ? props.budgetId : `${props.userId}_${entityId}_${targetBudgetMonth}`;
-
       let moved = false;
-      let targetBudget = budgetStore.getBudget(targetBudgetId);
-      if (!targetBudget) {
-        targetBudget = (await dataAccess.getBudget(targetBudgetId)) || undefined;
-        if (targetBudget) {
-          budgetStore.updateBudget(targetBudgetId, targetBudget);
-        }
+      let targetBudget = budget.value;
+      if (currentBudgetMonth !== targetBudgetMonth && entityId && familyStore.family) {
+        targetBudget = await createBudgetForMonth(targetBudgetMonth, familyStore.family.id, props.userId, entityId);
       }
 
       if (targetBudget) {

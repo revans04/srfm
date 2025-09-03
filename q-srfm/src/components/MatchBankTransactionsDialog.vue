@@ -289,7 +289,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, nextTick } from 'vue';
-import type { Transaction, ImportedTransaction } from '../types';
+import type { Transaction, ImportedTransaction, Budget } from '../types';
 import { useQuasar } from 'quasar';
 import { toDollars, toCents, toBudgetMonth, todayISO } from '../utils/helpers';
 import { dataAccess } from '../dataAccess';
@@ -298,6 +298,7 @@ import { useFamilyStore } from '../store/family';
 import { auth } from '../firebase/init';
 import TransactionDialog from './TransactionDialog.vue';
 import { QForm } from 'quasar';
+import { createBudgetForMonth } from '../utils/budget';
 import { v4 as uuidv4 } from 'uuid';
 import { createBudgetForMonth } from '../utils/budget';
 
@@ -690,11 +691,18 @@ async function matchBankTransaction(budgetTransaction: Transaction) {
       'budgetId' in budgetTransaction && typeof (budgetTransaction as { budgetId?: unknown }).budgetId === 'string'
         ? (budgetTransaction as { budgetId: string }).budgetId
         : undefined;
-    const targetBudgetIdToUse = existingBudgetId || `${user.uid}_${updatedTransaction.entityId}_${updatedTransaction.budgetMonth}`;
-    let budget = budgetStore.getBudget(targetBudgetIdToUse);
+    let budget: Budget | null = null;
+    if (existingBudgetId) {
+      budget = budgetStore.getBudget(existingBudgetId) || (await dataAccess.getBudget(existingBudgetId));
+    }
     if (!budget) {
       const fam = await familyStore.getFamily();
-      budget = await createBudgetForMonth(updatedTransaction.budgetMonth, fam?.id ?? '', user.uid, updatedTransaction.entityId || '');
+      budget = await createBudgetForMonth(
+        updatedTransaction.budgetMonth,
+        fam?.id ?? '',
+        user.uid,
+        updatedTransaction.entityId || '',
+      );
     }
 
     await dataAccess.saveTransaction(budget, updatedTransaction, false);
@@ -784,9 +792,19 @@ async function saveSplitTransaction() {
 
     // Group splits by budget (based on entityId and budgetMonth)
     const transactionsByBudget: { [budgetId: string]: Transaction[] } = {};
+    const budgetCache: Record<string, Budget> = {};
     for (const split of transactionSplits.value) {
       const budgetMonth = toBudgetMonth(importedTx.postedDate || todayISO());
-      const budgetId = `${user.uid}_${split.entityId}_${budgetMonth}`;
+      const key = `${split.entityId}_${budgetMonth}`;
+      if (!budgetCache[key]) {
+        budgetCache[key] = await createBudgetForMonth(
+          budgetMonth,
+          family.id,
+          user.uid,
+          split.entityId,
+        );
+      }
+      const budget = budgetCache[key];
       const baseTx = {
         id: uuidv4(),
         budgetMonth,
@@ -812,17 +830,14 @@ async function saveSplitTransaction() {
         ...(importedTx.checkNumber ? { checkNumber: importedTx.checkNumber } : {}),
       };
 
-      if (!transactionsByBudget[budgetId]) transactionsByBudget[budgetId] = [];
-      transactionsByBudget[budgetId].push(transaction);
+      if (!transactionsByBudget[budget.budgetId]) transactionsByBudget[budget.budgetId] = [];
+      transactionsByBudget[budget.budgetId].push(transaction);
     }
 
     // Save transactions to their respective budgets
     for (const budgetId in transactionsByBudget) {
-      let budget = budgetStore.getBudget(budgetId);
-      if (!budget) {
-        const [, entityId, month] = budgetId.split('_');
-        budget = await createBudgetForMonth(month, family.id, user.uid, entityId);
-      }
+      const budget = budgetStore.getBudget(budgetId) || (await dataAccess.getBudget(budgetId));
+      if (!budget) continue;
 
       await dataAccess.batchSaveTransactions(budgetId, budget, transactionsByBudget[budgetId] || []);
       const updatedBudget = await dataAccess.getBudget(budgetId);
@@ -866,13 +881,20 @@ async function handleTransactionAdded(savedTransaction: Transaction) {
     const family = await familyStore.getFamily();
     if (!family) throw new Error('No family found');
 
-    const targetBudgetId = `${user.uid}_${savedTransaction.entityId}_${savedTransaction.budgetMonth}`;
-    let budget = budgetStore.getBudget(targetBudgetId);
+    let budget =
+      (savedTransaction.budgetId &&
+        (budgetStore.getBudget(savedTransaction.budgetId) || (await dataAccess.getBudget(savedTransaction.budgetId)))) ||
+      null;
     if (!budget) {
-      budget = await createBudgetForMonth(savedTransaction.budgetMonth, family.id, user.uid, savedTransaction.entityId || '');
+      budget = await createBudgetForMonth(
+        savedTransaction.budgetMonth,
+        family.id,
+        user.uid,
+        savedTransaction.entityId || '',
+      );
     }
 
-    budgetStore.updateBudget(targetBudgetId, {
+    budgetStore.updateBudget(budget.budgetId, {
       ...budget,
       transactions: [...budget.transactions, savedTransaction],
     });
@@ -902,7 +924,7 @@ async function handleTransactionAdded(savedTransaction: Transaction) {
   }
 }
 
-function addNewTransaction() {
+async function addNewTransaction() {
   if (!selectedBankTransaction.value) {
     showSnackbar('No bank transaction selected to add', 'negative');
     return;
@@ -950,7 +972,15 @@ function addNewTransaction() {
     ...(selectedBankTransaction.value.accountNumber ? { accountNumber: selectedBankTransaction.value.accountNumber } : {}),
     ...(selectedBankTransaction.value.checkNumber ? { checkNumber: selectedBankTransaction.value.checkNumber } : {}),
   } as Transaction;
-  newTransactionBudgetId.value = `${props.userId}_${familyStore.selectedEntityId}_${budgetMonth}`;
+  if (familyStore.family) {
+    const budget = await createBudgetForMonth(
+      budgetMonth,
+      familyStore.family.id,
+      props.userId,
+      familyStore.selectedEntityId || '',
+    );
+    newTransactionBudgetId.value = budget.budgetId;
+  }
   showTransactionDialog.value = true;
 }
 
@@ -1071,7 +1101,7 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
           budgetId:
             'budgetId' in tx && typeof (tx as { budgetId?: unknown }).budgetId === 'string'
               ? (tx as { budgetId: string }).budgetId
-              : `${props.userId}_${tx.entityId}_${toBudgetMonth(importedTx.postedDate)}`,
+              : '',
           bankAmount,
           bankType: importedTx.debitAmount ? 'Debit' : 'Credit',
           merchantMatch: !!importedTx.payee && importedTx.payee.toLowerCase().includes(tx.merchant.toLowerCase()),

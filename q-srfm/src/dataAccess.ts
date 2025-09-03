@@ -249,8 +249,13 @@ export class DataAccess {
       budgetStore.updateBudget(budget.budgetId, { ...budget });
 
       if (budget && budget.budgetId && futureBudgetsExist && this.hasFundCategory(transaction, budget)) {
-        const [uid, entityId, budgetMonth] = budget.budgetId.split('_');
-        await this.recalculateCarryoverForFutureBudgets(uid, entityId, budgetMonth, transaction.categories);
+        if (budget.entityId) {
+          await this.recalculateCarryoverForFutureBudgets(
+            budget.entityId,
+            budget.month,
+            transaction.categories,
+          );
+        }
       }
     }
     return retValue;
@@ -272,9 +277,12 @@ export class DataAccess {
       budgetStore.updateBudget(budget.budgetId, budget);
 
       for (const transaction of transactions) {
-        if (this.hasFundCategory(transaction, budget) && budget.budgetId) {
-          const [uid, entityId, budgetMonth] = budget.budgetId.split('_');
-          await this.recalculateCarryoverForFutureBudgets(uid, entityId, budgetMonth, transaction.categories);
+        if (this.hasFundCategory(transaction, budget) && budget.budgetId && budget.entityId) {
+          await this.recalculateCarryoverForFutureBudgets(
+            budget.entityId,
+            budget.month,
+            transaction.categories,
+          );
         }
       }
     }
@@ -299,9 +307,12 @@ export class DataAccess {
       budget.transactions = budget.transactions.map((t) => (t.id === transactionId ? updatedTransaction : t));
       budgetStore.updateBudget(budget.budgetId, budget);
 
-      if (futureBudgetsExist && this.hasFundCategory(transactionToDelete, budget) && budget.budgetId) {
-        const [uid, entityId, budgetMonth] = budget.budgetId.split('_');
-        await this.recalculateCarryoverForFutureBudgets(uid, entityId, budgetMonth, transactionToDelete.categories);
+      if (futureBudgetsExist && this.hasFundCategory(transactionToDelete, budget) && budget.entityId) {
+        await this.recalculateCarryoverForFutureBudgets(
+          budget.entityId,
+          budget.month,
+          transactionToDelete.categories,
+        );
       }
     }
   }
@@ -326,9 +337,12 @@ export class DataAccess {
       budget.transactions = budget.transactions.map((t) => (t.id === transactionId ? updatedTransaction : t));
       budgetStore.updateBudget(budget.budgetId, budget);
 
-      if (futureBudgetsExist && this.hasFundCategory(transactionToRestore, budget) && budget.budgetId) {
-        const [uid, entityId, budgetMonth] = budget.budgetId.split('_');
-        await this.recalculateCarryoverForFutureBudgets(uid, entityId, budgetMonth, transactionToRestore.categories);
+      if (futureBudgetsExist && this.hasFundCategory(transactionToRestore, budget) && budget.entityId) {
+        await this.recalculateCarryoverForFutureBudgets(
+          budget.entityId,
+          budget.month,
+          transactionToRestore.categories,
+        );
       }
     }
   }
@@ -350,9 +364,12 @@ export class DataAccess {
       budget.transactions = budget.transactions.filter((t) => t.id !== transactionId);
       budgetStore.updateBudget(budget.budgetId, budget);
 
-      if (futureBudgetsExist && this.hasFundCategory(transactionToDelete, budget) && budget.budgetId) {
-        const [uid, entityId, budgetMonth] = budget.budgetId.split('_');
-        await this.recalculateCarryoverForFutureBudgets(uid, entityId, budgetMonth, transactionToDelete.categories);
+      if (futureBudgetsExist && this.hasFundCategory(transactionToDelete, budget) && budget.entityId) {
+        await this.recalculateCarryoverForFutureBudgets(
+          budget.entityId,
+          budget.month,
+          transactionToDelete.categories,
+        );
       }
     }
   }
@@ -403,7 +420,6 @@ export class DataAccess {
   }
 
   async recalculateCarryoverForFutureBudgets(
-    userId: string,
     entityId: string,
     startBudgetMonth: string,
     affectedCategories: { category: string }[],
@@ -416,6 +432,7 @@ export class DataAccess {
 
     const futureBudgets = budgets
       .filter((b) => {
+        if (b.entityId !== entityId) return false;
         const [year, month] = b.month.split('-').map(Number);
         return year > startYear || (year === startYear && month > startMonth);
       })
@@ -426,15 +443,32 @@ export class DataAccess {
     for (const b of futureBudgets) {
       const id = b.budgetId;
       const budgetWithCats = b.categories && b.categories.length > 0 ? b : id ? await this.getBudget(id) : null;
-      if (budgetWithCats && budgetWithCats.categories.some((cat) => cat.isFund && affectedCategoryNames.includes(cat.name))) {
+      if (
+        budgetWithCats &&
+        budgetWithCats.categories.some((cat) => cat.isFund && affectedCategoryNames.includes(cat.name))
+      ) {
         budgetList.push(budgetWithCats);
       }
     }
 
     if (budgetList.length === 0) return;
 
-    const startBudget =
-      budgetStore.getBudget(`${userId}_${entityId}_${startBudgetMonth}`) || (await this.getBudget(`${userId}_${entityId}_${startBudgetMonth}`));
+    // Find the starting budget for carryover calculations
+    let startBudget = budgets.find((b) => b.entityId === entityId && b.month === startBudgetMonth);
+    if (!startBudget) {
+      // Attempt to load the budget from the API if it's not already in the store
+      try {
+        const infos = await this.loadAccessibleBudgets(this.authStore.user?.uid || '', entityId);
+        const match = infos.find((b) => b.month === startBudgetMonth && b.budgetId);
+        if (match?.budgetId) {
+          startBudget = await this.getBudget(match.budgetId);
+          if (startBudget) budgetStore.updateBudget(match.budgetId, startBudget);
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+
     if (!startBudget) return;
 
     const startCarryover = this.calculateCarryOver(startBudget);
@@ -617,11 +651,14 @@ export class DataAccess {
       const budget = budgetStore.getBudget(budgetId) || (await this.getBudget(budgetId));
       if (!budget || !budget.budgetId) continue;
 
-      const [uid, entityId, budgetMonth] = budget.budgetId.split('_');
-      const futureBudgetsExist = budgetStore.availableBudgetMonths.some((m) => m > budgetMonth);
+      const futureBudgetsExist = budgetStore.availableBudgetMonths.some((m) => m > budget.month);
 
-      if (futureBudgetsExist && this.hasFundCategory(transaction, budget)) {
-        await this.recalculateCarryoverForFutureBudgets(uid, entityId, budgetMonth, transaction.categories);
+      if (futureBudgetsExist && this.hasFundCategory(transaction, budget) && budget.entityId) {
+        await this.recalculateCarryoverForFutureBudgets(
+          budget.entityId,
+          budget.month,
+          transaction.categories,
+        );
       }
     }
   }

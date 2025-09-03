@@ -770,6 +770,7 @@ async function handleBudgetTransactionImport() {
   const user = auth.currentUser;
   if (!user) throw new Error("User not authenticated");
   const budgetsById = new Map<string, Budget>();
+  const monthToId = new Map<string, string>();
   const transactionMap = new Map<string, Transaction>();
 
   let budgetCSVData = null;
@@ -789,7 +790,7 @@ async function handleBudgetTransactionImport() {
     if (file.name.endsWith(".json")) {
       const jsonData = JSON.parse(text);
       if (jsonData.familyId && jsonData.month) {
-        const budgetId = `${user.uid}_${selectedEntityId.value}_${jsonData.month}`;
+        const budgetId = uuidv4();
         budgetsById.set(budgetId, {
           budgetId: budgetId,
           budgetMonth: jsonData.month,
@@ -899,7 +900,11 @@ async function handleBudgetTransactionImport() {
         return;
       }
       const month = row.budgetmonth.length > 7 ? row.budgetmonth.slice(0, 7) : row.budgetmonth;
-      const budgetId = `${user.uid}_${selectedEntityId.value}_${month}`;
+      let budgetId = monthToId.get(month);
+      if (!budgetId) {
+        budgetId = uuidv4();
+        monthToId.set(month, budgetId);
+      }
       if (!budgetsById.has(budgetId)) {
         budgetsById.set(budgetId, {
           budgetId: budgetId,
@@ -953,7 +958,23 @@ async function handleBudgetTransactionImport() {
         return;
       }
 
-      const budgetId = `${user.uid}_${selectedEntityId.value}_${month}`;
+      let budgetId = monthToId.get(month);
+      if (!budgetId) {
+        budgetId = uuidv4();
+        monthToId.set(month, budgetId);
+        budgetsById.set(budgetId, {
+          budgetId: budgetId,
+          budgetMonth: month,
+          month: month,
+          incomeTarget: 0,
+          categories: [],
+          transactions: [],
+          merchants: [],
+          familyId: familyStore.family?.id || '',
+          label: `Imported Budget ${month}`,
+          entityId: selectedEntityId.value,
+        });
+      }
       const amount = parseFloat(row.amount);
       if (isNaN(amount)) {
         previewErrors.value.push(`File ${transactionCSVFile}, Row ${index + 1}: Amount must be a number`);
@@ -1414,7 +1435,7 @@ async function confirmImport() {
         });
 
         for (const [originalBudgetId, month] of budgetIdToMonth) {
-          const firebaseBudgetId = `${user.uid}_${selectedEntityId.value}_${month}`; // New ID format
+          const firebaseBudgetId = uuidv4();
           budgetIdMap.set(originalBudgetId, firebaseBudgetId);
           // Create or update the budget
           const budget = await createBudgetForMonth(

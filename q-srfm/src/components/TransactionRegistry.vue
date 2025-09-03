@@ -485,6 +485,7 @@ import { saveAs } from 'file-saver';
 import { useBudgetStore } from '../store/budget';
 import { useFamilyStore } from '../store/family';
 import { useStatementStore } from '../store/statements';
+import { createBudgetForMonth } from '../utils/budget';
 import { useUIStore } from '../store/ui';
 import type { Transaction, ImportedTransaction, Budget, Account, ImportedTransactionDoc, Statement } from '../types';
 import { formatCurrency, todayISO } from '../utils/helpers';
@@ -1139,15 +1140,17 @@ async function executeBatchMatch() {
 
       // Determine budget month from postedDate
       const budgetMonth = date.slice(0, 7); // YYYY-MM
-      const budgetId = `${ownerUid}_${selectedEntityId.value}_${budgetMonth}`; // New ID format: uid_entityId_budgetMonth
 
-      // Check if budget exists
-      let targetBudget = budgetStore.getBudget(budgetId);
+      // Check if a budget exists for this month/entity
+      let targetBudget = Array.from(budgetStore.budgets.values()).find(
+        (b) => b.entityId === selectedEntityId.value && b.month === budgetMonth,
+      );
       if (!targetBudget) {
         // Create new budget by copying the most recent previous budget
         targetBudget = await createBudgetForMonth(budgetMonth, family.id, ownerUid, selectedEntityId.value);
         budgets.value = Array.from(budgetStore.budgets.values());
       }
+      const budgetId = targetBudget.budgetId;
 
       // Check if category exists in budget; if not, add it
       if (!targetBudget.categories.some((cat) => cat.name === entry.category)) {
