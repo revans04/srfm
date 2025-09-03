@@ -17,19 +17,14 @@ namespace FamilyBudgetApi.Services
             _db = db;
             _logger = logger;
         }
-
-        public async Task SaveGoal(Goal goal)
+        public async Task InsertGoal(Goal goal)
         {
             try
             {
-                _logger.LogInformation("Saving goal {GoalId}", goal.Id);
+                _logger.LogInformation("Inserting goal {GoalId}", goal.Id);
                 await using var conn = await _db.GetOpenConnectionAsync();
                 const string insertSql = @"INSERT INTO goals (id, entity_id, name, total_target, monthly_target, target_date, archived, created_at, updated_at)
 VALUES (@id,@entity_id,@name,@total_target,@monthly_target,@target_date,@archived, now(), now());";
-
-                const string updateSql = @"UPDATE goals SET entity_id=@entity_id, name=@name, total_target=@total_target, monthly_target=@monthly_target, target_date=@target_date, archived=@archived, updated_at=now() WHERE id=@id";
-
-                await using var cmd = new NpgsqlCommand(updateSql, conn);
 
                 if (!Guid.TryParse(goal.Id, out var goalId))
                 {
@@ -41,27 +36,15 @@ VALUES (@id,@entity_id,@name,@total_target,@monthly_target,@target_date,@archive
                     throw new ArgumentException($"Invalid entity ID: {goal.EntityId}");
                 }
 
-                cmd.Parameters.AddWithValue("id", goalId);
-                cmd.Parameters.AddWithValue("entity_id", entityId);
-                cmd.Parameters.AddWithValue("name", (object?)goal.Name ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("total_target", (decimal)goal.TotalTarget);
-                cmd.Parameters.AddWithValue("monthly_target", (decimal)goal.MonthlyTarget);
-                cmd.Parameters.AddWithValue("target_date", string.IsNullOrEmpty(goal.TargetDate) ? (object)DBNull.Value : DateTime.Parse(goal.TargetDate));
-                cmd.Parameters.AddWithValue("archived", goal.Archived);
-                var rows = await cmd.ExecuteNonQueryAsync();
-                if (rows == 0)
+                await using (var insertCmd = new NpgsqlCommand(insertSql, conn))
                 {
-                    await using var insertCmd = new NpgsqlCommand(insertSql, conn);
-                    insertCmd.Parameters.AddRange(new[]
-                    {
-                        new NpgsqlParameter("id", goalId),
-                        new NpgsqlParameter("entity_id", entityId),
-                        new NpgsqlParameter("name", (object?)goal.Name ?? DBNull.Value),
-                        new NpgsqlParameter("total_target", (decimal)goal.TotalTarget),
-                        new NpgsqlParameter("monthly_target", (decimal)goal.MonthlyTarget),
-                        new NpgsqlParameter("target_date", string.IsNullOrEmpty(goal.TargetDate) ? (object)DBNull.Value : DateTime.Parse(goal.TargetDate)),
-                        new NpgsqlParameter("archived", goal.Archived)
-                    });
+                    insertCmd.Parameters.AddWithValue("id", goalId);
+                    insertCmd.Parameters.AddWithValue("entity_id", entityId);
+                    insertCmd.Parameters.AddWithValue("name", (object?)goal.Name ?? DBNull.Value);
+                    insertCmd.Parameters.AddWithValue("total_target", (decimal)goal.TotalTarget);
+                    insertCmd.Parameters.AddWithValue("monthly_target", (decimal)goal.MonthlyTarget);
+                    insertCmd.Parameters.AddWithValue("target_date", string.IsNullOrEmpty(goal.TargetDate) ? (object)DBNull.Value : DateTime.Parse(goal.TargetDate));
+                    insertCmd.Parameters.AddWithValue("archived", goal.Archived);
                     await insertCmd.ExecuteNonQueryAsync();
                 }
 
@@ -122,11 +105,48 @@ VALUES (@bid, @name, @target, true, @group, 0) RETURNING id";
                     }
                 }
 
-                _logger.LogInformation("Goal {GoalId} saved and categories updated", goal.Id);
+                _logger.LogInformation("Goal {GoalId} inserted and categories updated", goal.Id);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to save goal {GoalId}", goal?.Id);
+                _logger.LogError(ex, "Failed to insert goal {GoalId}", goal?.Id);
+                throw;
+            }
+        }
+
+        public async Task UpdateGoal(Goal goal)
+        {
+            try
+            {
+                _logger.LogInformation("Updating goal {GoalId}", goal.Id);
+                await using var conn = await _db.GetOpenConnectionAsync();
+                const string updateSql = @"UPDATE goals SET entity_id=@entity_id, name=@name, total_target=@total_target, monthly_target=@monthly_target, target_date=@target_date, archived=@archived, updated_at=now() WHERE id=@id";
+
+                if (!Guid.TryParse(goal.Id, out var goalId))
+                {
+                    throw new ArgumentException($"Invalid goal ID: {goal.Id}");
+                }
+
+                if (!Guid.TryParse(goal.EntityId, out var entityId))
+                {
+                    throw new ArgumentException($"Invalid entity ID: {goal.EntityId}");
+                }
+
+                await using var cmd = new NpgsqlCommand(updateSql, conn);
+                cmd.Parameters.AddWithValue("id", goalId);
+                cmd.Parameters.AddWithValue("entity_id", entityId);
+                cmd.Parameters.AddWithValue("name", (object?)goal.Name ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("total_target", (decimal)goal.TotalTarget);
+                cmd.Parameters.AddWithValue("monthly_target", (decimal)goal.MonthlyTarget);
+                cmd.Parameters.AddWithValue("target_date", string.IsNullOrEmpty(goal.TargetDate) ? (object)DBNull.Value : DateTime.Parse(goal.TargetDate));
+                cmd.Parameters.AddWithValue("archived", goal.Archived);
+                await cmd.ExecuteNonQueryAsync();
+
+                _logger.LogInformation("Goal {GoalId} updated", goal.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to update goal {GoalId}", goal?.Id);
                 throw;
             }
         }
