@@ -192,15 +192,14 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
         var sqlCats = hasGoalTable
             ? @"SELECT name, target, is_fund, ""group"", carryover
                                 FROM budget_categories
-                                WHERE budget_id=@id AND entity_id=@entity
+                                WHERE budget_id=@id
                                   AND NOT EXISTS (SELECT 1 FROM goals_budget_categories gbc WHERE gbc.budget_cat_id = budget_categories.id)"
             : @"SELECT name, target, is_fund, ""group"", carryover
                                 FROM budget_categories
-                                WHERE budget_id=@id AND entity_id=@entity";
+                                WHERE budget_id=@id";
         await using (var catCmd = new NpgsqlCommand(sqlCats, conn))
         {
             catCmd.Parameters.AddWithValue("id", budget.BudgetId);
-            catCmd.Parameters.AddWithValue("entity", string.IsNullOrEmpty(budget.EntityId) ? (object)DBNull.Value : Guid.Parse(budget.EntityId));
             await using var catReader = await catCmd.ExecuteReaderAsync();
             while (await catReader.ReadAsync())
             {
