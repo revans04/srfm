@@ -578,10 +578,8 @@ async function convertLegacyCategory(cat: BudgetCategory, data: Partial<Goal>) {
     if (userId.value) {
       await budgetStore.loadBudgets(userId.value, familyStore.selectedEntityId);
       for (const [id, b] of budgetStore.budgets.entries()) {
-        if (!b.transactions || b.transactions.length === 0) {
-          const full = await dataAccess.getBudget(b.budgetId || id);
-          if (full) budgetStore.updateBudget(b.budgetId || id, full);
-        }
+        const full = await dataAccess.getBudget(b.budgetId || id);
+        if (full) budgetStore.updateBudget(b.budgetId || id, full);
       }
     }
 
@@ -597,9 +595,6 @@ async function convertLegacyCategory(cat: BudgetCategory, data: Partial<Goal>) {
       if (b.entityId && b.entityId !== goal.entityId) continue;
       if (b.month > currentMonth.value) continue;
 
-      const budgetCat = b.categories.find((c) => c.name === goal.name);
-      if (!budgetCat) continue;
-
       let spent = 0;
       for (const t of b.transactions) {
         if (t.deleted || t.isIncome) continue;
@@ -612,9 +607,12 @@ async function convertLegacyCategory(cat: BudgetCategory, data: Partial<Goal>) {
         }
       }
 
-      const diff = budgetCat.target - spent;
-      if (diff > 0) {
-        addContribution(goal.id, diff, b.month);
+      const budgetCat = b.categories.find((c) => c.name === goal.name);
+      if (budgetCat) {
+        const diff = budgetCat.target - spent;
+        if (diff > 0) {
+          addContribution(goal.id, diff, b.month);
+        }
       }
     }
 
