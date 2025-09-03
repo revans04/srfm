@@ -213,7 +213,7 @@
                   </template>
                   <template #body-cell-transactionCount="props">
                     <q-td :props="props">
-                      {{ props.row.transactions?.length || 0 }}
+                      {{ props.row.transactionCount ?? 0 }}
                     </q-td>
                   </template>
                   <template #body-cell-actions="props">
@@ -267,7 +267,7 @@
         </q-card-section>
         <q-card-section class="q-pt-lg">
           Are you sure you want to delete the budget for "{{ budgetToDelete?.month }}" (ID: {{ budgetToDelete?.budgetId }}) containing
-          {{ budgetToDelete?.transactions?.length || 0 }} transactions? This action cannot be undone.
+          {{ budgetToDelete?.transactionCount || 0 }} transactions? This action cannot be undone.
         </q-card-section>
         <q-card-actions>
           <q-space></q-space>
@@ -316,7 +316,7 @@ import { ref, onMounted, onUnmounted, computed } from "vue";
 import { auth } from "../firebase/init";
 import { dataAccess } from "../dataAccess";
 import { Timestamp } from "firebase/firestore";
-import type { Family, PendingInvite, Entity, Budget, ImportedTransactionDoc, Transaction, ImportedTransaction } from "../types";
+import type { Family, PendingInvite, Entity, BudgetInfo, ImportedTransactionDoc, Transaction, ImportedTransaction } from "../types";
 import { useFamilyStore } from "../store/family";
 import EntityForm from "../components/EntityForm.vue";
 import { useQuasar, QSpinner } from 'quasar';
@@ -335,16 +335,16 @@ const acceptedMembers = ref<Array<{ uid: string; email: string; role: string; la
 const pendingInvites = ref<PendingInvite[]>([]);
 const selectedEntity = ref<Entity | null>(null);
 const activeTab = ref("group");
-const budgets = ref<Budget[]>([]);
+const budgets = ref<BudgetInfo[]>([]);
 const importedTransactionDocs = ref<ImportedTransactionDoc[]>([]);
 const showDeleteDialog = ref(false);
 const transactionDocToDelete = ref<ImportedTransactionDoc | null>(null);
 const showDeleteBudgetDialog = ref(false);
-const budgetToDelete = ref<Budget | null>(null);
+const budgetToDelete = ref<BudgetInfo | null>(null);
 const showDeleteEntityDialog = ref(false);
 const showEntityDialog = ref(false);
 const entityToDelete = ref<Entity | null>(null);
-const associatedBudgets = ref<Budget[]>([]);
+const associatedBudgets = ref<BudgetInfo[]>([]);
 const validatingBudgets = ref(false);
 const validatingImports = ref(false);
 const syncing = ref(false);
@@ -383,12 +383,7 @@ const budgetColumns = [
   { name: 'budgetId', label: 'Budget ID', field: 'budgetId', sortable: true },
   { name: 'month', label: 'Month', field: 'month', sortable: true },
   { name: 'entityName', label: 'Entity Name', field: 'entityId', sortable: false },
-  {
-    name: 'transactionCount',
-    label: 'Transaction Count',
-    field: (row: Budget) => row.transactions?.length || 0,
-    sortable: true,
-  },
+  { name: 'transactionCount', label: 'Transaction Count', field: 'transactionCount', sortable: true },
   { name: 'actions', label: 'Actions', field: 'actions', sortable: false },
 ];
 
@@ -630,7 +625,7 @@ function getEntityName(entityId: string): string {
   return entity ? entity.name : "Unknown";
 }
 
-function confirmDeleteBudget(budget: Budget) {
+function confirmDeleteBudget(budget: BudgetInfo) {
   budgetToDelete.value = budget;
   showDeleteBudgetDialog.value = true;
 }
@@ -672,11 +667,14 @@ async function validateBudgetTransactions() {
     }
 
     const budgetsList = await dataAccess.loadAccessibleBudgets(currentUser.uid);
+    const fullBudgets = await Promise.all(
+      budgetsList.map((b) => dataAccess.getBudget(b.budgetId))
+    );
     const seenBudgetIds = new Set<string>();
     const budgetUpdates: { budgetId: string; transaction: Transaction; oldId?: string }[] = [];
 
-    budgetsList.forEach((b) => {
-      b.transactions?.forEach((tx) => {
+    fullBudgets.forEach((b) => {
+      b?.transactions?.forEach((tx) => {
         if (!tx.id || seenBudgetIds.has(tx.id)) {
           const newId = uuidv4();
           budgetUpdates.push({ budgetId: b.budgetId || b.month, oldId: tx.id, transaction: { ...tx, id: newId } });

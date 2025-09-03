@@ -41,8 +41,10 @@ public class BudgetService
             return new List<BudgetInfo>();
         }
 
-        var sql = "SELECT id, family_id, entity_id, month, label, income_target, original_budget_id FROM budgets WHERE family_id=@fid";
-        if (!string.IsNullOrEmpty(entityId)) sql += " AND entity_id=@eid";
+        var sql = "SELECT b.id, b.family_id, b.entity_id, b.month, b.label, b.income_target, b.original_budget_id, " +
+                  "(SELECT COUNT(*) FROM transactions t WHERE t.budget_id = b.id) AS transaction_count " +
+                  "FROM budgets b WHERE b.family_id=@fid";
+        if (!string.IsNullOrEmpty(entityId)) sql += " AND b.entity_id=@eid";
 
         await using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("fid", familyId);
@@ -62,6 +64,7 @@ public class BudgetService
                 Label = reader.IsDBNull(4) ? null : reader.GetString(4),
                 IncomeTarget = reader.IsDBNull(5) ? 0 : (double)reader.GetDecimal(5),
                 OriginalBudgetId = reader.IsDBNull(6) ? null : reader.GetString(6),
+                TransactionCount = reader.IsDBNull(7) ? 0 : (int)reader.GetInt64(7),
                 IsOwner = true
             });
         }
