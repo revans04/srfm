@@ -300,7 +300,6 @@ import TransactionDialog from './TransactionDialog.vue';
 import { QForm } from 'quasar';
 import { createBudgetForMonth } from '../utils/budget';
 import { v4 as uuidv4 } from 'uuid';
-import { createBudgetForMonth } from '../utils/budget';
 
 const budgetStore = useBudgetStore();
 const familyStore = useFamilyStore();
