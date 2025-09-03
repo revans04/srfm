@@ -109,10 +109,11 @@ public class BudgetService
     {
         if (includeTransactions)
         {
-            const string sqlTx = "SELECT id, date, budget_month, merchant, amount, notes, recurring, recurring_interval, user_id, is_income, account_number, account_source, posted_date, imported_merchant, status, check_number, deleted, entity_id FROM transactions WHERE budget_id=@id";
+            const string sqlTx = "SELECT id, date, budget_month, merchant, amount, notes, recurring, recurring_interval, user_id, is_income, account_number, account_source, posted_date, imported_merchant, status, check_number, deleted, entity_id FROM transactions WHERE budget_id=@id and entity_id=@entity";
             await using (var txCmd = new NpgsqlCommand(sqlTx, conn))
             {
                 txCmd.Parameters.AddWithValue("id", budget.BudgetId);
+                txCmd.Parameters.AddWithValue("entity", string.IsNullOrEmpty(budget.EntityId) ? (object)DBNull.Value : Guid.Parse(budget.EntityId));
                 await using var txReader = await txCmd.ExecuteReaderAsync();
                 while (await txReader.ReadAsync())
                 {
@@ -164,10 +165,11 @@ public class BudgetService
             }
         }
 
-        const string sqlCats = "SELECT name, target, is_fund, \"group\", carryover FROM budget_categories WHERE budget_id=@id";
+        const string sqlCats = "SELECT name, target, is_fund, \"group\", carryover FROM budget_categories WHERE budget_id=@id and entity_id=@entity";
         await using (var catCmd = new NpgsqlCommand(sqlCats, conn))
         {
             catCmd.Parameters.AddWithValue("id", budget.BudgetId);
+            catCmd.Parameters.AddWithValue("entity", string.IsNullOrEmpty(budget.EntityId) ? (object)DBNull.Value : Guid.Parse(budget.EntityId));
             await using var catReader = await catCmd.ExecuteReaderAsync();
             while (await catReader.ReadAsync())
             {
