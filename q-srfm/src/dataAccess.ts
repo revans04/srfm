@@ -1040,7 +1040,9 @@ export class DataAccess {
     return await response.json();
   }
 
-  private buildGoalPayload(goal: Goal): any {
+  private buildGoalPayload(
+    goal: Goal,
+  ): Omit<Goal, 'targetDate'> & { targetDate?: string } {
     let targetDate: string | undefined;
     if (goal.targetDate) {
       const td = goal.targetDate as unknown;
