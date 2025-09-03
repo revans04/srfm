@@ -109,7 +109,15 @@ public class BudgetService
     {
         if (includeTransactions)
         {
-            const string sqlTx = "SELECT id, date, budget_month, merchant, amount, notes, recurring, recurring_interval, user_id, is_income, account_number, account_source, posted_date, imported_merchant, status, check_number, deleted, entity_id FROM transactions WHERE budget_id=@id and entity_id=@entity";
+            const string sqlTx = @"SELECT t.id, t.date, t.budget_month, t.merchant, t.amount, t.notes, t.recurring, t.recurring_interval, t.user_id, t.is_income, t.account_number, t.account_source, t.posted_date, t.imported_merchant, t.status, t.check_number, t.deleted, t.entity_id
+FROM transactions t
+WHERE t.budget_id=@id AND t.entity_id=@entity
+AND NOT EXISTS (
+    SELECT 1 FROM transaction_categories tc
+    JOIN budget_categories bc ON bc.budget_id = t.budget_id AND bc.name = tc.category_name
+    JOIN goals_budget_categories gbc ON gbc.budget_cat_id = bc.id
+    WHERE tc.transaction_id = t.id
+);";
             await using (var txCmd = new NpgsqlCommand(sqlTx, conn))
             {
                 txCmd.Parameters.AddWithValue("id", budget.BudgetId);
