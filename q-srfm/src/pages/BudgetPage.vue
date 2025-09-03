@@ -87,7 +87,18 @@
               {{ formatCurrency(toDollars(toCents(Math.abs(remainingToBudget)))) }}
               {{ remainingToBudget >= 0 ? 'left to budget' : 'over budget' }}
             </div>
-            <div class="text-caption">Monthly Savings: {{ formatCurrency(toDollars(toCents(savingsTotal))) }}</div>
+          </div>
+          <div class="q-px-md q-mt-md">
+            <q-input
+              dense
+              label="Search"
+              v-model="search"
+              clearable
+              ref="searchInput"
+              append-icon="search"
+              @keyup.enter="blurSearchInput"
+              @clear="clearSearch"
+            />
           </div>
         </div>
 
@@ -393,7 +404,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick, onUnmounted } from 'vue';
-import { useQuasar, QSpinner } from 'quasar';
+import { useQuasar, QSpinner, Loading } from 'quasar';
 import { dataAccess } from '../dataAccess';
 import CurrencyInput from '../components/CurrencyInput.vue';
 import CategoryTransactions from '../components/CategoryTransactions.vue';
@@ -466,7 +477,7 @@ const newTransaction = ref<Transaction>({
   isIncome: false,
   taxMetadata: [],
 });
-const { monthlySavingsTotal, createGoal, addContribution, addGoalSpend, listGoals } = useGoals();
+const { monthlySavingsTotal, createGoal, listGoals, loadGoals, addContribution, addGoalSpend } = useGoals();
 const savingsTotal = ref(0);
 const goals = ref<Goal[]>([]);
 const goalDialog = ref(false);
@@ -535,15 +546,16 @@ function onConvertLegacy(cat: BudgetCategory) {
   goalDialog.value = true;
 }
 
-function saveGoal(data: Partial<Goal>) {
+async function saveGoal(data: Partial<Goal>) {
   if (convertingCategory.value) {
-    convertLegacyCategory(convertingCategory.value, data);
+    await convertLegacyCategory(convertingCategory.value, data);
     convertingCategory.value = null;
   } else {
-    createGoal({ ...data, entityId: familyStore.selectedEntityId || '' });
+    await createGoal({ ...data, entityId: familyStore.selectedEntityId || '' });
   }
   goalDialog.value = false;
   if (familyStore.selectedEntityId) {
+    await loadGoals(familyStore.selectedEntityId);
     goals.value = listGoals(familyStore.selectedEntityId);
     savingsTotal.value = monthlySavingsTotal(familyStore.selectedEntityId, currentMonth.value);
   }
@@ -559,56 +571,60 @@ function saveContribution(amount: number, note?: string) {
   }
 }
 
-function convertLegacyCategory(cat: BudgetCategory, data: Partial<Goal>) {
-  const goal = createGoal({
-    ...data,
-    name: data.name || cat.name,
-    monthlyTarget: data.monthlyTarget ?? cat.target,
-    entityId: familyStore.selectedEntityId || '',
-  });
-
-  for (const [id, b] of budgetStore.budgets.entries()) {
-    let changed = false;
-    const catIdx = b.categories.findIndex((c) => c.name === cat.name);
-    if (catIdx !== -1) {
-      b.categories.splice(catIdx, 1);
-      changed = true;
+async function convertLegacyCategory(cat: BudgetCategory, data: Partial<Goal>) {
+  document.body.style.cursor = 'progress';
+  Loading.show({ message: 'Converting savings category to goal…' });
+  try {
+    if (userId.value) {
+      await budgetStore.loadBudgets(userId.value, familyStore.selectedEntityId);
+      for (const [id, b] of budgetStore.budgets.entries()) {
+        const full = await dataAccess.getBudget(b.budgetId || id);
+        if (full) budgetStore.updateBudget(b.budgetId || id, full);
+      }
     }
 
-    const txToRemove: number[] = [];
-    b.transactions.forEach((t, tIdx) => {
-      const originalLen = t.categories.length;
-      t.categories = t.categories.filter((tc) => {
-        if (tc.category === cat.name) {
-          if (t.isIncome) {
-            addGoalSpend(goal.id, t.id, tc.amount, t.date);
-          } else {
-            addContribution(goal.id, tc.amount, b.month);
-          }
-          return false;
-        }
-        return true;
-      });
-      if (t.categories.length === 0 && originalLen > 0) {
-        txToRemove.push(tIdx);
-      }
-      if (t.categories.length !== originalLen) {
-        changed = true;
-      }
+    const goal = await createGoal({
+      ...data,
+      name: data.name || cat.name,
+      monthlyTarget: data.monthlyTarget ?? cat.target,
+      entityId: familyStore.selectedEntityId || '',
     });
-    for (let i = txToRemove.length - 1; i >= 0; i--) {
-      b.transactions.splice(txToRemove[i], 1);
-    }
-    if (changed) {
-      budgetStore.updateBudget(b.budgetId || id, { ...b });
-    }
-  }
 
-  if (budget.value.categories) {
-    categoryOptions.value = budget.value.categories.map((c) => c.name);
-    if (!categoryOptions.value.includes('Income')) {
-      categoryOptions.value.push('Income');
+    // For each existing budget, add contributions for underspend and log goal spends
+    for (const b of budgetStore.budgets.values()) {
+      if (b.entityId && b.entityId !== goal.entityId) continue;
+      if (b.month > currentMonth.value) continue;
+
+      let spent = 0;
+      for (const t of b.transactions) {
+        if (t.deleted || t.isIncome) continue;
+        for (const tc of t.categories) {
+          if (tc.category === goal.name) {
+            const amt = Math.abs(tc.amount);
+            spent += amt;
+            addGoalSpend(goal.id, t.id, amt, t.date);
+          }
+        }
+      }
+
+      const budgetCat = b.categories.find((c) => c.name === goal.name);
+      if (budgetCat) {
+        const diff = budgetCat.target - spent;
+        if (diff > 0) {
+          addContribution(goal.id, diff, b.month);
+        }
+      }
     }
+
+    if (budget.value.categories) {
+      categoryOptions.value = budget.value.categories.map((c) => c.name);
+      if (!categoryOptions.value.includes('Income')) {
+        categoryOptions.value.push('Income');
+      }
+    }
+  } finally {
+    Loading.hide();
+    document.body.style.cursor = '';
   }
 }
 

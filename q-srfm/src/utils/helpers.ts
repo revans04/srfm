@@ -172,11 +172,12 @@ export function toBudgetMonth(dateInput: Date | string | number): string {
 export function formatCurrency(amount: number | string): string {
   // Convert string to number, defaulting to 0 if invalid
   const numericAmount = typeof amount === 'string' ? parseFloat(amount) || 0 : amount;
+  const safeAmount = isNaN(numericAmount) ? 0 : numericAmount;
 
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
-  }).format(numericAmount);
+  }).format(safeAmount);
 }
 
 /**

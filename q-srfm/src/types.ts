@@ -117,6 +117,7 @@ export interface Budget {
 export interface BudgetInfo extends Budget {
   budgetId: string;
   isOwner: boolean;
+  transactionCount?: number;
 }
 
 export interface TemplateBudget {

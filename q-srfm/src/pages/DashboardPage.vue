@@ -9,7 +9,13 @@
         <q-banner v-for="nudge in nudges" :key="nudge" class="q-mb-sm" color="warning" text-color="white" icon="savings">
           {{ nudge }}
         </q-banner>
-        <DashboardTiles :budget-id="budgetId" :family-id="familyId" @open-bills="onOpenBills" @create-goal="onCreateGoal" />
+        <DashboardTiles
+          :budget-id="budgetId"
+          :family-id="familyId"
+          :entity-id="entityId"
+          @open-bills="onOpenBills"
+          @create-goal="onCreateGoal"
+        />
       </div>
       <div class="col-12 q-mt-sm">
         <q-btn color="primary" class="full-width q-py-sm" rounded unelevated size="lg" label="View Transactions" to="/transactions" />
@@ -25,6 +31,7 @@
         </div>
       </div>
     </div>
+    <GoalDialog v-model="goalDialog" @save="saveGoal" />
   </q-page>
 </template>
 
@@ -34,15 +41,20 @@ import DashboardTiles from '../components/DashboardTiles.vue';
 import EntitySelector from '../components/EntitySelector.vue';
 import SpendingByCategoryCard from '../components/charts/SpendingByCategoryCard.vue';
 import IncomeVsExpensesCard from '../components/charts/IncomeVsExpensesCard.vue';
+import GoalDialog from '../components/goals/GoalDialog.vue';
 import { useFamilyStore } from '../store/family';
 import { useAuthStore } from '../store/auth';
 import { currentMonthISO } from '../utils/helpers';
 import { useGoalNudges } from '../composables/useGoalNudges';
+import { useGoals } from '../composables/useGoals';
+import type { Goal } from '../types';
 
 const familyStore = useFamilyStore();
 const auth = useAuthStore();
 const { getNudges } = useGoalNudges();
+const { createGoal, loadGoals } = useGoals();
 const nudges = ref<string[]>([]);
+const goalDialog = ref(false);
 
 onMounted(async () => {
   await familyStore.loadFamily();
@@ -78,5 +90,14 @@ const budgetLabel = computed(() => {
 });
 
 function onOpenBills() {}
-function onCreateGoal() {}
+function onCreateGoal() {
+  goalDialog.value = true;
+}
+
+async function saveGoal(data: Partial<Goal>) {
+  await createGoal(data);
+  if (entityId.value) {
+    await loadGoals(entityId.value);
+  }
+}
 </script>

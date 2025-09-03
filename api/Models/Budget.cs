@@ -7,6 +7,8 @@ namespace FamilyBudgetApi.Models
     {
         [FirestoreProperty("isOwner")]
         public bool IsOwner { get; set; }
+
+        public int TransactionCount { get; set; }
     }
 
     [FirestoreData]

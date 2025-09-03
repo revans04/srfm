@@ -34,18 +34,50 @@ watch(
 watch(model, (v) => emit('update:modelValue', v));
 
 type GoalForm = Omit<Partial<Goal>, 'targetDate'> & { targetDate?: string };
-const form = ref<GoalForm>({});
+// Initialize numeric fields to avoid undefined being passed to CurrencyInput
+const form = ref<GoalForm>({ totalTarget: 0, monthlyTarget: 0 });
+function normalizeDate(val: unknown): string | undefined {
+  if (!val) return undefined;
+  let date: Date | undefined;
+  if (val instanceof Date) {
+    date = val;
+  } else if (typeof val === 'string') {
+    date = new Date(val);
+  } else if (
+    typeof val === 'object' &&
+    val !== null &&
+    'toDate' in val &&
+    typeof (val as { toDate: () => Date }).toDate === 'function'
+  ) {
+    date = (val as { toDate: () => Date }).toDate();
+  } else if (
+    typeof val === 'object' &&
+    val !== null &&
+    'toISOString' in val &&
+    typeof (val as { toISOString: () => string }).toISOString === 'function'
+  ) {
+    // Some libraries provide a toISOString method directly
+    date = new Date((val as { toISOString: () => string }).toISOString());
+  }
+  return date && !isNaN(date.getTime()) ? date.toISOString().slice(0, 10) : undefined;
+}
+
 watch(
   () => props.goal,
   (g) => {
-    form.value = g
-      ? {
-          ...g,
-          targetDate: g.targetDate
-            ? (g.targetDate as unknown as Date).toISOString().slice(0, 10)
-            : undefined,
-        }
-      : {};
+    if (g) {
+      const { targetDate, totalTarget, monthlyTarget, ...rest } = g as Goal & {
+        targetDate?: unknown;
+      };
+      form.value = {
+        ...rest,
+        totalTarget: totalTarget ?? 0,
+        monthlyTarget: monthlyTarget ?? 0,
+        targetDate: normalizeDate(targetDate),
+      };
+    } else {
+      form.value = { totalTarget: 0, monthlyTarget: 0 };
+    }
   },
   { immediate: true },
 );

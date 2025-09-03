@@ -1,6 +1,18 @@
 <template>
   <q-layout view="lHh Lpr lFf">
 
+    <q-header v-if="isMobile && !isLoginRoute" class="bg-white text-primary">
+      <div class="row items-center no-wrap q-px-md q-py-sm">
+        <img
+          src="../assets/family-funds-sm.png"
+          alt="Steady Rise Financial Management logo"
+          height="32"
+          class="q-mr-sm"
+        />
+        <span class="text-subtitle1">Steady Rise Financial Management</span>
+      </div>
+    </q-header>
+
     <q-drawer
       v-model="leftDrawerOpen"
       show-if-above
@@ -97,7 +109,7 @@ const navItems = [
   { title: 'Accounts', path: '/accounts', icon: 'account_balance', desktop: true, mobile: true },
   { title: 'Reports', path: '/reports', icon: 'trending_up', desktop: true, mobile: false },
   { title: 'Data Mgmt', path: '/data', icon: 'dataset', desktop: true, mobile: false },
-  { title: 'Settings', path: '/settings', icon: 'manage_accounts', desktop: true, mobile: true },
+  { title: 'Settings', path: '/settings', icon: 'manage_accounts', desktop: true, mobile: false },
   { title: 'Logout', path: '', icon: 'logout', desktop: false, mobile: true },
 ];
 

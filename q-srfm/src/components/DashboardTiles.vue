@@ -10,7 +10,7 @@
       <UpcomingBillsTile @open="$emit('open-bills')" />
     </div>
     <div class="col-12 col-md-6 col-lg-3">
-      <GoalsTile @create="$emit('create-goal')" />
+      <GoalsTile :entity-id="entityId" @create="$emit('create-goal')" />
     </div>
   </div>
 </template>
@@ -21,6 +21,6 @@ import NetWorthTile from './tiles/NetWorthTile.vue';
 import UpcomingBillsTile from './tiles/UpcomingBillsTile.vue';
 import GoalsTile from './tiles/GoalsTile.vue';
 
-defineProps<{ budgetId: string; familyId: string }>();
+defineProps<{ budgetId: string; familyId: string; entityId: string }>();
 defineEmits<{ (e: 'open-bills'): void; (e: 'create-goal'): void }>();
 </script>

@@ -2,6 +2,9 @@ import { ref } from 'vue';
 import { v4 as uuidv4 } from 'uuid';
 import type { Goal, GoalContribution, GoalSpend } from '../types';
 import type { Timestamp } from 'firebase/firestore';
+import { dataAccess } from '../dataAccess';
+import { useFamilyStore } from '../store/family';
+import { useBudgetStore } from '../store/budget';
 
 /**
  * Composable for managing savings goals.
@@ -14,8 +17,11 @@ import type { Timestamp } from 'firebase/firestore';
 const goals = ref<Goal[]>([]);
 const contributions = ref<Record<string, GoalContribution[]>>({});
 const spends = ref<Record<string, GoalSpend[]>>({});
+const loadedEntities = new Set<string>();
 
 export function useGoals() {
+  const familyStore = useFamilyStore();
+  const budgetStore = useBudgetStore();
   function listGoals(entityId: string): Goal[] {
     return goals.value.filter((g) => g.entityId === entityId && !g.archived);
   }
@@ -24,8 +30,24 @@ export function useGoals() {
     return goals.value.find((g) => g.id === goalId);
   }
 
-  function createGoal(data: Partial<Goal>): Goal {
+  async function loadGoals(entityId: string): Promise<void> {
+    if (!entityId || loadedEntities.has(entityId)) return;
+    const fetched = await dataAccess.getGoals(entityId);
+    goals.value = goals.value.filter((g) => g.entityId !== entityId);
+    goals.value.push(...fetched);
+    loadedEntities.add(entityId);
+  }
+
+  async function createGoal(data: Partial<Goal>): Promise<Goal> {
     const now = new Date();
+    let entityId = data.entityId || familyStore.selectedEntityId;
+    if (!entityId) {
+      await familyStore.loadFamily();
+      entityId = familyStore.selectedEntityId || familyStore.family?.entities?.[0]?.id || '';
+    }
+    if (!entityId) {
+      throw new Error('Entity ID is required to create a goal');
+    }
     const goal: Goal = {
       id: uuidv4(),
       name: data.name || '',
@@ -37,24 +59,52 @@ export function useGoals() {
       targetDate: data.targetDate,
       createdAt: now as unknown as Timestamp,
       updatedAt: now as unknown as Timestamp,
-      entityId: data.entityId || '',
+      entityId,
       notes: data.notes,
       archived: false,
     };
     goals.value.push(goal);
+    await dataAccess.saveGoal(goal);
+
+    for (const [id, b] of budgetStore.budgets.entries()) {
+      if (!b.entityId || b.entityId === goal.entityId) {
+        const existing = b.categories.find((c) => c.name === goal.name);
+        if (existing) {
+          existing.isFund = true;
+          existing.target = goal.monthlyTarget;
+          existing.group = existing.group || 'Savings';
+        } else {
+          b.categories.push({
+            name: goal.name,
+            target: goal.monthlyTarget,
+            isFund: true,
+            group: 'Savings',
+            carryover: 0,
+          });
+        }
+        budgetStore.updateBudget(b.budgetId || id, { ...b });
+        await dataAccess.saveBudget(b.budgetId || id, b);
+      }
+    }
+
     return goal;
   }
 
-  function updateGoal(goalId: string, data: Partial<Goal>): void {
+  async function updateGoal(goalId: string, data: Partial<Goal>): Promise<void> {
     const goal = goals.value.find((g) => g.id === goalId);
     if (goal) {
       Object.assign(goal, data, { updatedAt: new Date() as unknown as Timestamp });
+      await dataAccess.saveGoal(goal);
     }
   }
 
-  function archiveGoal(goalId: string): void {
+  async function archiveGoal(goalId: string): Promise<void> {
     const goal = goals.value.find((g) => g.id === goalId);
-    if (goal) goal.archived = true;
+    if (goal) {
+      goal.archived = true;
+      goal.updatedAt = new Date() as unknown as Timestamp;
+      await dataAccess.saveGoal(goal);
+    }
   }
 
   function addContribution(goalId: string, amount: number, month: string, note?: string): void {
@@ -101,6 +151,7 @@ export function useGoals() {
   return {
     listGoals,
     getGoal,
+    loadGoals,
     createGoal,
     updateGoal,
     archiveGoal,

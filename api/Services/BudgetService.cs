@@ -41,8 +41,10 @@ public class BudgetService
             return new List<BudgetInfo>();
         }
 
-        var sql = "SELECT id, family_id, entity_id, month, label, income_target, original_budget_id FROM budgets WHERE family_id=@fid";
-        if (!string.IsNullOrEmpty(entityId)) sql += " AND entity_id=@eid";
+        var sql = "SELECT b.id, b.family_id, b.entity_id, b.month, b.label, b.income_target, b.original_budget_id, " +
+                  "(SELECT COUNT(*) FROM transactions t WHERE t.budget_id = b.id) AS transaction_count " +
+                  "FROM budgets b WHERE b.family_id=@fid";
+        if (!string.IsNullOrEmpty(entityId)) sql += " AND b.entity_id=@eid";
 
         await using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("fid", familyId);
@@ -62,6 +64,7 @@ public class BudgetService
                 Label = reader.IsDBNull(4) ? null : reader.GetString(4),
                 IncomeTarget = reader.IsDBNull(5) ? 0 : (double)reader.GetDecimal(5),
                 OriginalBudgetId = reader.IsDBNull(6) ? null : reader.GetString(6),
+                TransactionCount = reader.IsDBNull(7) ? 0 : (int)reader.GetInt64(7),
                 IsOwner = true
             });
         }
@@ -240,10 +243,11 @@ public class BudgetService
     {
         _logger.LogInformation("Saving budget {BudgetId}", budgetId);
         await using var conn = await _db.GetOpenConnectionAsync();
+        await using var dbTx = await conn.BeginTransactionAsync();
         const string sql = @"INSERT INTO budgets (id, family_id, entity_id, month, label, income_target, original_budget_id, created_at, updated_at)
 VALUES (@id,@family_id,@entity_id,@month,@label,@income_target,@original_budget_id, now(), now())
 ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.entity_id, month=EXCLUDED.month, label=EXCLUDED.label, income_target=EXCLUDED.income_target, original_budget_id=EXCLUDED.original_budget_id, updated_at=now();";
-        await using var cmd = new NpgsqlCommand(sql, conn);
+        await using var cmd = new NpgsqlCommand(sql, conn, dbTx);
         cmd.Parameters.AddWithValue("id", budgetId);
         cmd.Parameters.AddWithValue("family_id", Guid.Parse(budget.FamilyId));
         cmd.Parameters.AddWithValue("entity_id", string.IsNullOrEmpty(budget.EntityId) ? (object)DBNull.Value : Guid.Parse(budget.EntityId));
@@ -253,12 +257,40 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
         cmd.Parameters.AddWithValue("original_budget_id", (object?)budget.OriginalBudgetId ?? DBNull.Value);
         await cmd.ExecuteNonQueryAsync();
 
+        // Replace existing categories and insert current ones
+        const string delCatSql = "DELETE FROM budget_categories WHERE budget_id=@bid";
+        await using (var delCatCmd = new NpgsqlCommand(delCatSql, conn, dbTx))
+        {
+            delCatCmd.Parameters.AddWithValue("bid", budgetId);
+            await delCatCmd.ExecuteNonQueryAsync();
+        }
+
+        if (budget.Categories != null && budget.Categories.Count > 0)
+        {
+            const string insCatSql = @"INSERT INTO budget_categories
+                (budget_id, name, target, is_fund, ""group"", carryover)
+                VALUES (@budget_id, @name, @target, @is_fund, @group, @carryover)";
+            foreach (var cat in budget.Categories)
+            {
+                await using var catCmd = new NpgsqlCommand(insCatSql, conn, dbTx);
+                catCmd.Parameters.AddWithValue("budget_id", budgetId);
+                catCmd.Parameters.AddWithValue("name", (object?)cat.Name ?? DBNull.Value);
+                catCmd.Parameters.AddWithValue("target", (decimal)cat.Target);
+                catCmd.Parameters.AddWithValue("is_fund", cat.IsFund);
+                catCmd.Parameters.AddWithValue("group", (object?)cat.Group ?? DBNull.Value);
+                catCmd.Parameters.AddWithValue("carryover", cat.Carryover.HasValue ? (object)(decimal)cat.Carryover.Value : DBNull.Value);
+                await catCmd.ExecuteNonQueryAsync();
+            }
+        }
+
+        await dbTx.CommitAsync();
+
         if (budget.Transactions != null && budget.Transactions.Count > 0)
         {
             await BatchSaveTransactions(budgetId, budget.Transactions, userId, userEmail);
         }
         await LogEdit(conn, budgetId, userId, userEmail, "save-budget");
-        _logger.LogInformation("Budget {BudgetId} saved with {TxCount} transactions", budgetId, budget.Transactions?.Count ?? 0);
+        _logger.LogInformation("Budget {BudgetId} saved with {CatCount} categories and {TxCount} transactions", budgetId, budget.Categories?.Count ?? 0, budget.Transactions?.Count ?? 0);
     }
 
     private DateTime? ParseDate(string? input) =>

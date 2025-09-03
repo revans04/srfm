@@ -13,6 +13,7 @@ import type {
   Snapshot,
   Entity,
   Statement,
+  Goal,
 } from './types';
 import { useBudgetStore } from './store/budget';
 import { Timestamp } from 'firebase/firestore';
@@ -1029,6 +1030,47 @@ export class DataAccess {
       body: JSON.stringify({ transactions: transactionRefs }),
     });
     if (!response.ok) throw new Error(`Failed to unreconcile statement: ${response.statusText}`);
+  }
+
+  // Goal Functions
+  async getGoals(entityId: string): Promise<Goal[]> {
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(`${this.apiBaseUrl}/goals?entityId=${entityId}`, { headers });
+    if (!response.ok) throw new Error(`Failed to load goals: ${response.statusText}`);
+    return await response.json();
+  }
+
+  async saveGoal(goal: Goal): Promise<void> {
+    const headers = await this.getAuthHeaders();
+    let targetDate: string | undefined;
+    if (goal.targetDate) {
+      const td = goal.targetDate as unknown;
+      if (
+        typeof td === 'object' &&
+        td !== null &&
+        'toDate' in td &&
+        typeof (td as { toDate: () => Date }).toDate === 'function'
+      ) {
+        targetDate = (td as { toDate: () => Date }).toDate().toISOString();
+      } else if (td instanceof Date) {
+        targetDate = td.toISOString();
+      } else {
+        targetDate = new Date(td as string).toISOString();
+      }
+    }
+    const payload = {
+      ...goal,
+      targetDate,
+    };
+    const response = await fetch(`${this.apiBaseUrl}/goals`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const msg = await response.text();
+      throw new Error(`Failed to save goal: ${msg || response.statusText}`);
+    }
   }
 
   // Entity Functions

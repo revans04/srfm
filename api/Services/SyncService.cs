@@ -566,6 +566,19 @@ namespace FamilyBudgetApi.Services
             await using var conn = CreateNpgsqlConnection();
             await conn.OpenAsync();
 
+            if (!updatedSince.HasValue)
+            {
+                const string clearSql = @"DELETE FROM transaction_categories;
+DELETE FROM transactions;
+DELETE FROM budget_categories;
+DELETE FROM merchants;
+DELETE FROM shared_budgets;
+DELETE FROM budgets;";
+                await using var clearCmd = new NpgsqlCommand(clearSql, conn);
+                await clearCmd.ExecuteNonQueryAsync();
+                _logger.LogInformation("Cleared existing budgets and transactions before import.");
+            }
+
             const string sql = @"INSERT INTO budgets
                 (id, family_id, entity_id, month, label, income_target, original_budget_id, created_at, updated_at)
                 VALUES (@id, @family_id, @entity_id, @month, @label, @income_target, @original_budget_id, @created_at, @updated_at)
