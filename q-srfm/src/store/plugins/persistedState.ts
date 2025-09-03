@@ -21,6 +21,14 @@ function reviver(_key: string, value: unknown) {
 }
 
 export default function persistedState({ store }: PiniaPluginContext) {
+  // The budgets store contains all budgets and their transactions. Persisting
+  // this large dataset regularly exceeds the localStorage quota and throws
+  // QuotaExceededError during imports.  Avoid persisting the budgets store to
+  // keep the console clean and the application responsive.
+  if (store.$id === 'budgets') {
+    return;
+  }
+
   const storageKey = `pinia-${store.$id}`;
   const fromStorage = localStorage.getItem(storageKey);
   if (fromStorage) {
