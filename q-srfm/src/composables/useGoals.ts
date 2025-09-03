@@ -64,7 +64,7 @@ export function useGoals() {
       archived: false,
     };
     goals.value.push(goal);
-    await dataAccess.saveGoal(goal);
+    await dataAccess.insertGoal(goal);
 
     for (const [id, b] of budgetStore.budgets.entries()) {
       if (!b.entityId || b.entityId === goal.entityId) {
@@ -94,7 +94,7 @@ export function useGoals() {
     const goal = goals.value.find((g) => g.id === goalId);
     if (goal) {
       Object.assign(goal, data, { updatedAt: new Date() as unknown as Timestamp });
-      await dataAccess.saveGoal(goal);
+      await dataAccess.updateGoal(goal);
     }
   }
 
@@ -103,7 +103,7 @@ export function useGoals() {
     if (goal) {
       goal.archived = true;
       goal.updatedAt = new Date() as unknown as Timestamp;
-      await dataAccess.saveGoal(goal);
+      await dataAccess.updateGoal(goal);
     }
   }
 

@@ -1040,8 +1040,7 @@ export class DataAccess {
     return await response.json();
   }
 
-  async saveGoal(goal: Goal): Promise<void> {
-    const headers = await this.getAuthHeaders();
+  private buildGoalPayload(goal: Goal): any {
     let targetDate: string | undefined;
     if (goal.targetDate) {
       const td = goal.targetDate as unknown;
@@ -1058,10 +1057,12 @@ export class DataAccess {
         targetDate = new Date(td as string).toISOString();
       }
     }
-    const payload = {
-      ...goal,
-      targetDate,
-    };
+    return { ...goal, targetDate };
+  }
+
+  async insertGoal(goal: Goal): Promise<void> {
+    const headers = await this.getAuthHeaders();
+    const payload = this.buildGoalPayload(goal);
     const response = await fetch(`${this.apiBaseUrl}/goals`, {
       method: 'POST',
       headers,
@@ -1069,7 +1070,21 @@ export class DataAccess {
     });
     if (!response.ok) {
       const msg = await response.text();
-      throw new Error(`Failed to save goal: ${msg || response.statusText}`);
+      throw new Error(`Failed to insert goal: ${msg || response.statusText}`);
+    }
+  }
+
+  async updateGoal(goal: Goal): Promise<void> {
+    const headers = await this.getAuthHeaders();
+    const payload = this.buildGoalPayload(goal);
+    const response = await fetch(`${this.apiBaseUrl}/goals`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const msg = await response.text();
+      throw new Error(`Failed to update goal: ${msg || response.statusText}`);
     }
   }
 
