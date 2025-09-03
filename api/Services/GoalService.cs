@@ -61,40 +61,50 @@ VALUES (@id,@entity_id,@name,@total_target,@monthly_target,@target_date,@archive
                     }
                 }
 
-                const string deleteAssocSql = @"DELETE FROM goals_budget_categories gbc
-USING budget_categories bc
-WHERE gbc.budget_cat_id = bc.id AND bc.budget_id=@bid AND bc.name=@name";
-                const string deleteCatSql = "DELETE FROM budget_categories WHERE budget_id=@bid AND name=@name";
+                const string findCatSql = "SELECT id FROM budget_categories WHERE budget_id=@bid AND name=@name";
+                const string updateCatSql = "UPDATE budget_categories SET target=@target, is_fund=true, \"group\"=@group WHERE id=@id";
                 const string insertCatSql = @"INSERT INTO budget_categories (budget_id, name, target, is_fund, ""group"", carryover)
 VALUES (@bid, @name, @target, true, @group, 0) RETURNING id";
+                const string deleteAssocSql = "DELETE FROM goals_budget_categories WHERE budget_cat_id=@catId";
                 const string insertAssocSql = @"INSERT INTO goals_budget_categories (goal_id, budget_cat_id) VALUES (@goal_id, @budget_cat_id)";
 
                 foreach (var bid in budgetIds)
                 {
-                    // Remove any existing category and its goal association
+                    long budgetCatId;
+
+                    // Look for an existing category with this goal's name
+                    await using (var findCmd = new NpgsqlCommand(findCatSql, conn))
+                    {
+                        findCmd.Parameters.AddWithValue("bid", bid);
+                        findCmd.Parameters.AddWithValue("name", (object?)goal.Name ?? DBNull.Value);
+                        var idObj = await findCmd.ExecuteScalarAsync();
+                        if (idObj != null)
+                        {
+                            budgetCatId = idObj is long l ? l : Convert.ToInt64(idObj);
+                            // Update existing category so transactions remain linked
+                            await using var updCmd = new NpgsqlCommand(updateCatSql, conn);
+                            updCmd.Parameters.AddWithValue("id", budgetCatId);
+                            updCmd.Parameters.AddWithValue("target", (decimal)goal.MonthlyTarget);
+                            updCmd.Parameters.AddWithValue("group", "Savings");
+                            await updCmd.ExecuteNonQueryAsync();
+                        }
+                        else
+                        {
+                            await using var insCmd = new NpgsqlCommand(insertCatSql, conn);
+                            insCmd.Parameters.AddWithValue("bid", bid);
+                            insCmd.Parameters.AddWithValue("name", (object?)goal.Name ?? DBNull.Value);
+                            insCmd.Parameters.AddWithValue("target", (decimal)goal.MonthlyTarget);
+                            insCmd.Parameters.AddWithValue("group", "Savings");
+                            var newId = await insCmd.ExecuteScalarAsync();
+                            budgetCatId = newId is long l ? l : Convert.ToInt64(newId);
+                        }
+                    }
+
+                    // Ensure the category is associated with this goal
                     await using (var delAssocCmd = new NpgsqlCommand(deleteAssocSql, conn))
                     {
-                        delAssocCmd.Parameters.AddWithValue("bid", bid);
-                        delAssocCmd.Parameters.AddWithValue("name", (object?)goal.Name ?? DBNull.Value);
+                        delAssocCmd.Parameters.AddWithValue("catId", budgetCatId);
                         await delAssocCmd.ExecuteNonQueryAsync();
-                    }
-
-                    await using (var delCmd = new NpgsqlCommand(deleteCatSql, conn))
-                    {
-                        delCmd.Parameters.AddWithValue("bid", bid);
-                        delCmd.Parameters.AddWithValue("name", (object?)goal.Name ?? DBNull.Value);
-                        await delCmd.ExecuteNonQueryAsync();
-                    }
-
-                    long budgetCatId;
-                    await using (var insCmd = new NpgsqlCommand(insertCatSql, conn))
-                    {
-                        insCmd.Parameters.AddWithValue("bid", bid);
-                        insCmd.Parameters.AddWithValue("name", (object?)goal.Name ?? DBNull.Value);
-                        insCmd.Parameters.AddWithValue("target", (decimal)goal.MonthlyTarget);
-                        insCmd.Parameters.AddWithValue("group", "Savings");
-                        var idObj = await insCmd.ExecuteScalarAsync();
-                        budgetCatId = idObj is long l ? l : Convert.ToInt64(idObj);
                     }
 
                     await using (var assocCmd = new NpgsqlCommand(insertAssocSql, conn))

@@ -173,7 +173,10 @@ AND NOT EXISTS (
             }
         }
 
-        const string sqlCats = "SELECT name, target, is_fund, \"group\", carryover FROM budget_categories WHERE budget_id=@id and entity_id=@entity";
+        const string sqlCats = @"SELECT name, target, is_fund, ""group"", carryover
+                                FROM budget_categories
+                                WHERE budget_id=@id AND entity_id=@entity
+                                  AND NOT EXISTS (SELECT 1 FROM goals_budget_categories gbc WHERE gbc.budget_cat_id = budget_categories.id)";
         await using (var catCmd = new NpgsqlCommand(sqlCats, conn))
         {
             catCmd.Parameters.AddWithValue("id", budget.BudgetId);
