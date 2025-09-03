@@ -80,7 +80,9 @@ namespace FamilyBudgetApi.Controllers
             catch (Exception ex)
             {
                 Console.WriteLine($"Error in GetBudget: {ex.Message}");
-                return Unauthorized();
+                // Return a 500 so authorization issues aren't reported on
+                // generic data load failures
+                return StatusCode(500, ex.Message);
             }
         }
 
