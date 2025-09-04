@@ -552,9 +552,14 @@ function onContribute(goal: Goal) {
 }
 
 async function onViewGoal(goal: Goal) {
-  await loadGoalDetails(goal.id);
   selectedGoal.value = goal;
   selectedCategory.value = null;
+  try {
+    await loadGoalDetails(goal.id);
+  } catch (err) {
+    // Failing to load details shouldn't block the panel from opening
+    console.error(err);
+  }
 }
 
 function onConvertLegacy(cat: BudgetCategory) {
