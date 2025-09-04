@@ -103,7 +103,9 @@ export function useGoals() {
   }
 
   async function loadGoalDetails(goalId: string): Promise<void> {
+    console.log('Loading goal details', goalId);
     const details = await dataAccess.getGoalDetails(goalId);
+    console.log('Loaded goal details', goalId, details);
     contributions.value[goalId] = details.contributions;
     spends.value[goalId] = details.spend;
     recomputeRollups(goalId);

@@ -1131,11 +1131,15 @@ export class DataAccess {
 
   async getGoalDetails(goalId: string): Promise<{ contributions: GoalContribution[]; spend: GoalSpend[] }> {
     const headers = await this.getAuthHeaders();
+    console.log('Fetching goal details from API', goalId);
     const response = await fetch(`${this.apiBaseUrl}/goals/${goalId}/details`, { headers });
     if (!response.ok) {
+      console.error('Failed goal details response', response.status, await response.text());
       throw new Error(`Failed to load goal details: ${response.statusText}`);
     }
-    return await response.json();
+    const json = await response.json();
+    console.log('Received goal details', goalId, json);
+    return json;
   }
 
   // Entity Functions

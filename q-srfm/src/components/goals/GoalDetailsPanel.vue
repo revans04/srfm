@@ -58,7 +58,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { formatCurrency, formatDate } from '../../utils/helpers';
 import { useGoals } from '../../composables/useGoals';
 import type { Goal } from '../../types';
@@ -76,6 +76,10 @@ const spendRows = computed(() => listGoalSpends(props.goal.id));
 const saved = computed(() => props.goal.savedToDate || 0);
 const target = computed(() => props.goal.totalTarget || 0);
 const progress = computed(() => (target.value ? saved.value / target.value : 0));
+
+onMounted(() => {
+  console.log('GoalDetailsPanel opened for goal', props.goal.id);
+});
 </script>
 
 <style scoped>

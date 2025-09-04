@@ -552,13 +552,15 @@ function onContribute(goal: Goal) {
 }
 
 async function onViewGoal(goal: Goal) {
+  console.log('onViewGoal clicked', goal);
   selectedGoal.value = goal;
   selectedCategory.value = null;
   try {
     await loadGoalDetails(goal.id);
+    console.log('Loaded goal details for', goal.id);
   } catch (err) {
     // Failing to load details shouldn't block the panel from opening
-    console.error(err);
+    console.error('Failed to load goal details', err);
   }
 }
 
