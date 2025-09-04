@@ -64,7 +64,7 @@ import { useGoals } from '../../composables/useGoals';
 import type { Goal } from '../../types';
 
 const props = defineProps<{ goal: Goal }>();
-const emit = defineEmits<{ (e: 'close'): void }>();
+defineEmits<{ (e: 'close'): void }>();
 
 const tab = ref('contribs');
 
