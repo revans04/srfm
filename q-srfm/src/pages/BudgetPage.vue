@@ -550,6 +550,8 @@ async function saveGoal(data: Partial<Goal>) {
   if (convertingCategory.value) {
     await convertLegacyCategory(convertingCategory.value, data);
     convertingCategory.value = null;
+    // Reload budgets so category lists reflect the conversion without a manual refresh
+    await loadBudgets();
   } else {
     await createGoal({ ...data, entityId: familyStore.selectedEntityId || '' });
   }
