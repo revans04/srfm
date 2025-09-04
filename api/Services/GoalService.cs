@@ -210,11 +210,12 @@ VALUES (@bid, @name, @target, true, @group, 0) RETURNING id";
                     throw new ArgumentException($"Invalid goal ID: {goalId}");
                 }
 
-                const string sqlContrib = @"SELECT b.month, bc.target
+                const string sqlContrib = @"SELECT b.month, SUM(bc.target) AS target
                                              FROM goals_budget_categories gbc
                                              JOIN budget_categories bc ON bc.id = gbc.budget_cat_id
                                              JOIN budgets b ON b.id = bc.budget_id
-                                             WHERE gbc.goal_id=@gid
+                                             WHERE gbc.goal_id=@gid AND bc.target <> 0
+                                             GROUP BY b.month
                                              ORDER BY b.month";
                 await using (var contribCmd = new NpgsqlCommand(sqlContrib, conn))
                 {
