@@ -270,7 +270,12 @@
           </q-card>
           <SavingsConversionPrompt v-if="legacySavingsCategories.length" :categories="legacySavingsCategories" @convert="onConvertLegacy" />
 
-          <GoalsGroupCard :entity-id="familyStore.selectedEntityId || ''" @add="onAddGoal" @contribute="onContribute" />
+          <GoalsGroupCard
+            :entity-id="familyStore.selectedEntityId || ''"
+            @add="onAddGoal"
+            @contribute="onContribute"
+            @view="onViewGoal"
+          />
 
           <!-- Category Tables -->
           <div v-if="!isEditing && catTransactions" class="row q-mt-lg">
@@ -398,6 +403,7 @@
       </q-dialog>
       <GoalDialog v-model="goalDialog" :goal="selectedGoal || undefined" @save="saveGoal" />
       <ContributeDialog v-model="contributeDialog" :goal="selectedGoal || undefined" @save="saveContribution" />
+      <GoalDetailsDrawer v-model="goalDrawer" :goal="selectedGoal || undefined" />
     </div>
   </q-page>
 </template>
@@ -414,6 +420,7 @@ import GoalsGroupCard from '../components/goals/GoalsGroupCard.vue';
 import GoalDialog from '../components/goals/GoalDialog.vue';
 import ContributeDialog from '../components/goals/ContributeDialog.vue';
 import SavingsConversionPrompt from '../components/goals/SavingsConversionPrompt.vue';
+import GoalDetailsDrawer from '../components/goals/GoalDetailsDrawer.vue';
 import type { Transaction, Budget, IncomeTarget, BudgetCategoryTrx, BudgetCategory, Goal } from '../types';
 import { EntityType } from '../types';
 import version from '../version';
@@ -477,12 +484,13 @@ const newTransaction = ref<Transaction>({
   isIncome: false,
   taxMetadata: [],
 });
-const { monthlySavingsTotal, createGoal, listGoals, loadGoals, addContribution, addGoalSpend } = useGoals();
+const { monthlySavingsTotal, createGoal, listGoals, loadGoals, addContribution, addGoalSpend, loadGoalDetails } = useGoals();
 const savingsTotal = ref(0);
 const goals = ref<Goal[]>([]);
 const goalDialog = ref(false);
 const contributeDialog = ref(false);
 const selectedGoal = ref<Goal | null>(null);
+const goalDrawer = ref(false);
 const convertingCategory = ref<BudgetCategory | null>(null);
 const legacySavingsCategories = computed(() => {
   const unique = new Map<string, BudgetCategory>();
@@ -538,6 +546,12 @@ function onAddGoal() {
 function onContribute(goal: Goal) {
   selectedGoal.value = goal;
   contributeDialog.value = true;
+}
+
+async function onViewGoal(goal: Goal) {
+  await loadGoalDetails(goal.id);
+  selectedGoal.value = goal;
+  goalDrawer.value = true;
 }
 
 function onConvertLegacy(cat: BudgetCategory) {

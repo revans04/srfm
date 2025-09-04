@@ -24,10 +24,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { formatCurrency } from '../../utils/helpers';
 import type { Goal } from '../../types';
 import type { QTableColumn } from 'quasar';
+import { useGoals } from '../../composables/useGoals';
 
 const props = defineProps<{ modelValue: boolean; goal?: Goal }>();
 const emit = defineEmits<{ (e: 'update:modelValue', v: boolean): void }>();
@@ -35,8 +36,10 @@ const emit = defineEmits<{ (e: 'update:modelValue', v: boolean): void }>();
 const model = ref(props.modelValue);
 const tab = ref('overview');
 
-const contribRows = ref([]);
-const spendRows = ref([]);
+const { listContributions, listGoalSpends } = useGoals();
+
+const contribRows = computed(() => (props.goal ? listContributions(props.goal.id) : []));
+const spendRows = computed(() => (props.goal ? listGoalSpends(props.goal.id) : []));
 
 watch(
   () => props.modelValue,

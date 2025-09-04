@@ -73,5 +73,22 @@ namespace FamilyBudgetApi.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+        [HttpGet("{goalId}/details")]
+        [AuthorizeFirebase]
+        public async Task<IActionResult> GetGoalDetails(string goalId)
+        {
+            _logger.LogInformation("Received request to get goal details for {GoalId}", goalId);
+            try
+            {
+                var details = await _goalService.GetGoalDetails(goalId);
+                return Ok(details);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching goal details for {GoalId}", goalId);
+                return BadRequest(ex.Message);
+            }
+        }
     }
 }

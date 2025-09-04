@@ -197,5 +197,68 @@ VALUES (@bid, @name, @target, true, @group, 0) RETURNING id";
             }
             return goals;
         }
+
+        public async Task<GoalDetails> GetGoalDetails(string goalId)
+        {
+            var details = new GoalDetails();
+            try
+            {
+                _logger.LogInformation("Fetching goal details for {GoalId}", goalId);
+                await using var conn = await _db.GetOpenConnectionAsync();
+                if (!Guid.TryParse(goalId, out var gid))
+                {
+                    throw new ArgumentException($"Invalid goal ID: {goalId}");
+                }
+
+                const string sqlContrib = @"SELECT b.month, bc.target
+                                             FROM goals_budget_categories gbc
+                                             JOIN budget_categories bc ON bc.id = gbc.budget_cat_id
+                                             JOIN budgets b ON b.id = bc.budget_id
+                                             WHERE gbc.goal_id=@gid
+                                             ORDER BY b.month";
+                await using (var contribCmd = new NpgsqlCommand(sqlContrib, conn))
+                {
+                    contribCmd.Parameters.AddWithValue("gid", gid);
+                    await using var reader = await contribCmd.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
+                    {
+                        details.Contributions.Add(new GoalContribution
+                        {
+                            Month = reader.IsDBNull(0) ? string.Empty : reader.GetString(0),
+                            Amount = reader.IsDBNull(1) ? 0 : (double)reader.GetDecimal(1)
+                        });
+                    }
+                }
+
+                const string sqlSpend = @"SELECT t.id, t.date, tc.amount
+                                           FROM transactions t
+                                           JOIN transaction_categories tc ON tc.transaction_id = t.id
+                                           JOIN budget_categories bc ON bc.budget_id = t.budget_id AND bc.name = tc.category_name
+                                           JOIN goals_budget_categories gbc ON gbc.budget_cat_id = bc.id
+                                           WHERE gbc.goal_id=@gid
+                                           ORDER BY t.date";
+                await using (var spendCmd = new NpgsqlCommand(sqlSpend, conn))
+                {
+                    spendCmd.Parameters.AddWithValue("gid", gid);
+                    await using var reader = await spendCmd.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
+                    {
+                        details.Spend.Add(new GoalSpend
+                        {
+                            TxId = reader.IsDBNull(0) ? string.Empty : reader.GetString(0),
+                            TxDate = reader.IsDBNull(1) ? null : reader.GetDateTime(1).ToString("yyyy-MM-dd"),
+                            Amount = reader.IsDBNull(2) ? 0 : (double)reader.GetDecimal(2)
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to fetch goal details for {GoalId}", goalId);
+                throw;
+            }
+
+            return details;
+        }
     }
 }

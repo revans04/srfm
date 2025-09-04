@@ -14,6 +14,8 @@ import type {
   Entity,
   Statement,
   Goal,
+  GoalContribution,
+  GoalSpend,
 } from './types';
 import { useBudgetStore } from './store/budget';
 import { Timestamp } from 'firebase/firestore';
@@ -1125,6 +1127,15 @@ export class DataAccess {
       const msg = await response.text();
       throw new Error(`Failed to update goal: ${msg || response.statusText}`);
     }
+  }
+
+  async getGoalDetails(goalId: string): Promise<{ contributions: GoalContribution[]; spend: GoalSpend[] }> {
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(`${this.apiBaseUrl}/goals/${goalId}/details`, { headers });
+    if (!response.ok) {
+      throw new Error(`Failed to load goal details: ${response.statusText}`);
+    }
+    return await response.json();
   }
 
   // Entity Functions

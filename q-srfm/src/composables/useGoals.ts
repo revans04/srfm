@@ -26,6 +26,14 @@ export function useGoals() {
     return goals.value.filter((g) => g.entityId === entityId && !g.archived);
   }
 
+  function listContributions(goalId: string): GoalContribution[] {
+    return contributions.value[goalId] || [];
+  }
+
+  function listGoalSpends(goalId: string): GoalSpend[] {
+    return spends.value[goalId] || [];
+  }
+
   function getGoal(goalId: string): Goal | undefined {
     return goals.value.find((g) => g.id === goalId);
   }
@@ -94,6 +102,13 @@ export function useGoals() {
     }
   }
 
+  async function loadGoalDetails(goalId: string): Promise<void> {
+    const details = await dataAccess.getGoalDetails(goalId);
+    contributions.value[goalId] = details.contributions;
+    spends.value[goalId] = details.spend;
+    recomputeRollups(goalId);
+  }
+
   function addContribution(goalId: string, amount: number, month: string, note?: string): void {
     const list = contributions.value[goalId] || (contributions.value[goalId] = []);
     list.push({ goalId, amount, month, note });
@@ -142,10 +157,13 @@ export function useGoals() {
     createGoal,
     updateGoal,
     archiveGoal,
+    loadGoalDetails,
     addContribution,
     addGoalSpend,
     recomputeRollups,
     monthlySavingsTotal,
     contributionsForMonth,
+    listContributions,
+    listGoalSpends,
   };
 }
