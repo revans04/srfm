@@ -210,48 +210,57 @@ VALUES (@bid, @name, @target, true, @group, 0) RETURNING id";
                     throw new ArgumentException($"Invalid goal ID: {goalId}");
                 }
 
-                const string sqlContrib = @"SELECT b.month, SUM(bc.target) AS target
-                                             FROM goals_budget_categories gbc
-                                             JOIN budget_categories bc ON bc.id = gbc.budget_cat_id
-                                             JOIN budgets b ON b.id = bc.budget_id
-                                             WHERE gbc.goal_id=@gid AND bc.target <> 0
-                                             GROUP BY b.month
-                                             ORDER BY b.month";
-                await using (var contribCmd = new NpgsqlCommand(sqlContrib, conn))
-                {
-                    contribCmd.Parameters.AddWithValue("gid", gid);
-                    await using var reader = await contribCmd.ExecuteReaderAsync();
-                    while (await reader.ReadAsync())
-                    {
-                        details.Contributions.Add(new GoalContribution
-                        {
-                            Month = reader.IsDBNull(0) ? string.Empty : reader.GetString(0),
-                            Amount = reader.IsDBNull(1) ? 0 : (double)reader.GetDecimal(1)
-                        });
-                    }
-                }
-
-                const string sqlSpend = @"SELECT t.id, t.date, tc.amount
+                const string sql = @"SELECT t.id, t.date, tc.amount
                                            FROM transactions t
                                            JOIN transaction_categories tc ON tc.transaction_id = t.id
                                            JOIN budget_categories bc ON bc.budget_id = t.budget_id AND bc.name = tc.category_name
                                            JOIN goals_budget_categories gbc ON gbc.budget_cat_id = bc.id
                                            WHERE gbc.goal_id=@gid
                                            ORDER BY t.date";
-                await using (var spendCmd = new NpgsqlCommand(sqlSpend, conn))
+                await using var cmd = new NpgsqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("gid", gid);
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                var contribByMonth = new Dictionary<string, double>();
+                while (await reader.ReadAsync())
                 {
-                    spendCmd.Parameters.AddWithValue("gid", gid);
-                    await using var reader = await spendCmd.ExecuteReaderAsync();
-                    while (await reader.ReadAsync())
+                    var txId = reader.IsDBNull(0) ? string.Empty : reader.GetString(0);
+                    var txDate = reader.IsDBNull(1) ? (DateTime?)null : reader.GetDateTime(1);
+                    var amount = reader.IsDBNull(2) ? 0 : (double)reader.GetDecimal(2);
+
+                    if (amount > 0)
+                    {
+                        var month = txDate?.ToString("yyyy-MM") ?? string.Empty;
+                        if (contribByMonth.ContainsKey(month))
+                        {
+                            contribByMonth[month] += amount;
+                        }
+                        else
+                        {
+                            contribByMonth[month] = amount;
+                        }
+                    }
+                    else if (amount < 0)
                     {
                         details.Spend.Add(new GoalSpend
                         {
-                            TxId = reader.IsDBNull(0) ? string.Empty : reader.GetString(0),
-                            TxDate = reader.IsDBNull(1) ? null : reader.GetDateTime(1).ToString("yyyy-MM-dd"),
-                            Amount = reader.IsDBNull(2) ? 0 : (double)reader.GetDecimal(2)
+                            TxId = txId,
+                            TxDate = txDate?.ToString("yyyy-MM-dd"),
+                            Amount = Math.Abs(amount)
                         });
                     }
                 }
+
+                foreach (var kvp in contribByMonth)
+                {
+                    details.Contributions.Add(new GoalContribution
+                    {
+                        Month = kvp.Key,
+                        Amount = kvp.Value
+                    });
+                }
+
+                details.Contributions.Sort((a, b) => string.CompareOrdinal(a.Month, b.Month));
             }
             catch (Exception ex)
             {
