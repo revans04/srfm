@@ -491,7 +491,6 @@ import type { Transaction, ImportedTransaction, Budget, Account, ImportedTransac
 import { formatCurrency, todayISO } from '../utils/helpers';
 import { QForm } from 'quasar';
 import { v4 as uuidv4 } from 'uuid';
-import { createBudgetForMonth } from '../utils/budget';
 
 // Interface for displayTransactions items
 interface DisplayTransaction {
