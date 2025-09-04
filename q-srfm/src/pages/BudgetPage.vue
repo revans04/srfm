@@ -177,7 +177,7 @@
 
       <div class="row">
         <!-- Main Content -->
-        <div :class="selectedCategory ? (isMobile ? 'col-0 d-none' : 'col-8') : 'col-12'">
+        <div :class="selectedCategory || selectedGoal ? (isMobile ? 'col-0 d-none' : 'col-8') : 'col-12'">
           <!-- Budget Editing Form -->
           <q-card v-if="isEditing" flat bordered>
             <q-card-section>Edit Budget for {{ selectedEntity?.name || 'selected entity' }}</q-card-section>
