@@ -374,6 +374,11 @@
             @update-transactions="updateTransactions"
           />
         </div>
+
+        <!-- Goal Details Sidebar -->
+        <div v-if="selectedGoal && !isEditing" :class="isMobile ? 'col-12' : 'col-4'" class="sidebar">
+          <GoalDetailsPanel :goal="selectedGoal" @close="selectedGoal = null" />
+        </div>
       </div>
 
       <!-- Version Info -->
@@ -403,7 +408,6 @@
       </q-dialog>
       <GoalDialog v-model="goalDialog" :goal="selectedGoal || undefined" @save="saveGoal" />
       <ContributeDialog v-model="contributeDialog" :goal="selectedGoal || undefined" @save="saveContribution" />
-      <GoalDetailsDrawer v-model="goalDrawer" :goal="selectedGoal || undefined" />
     </div>
   </q-page>
 </template>
@@ -420,7 +424,7 @@ import GoalsGroupCard from '../components/goals/GoalsGroupCard.vue';
 import GoalDialog from '../components/goals/GoalDialog.vue';
 import ContributeDialog from '../components/goals/ContributeDialog.vue';
 import SavingsConversionPrompt from '../components/goals/SavingsConversionPrompt.vue';
-import GoalDetailsDrawer from '../components/goals/GoalDetailsDrawer.vue';
+import GoalDetailsPanel from '../components/goals/GoalDetailsPanel.vue';
 import type { Transaction, Budget, IncomeTarget, BudgetCategoryTrx, BudgetCategory, Goal } from '../types';
 import { EntityType } from '../types';
 import version from '../version';
@@ -490,7 +494,6 @@ const goals = ref<Goal[]>([]);
 const goalDialog = ref(false);
 const contributeDialog = ref(false);
 const selectedGoal = ref<Goal | null>(null);
-const goalDrawer = ref(false);
 const convertingCategory = ref<BudgetCategory | null>(null);
 const legacySavingsCategories = computed(() => {
   const unique = new Map<string, BudgetCategory>();
@@ -551,7 +554,7 @@ function onContribute(goal: Goal) {
 async function onViewGoal(goal: Goal) {
   await loadGoalDetails(goal.id);
   selectedGoal.value = goal;
-  goalDrawer.value = true;
+  selectedCategory.value = null;
 }
 
 function onConvertLegacy(cat: BudgetCategory) {
@@ -832,10 +835,12 @@ function monthExists(month: string) {
 function onIncomeRowClick(item: IncomeTarget) {
   const t = getCategoryInfo(item.name);
   selectedCategory.value = t;
+  selectedGoal.value = null;
 }
 
 function onCategoryRowClick(item: BudgetCategoryTrx) {
   selectedCategory.value = getCategoryInfo(item.name);
+  selectedGoal.value = null;
 }
 
 function getCategoryInfo(name: string): BudgetCategory {
