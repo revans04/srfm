@@ -55,6 +55,7 @@
           :columns="smartMatchColumns"
           :rows="sortedSmartMatches"
           :row-key="rowKey"
+          :row-class="smartMatchRowClass"
           selection="multiple"
           v-model:selected="selectedSmartMatchesInternal"
           class="q-mt-lg"
@@ -175,6 +176,7 @@
                   :rows="sortedPotentialMatches"
                   :pagination="{ rowsPerPage: 5 }"
                   row-key="id"
+                  :row-class="potentialRowClass"
                   selection="single"
                   v-model:selected="selectedBudgetTransactionForMatch"
                 >
@@ -244,6 +246,7 @@
               :rows="sortedPotentialMatches"
               :pagination="{ rowsPerPage: 5 }"
               row-key="id"
+              :row-class="potentialRowClass"
               selection="single"
               v-model:selected="selectedBudgetTransactionForMatch"
             >
@@ -440,6 +443,17 @@ const smartMatchColumns = [
 ];
 
 const rowKey = (row: SmartMatchRow) => row.importedTransaction.id;
+
+const smartMatchRowClass = (row: SmartMatchRow) =>
+  Math.abs(row.bankAmount - row.budgetAmount) > 0.009 ? 'amount-mismatch' : '';
+
+const potentialRowClass = (row: Transaction) => {
+  const bankAmount =
+    selectedBankTransaction.value?.debitAmount ||
+    selectedBankTransaction.value?.creditAmount ||
+    0;
+  return Math.abs(row.amount - bankAmount) > 0.009 ? 'amount-mismatch' : '';
+};
 
 type TxRow = Transaction;
 const budgetTransactionColumns = [
@@ -1224,3 +1238,13 @@ function showSnackbar(text: string, color = 'success') {
 
 // Helper function to create a budget if it doesn't exist
 </script>
+
+<style>
+.q-table tbody tr.amount-mismatch td {
+  background-color: #fff7e6;
+}
+.q-table tbody tr.amount-mismatch.q-tr--selected td,
+.q-table tbody tr.amount-mismatch.selected td {
+  background-color: #ffe5cc;
+}
+</style>
