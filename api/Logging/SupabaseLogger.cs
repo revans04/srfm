@@ -14,6 +14,7 @@ public class SupabaseLogger : ILogger
     private readonly string _categoryName;
     private readonly SupabaseDbService _dbService;
     private bool _loggingDisabled;
+    private static bool _globalLoggingDisabled;
 
     public SupabaseLogger(string categoryName, SupabaseDbService dbService)
     {
@@ -37,7 +38,7 @@ public class SupabaseLogger : ILogger
 
     private async Task WriteLogAsync(LogLevel level, string message, Exception exception)
     {
-        if (_loggingDisabled)
+        if (_loggingDisabled || _globalLoggingDisabled)
             return;
 
         try
@@ -59,6 +60,7 @@ public class SupabaseLogger : ILogger
         catch (Exception ex)
         {
             _loggingDisabled = true;
+            _globalLoggingDisabled = true;
             Console.WriteLine($"Error writing log to Supabase: {ex.Message}");
         }
     }
