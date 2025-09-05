@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using NpgsqlTypes;
 using FamilyBudgetApi.Services;
 
 namespace FamilyBudgetApi.Logging;
@@ -27,7 +28,7 @@ public class SupabaseLogger : ILogger
     public bool IsEnabled(LogLevel logLevel) => logLevel != LogLevel.None;
 
     public void Log<TState>(LogLevel logLevel, EventId eventId, TState state,
-        Exception exception, Func<TState, Exception, string> formatter)
+        Exception? exception, Func<TState, Exception?, string> formatter)
     {
         if (!IsEnabled(logLevel))
             return;
@@ -36,7 +37,7 @@ public class SupabaseLogger : ILogger
         _ = WriteLogAsync(logLevel, message, exception);
     }
 
-    private async Task WriteLogAsync(LogLevel level, string message, Exception exception)
+    private async Task WriteLogAsync(LogLevel level, string message, Exception? exception)
     {
         if (_loggingDisabled || _globalLoggingDisabled)
         {
@@ -53,7 +54,7 @@ public class SupabaseLogger : ILogger
             cmd.Parameters.AddWithValue("@level", level.ToString());
             cmd.Parameters.AddWithValue("@category", _categoryName);
             cmd.Parameters.AddWithValue("@message", message);
-            cmd.Parameters.AddWithValue("@exception", (object?)exception?.ToString() ?? DBNull.Value);
+            cmd.Parameters.Add("@exception", NpgsqlDbType.Text).Value = (object?)exception?.ToString() ?? DBNull.Value;
             await cmd.ExecuteNonQueryAsync();
         }
         catch (PostgresException ex) when (ex.SqlState == "42P01")
@@ -70,7 +71,7 @@ public class SupabaseLogger : ILogger
         }
     }
 
-    private void WriteToConsole(LogLevel level, string message, Exception exception)
+    private void WriteToConsole(LogLevel level, string message, Exception? exception)
     {
         var ts = DateTime.UtcNow.ToString("o");
         var line = $"[{ts}] {level} {_categoryName}: {message}";
