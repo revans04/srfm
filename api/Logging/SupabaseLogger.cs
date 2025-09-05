@@ -39,7 +39,10 @@ public class SupabaseLogger : ILogger
     private async Task WriteLogAsync(LogLevel level, string message, Exception exception)
     {
         if (_loggingDisabled || _globalLoggingDisabled)
+        {
+            WriteToConsole(level, message, exception);
             return;
+        }
 
         try
         {
@@ -55,13 +58,24 @@ public class SupabaseLogger : ILogger
         }
         catch (PostgresException ex) when (ex.SqlState == "42P01")
         {
-            // Suppress errors when the logs table is missing
+            // If the logs table is missing, write the entry to console instead
+            WriteToConsole(level, message, exception);
         }
         catch (Exception ex)
         {
             _loggingDisabled = true;
             _globalLoggingDisabled = true;
             Console.WriteLine($"Error writing log to Supabase: {ex.Message}");
+            WriteToConsole(level, message, exception);
         }
+    }
+
+    private void WriteToConsole(LogLevel level, string message, Exception exception)
+    {
+        var ts = DateTime.UtcNow.ToString("o");
+        var line = $"[{ts}] {level} {_categoryName}: {message}";
+        if (exception != null)
+            line += $"\n{exception}";
+        Console.WriteLine(line);
     }
 }
