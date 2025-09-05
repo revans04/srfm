@@ -168,7 +168,17 @@ VALUES (@bid, @name, @target, true, @group, 0) RETURNING id";
             {
                 _logger.LogInformation("Fetching goals for entity {EntityId}", entityId);
                 await using var conn = await _db.GetOpenConnectionAsync();
-                const string sql = "SELECT id, entity_id, name, total_target, monthly_target, target_date, archived FROM goals WHERE entity_id=@eid";
+
+                const string sql = @"SELECT g.id, g.entity_id, g.name, g.total_target, g.monthly_target, g.target_date, g.archived,
+                                            COALESCE(SUM(CASE WHEN tc.amount > 0 THEN tc.amount ELSE 0 END),0) AS saved,
+                                            COALESCE(SUM(CASE WHEN tc.amount < 0 THEN -tc.amount ELSE 0 END),0) AS spent
+                                     FROM goals g
+                                     LEFT JOIN goals_budget_categories gbc ON gbc.goal_id = g.id
+                                     LEFT JOIN budget_categories bc ON bc.id = gbc.budget_cat_id
+                                     LEFT JOIN transactions t ON t.budget_id = bc.budget_id
+                                     LEFT JOIN transaction_categories tc ON tc.transaction_id = t.id AND tc.category_name = bc.name
+                                     WHERE g.entity_id=@eid
+                                     GROUP BY g.id, g.entity_id, g.name, g.total_target, g.monthly_target, g.target_date, g.archived";
                 await using var cmd = new NpgsqlCommand(sql, conn);
                 if (!Guid.TryParse(entityId, out var eid))
                 {
@@ -186,7 +196,9 @@ VALUES (@bid, @name, @target, true, @group, 0) RETURNING id";
                         TotalTarget = reader.IsDBNull(3) ? 0 : (double)reader.GetDecimal(3),
                         MonthlyTarget = reader.IsDBNull(4) ? 0 : (double)reader.GetDecimal(4),
                         TargetDate = reader.IsDBNull(5) ? null : reader.GetDateTime(5).ToString("o"),
-                        Archived = reader.IsDBNull(6) ? false : reader.GetBoolean(6)
+                        Archived = reader.IsDBNull(6) ? false : reader.GetBoolean(6),
+                        SavedToDate = reader.IsDBNull(7) ? 0 : (double)reader.GetDecimal(7),
+                        SpentToDate = reader.IsDBNull(8) ? 0 : (double)reader.GetDecimal(8)
                     });
                 }
             }
