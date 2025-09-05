@@ -11,7 +11,7 @@
               <q-input v-model="smartMatchDateRange" label="Days" type="number" dense class="q-ml-md" style="width: 90px" @input="computeSmartMatchesLocal()" />
             </div>
             <p class="text-caption q-mt-xs q-mb-none">
-              These imported transactions have exactly one potential match. Review and confirm below (max 50 at a time).
+              These imported transactions have exactly one potential match. Review and confirm below.
             </p>
           </div>
           <div class="col-auto">
@@ -59,7 +59,7 @@
           v-model:selected="selectedSmartMatchesInternal"
           class="q-mt-lg"
           hide-bottom
-          :pagination="{ rowsPerPage: 50 }"
+          :pagination="{ rowsPerPage: 0 }"
         >
           <template #body-cell-bankAmount="props">
             <q-td :props="props" class="text-right" style="vertical-align: middle;">
