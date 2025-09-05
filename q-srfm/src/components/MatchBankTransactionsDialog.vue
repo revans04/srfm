@@ -486,8 +486,13 @@ const selectedSmartMatchesInternal = computed({
     // Return selected rows as-is; template only needs length
     return smartMatches.value.filter((m) => selectedSmartMatchIds.value.includes(m.importedTransaction.id));
   },
-  set(rows: SmartMatchRow[]) {
-    selectedSmartMatchIds.value = Array.isArray(rows) ? rows.map((r) => r.importedTransaction?.id).filter((id): id is string => Boolean(id)) : [];
+  set(rows: Array<SmartMatchRow | string>) {
+    const allowedIds = new Set(smartMatches.value.map((m) => m.importedTransaction.id));
+    selectedSmartMatchIds.value = Array.isArray(rows)
+      ? rows
+          .map((r) => (typeof r === 'string' ? r : r.importedTransaction?.id))
+          .filter((id): id is string => Boolean(id) && allowedIds.has(id))
+      : [];
   },
 });
 
