@@ -61,8 +61,21 @@
           hide-bottom
           :pagination="{ rowsPerPage: 50 }"
         >
-          <template #body-cell-bankAmount="{ row }"> ${{ toDollars(toCents(row.bankAmount)) }} </template>
-          <template #body-cell-budgetAmount="{ row }"> ${{ toDollars(toCents(row.budgetAmount)) }} </template>
+          <template #body-cell-bankAmount="props">
+            <q-td :props="props" class="text-right" style="vertical-align: middle;">
+              ${{ toDollars(toCents(props.row.bankAmount)) }}
+            </q-td>
+          </template>
+          <template #body-cell-budgetAmount="props">
+            <q-td :props="props" class="text-right" style="vertical-align: middle;">
+              ${{ toDollars(toCents(props.row.budgetAmount)) }}
+            </q-td>
+          </template>
+          <template #body-cell-merchant="props">
+            <q-td :props="props" style="max-width: 200px; vertical-align: middle;">
+              <div class="ellipsis">{{ props.row.merchant }}</div>
+            </q-td>
+          </template>
           <template #body-cell-actions="{ row }">
             <q-icon
               v-if="isBudgetTxMatchedMultiple(row.budgetTransaction.id)"
@@ -412,7 +425,14 @@ const smartMatchColumns = [
   { name: 'bankAmount', label: 'Bank Amount', field: 'bankAmount', sortable: true },
   { name: 'bankType', label: 'Bank Type', field: 'bankType', sortable: true },
   { name: 'payee', label: 'Payee', field: 'payee', sortable: true },
-  { name: 'merchant', label: 'Merchant', field: 'merchant', sortable: true },
+  {
+    name: 'merchant',
+    label: 'Merchant',
+    field: 'merchant',
+    sortable: true,
+    style: 'max-width: 200px; width: 200px;',
+    headerStyle: 'max-width: 200px; width: 200px;',
+  },
   { name: 'budgetDate', label: 'Budget Date', field: 'budgetDate', sortable: true },
   { name: 'budgetAmount', label: 'Budget Amount', field: 'budgetAmount', sortable: true },
   { name: 'budgetType', label: 'Budget Type', field: 'budgetType' },
