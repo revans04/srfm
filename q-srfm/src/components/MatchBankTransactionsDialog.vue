@@ -445,14 +445,14 @@ const smartMatchColumns = [
 const rowKey = (row: SmartMatchRow) => row.importedTransaction.id;
 
 const smartMatchRowClass = (row: SmartMatchRow) =>
-  Math.abs(row.bankAmount - row.budgetAmount) > 0.009 ? 'amount-mismatch' : '';
+  toCents(row.bankAmount) !== toCents(row.budgetAmount) ? 'amount-mismatch' : '';
 
 const potentialRowClass = (row: Transaction) => {
   const bankAmount =
     selectedBankTransaction.value?.debitAmount ||
     selectedBankTransaction.value?.creditAmount ||
     0;
-  return Math.abs(row.amount - bankAmount) > 0.009 ? 'amount-mismatch' : '';
+  return toCents(row.amount) !== toCents(bankAmount) ? 'amount-mismatch' : '';
 };
 
 type TxRow = Transaction;
