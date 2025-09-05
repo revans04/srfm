@@ -152,6 +152,7 @@ export interface GoalSpend {
   txId: string;
   amount: number;
   txDate: string; // ISO date
+  merchant?: string;
   note?: string;
 }
 

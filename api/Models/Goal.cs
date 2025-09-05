@@ -20,6 +20,12 @@ namespace FamilyBudgetApi.Models
         [FirestoreProperty("monthlyTarget")]
         public double MonthlyTarget { get; set; }
 
+        [FirestoreProperty("savedToDate")]
+        public double SavedToDate { get; set; }
+
+        [FirestoreProperty("spentToDate")]
+        public double SpentToDate { get; set; }
+
         [FirestoreProperty("targetDate")]
         public string? TargetDate { get; set; }
 

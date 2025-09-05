@@ -107,9 +107,33 @@ public class BudgetService
 
     private async Task LoadBudgetDetails(NpgsqlConnection conn, Budget budget, bool includeTransactions = true)
     {
+        // Determine if the goals_budget_categories table exists so we can
+        // gracefully fall back when the migration hasn't run yet.
+        var hasGoalTable = false;
+        const string checkSql = "SELECT to_regclass('public.goals_budget_categories') IS NOT NULL";
+        await using (var checkCmd = new NpgsqlCommand(checkSql, conn))
+        {
+            var result = await checkCmd.ExecuteScalarAsync();
+            if (result is bool b)
+                hasGoalTable = b;
+        }
+
         if (includeTransactions)
         {
-            const string sqlTx = "SELECT id, date, budget_month, merchant, amount, notes, recurring, recurring_interval, user_id, is_income, account_number, account_source, posted_date, imported_merchant, status, check_number, deleted, entity_id FROM transactions WHERE budget_id=@id and entity_id=@entity";
+            var sqlTx = hasGoalTable
+                ? @"SELECT t.id, t.date, t.budget_month, t.merchant, t.amount, t.notes, t.recurring, t.recurring_interval, t.user_id, t.is_income, t.account_number, t.account_source, t.posted_date, t.imported_merchant, t.status, t.check_number, t.deleted, t.entity_id
+FROM transactions t
+WHERE t.budget_id=@id AND t.entity_id=@entity
+AND NOT EXISTS (
+    SELECT 1 FROM transaction_categories tc
+    JOIN budget_categories bc ON bc.budget_id = t.budget_id AND bc.name = tc.category_name
+    JOIN goals_budget_categories gbc ON gbc.budget_cat_id = bc.id
+    WHERE tc.transaction_id = t.id
+);" :
+                @"SELECT t.id, t.date, t.budget_month, t.merchant, t.amount, t.notes, t.recurring, t.recurring_interval, t.user_id, t.is_income, t.account_number, t.account_source, t.posted_date, t.imported_merchant, t.status, t.check_number, t.deleted, t.entity_id
+FROM transactions t
+WHERE t.budget_id=@id AND t.entity_id=@entity";
+
             await using (var txCmd = new NpgsqlCommand(sqlTx, conn))
             {
                 txCmd.Parameters.AddWithValue("id", budget.BudgetId);
@@ -165,11 +189,17 @@ public class BudgetService
             }
         }
 
-        const string sqlCats = "SELECT name, target, is_fund, \"group\", carryover FROM budget_categories WHERE budget_id=@id and entity_id=@entity";
+        var sqlCats = hasGoalTable
+            ? @"SELECT name, target, is_fund, ""group"", carryover
+                                FROM budget_categories
+                                WHERE budget_id=@id
+                                  AND NOT EXISTS (SELECT 1 FROM goals_budget_categories gbc WHERE gbc.budget_cat_id = budget_categories.id)"
+            : @"SELECT name, target, is_fund, ""group"", carryover
+                                FROM budget_categories
+                                WHERE budget_id=@id";
         await using (var catCmd = new NpgsqlCommand(sqlCats, conn))
         {
             catCmd.Parameters.AddWithValue("id", budget.BudgetId);
-            catCmd.Parameters.AddWithValue("entity", string.IsNullOrEmpty(budget.EntityId) ? (object)DBNull.Value : Guid.Parse(budget.EntityId));
             await using var catReader = await catCmd.ExecuteReaderAsync();
             while (await catReader.ReadAsync())
             {

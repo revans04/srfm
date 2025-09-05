@@ -23,18 +23,36 @@ namespace FamilyBudgetApi.Controllers
 
         [HttpPost]
         [AuthorizeFirebase]
-        public async Task<IActionResult> SaveGoal([FromBody] Goal goal)
+        public async Task<IActionResult> InsertGoal([FromBody] Goal goal)
         {
-            _logger.LogInformation("Received request to save goal {GoalId}", goal?.Id);
+            _logger.LogInformation("Received request to insert goal {GoalId}", goal?.Id);
             try
             {
-                await _goalService.SaveGoal(goal);
-                _logger.LogInformation("Goal {GoalId} saved successfully", goal?.Id);
+                await _goalService.InsertGoal(goal);
+                _logger.LogInformation("Goal {GoalId} inserted successfully", goal?.Id);
                 return Ok();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error saving goal {GoalId}", goal?.Id);
+                _logger.LogError(ex, "Error inserting goal {GoalId}", goal?.Id);
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpPut]
+        [AuthorizeFirebase]
+        public async Task<IActionResult> UpdateGoal([FromBody] Goal goal)
+        {
+            _logger.LogInformation("Received request to update goal {GoalId}", goal?.Id);
+            try
+            {
+                await _goalService.UpdateGoal(goal);
+                _logger.LogInformation("Goal {GoalId} updated successfully", goal?.Id);
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating goal {GoalId}", goal?.Id);
                 return BadRequest(ex.Message);
             }
         }
@@ -52,6 +70,23 @@ namespace FamilyBudgetApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching goals for entity {EntityId}", entityId);
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpGet("{goalId}/details")]
+        [AuthorizeFirebase]
+        public async Task<IActionResult> GetGoalDetails(string goalId)
+        {
+            _logger.LogInformation("Received request to get goal details for {GoalId}", goalId);
+            try
+            {
+                var details = await _goalService.GetGoalDetails(goalId);
+                return Ok(details);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching goal details for {GoalId}", goalId);
                 return BadRequest(ex.Message);
             }
         }

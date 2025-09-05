@@ -467,9 +467,15 @@ namespace FamilyBudgetApi.Services
             foreach (var doc in snapshot.Documents)
             {
                 var budget = doc.ConvertTo<Budget>();
+                // Generate a new globally unique identifier for each budget to avoid
+                // collisions across entities or families. This identifier is used for
+                // the budget itself and all related child records (transactions,
+                // categories, merchants, etc.).
+                var newBudgetId = Guid.NewGuid().ToString();
+
                 var pgBudget = new PgBudget
                 {
-                    Id = budget.BudgetId,
+                    Id = newBudgetId,
                     FamilyId = TryParseGuid(budget.FamilyId),
                     EntityId = TryParseGuid(budget.EntityId),
                     Month = budget.Month,
@@ -486,7 +492,8 @@ namespace FamilyBudgetApi.Services
                     var pgTransaction = new PgTransaction
                     {
                         Id = tx.Id ?? Guid.NewGuid().ToString(),
-                        BudgetId = budget.BudgetId,
+                        // Use the newly generated budget id for all imported transactions
+                        BudgetId = newBudgetId,
                         Date = TryParseDate(tx.Date),
                         BudgetMonth = tx.BudgetMonth,
                         Merchant = tx.Merchant,
@@ -537,7 +544,7 @@ namespace FamilyBudgetApi.Services
                 {
                     supabaseCategories.Add(new PgBudgetCategory
                     {
-                        BudgetId = budget.BudgetId,
+                        BudgetId = newBudgetId,
                         Name = cat.Name,
                         Group = cat.Group,
                         Carryover = (decimal?)cat.Carryover,
@@ -550,7 +557,7 @@ namespace FamilyBudgetApi.Services
                 {
                     supabaseMerchants.Add(new PgMerchant
                     {
-                        BudgetId = budget.BudgetId,
+                        BudgetId = newBudgetId,
                         Name = m.Name,
                         UsageCount = m.UsageCount
                     });
