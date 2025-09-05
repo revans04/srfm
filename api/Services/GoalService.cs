@@ -210,7 +210,7 @@ VALUES (@bid, @name, @target, true, @group, 0) RETURNING id";
                     throw new ArgumentException($"Invalid goal ID: {goalId}");
                 }
 
-                const string sql = @"SELECT t.id, t.date, tc.amount
+                const string sql = @"SELECT t.id, t.date, t.merchant, tc.amount
                                            FROM transactions t
                                            JOIN transaction_categories tc ON tc.transaction_id = t.id
                                            JOIN budget_categories bc ON bc.budget_id = t.budget_id AND bc.name = tc.category_name
@@ -226,7 +226,8 @@ VALUES (@bid, @name, @target, true, @group, 0) RETURNING id";
                 {
                     var txId = reader.IsDBNull(0) ? string.Empty : reader.GetString(0);
                     var txDate = reader.IsDBNull(1) ? (DateTime?)null : reader.GetDateTime(1);
-                    var amount = reader.IsDBNull(2) ? 0 : (double)reader.GetDecimal(2);
+                    var merchant = reader.IsDBNull(2) ? string.Empty : reader.GetString(2);
+                    var amount = reader.IsDBNull(3) ? 0 : (double)reader.GetDecimal(3);
 
                     if (amount > 0)
                     {
@@ -246,6 +247,7 @@ VALUES (@bid, @name, @target, true, @group, 0) RETURNING id";
                         {
                             TxId = txId,
                             TxDate = txDate?.ToString("yyyy-MM-dd"),
+                            Merchant = merchant,
                             Amount = Math.Abs(amount)
                         });
                     }

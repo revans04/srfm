@@ -12,6 +12,7 @@ namespace FamilyBudgetApi.Models
     {
         public string? TxId { get; set; }
         public string? TxDate { get; set; }
+        public string? Merchant { get; set; }
         public double Amount { get; set; }
     }
 

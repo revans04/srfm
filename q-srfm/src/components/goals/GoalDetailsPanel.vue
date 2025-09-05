@@ -32,26 +32,50 @@
     </q-tabs>
     <q-tab-panels v-model="tab" animated class="q-mt-md">
       <q-tab-panel name="contribs">
-        <q-list dense>
-          <q-item v-for="row in contribRows" :key="row.month">
-            <q-item-section>{{ row.month }}</q-item-section>
-            <q-item-section side>{{ formatCurrency(row.amount) }}</q-item-section>
-          </q-item>
-          <q-item v-if="contribRows.length === 0">
-            <q-item-label>No contributions.</q-item-label>
-          </q-item>
-        </q-list>
+        <q-card flat class="bg-white" rounded>
+          <q-list dense>
+            <q-item v-for="row in contribRows" :key="row.month" class="transaction-item">
+              <q-item-section>
+                <div class="row q-pa-sm align-center no-gutters">
+                  <div class="col q-pt-sm font-weight-bold text-primary col-2" style="min-width: 60px; font-size: 10px">
+                    {{ formatDateMonthYYYY(row.month) }}
+                  </div>
+                  <div class="col text-truncate" style="flex: 1; min-width: 0">Contribution</div>
+                  <div class="col text-right no-wrap col-auto" style="min-width: 60px">
+                    {{ formatCurrency(row.amount) }}
+                  </div>
+                </div>
+              </q-item-section>
+            </q-item>
+            <q-item v-if="contribRows.length === 0">
+              <q-item-label>No contributions.</q-item-label>
+            </q-item>
+          </q-list>
+        </q-card>
       </q-tab-panel>
       <q-tab-panel name="spend">
-        <q-list dense>
-          <q-item v-for="row in spendRows" :key="row.txId">
-            <q-item-section>{{ formatDate(row.txDate) }}</q-item-section>
-            <q-item-section side>{{ formatCurrency(row.amount) }}</q-item-section>
-          </q-item>
-          <q-item v-if="spendRows.length === 0">
-            <q-item-label>No goal spend.</q-item-label>
-          </q-item>
-        </q-list>
+        <q-card flat class="bg-white" rounded>
+          <q-list dense>
+            <q-item v-for="row in spendRows" :key="row.txId" class="transaction-item">
+              <q-item-section>
+                <div class="row q-pa-sm align-center no-gutters">
+                  <div class="col q-pt-sm font-weight-bold text-primary col-2" style="min-width: 60px; font-size: 10px">
+                    {{ formatDate(row.txDate) }}
+                  </div>
+                  <div class="col text-truncate" style="flex: 1; min-width: 0">
+                    {{ row.merchant || 'Transaction' }}
+                  </div>
+                  <div class="col text-right no-wrap col-auto" style="min-width: 60px">
+                    {{ formatCurrency(row.amount) }}
+                  </div>
+                </div>
+              </q-item-section>
+            </q-item>
+            <q-item v-if="spendRows.length === 0">
+              <q-item-label>No goal spend.</q-item-label>
+            </q-item>
+          </q-list>
+        </q-card>
       </q-tab-panel>
     </q-tab-panels>
   </q-page>
@@ -59,7 +83,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { formatCurrency, formatDate } from '../../utils/helpers';
+import { formatCurrency, formatDate, formatDateMonthYYYY } from '../../utils/helpers';
 import { useGoals } from '../../composables/useGoals';
 import type { Goal } from '../../types';
 
