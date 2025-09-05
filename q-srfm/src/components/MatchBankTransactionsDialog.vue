@@ -7,11 +7,19 @@
         <div class="row items-center q-gutter-md q-mb-md">
           <div class="col">
             <div class="row items-center q-gutter-sm">
-              <h3 class="q-mb-none">Smart Matches ({{ smartMatches.length }})</h3>
-              <q-input v-model="smartMatchDateRange" label="Days" type="number" dense class="q-ml-md" style="width: 90px" @input="computeSmartMatchesLocal()" />
+              <h3 class="q-mb-none">Smart Matches ({{ smartMatchCountLabel }})</h3>
+              <q-input
+                v-model="smartMatchDateRange"
+                label="Days"
+                type="number"
+                dense
+                class="q-ml-md"
+                style="width: 90px"
+                @input="computeSmartMatchesLocal()"
+              />
             </div>
             <p class="text-caption q-mt-xs q-mb-none">
-              These imported transactions have exactly one potential match. Review and confirm below.
+              These imported transactions have exactly one potential match. Showing up to {{ MAX_SMART_MATCHES }} results.
             </p>
           </div>
           <div class="col-auto">
@@ -371,6 +379,13 @@ const smartMatchesSortFields = [
   { text: 'Amount', value: 'bankAmount' },
 ];
 const smartMatchDateRange = ref<string>('3');
+const MAX_SMART_MATCHES = 250;
+const totalSmartMatches = ref(0);
+const smartMatchCountLabel = computed(() =>
+  totalSmartMatches.value > MAX_SMART_MATCHES
+    ? `${smartMatches.value.length} of ${totalSmartMatches.value}`
+    : `${smartMatches.value.length}`,
+);
 
 // Local state for Remaining Transactions
 const currentBankTransactionIndex = ref<number>(0);
@@ -554,6 +569,7 @@ async function initializeState() {
   selectedBankTransaction.value = props.selectedBankTransaction || remainingImportedTransactions.value[0] || null;
 
   smartMatches.value = [];
+  totalSmartMatches.value = 0;
   smartMatchDateRange.value = '3';
   computeSmartMatchesLocal();
 
@@ -601,8 +617,12 @@ function findSmartMatches() {
   findingSmartMatches.value = true;
   try {
     smartMatches.value = [];
+    totalSmartMatches.value = 0;
     computeSmartMatchesLocal();
-    showSnackbar(`Found ${smartMatches.value.length} smart match${smartMatches.value.length !== 1 ? 'es' : ''}`, 'info');
+    showSnackbar(
+      `Found ${totalSmartMatches.value} smart match${totalSmartMatches.value !== 1 ? 'es' : ''}`,
+      'info',
+    );
   } catch (error: unknown) {
     const err = error as Error;
     console.error('Error finding smart matches:', err);
@@ -623,7 +643,9 @@ async function confirmSmartMatches() {
     const user = auth.currentUser;
     if (!user) throw new Error('User not authenticated');
 
-    const matchesToConfirm = smartMatches.value.filter((match) => selectedSmartMatchIds.value.includes(match.importedTransaction.id));
+    const matchesToConfirm = smartMatches.value.filter((match) =>
+      selectedSmartMatchIds.value.includes(match.importedTransaction.id),
+    );
 
     const matchesByBudget: { [budgetId: string]: Array<{ budgetTransactionId: string; importedTransactionId: string; match: boolean; ignore: boolean }> } = {};
     matchesToConfirm.forEach((match) => {
@@ -669,6 +691,7 @@ async function confirmSmartMatches() {
     updateRemainingTransactions();
     const confirmedIds = new Set(matchesToConfirm.map((m) => m.importedTransaction.id));
     smartMatches.value = smartMatches.value.filter((m) => !confirmedIds.has(m.importedTransaction.id));
+    totalSmartMatches.value = Math.max(totalSmartMatches.value - matchesToConfirm.length, 0);
     selectedSmartMatchIds.value = [];
   } catch (error: unknown) {
     const err = error as Error;
@@ -1189,7 +1212,8 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
     });
   });
 
-  smartMatches.value = newSmartMatches;
+  totalSmartMatches.value = newSmartMatches.length;
+  smartMatches.value = newSmartMatches.slice(0, MAX_SMART_MATCHES);
   selectedSmartMatchIds.value = [];
 
   const smartMatchImportedIds = new Set(smartMatches.value.map((m) => m.importedTransaction.id));
