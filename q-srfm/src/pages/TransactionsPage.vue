@@ -199,14 +199,109 @@ Key props/usage:
             />
           </div>
         </div>
+        <div class="q-pa-sm" v-if="selectedRegisterIds.length">
+          <q-btn
+            color="primary"
+            label="Create Budget Transactions"
+            class="q-mr-sm"
+            @click="openRegisterBatchDialog"
+          />
+          <q-btn
+            color="warning"
+            label="Ignore"
+            class="q-mr-sm"
+            @click="confirmRegisterBatchAction('Ignore')"
+          />
+          <q-btn
+            color="negative"
+            label="Delete"
+            @click="confirmRegisterBatchAction('Delete')"
+          />
+        </div>
         <ledger-table
           :rows="registerRows"
           :loading="loadingRegister"
           entity-label="Account"
           :can-load-more="canLoadMoreRegister"
           :loading-more="loadingMoreRegister"
+          selection="multiple"
+          v-model:selected="selectedRegisterIds"
+          @row-click="onRegisterRowClick"
           @load-more="fetchMoreRegister"
         />
+        <q-dialog v-model="showRegisterBatchDialog" max-width="500" @keyup.enter="executeRegisterBatchMatch">
+          <q-card>
+            <q-card-section class="bg-primary q-py-md">
+              <span class="text-white">Batch Match Transactions</span>
+            </q-card-section>
+            <q-card-section class="q-pt-lg">
+              <q-form ref="registerBatchForm">
+                <p>
+                  Assign an entity, merchant, and category for {{ selectedRegisterIds.length }} unmatched
+                  transaction{{ selectedRegisterIds.length > 1 ? 's' : '' }}.
+                </p>
+                <div class="row">
+                  <div class="col">
+                    <q-select
+                      v-model="selectedEntityId"
+                      :options="entityOptions"
+                      option-label="name"
+                      option-value="id"
+                      emit-value
+                      map-options
+                      label="Select Entity"
+                      variant="outlined"
+                      density="compact"
+                      :rules="requiredField"
+                    />
+                  </div>
+                </div>
+                <q-list bordered class="q-mt-md">
+                  <q-item v-for="entry in batchEntries" :key="entry.id">
+                    <q-item-section>
+                      <div class="text-caption">{{ entry.date }} - {{ formatCurrency(entry.amount) }}</div>
+                    </q-item-section>
+                    <q-item-section>
+                      <q-input v-model="entry.merchant" label="Merchant" dense :rules="requiredField" />
+                    </q-item-section>
+                    <q-item-section>
+                      <q-select
+                        v-model="entry.category"
+                        :options="categoryOptions"
+                        label="Category"
+                        dense
+                        :rules="requiredField"
+                      />
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+              </q-form>
+            </q-card-section>
+            <q-card-actions>
+              <q-space />
+              <q-btn color="grey" variant="text" @click="showRegisterBatchDialog = false">Cancel</q-btn>
+              <q-btn color="primary" variant="flat" @click="executeRegisterBatchMatch" :loading="saving">Match</q-btn>
+            </q-card-actions>
+          </q-card>
+        </q-dialog>
+        <q-dialog v-model="showRegisterActionDialog">
+          <q-card>
+            <q-card-section>
+              Are you sure you want to {{ registerBatchAction.toLowerCase() }}
+              {{ selectedRegisterIds.length }} transaction{{ selectedRegisterIds.length > 1 ? 's' : '' }}?
+            </q-card-section>
+            <q-card-actions>
+              <q-btn flat label="Cancel" color="primary" v-close-popup />
+              <q-btn
+                flat
+                label="Confirm"
+                color="primary"
+                :loading="saving"
+                @click="performRegisterBatchAction"
+              />
+            </q-card-actions>
+          </q-card>
+        </q-dialog>
       </q-tab-panel>
 
       <!-- Match Bank Transactions Tab -->
@@ -288,6 +383,32 @@ const editCategoryOptions = computed(() =>
     ? budgetStore.getBudget(editBudgetId.value)?.categories.map((c) => c.name) || []
     : [],
 );
+
+const selectedRegisterIds = ref<string[]>([]);
+const showRegisterBatchDialog = ref(false);
+const registerBatchForm = ref();
+const batchEntries = ref<{ id: string; date: string; amount: number; merchant: string; category: string }[]>([]);
+const showRegisterActionDialog = ref(false);
+const registerBatchAction = ref<'Ignore' | 'Delete' | ''>('');
+const saving = ref(false);
+
+const entityOptions = computed(() =>
+  (familyStore.family?.entities || []).map((e) => ({ id: e.id, name: e.name }))
+);
+
+const categoryOptions = computed(() => {
+  const cats = new Set<string>(['Income']);
+  Array.from(budgetStore.budgets.values()).forEach((b) => {
+    b.categories.forEach((cat) => cats.add(cat.name));
+  });
+  return Array.from(cats).sort();
+});
+
+const requiredField = [(v: string) => !!v || 'This field is required'];
+
+function formatCurrency(n: number) {
+  return (n < 0 ? '-$' : '$') + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 
 const createDefaultFilters = (): LedgerFilters => ({
   search: '',
@@ -517,6 +638,102 @@ const jumpMenu = ref(false);
 function onJump(val: string) {
   jumpMenu.value = false;
   if (val) scrollToDate(val);
+}
+
+function onRegisterRowClick(row: LedgerRow) {
+  if (row.status === 'U') {
+    selectedRegisterIds.value = [row.id];
+    openRegisterBatchDialog();
+  }
+}
+
+function openRegisterBatchDialog() {
+  if (
+    selectedRegisterIds.value.length === 0 ||
+    !selectedRegisterIds.value.every((id) => {
+      const tx = registerRows.value.find((r) => r.id === id);
+      return tx && tx.status === 'U';
+    })
+  ) {
+    return;
+  }
+  batchEntries.value = selectedRegisterIds.value.map((id) => {
+    const tx = registerRows.value.find((r) => r.id === id);
+    return {
+      id,
+      date: tx?.date || '',
+      amount: tx?.amount || 0,
+      merchant: tx?.importedMerchant || tx?.payee || '',
+      category: '',
+    };
+  });
+  showRegisterBatchDialog.value = true;
+}
+
+async function executeRegisterBatchMatch() {
+  if (!registerBatchForm.value) return;
+  const valid = await registerBatchForm.value.validate();
+  if (!valid) return;
+  saving.value = true;
+  try {
+    for (const entry of batchEntries.value) {
+      const budget = Array.from(budgetStore.budgets.values()).find(
+        (b) => b.entityId === selectedEntityId.value,
+      );
+      if (!budget?.budgetId) continue;
+      const tx: Transaction = {
+        id: '',
+        date: entry.date,
+        merchant: entry.merchant,
+        amount: entry.amount,
+        categories: [{ category: entry.category, amount: entry.amount }],
+        notes: '',
+        recurring: false,
+        recurringInterval: 'Monthly',
+        userId: auth.user?.uid || '',
+        isIncome: entry.amount > 0,
+        taxMetadata: [],
+        status: 'C',
+        entityId: selectedEntityId.value,
+      };
+      await dataAccess.addTransaction(budget.budgetId, tx);
+      const parts = entry.id.split('-');
+      const docId = parts.slice(0, -1).join('-');
+      const importedId = parts[parts.length - 1];
+      await dataAccess.updateImportedTransaction(docId, importedId, true, false);
+    }
+    showRegisterBatchDialog.value = false;
+    selectedRegisterIds.value = [];
+    await loadImportedTransactions(true);
+  } finally {
+    saving.value = false;
+  }
+}
+
+function confirmRegisterBatchAction(action: 'Ignore' | 'Delete') {
+  registerBatchAction.value = action;
+  showRegisterActionDialog.value = true;
+}
+
+async function performRegisterBatchAction() {
+  saving.value = true;
+  try {
+    for (const id of selectedRegisterIds.value) {
+      const parts = id.split('-');
+      const docId = parts.slice(0, -1).join('-');
+      const txId = parts[parts.length - 1];
+      if (registerBatchAction.value === 'Delete') {
+        await dataAccess.deleteImportedTransaction(docId, txId);
+      } else if (registerBatchAction.value === 'Ignore') {
+        await dataAccess.updateImportedTransaction(docId, txId, false, true);
+      }
+    }
+    selectedRegisterIds.value = [];
+    showRegisterActionDialog.value = false;
+    await loadImportedTransactions(true);
+  } finally {
+    saving.value = false;
+  }
 }
 
 </script>

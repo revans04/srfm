@@ -12,6 +12,8 @@
     :virtual-scroll-item-size="rowHeight"
     :rows-per-page-options="[0]"
     :loading="loading"
+    :selection="selection"
+    v-model:selected="selectedInternal"
     @virtual-scroll="onVirtualScroll"
   >
     <template #top>
@@ -97,9 +99,32 @@ const props = defineProps<{
   rowHeight?: number;
   headerOffset?: number;
   entityLabel?: string;
+  selection?: 'single' | 'multiple';
+  selected?: string[];
 }>();
 
-const emit = defineEmits<{ (e: 'load-more'): void; (e: 'row-click', row: LedgerRow): void }>();
+const emit = defineEmits<{
+  (e: 'load-more'): void;
+  (e: 'row-click', row: LedgerRow): void;
+  (e: 'update:selected', ids: string[]): void;
+}>();
+
+const selectedInternal = computed<LedgerRow[] | string[]>({
+  get() {
+    if (!props.selected) return [];
+    return props.rows.filter((r) => props.selected!.includes(r.id));
+  },
+  set(val) {
+    if (Array.isArray(val)) {
+      emit(
+        'update:selected',
+        (val as LedgerRow[]).map((r) => (typeof r === 'string' ? r : r.id)),
+      );
+    } else {
+      emit('update:selected', []);
+    }
+  },
+});
 
 const rowHeight = computed(() => props.rowHeight ?? 44);
 const headerOffset = computed(() => props.headerOffset ?? 0);
