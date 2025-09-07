@@ -774,54 +774,54 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
     public async Task BatchReconcileTransactions(string budgetId, List<ReconcileRequest> reconciliations, string userId, string userEmail)
     {
         await using var conn = await _db.GetOpenConnectionAsync();
-        foreach (var rec in reconciliations)
+
+        var ids = reconciliations.Select(r => r.ImportedTransactionId).ToArray();
+        var matches = reconciliations.Select(r => r.Match).ToArray();
+        var ignores = reconciliations.Select(r => r.Ignore).ToArray();
+
+        const string sqlImported = @"UPDATE imported_transactions i
+            SET matched = d.match,
+                ignored = d.ignore,
+                status = CASE WHEN d.match THEN 'C' ELSE i.status END
+            FROM UNNEST(@ids, @matches, @ignores) AS d(id, match, ignore)
+            WHERE i.id = d.id";
+
+        await using (var cmd = new NpgsqlCommand(sqlImported, conn))
         {
-            // Update the imported transaction's matched/ignored flags and set status to cleared when matched.
-            const string sqlImported =
-                "UPDATE imported_transactions SET matched=@match, ignored=@ignore, status = CASE WHEN @match THEN 'C' ELSE status END WHERE id=@id";
-            await using (var cmd = new NpgsqlCommand(sqlImported, conn))
-            {
-                cmd.Parameters.AddWithValue("match", rec.Match);
-                cmd.Parameters.AddWithValue("ignore", rec.Ignore);
-                cmd.Parameters.AddWithValue("id", rec.ImportedTransactionId);
-                await cmd.ExecuteNonQueryAsync();
-            }
+            cmd.Parameters.AddWithValue("ids", ids);
+            cmd.Parameters.AddWithValue("matches", matches);
+            cmd.Parameters.AddWithValue("ignores", ignores);
+            await cmd.ExecuteNonQueryAsync();
+        }
 
-            // If the transaction is being matched to a budget transaction, copy over account details and clear it.
-            if (rec.Match && !string.IsNullOrEmpty(rec.BudgetTransactionId))
-            {
-                const string sqlGet =
-                    "SELECT account_number, account_source, posted_date, payee, check_number FROM imported_transactions WHERE id=@id";
-                string? acctNum = null, acctSrc = null, payee = null, checkNum = null;
-                DateTime? posted = null;
-                await using (var getCmd = new NpgsqlCommand(sqlGet, conn))
-                {
-                    getCmd.Parameters.AddWithValue("id", rec.ImportedTransactionId);
-                    await using var reader = await getCmd.ExecuteReaderAsync();
-                    if (await reader.ReadAsync())
-                    {
-                        acctNum = reader.IsDBNull(0) ? null : reader.GetString(0);
-                        acctSrc = reader.IsDBNull(1) ? null : reader.GetString(1);
-                        posted = reader.IsDBNull(2) ? (DateTime?)null : reader.GetDateTime(2);
-                        payee = reader.IsDBNull(3) ? null : reader.GetString(3);
-                        checkNum = reader.IsDBNull(4) ? null : reader.GetString(4);
-                    }
-                }
+        var matched = reconciliations
+            .Where(r => r.Match && !string.IsNullOrEmpty(r.BudgetTransactionId))
+            .ToList();
 
-                const string sqlBudget =
-                    "UPDATE transactions SET account_number=@acct, account_source=@src, posted_date=@posted, imported_merchant=@payee, status='C', check_number=@check WHERE id=@tid";
-                await using (var budCmd = new NpgsqlCommand(sqlBudget, conn))
-                {
-                    budCmd.Parameters.AddWithValue("acct", (object?)acctNum ?? DBNull.Value);
-                    budCmd.Parameters.AddWithValue("src", (object?)acctSrc ?? DBNull.Value);
-                    budCmd.Parameters.AddWithValue("posted", (object?)posted ?? DBNull.Value);
-                    budCmd.Parameters.AddWithValue("payee", (object?)payee ?? DBNull.Value);
-                    budCmd.Parameters.AddWithValue("check", (object?)checkNum ?? DBNull.Value);
-                    budCmd.Parameters.AddWithValue("tid", rec.BudgetTransactionId);
-                    await budCmd.ExecuteNonQueryAsync();
-                }
+        if (matched.Count > 0)
+        {
+            var budgetIds = matched.Select(r => r.BudgetTransactionId!).ToArray();
+            var importedIds = matched.Select(r => r.ImportedTransactionId).ToArray();
+
+            const string sqlBudget = @"UPDATE transactions t
+                SET account_number = it.account_number,
+                    account_source = it.account_source,
+                    posted_date = it.posted_date,
+                    imported_merchant = it.payee,
+                    status = 'C',
+                    check_number = it.check_number
+                FROM UNNEST(@budgetIds, @importedIds) AS m(budget_id, imported_id)
+                JOIN imported_transactions it ON it.id = m.imported_id
+                WHERE t.id = m.budget_id";
+
+            await using (var budCmd = new NpgsqlCommand(sqlBudget, conn))
+            {
+                budCmd.Parameters.AddWithValue("budgetIds", budgetIds);
+                budCmd.Parameters.AddWithValue("importedIds", importedIds);
+                await budCmd.ExecuteNonQueryAsync();
             }
         }
+
         await LogEdit(conn, budgetId, userId, userEmail, "batch-reconcile");
     }
 }

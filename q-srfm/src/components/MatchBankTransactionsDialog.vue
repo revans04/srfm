@@ -675,27 +675,21 @@ async function confirmSmartMatches() {
       });
     });
 
-    for (const budgetId in matchesByBudget) {
-      const budget = budgetStore.getBudget(budgetId);
-      if (!budget) throw new Error(`Budget ${budgetId} not found`);
+    await Promise.all(
+      Object.entries(matchesByBudget).map(async ([budgetId, recs]) => {
+        const budget = budgetStore.getBudget(budgetId);
+        if (!budget) throw new Error(`Budget ${budgetId} not found`);
 
-      const reconcileData: {
-        budgetId: string;
-        reconciliations: {
-          budgetTransactionId: string;
-          importedTransactionId: string;
-          match: boolean;
-          ignore: boolean;
-        }[];
-      } = {
-        budgetId,
-        reconciliations: matchesByBudget[budgetId] || [],
-      };
+        const reconcileData = {
+          budgetId,
+          reconciliations: recs,
+        };
 
-      await dataAccess.batchReconcileTransactions(budgetId, budget, reconcileData);
-      const updatedBudget = await dataAccess.getBudget(budgetId);
-      if (updatedBudget) budgetStore.updateBudget(budgetId, updatedBudget);
-    }
+        await dataAccess.batchReconcileTransactions(budgetId, budget, reconcileData);
+        const updatedBudget = await dataAccess.getBudget(budgetId);
+        if (updatedBudget) budgetStore.updateBudget(budgetId, updatedBudget);
+      }),
+    );
 
     showSnackbar(`${matchesToConfirm.length} smart matches confirmed successfully`);
     emit('transactions-updated');
