@@ -453,12 +453,20 @@ async function refreshRegister() {
   await loadImportedTransactions(true);
 }
 
-function onRowClick(row: LedgerRow) {
-  const budget = budgetStore.getBudget(row.budgetId);
+async function onRowClick(row: LedgerRow) {
+  let budget = budgetStore.getBudget(row.budgetId);
+  if (!budget) {
+    try {
+      budget = await dataAccess.getBudget(row.budgetId);
+      if (budget) budgetStore.updateBudget(row.budgetId, budget);
+    } catch (err) {
+      console.error('Failed to load budget for transaction', row.budgetId, err);
+    }
+  }
   const tx = budget?.transactions?.find((t) => t.id === row.id);
   if (tx) {
     editTx.value = { ...tx };
-    editBudgetId.value = budget?.budgetId || '';
+    editBudgetId.value = budget?.budgetId || row.budgetId;
     showTxDialog.value = true;
   }
 }
