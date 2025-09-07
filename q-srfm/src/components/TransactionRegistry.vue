@@ -215,7 +215,7 @@
         fixed-header
         fixed-footer
         height="600"
-        :row-class="getRowClass"
+        :table-row-class-fn="getRowClass"
         virtual-scroll
         @virtual-scroll="onTableVirtualScroll"
       >

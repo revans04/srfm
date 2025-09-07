@@ -359,7 +359,7 @@ const timeout = ref(3000);
 // Local state for Smart Matches sorting
 const activeTab = ref("smart-matches");
 const selectedSmartMatchIds = ref<string[]>([]);
-const smartMatchesSortField = ref<string>("postedDate");
+const smartMatchesSortField = ref<string>("merchant");
 const smartMatchesSortDirection = ref<"asc" | "desc">("asc");
 const smartMatchesSortFields = [
   { text: "Bank Date", value: "postedDate" },
@@ -599,23 +599,21 @@ async function confirmSmartMatches() {
       });
     });
 
-    console.log("confirmSmartMatches matchesByBudget", matchesByBudget);
+    await Promise.all(
+      Object.entries(matchesByBudget).map(async ([budgetId, recs]) => {
+        const budget = budgetStore.getBudget(budgetId);
+        if (!budget) throw new Error(`Budget ${budgetId} not found`);
 
-    for (const budgetId in matchesByBudget) {
-      const budget = budgetStore.getBudget(budgetId);
-      if (!budget) throw new Error(`Budget ${budgetId} not found`);
+        const reconcileData = {
+          budgetId,
+          reconciliations: recs,
+        };
 
-      const reconcileData = {
-        budgetId,
-        reconciliations: matchesByBudget[budgetId],
-      };
-
-      console.log("sending reconcile for", budgetId, reconcileData);
-
-      await dataAccess.batchReconcileTransactions(budgetId, budget, reconcileData);
-      const updatedBudget = await dataAccess.getBudget(budgetId);
-      if (updatedBudget) budgetStore.updateBudget(budgetId, updatedBudget);
-    }
+        await dataAccess.batchReconcileTransactions(budgetId, budget, reconcileData);
+        const updatedBudget = await dataAccess.getBudget(budgetId);
+        if (updatedBudget) budgetStore.updateBudget(budgetId, updatedBudget);
+      }),
+    );
 
     showSnackbar(`${matchesToConfirm.length} smart matches confirmed successfully`);
     emit("transactions-updated");
@@ -1122,7 +1120,7 @@ function resetState(computeMatches = true) {
   currentBankTransactionIndex.value = remainingImportedTransactions.value.length > 0 ? 0 : -1;
   potentialMatches.value = [];
   selectedBudgetTransactionForMatch.value = [];
-  smartMatchesSortField.value = "postedDate";
+  smartMatchesSortField.value = "merchant";
   smartMatchesSortDirection.value = "asc";
   potentialMatchesSortField.value = "date";
   potentialMatchesSortDirection.value = "asc";

@@ -774,15 +774,54 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
     public async Task BatchReconcileTransactions(string budgetId, List<ReconcileRequest> reconciliations, string userId, string userEmail)
     {
         await using var conn = await _db.GetOpenConnectionAsync();
-        foreach (var rec in reconciliations)
+
+        var ids = reconciliations.Select(r => r.ImportedTransactionId).ToArray();
+        var matches = reconciliations.Select(r => r.Match).ToArray();
+        var ignores = reconciliations.Select(r => r.Ignore).ToArray();
+
+        const string sqlImported = @"UPDATE imported_transactions i
+            SET matched = d.match,
+                ignored = d.ignore,
+                status = CASE WHEN d.match THEN 'C' ELSE i.status END
+            FROM UNNEST(@ids, @matches, @ignores) AS d(id, match, ignore)
+            WHERE i.id = d.id";
+
+        await using (var cmd = new NpgsqlCommand(sqlImported, conn))
         {
-            const string sql = "UPDATE imported_transactions SET matched=@match, ignored=@ignore WHERE id=@id";
-            await using var cmd = new NpgsqlCommand(sql, conn);
-            cmd.Parameters.AddWithValue("match", rec.Match);
-            cmd.Parameters.AddWithValue("ignore", rec.Ignore);
-            cmd.Parameters.AddWithValue("id", rec.ImportedTransactionId);
+            cmd.Parameters.AddWithValue("ids", ids);
+            cmd.Parameters.AddWithValue("matches", matches);
+            cmd.Parameters.AddWithValue("ignores", ignores);
             await cmd.ExecuteNonQueryAsync();
         }
+
+        var matched = reconciliations
+            .Where(r => r.Match && !string.IsNullOrEmpty(r.BudgetTransactionId))
+            .ToList();
+
+        if (matched.Count > 0)
+        {
+            var budgetIds = matched.Select(r => r.BudgetTransactionId!).ToArray();
+            var importedIds = matched.Select(r => r.ImportedTransactionId).ToArray();
+
+            const string sqlBudget = @"UPDATE transactions t
+                SET account_number = it.account_number,
+                    account_source = it.account_source,
+                    posted_date = it.posted_date,
+                    imported_merchant = it.payee,
+                    status = 'C',
+                    check_number = it.check_number
+                FROM UNNEST(@budgetIds, @importedIds) AS m(budget_id, imported_id)
+                JOIN imported_transactions it ON it.id = m.imported_id
+                WHERE t.id = m.budget_id";
+
+            await using (var budCmd = new NpgsqlCommand(sqlBudget, conn))
+            {
+                budCmd.Parameters.AddWithValue("budgetIds", budgetIds);
+                budCmd.Parameters.AddWithValue("importedIds", importedIds);
+                await budCmd.ExecuteNonQueryAsync();
+            }
+        }
+
         await LogEdit(conn, budgetId, userId, userEmail, "batch-reconcile");
     }
 }
