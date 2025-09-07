@@ -177,7 +177,7 @@
 
       <div class="row">
         <!-- Main Content -->
-        <div :class="selectedCategory ? (isMobile ? 'col-0 d-none' : 'col-8') : 'col-12'">
+        <div :class="selectedCategory || selectedGoal ? (isMobile ? 'col-0 d-none' : 'col-8') : 'col-12'">
           <!-- Budget Editing Form -->
           <q-card v-if="isEditing" flat bordered>
             <q-card-section>Edit Budget for {{ selectedEntity?.name || 'selected entity' }}</q-card-section>
@@ -270,7 +270,12 @@
           </q-card>
           <SavingsConversionPrompt v-if="legacySavingsCategories.length" :categories="legacySavingsCategories" @convert="onConvertLegacy" />
 
-          <GoalsGroupCard :entity-id="familyStore.selectedEntityId || ''" @add="onAddGoal" @contribute="onContribute" />
+          <GoalsGroupCard
+            :entity-id="familyStore.selectedEntityId || ''"
+            @add="onAddGoal"
+            @contribute="onContribute"
+            @view="onViewGoal"
+          />
 
           <!-- Category Tables -->
           <div v-if="!isEditing && catTransactions" class="row q-mt-lg">
@@ -369,6 +374,11 @@
             @update-transactions="updateTransactions"
           />
         </div>
+
+        <!-- Goal Details Sidebar -->
+        <div v-if="selectedGoal && !isEditing" :class="isMobile ? 'col-12' : 'col-4'" class="sidebar">
+          <GoalDetailsPanel :goal="selectedGoal" @close="selectedGoal = null" />
+        </div>
       </div>
 
       <!-- Version Info -->
@@ -414,6 +424,7 @@ import GoalsGroupCard from '../components/goals/GoalsGroupCard.vue';
 import GoalDialog from '../components/goals/GoalDialog.vue';
 import ContributeDialog from '../components/goals/ContributeDialog.vue';
 import SavingsConversionPrompt from '../components/goals/SavingsConversionPrompt.vue';
+import GoalDetailsPanel from '../components/goals/GoalDetailsPanel.vue';
 import type { Transaction, Budget, IncomeTarget, BudgetCategoryTrx, BudgetCategory, Goal } from '../types';
 import { EntityType } from '../types';
 import version from '../version';
@@ -477,7 +488,7 @@ const newTransaction = ref<Transaction>({
   isIncome: false,
   taxMetadata: [],
 });
-const { monthlySavingsTotal, createGoal, listGoals, loadGoals, addContribution, addGoalSpend } = useGoals();
+const { monthlySavingsTotal, createGoal, listGoals, loadGoals, addContribution, addGoalSpend, loadGoalDetails } = useGoals();
 const savingsTotal = ref(0);
 const goals = ref<Goal[]>([]);
 const goalDialog = ref(false);
@@ -540,6 +551,19 @@ function onContribute(goal: Goal) {
   contributeDialog.value = true;
 }
 
+async function onViewGoal(goal: Goal) {
+  console.log('onViewGoal clicked', goal);
+  selectedGoal.value = goal;
+  selectedCategory.value = null;
+  try {
+    await loadGoalDetails(goal.id);
+    console.log('Loaded goal details for', goal.id);
+  } catch (err) {
+    // Failing to load details shouldn't block the panel from opening
+    console.error('Failed to load goal details', err);
+  }
+}
+
 function onConvertLegacy(cat: BudgetCategory) {
   convertingCategory.value = cat;
   selectedGoal.value = { name: cat.name, monthlyTarget: cat.target } as Goal;
@@ -550,6 +574,8 @@ async function saveGoal(data: Partial<Goal>) {
   if (convertingCategory.value) {
     await convertLegacyCategory(convertingCategory.value, data);
     convertingCategory.value = null;
+    // Reload budgets so category lists reflect the conversion without a manual refresh
+    await loadBudgets();
   } else {
     await createGoal({ ...data, entityId: familyStore.selectedEntityId || '' });
   }
@@ -816,10 +842,12 @@ function monthExists(month: string) {
 function onIncomeRowClick(item: IncomeTarget) {
   const t = getCategoryInfo(item.name);
   selectedCategory.value = t;
+  selectedGoal.value = null;
 }
 
 function onCategoryRowClick(item: BudgetCategoryTrx) {
   selectedCategory.value = getCategoryInfo(item.name);
+  selectedGoal.value = null;
 }
 
 function getCategoryInfo(name: string): BudgetCategory {

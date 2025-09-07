@@ -7,11 +7,19 @@
         <div class="row items-center q-gutter-md q-mb-md">
           <div class="col">
             <div class="row items-center q-gutter-sm">
-              <h3 class="q-mb-none">Smart Matches ({{ smartMatches.length }})</h3>
-              <q-input v-model="smartMatchDateRange" label="Days" type="number" dense class="q-ml-md" style="width: 90px" @input="computeSmartMatchesLocal()" />
+              <h3 class="q-mb-none">Smart Matches ({{ smartMatchCountLabel }})</h3>
+              <q-input
+                v-model="smartMatchDateRange"
+                label="Days"
+                type="number"
+                dense
+                class="q-ml-md"
+                style="width: 90px"
+                @input="computeSmartMatchesLocal()"
+              />
             </div>
             <p class="text-caption q-mt-xs q-mb-none">
-              These imported transactions have exactly one potential match. Review and confirm below (max 50 at a time).
+              These imported transactions have exactly one potential match. Showing up to {{ MAX_SMART_MATCHES }} results.
             </p>
           </div>
           <div class="col-auto">
@@ -55,14 +63,28 @@
           :columns="smartMatchColumns"
           :rows="sortedSmartMatches"
           :row-key="rowKey"
+          :row-class="smartMatchRowClass"
           selection="multiple"
           v-model:selected="selectedSmartMatchesInternal"
           class="q-mt-lg"
           hide-bottom
-          :pagination="{ rowsPerPage: 50 }"
+          :pagination="{ rowsPerPage: 0 }"
         >
-          <template #body-cell-bankAmount="{ row }"> ${{ toDollars(toCents(row.bankAmount)) }} </template>
-          <template #body-cell-budgetAmount="{ row }"> ${{ toDollars(toCents(row.budgetAmount)) }} </template>
+          <template #body-cell-bankAmount="props">
+            <q-td :props="props" class="text-right" style="vertical-align: middle;">
+              ${{ toDollars(toCents(props.row.bankAmount)) }}
+            </q-td>
+          </template>
+          <template #body-cell-budgetAmount="props">
+            <q-td :props="props" class="text-right" style="vertical-align: middle;">
+              ${{ toDollars(toCents(props.row.budgetAmount)) }}
+            </q-td>
+          </template>
+          <template #body-cell-merchant="props">
+            <q-td :props="props" style="max-width: 200px; vertical-align: middle;">
+              <div class="ellipsis">{{ props.row.merchant }}</div>
+            </q-td>
+          </template>
           <template #body-cell-actions="{ row }">
             <q-icon
               v-if="isBudgetTxMatchedMultiple(row.budgetTransaction.id)"
@@ -162,6 +184,7 @@
                   :rows="sortedPotentialMatches"
                   :pagination="{ rowsPerPage: 5 }"
                   row-key="id"
+                  :row-class="potentialRowClass"
                   selection="single"
                   v-model:selected="selectedBudgetTransactionForMatch"
                 >
@@ -231,6 +254,7 @@
               :rows="sortedPotentialMatches"
               :pagination="{ rowsPerPage: 5 }"
               row-key="id"
+              :row-class="potentialRowClass"
               selection="single"
               v-model:selected="selectedBudgetTransactionForMatch"
             >
@@ -289,7 +313,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, nextTick } from 'vue';
-import type { Transaction, ImportedTransaction } from '../types';
+import type { Transaction, ImportedTransaction, Budget } from '../types';
 import { useQuasar } from 'quasar';
 import { toDollars, toCents, toBudgetMonth, todayISO } from '../utils/helpers';
 import { dataAccess } from '../dataAccess';
@@ -298,8 +322,8 @@ import { useFamilyStore } from '../store/family';
 import { auth } from '../firebase/init';
 import TransactionDialog from './TransactionDialog.vue';
 import { QForm } from 'quasar';
-import { v4 as uuidv4 } from 'uuid';
 import { createBudgetForMonth } from '../utils/budget';
+import { v4 as uuidv4 } from 'uuid';
 
 const budgetStore = useBudgetStore();
 const familyStore = useFamilyStore();
@@ -335,6 +359,7 @@ type SmartMatchRow = {
   budgetDate: string;
   budgetAmount: number;
   budgetType: string;
+  approxMatch: boolean;
 };
 
 const smartMatches = ref<SmartMatchRow[]>([]);
@@ -355,6 +380,13 @@ const smartMatchesSortFields = [
   { text: 'Amount', value: 'bankAmount' },
 ];
 const smartMatchDateRange = ref<string>('3');
+const MAX_SMART_MATCHES = 250;
+const totalSmartMatches = ref(0);
+const smartMatchCountLabel = computed(() =>
+  totalSmartMatches.value > MAX_SMART_MATCHES
+    ? `${smartMatches.value.length} of ${totalSmartMatches.value}`
+    : `${smartMatches.value.length}`,
+);
 
 // Local state for Remaining Transactions
 const currentBankTransactionIndex = ref<number>(0);
@@ -412,7 +444,14 @@ const smartMatchColumns = [
   { name: 'bankAmount', label: 'Bank Amount', field: 'bankAmount', sortable: true },
   { name: 'bankType', label: 'Bank Type', field: 'bankType', sortable: true },
   { name: 'payee', label: 'Payee', field: 'payee', sortable: true },
-  { name: 'merchant', label: 'Merchant', field: 'merchant', sortable: true },
+  {
+    name: 'merchant',
+    label: 'Merchant',
+    field: 'merchant',
+    sortable: true,
+    style: 'max-width: 200px; width: 200px;',
+    headerStyle: 'max-width: 200px; width: 200px;',
+  },
   { name: 'budgetDate', label: 'Budget Date', field: 'budgetDate', sortable: true },
   { name: 'budgetAmount', label: 'Budget Amount', field: 'budgetAmount', sortable: true },
   { name: 'budgetType', label: 'Budget Type', field: 'budgetType' },
@@ -420,6 +459,21 @@ const smartMatchColumns = [
 ];
 
 const rowKey = (row: SmartMatchRow) => row.importedTransaction.id;
+
+const smartMatchRowClass = (row: SmartMatchRow) => {
+  const classes: string[] = [];
+  if (toCents(row.bankAmount) !== toCents(row.budgetAmount)) classes.push('amount-mismatch');
+  if (row.approxMatch) classes.push('approx-match');
+  return classes.join(' ');
+};
+
+const potentialRowClass = (row: Transaction) => {
+  const bankAmount =
+    selectedBankTransaction.value?.debitAmount ||
+    selectedBankTransaction.value?.creditAmount ||
+    0;
+  return toCents(row.amount) !== toCents(bankAmount) ? 'amount-mismatch' : '';
+};
 
 type TxRow = Transaction;
 const budgetTransactionColumns = [
@@ -437,8 +491,13 @@ const selectedSmartMatchesInternal = computed({
     // Return selected rows as-is; template only needs length
     return smartMatches.value.filter((m) => selectedSmartMatchIds.value.includes(m.importedTransaction.id));
   },
-  set(rows: SmartMatchRow[]) {
-    selectedSmartMatchIds.value = Array.isArray(rows) ? rows.map((r) => r.importedTransaction?.id).filter((id): id is string => Boolean(id)) : [];
+  set(rows: Array<SmartMatchRow | string>) {
+    const allowedIds = new Set(smartMatches.value.map((m) => m.importedTransaction.id));
+    selectedSmartMatchIds.value = Array.isArray(rows)
+      ? rows
+          .map((r) => (typeof r === 'string' ? r : r.importedTransaction?.id))
+          .filter((id): id is string => Boolean(id) && allowedIds.has(id))
+      : [];
   },
 });
 
@@ -508,18 +567,9 @@ watch(
 );
 
 watch(
-  () => props.transactions,
-  () => {
-    computeSmartMatchesLocal();
-  },
-  { deep: true },
-);
-
-watch(
   () => props.remainingImportedTransactions,
   (newVal) => {
     remainingImportedTransactions.value = Array.isArray(newVal) ? [...newVal] : [];
-    computeSmartMatchesLocal();
   },
   { deep: true },
 );
@@ -529,6 +579,7 @@ async function initializeState() {
   selectedBankTransaction.value = props.selectedBankTransaction || remainingImportedTransactions.value[0] || null;
 
   smartMatches.value = [];
+  totalSmartMatches.value = 0;
   smartMatchDateRange.value = '3';
   computeSmartMatchesLocal();
 
@@ -576,8 +627,12 @@ function findSmartMatches() {
   findingSmartMatches.value = true;
   try {
     smartMatches.value = [];
+    totalSmartMatches.value = 0;
     computeSmartMatchesLocal();
-    showSnackbar(`Found ${smartMatches.value.length} smart match${smartMatches.value.length !== 1 ? 'es' : ''}`, 'info');
+    showSnackbar(
+      `Found ${totalSmartMatches.value} smart match${totalSmartMatches.value !== 1 ? 'es' : ''}`,
+      'info',
+    );
   } catch (error: unknown) {
     const err = error as Error;
     console.error('Error finding smart matches:', err);
@@ -598,7 +653,9 @@ async function confirmSmartMatches() {
     const user = auth.currentUser;
     if (!user) throw new Error('User not authenticated');
 
-    const matchesToConfirm = smartMatches.value.filter((match) => selectedSmartMatchIds.value.includes(match.importedTransaction.id));
+    const matchesToConfirm = smartMatches.value.filter((match) =>
+      selectedSmartMatchIds.value.includes(match.importedTransaction.id),
+    );
 
     const matchesByBudget: { [budgetId: string]: Array<{ budgetTransactionId: string; importedTransactionId: string; match: boolean; ignore: boolean }> } = {};
     matchesToConfirm.forEach((match) => {
@@ -641,8 +698,11 @@ async function confirmSmartMatches() {
 
     showSnackbar(`${matchesToConfirm.length} smart matches confirmed successfully`);
     emit('transactions-updated');
-    computeSmartMatchesLocal(matchesToConfirm);
     updateRemainingTransactions();
+    const confirmedIds = new Set(matchesToConfirm.map((m) => m.importedTransaction.id));
+    smartMatches.value = smartMatches.value.filter((m) => !confirmedIds.has(m.importedTransaction.id));
+    totalSmartMatches.value = Math.max(totalSmartMatches.value - matchesToConfirm.length, 0);
+    selectedSmartMatchIds.value = [];
   } catch (error: unknown) {
     const err = error as Error;
     console.error('Error confirming smart matches:', err);
@@ -690,11 +750,18 @@ async function matchBankTransaction(budgetTransaction: Transaction) {
       'budgetId' in budgetTransaction && typeof (budgetTransaction as { budgetId?: unknown }).budgetId === 'string'
         ? (budgetTransaction as { budgetId: string }).budgetId
         : undefined;
-    const targetBudgetIdToUse = existingBudgetId || `${user.uid}_${updatedTransaction.entityId}_${updatedTransaction.budgetMonth}`;
-    let budget = budgetStore.getBudget(targetBudgetIdToUse);
+    let budget: Budget | null = null;
+    if (existingBudgetId) {
+      budget = budgetStore.getBudget(existingBudgetId) || (await dataAccess.getBudget(existingBudgetId));
+    }
     if (!budget) {
       const fam = await familyStore.getFamily();
-      budget = await createBudgetForMonth(updatedTransaction.budgetMonth, fam?.id ?? '', user.uid, updatedTransaction.entityId || '');
+      budget = await createBudgetForMonth(
+        updatedTransaction.budgetMonth,
+        fam?.id ?? '',
+        user.uid,
+        updatedTransaction.entityId || '',
+      );
     }
 
     await dataAccess.saveTransaction(budget, updatedTransaction, false);
@@ -784,9 +851,19 @@ async function saveSplitTransaction() {
 
     // Group splits by budget (based on entityId and budgetMonth)
     const transactionsByBudget: { [budgetId: string]: Transaction[] } = {};
+    const budgetCache: Record<string, Budget> = {};
     for (const split of transactionSplits.value) {
       const budgetMonth = toBudgetMonth(importedTx.postedDate || todayISO());
-      const budgetId = `${user.uid}_${split.entityId}_${budgetMonth}`;
+      const key = `${split.entityId}_${budgetMonth}`;
+      if (!budgetCache[key]) {
+        budgetCache[key] = await createBudgetForMonth(
+          budgetMonth,
+          family.id,
+          user.uid,
+          split.entityId,
+        );
+      }
+      const budget = budgetCache[key];
       const baseTx = {
         id: uuidv4(),
         budgetMonth,
@@ -812,17 +889,14 @@ async function saveSplitTransaction() {
         ...(importedTx.checkNumber ? { checkNumber: importedTx.checkNumber } : {}),
       };
 
-      if (!transactionsByBudget[budgetId]) transactionsByBudget[budgetId] = [];
-      transactionsByBudget[budgetId].push(transaction);
+      if (!transactionsByBudget[budget.budgetId]) transactionsByBudget[budget.budgetId] = [];
+      transactionsByBudget[budget.budgetId].push(transaction);
     }
 
     // Save transactions to their respective budgets
     for (const budgetId in transactionsByBudget) {
-      let budget = budgetStore.getBudget(budgetId);
-      if (!budget) {
-        const [, entityId, month] = budgetId.split('_');
-        budget = await createBudgetForMonth(month, family.id, user.uid, entityId);
-      }
+      const budget = budgetStore.getBudget(budgetId) || (await dataAccess.getBudget(budgetId));
+      if (!budget) continue;
 
       await dataAccess.batchSaveTransactions(budgetId, budget, transactionsByBudget[budgetId] || []);
       const updatedBudget = await dataAccess.getBudget(budgetId);
@@ -866,13 +940,20 @@ async function handleTransactionAdded(savedTransaction: Transaction) {
     const family = await familyStore.getFamily();
     if (!family) throw new Error('No family found');
 
-    const targetBudgetId = `${user.uid}_${savedTransaction.entityId}_${savedTransaction.budgetMonth}`;
-    let budget = budgetStore.getBudget(targetBudgetId);
+    let budget =
+      (savedTransaction.budgetId &&
+        (budgetStore.getBudget(savedTransaction.budgetId) || (await dataAccess.getBudget(savedTransaction.budgetId)))) ||
+      null;
     if (!budget) {
-      budget = await createBudgetForMonth(savedTransaction.budgetMonth, family.id, user.uid, savedTransaction.entityId || '');
+      budget = await createBudgetForMonth(
+        savedTransaction.budgetMonth,
+        family.id,
+        user.uid,
+        savedTransaction.entityId || '',
+      );
     }
 
-    budgetStore.updateBudget(targetBudgetId, {
+    budgetStore.updateBudget(budget.budgetId, {
       ...budget,
       transactions: [...budget.transactions, savedTransaction],
     });
@@ -902,7 +983,7 @@ async function handleTransactionAdded(savedTransaction: Transaction) {
   }
 }
 
-function addNewTransaction() {
+async function addNewTransaction() {
   if (!selectedBankTransaction.value) {
     showSnackbar('No bank transaction selected to add', 'negative');
     return;
@@ -950,7 +1031,15 @@ function addNewTransaction() {
     ...(selectedBankTransaction.value.accountNumber ? { accountNumber: selectedBankTransaction.value.accountNumber } : {}),
     ...(selectedBankTransaction.value.checkNumber ? { checkNumber: selectedBankTransaction.value.checkNumber } : {}),
   } as Transaction;
-  newTransactionBudgetId.value = `${props.userId}_${familyStore.selectedEntityId}_${budgetMonth}`;
+  if (familyStore.family) {
+    const budget = await createBudgetForMonth(
+      budgetMonth,
+      familyStore.family.id,
+      props.userId,
+      familyStore.selectedEntityId || '',
+    );
+    newTransactionBudgetId.value = budget.budgetId;
+  }
   showTransactionDialog.value = true;
 }
 
@@ -991,6 +1080,24 @@ function sortPotentialMatches() {
 
 function togglePotentialMatchesSortDirection() {
   potentialMatchesSortDirection.value = potentialMatchesSortDirection.value === 'asc' ? 'desc' : 'asc';
+}
+
+function merchantSimilarity(a: string, b: string): number {
+  const normalize = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  const aTokens = normalize(a).split(' ').filter(Boolean);
+  const bTokens = normalize(b).split(' ').filter(Boolean);
+  if (aTokens.length === 0 || bTokens.length === 0) return 0;
+  const bSet = new Set(bTokens);
+  let matches = 0;
+  aTokens.forEach((t) => {
+    if (bSet.has(t)) matches++;
+  });
+  return matches / Math.max(aTokens.length, bTokens.length);
 }
 
 function searchBudgetTransactions() {
@@ -1036,8 +1143,9 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
     budgetId: string;
     bankAmount: number;
     bankType: string;
-    merchantMatch: boolean;
+    merchantScore: number;
     dateExact: boolean;
+    approxAmount: boolean;
   }> = [];
 
   unmatchedImported.forEach((importedTx) => {
@@ -1065,55 +1173,41 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
         !tx.deleted &&
         typeMatch
       ) {
+        const diffCents = Math.abs(toCents(txAmount) - toCents(bankAmount));
+        const score = merchantSimilarity(importedTx.payee || '', tx.merchant);
         potentialMatches.push({
           importedTx,
           budgetTx: tx,
           budgetId:
             'budgetId' in tx && typeof (tx as { budgetId?: unknown }).budgetId === 'string'
               ? (tx as { budgetId: string }).budgetId
-              : `${props.userId}_${tx.entityId}_${toBudgetMonth(importedTx.postedDate)}`,
+              : '',
           bankAmount,
           bankType: importedTx.debitAmount ? 'Debit' : 'Credit',
-          merchantMatch: !!importedTx.payee && importedTx.payee.toLowerCase().includes(tx.merchant.toLowerCase()),
+          merchantScore: score,
           dateExact: normalizedTxDate.getTime() === normalizedBankDate.getTime(),
+          approxAmount: diffCents !== 0,
         });
       }
     });
+  });
+
+  potentialMatches.sort((a, b) => {
+    if (a.approxAmount !== b.approxAmount) return a.approxAmount ? 1 : -1;
+    if (a.merchantScore !== b.merchantScore) return b.merchantScore - a.merchantScore;
+    if (a.dateExact !== b.dateExact) return a.dateExact ? -1 : 1;
+    return 0;
   });
 
   const usedBudgetTxIds = new Set<string>();
   const usedBankTxIds = new Set<string>();
   const smartMatchesToAdd: typeof potentialMatches = [];
 
-  const matchesByBank: Record<string, typeof potentialMatches> = {};
   potentialMatches.forEach((m) => {
-    if (!matchesByBank[m.importedTx.id]) matchesByBank[m.importedTx.id] = [];
-    matchesByBank[m.importedTx.id].push(m);
-  });
-
-  Object.values(matchesByBank).forEach((cands) => {
-    const available = cands.filter((c) => !usedBudgetTxIds.has(c.budgetTx.id));
-    if (available.length === 0) return;
-    let chosen: (typeof cands)[0] | null = null;
-
-    if (available.length === 1) {
-      chosen = available[0]!;
-    } else {
-      const merchantMatches = available.filter((c) => c.merchantMatch);
-      if (merchantMatches.length === 1) {
-        chosen = merchantMatches[0]!;
-      } else {
-        const dateMatches = available.filter((c) => c.dateExact);
-        if (dateMatches.length === 1) {
-          chosen = dateMatches[0]!;
-        }
-      }
-    }
-
-    if (chosen && !usedBudgetTxIds.has(chosen.budgetTx.id) && !usedBankTxIds.has(chosen.importedTx.id)) {
-      smartMatchesToAdd.push(chosen);
-      usedBudgetTxIds.add(chosen.budgetTx.id);
-      usedBankTxIds.add(chosen.importedTx.id);
+    if (!usedBudgetTxIds.has(m.budgetTx.id) && !usedBankTxIds.has(m.importedTx.id)) {
+      smartMatchesToAdd.push(m);
+      usedBudgetTxIds.add(m.budgetTx.id);
+      usedBankTxIds.add(m.importedTx.id);
     }
   });
 
@@ -1130,10 +1224,12 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
       budgetDate: match.budgetTx.date,
       budgetAmount: match.budgetTx.amount,
       budgetType: match.budgetTx.isIncome ? 'Income' : 'Expense',
+      approxMatch: match.approxAmount,
     });
   });
 
-  smartMatches.value = newSmartMatches;
+  totalSmartMatches.value = newSmartMatches.length;
+  smartMatches.value = newSmartMatches.slice(0, MAX_SMART_MATCHES);
   selectedSmartMatchIds.value = [];
 
   const smartMatchImportedIds = new Set(smartMatches.value.map((m) => m.importedTransaction.id));
@@ -1182,3 +1278,16 @@ function showSnackbar(text: string, color = 'success') {
 
 // Helper function to create a budget if it doesn't exist
 </script>
+
+<style>
+.q-table tbody tr.amount-mismatch td {
+  background-color: #fff7e6;
+}
+.q-table tbody tr.amount-mismatch.q-tr--selected td,
+.q-table tbody tr.amount-mismatch.selected td {
+  background-color: #ffe5cc;
+}
+.q-table tbody tr.approx-match td {
+  font-weight: 600;
+}
+</style>

@@ -8,7 +8,7 @@
         </div>
       </div>
       <div v-for="goal in goals" :key="goal.id" class="q-mt-sm">
-        <div class="row items-center">
+        <div class="row items-center cursor-pointer" @click="$emit('view', goal)">
           <div class="col">
             <div class="row items-center justify-between">
               <div class="text-subtitle1">{{ goal.name }}</div>
@@ -26,7 +26,7 @@
             </div>
           </div>
           <div v-if="!isMobile" class="col-auto">
-            <q-btn flat dense label="Contribute" @click="$emit('contribute', goal)" />
+            <q-btn flat dense label="Contribute" @click.stop="$emit('contribute', goal)" />
           </div>
         </div>
       </div>

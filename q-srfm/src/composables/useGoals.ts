@@ -26,6 +26,14 @@ export function useGoals() {
     return goals.value.filter((g) => g.entityId === entityId && !g.archived);
   }
 
+  function listContributions(goalId: string): GoalContribution[] {
+    return contributions.value[goalId] || [];
+  }
+
+  function listGoalSpends(goalId: string): GoalSpend[] {
+    return spends.value[goalId] || [];
+  }
+
   function getGoal(goalId: string): Goal | undefined {
     return goals.value.find((g) => g.id === goalId);
   }
@@ -64,26 +72,13 @@ export function useGoals() {
       archived: false,
     };
     goals.value.push(goal);
-    await dataAccess.saveGoal(goal);
+    await dataAccess.insertGoal(goal);
 
+    // Remove the legacy category from loaded budgets so it no longer shows in the UI
     for (const [id, b] of budgetStore.budgets.entries()) {
       if (!b.entityId || b.entityId === goal.entityId) {
-        const existing = b.categories.find((c) => c.name === goal.name);
-        if (existing) {
-          existing.isFund = true;
-          existing.target = goal.monthlyTarget;
-          existing.group = existing.group || 'Savings';
-        } else {
-          b.categories.push({
-            name: goal.name,
-            target: goal.monthlyTarget,
-            isFund: true,
-            group: 'Savings',
-            carryover: 0,
-          });
-        }
-        budgetStore.updateBudget(b.budgetId || id, { ...b });
-        await dataAccess.saveBudget(b.budgetId || id, b);
+        const filtered = b.categories.filter((c) => c.name !== goal.name);
+        budgetStore.updateBudget(b.budgetId || id, { ...b, categories: filtered });
       }
     }
 
@@ -94,7 +89,7 @@ export function useGoals() {
     const goal = goals.value.find((g) => g.id === goalId);
     if (goal) {
       Object.assign(goal, data, { updatedAt: new Date() as unknown as Timestamp });
-      await dataAccess.saveGoal(goal);
+      await dataAccess.updateGoal(goal);
     }
   }
 
@@ -103,8 +98,17 @@ export function useGoals() {
     if (goal) {
       goal.archived = true;
       goal.updatedAt = new Date() as unknown as Timestamp;
-      await dataAccess.saveGoal(goal);
+      await dataAccess.updateGoal(goal);
     }
+  }
+
+  async function loadGoalDetails(goalId: string): Promise<void> {
+    console.log('Loading goal details', goalId);
+    const details = await dataAccess.getGoalDetails(goalId);
+    console.log('Loaded goal details', goalId, details);
+    contributions.value[goalId] = details.contributions;
+    spends.value[goalId] = details.spend;
+    recomputeRollups(goalId);
   }
 
   function addContribution(goalId: string, amount: number, month: string, note?: string): void {
@@ -155,10 +159,13 @@ export function useGoals() {
     createGoal,
     updateGoal,
     archiveGoal,
+    loadGoalDetails,
     addContribution,
     addGoalSpend,
     recomputeRollups,
     monthlySavingsTotal,
     contributionsForMonth,
+    listContributions,
+    listGoalSpends,
   };
 }

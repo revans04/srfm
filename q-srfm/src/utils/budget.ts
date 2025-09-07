@@ -12,17 +12,43 @@ import type { Budget, BudgetCategory, Transaction } from '../types';
  * template or the most recent existing budget. Recurring transactions from the
  * source budget are added to the new budget.
  */
-export async function createBudgetForMonth(month: string, familyId: string, ownerUid: string, entityId: string): Promise<Budget> {
+export async function createBudgetForMonth(
+  month: string,
+  familyId: string,
+  ownerUid: string,
+  entityId: string,
+): Promise<Budget> {
   const budgetStore = useBudgetStore();
   const familyStore = useFamilyStore();
-  const budgetId = `${ownerUid}_${entityId}_${month}`;
 
-  // Return existing budget if it exists
-  const existingBudget = await dataAccess.getBudget(budgetId);
+  // Check if a budget already exists for this entity/month combination in the
+  // local store before creating a new one.
+  let existingBudget = Array.from(budgetStore.budgets.values()).find(
+    (b) => b.month === month && b.entityId === entityId,
+  );
+
+  if (!existingBudget) {
+    // Fetch accessible budgets from the API in case the budget hasn't been
+    // loaded yet. We only pull budgets for the specific entity to minimize
+    // network usage.
+    try {
+      const infos = await dataAccess.loadAccessibleBudgets(ownerUid, entityId);
+      const match = infos.find((b) => b.month === month && b.budgetId);
+      if (match?.budgetId) {
+        existingBudget = await dataAccess.getBudget(match.budgetId);
+        if (existingBudget) budgetStore.updateBudget(match.budgetId, existingBudget);
+      }
+    } catch {
+      /* ignore and fall through to create */
+    }
+  }
+
   if (existingBudget) {
-    budgetStore.updateBudget(budgetId, existingBudget);
     return existingBudget;
   }
+
+  // Generate a globally unique identifier for the new budget
+  const budgetId = uuidv4();
 
   const entity = familyStore.family?.entities?.find((e) => e.id === entityId);
   const templateBudget = entity?.templateBudget;
