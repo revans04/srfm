@@ -166,47 +166,7 @@ Key props/usage:
 
       <!-- Account Register Tab -->
       <q-tab-panel name="register">
-        <statement-header class="q-mb-sm" />
-        <div class="filter-bar shadow-2 bg-white q-pa-sm">
-          <!-- reuse same filters for demo -->
-          <div class="row q-col-gutter-sm items-center">
-            <q-select
-              v-model="filters.accountId"
-              :options="accountOptions"
-              dense
-              outlined
-              label="Account"
-              clearable
-              emit-value
-              map-options
-              class="col-3"
-            />
-            <q-input v-model="filters.search" dense outlined placeholder="Search" class="col" />
-            <q-checkbox v-model="filters.unmatchedOnly" label="Unmatched Only" class="col-auto" />
-            <q-btn
-              dense
-              flat
-              label="Refresh"
-              class="col-auto"
-              @click="refreshRegister"
-            />
-            <q-btn
-              dense
-              flat
-              label="Clear All"
-              class="col-auto"
-              @click="clearRegisterFilters"
-            />
-          </div>
-        </div>
-        <ledger-table
-          :rows="registerRows"
-          :loading="loadingRegister"
-          entity-label="Account"
-          :can-load-more="canLoadMoreRegister"
-          :loading-more="loadingMoreRegister"
-          @load-more="fetchMoreRegister"
-        />
+        <transaction-registry />
       </q-tab-panel>
 
       <!-- Match Bank Transactions Tab -->
@@ -222,7 +182,7 @@ import { computed, ref, watch, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { storeToRefs } from 'pinia';
 import LedgerTable from 'src/components/LedgerTable.vue';
-import StatementHeader from 'src/components/StatementHeader.vue';
+import TransactionRegistry from 'src/components/TransactionRegistry.vue';
 import MatchBankPanel from 'src/components/MatchBankPanel.vue';
 import EntitySelector from 'src/components/EntitySelector.vue';
 import TransactionForm from 'src/components/TransactionForm.vue';
@@ -246,32 +206,8 @@ const auth = useAuthStore();
 const { selectedBudgetIds, budgetFilters, registerFilters } = storeToRefs(uiStore);
 const { selectedEntityId } = storeToRefs(familyStore);
 
-const accountOptions = computed(() => {
-  const accounts = familyStore.family?.accounts || [];
-  const opts = accounts
-    .filter((a) => ['Bank', 'CreditCard', 'Investment'].includes(a.type))
-    .map((a) => ({
-      label: a.accountNumber ? `${a.name} (${a.accountNumber})` : a.name,
-      value: String(a.id),
-    }))
-    .sort((a, b) => a.label.localeCompare(b.label));
-  return [{ label: 'All', value: null }, ...opts];
-});
-
-const {
-  transactions,
-  filters,
-  registerRows,
-  fetchMore,
-  fetchMoreRegister,
-  loading,
-  loadingRegister,
-  canLoadMoreRegister,
-  loadingMoreRegister,
-  scrollToDate,
-  loadImportedTransactions,
-  loadInitial,
-} = useTransactions();
+const { transactions, filters, fetchMore, loading, scrollToDate, loadInitial } =
+  useTransactions();
 
 onMounted(loadBudgets);
 
@@ -336,36 +272,6 @@ watch(
   { deep: true },
 );
 
-async function ensureAccountsLoaded() {
-  if (!familyStore.family?.accounts || familyStore.family.accounts.length === 0) {
-    const fid = familyStore.family?.id;
-    if (fid) {
-      try {
-        const accounts = await dataAccess.getAccounts(fid);
-        if (familyStore.family) familyStore.family.accounts = accounts;
-      } catch {
-        /* ignore */
-      }
-    }
-  }
-}
-
-// Ensure an account is selected when viewing the register so data loads
-watch(
-  [tab, accountOptions],
-  async ([t]) => {
-    if (t === 'register') {
-      await ensureAccountsLoaded();
-    }
-  },
-  { immediate: true },
-);
-
-watch(tab, async (t) => {
-  if (t === 'register' && registerRows.value.length === 0) {
-    await loadImportedTransactions(true);
-  }
-});
 
 watch(minAmtInput, (v) => {
   filters.value.minAmt = v === '' ? null : Number(v);
@@ -437,22 +343,12 @@ function clearBudgetFilters() {
   syncInputsFromFilters();
 }
 
-function clearRegisterFilters() {
-  filters.value = createDefaultFilters();
-  syncInputsFromFilters();
-}
-
 async function refreshBudget() {
   await loadBudgets();
   if (selectedBudgetIds.value.length > 0) {
     await loadInitial(selectedBudgetIds.value);
   }
 }
-
-async function refreshRegister() {
-  await loadImportedTransactions(true);
-}
-
 async function onRowClick(row: LedgerRow) {
   let budget = budgetStore.getBudget(row.budgetId);
   if (!budget) {

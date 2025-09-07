@@ -218,6 +218,7 @@
         :table-row-class-fn="getRowClass"
         virtual-scroll
         @virtual-scroll="onTableVirtualScroll"
+        @row-click="onSingleRowClick"
       >
         <template #body-cell-amount="{ row }">
           <span :class="row.isIncome ? 'text-positive' : 'text-negative'">
@@ -1092,6 +1093,13 @@ function openBatchMatchDialog() {
   });
   selectedEntityId.value = familyStore.selectedEntityId || '';
   showBatchMatchDialog.value = true;
+}
+
+function onSingleRowClick(_: unknown, row: DisplayTransaction) {
+  if (row.status === 'U' && !row.budgetId) {
+    selectedRows.value = [row.id];
+    openBatchMatchDialog();
+  }
 }
 
 async function executeBatchMatch() {
