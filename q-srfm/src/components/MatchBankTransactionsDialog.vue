@@ -486,19 +486,17 @@ const smartMatchColumns = [
 
 const rowKey = (row: SmartMatchRow) => row.importedTransaction.id;
 
-const smartMatchRowClass = (row: SmartMatchRow) => {
-  const classes: string[] = [];
-  if (toCents(row.bankAmount) !== toCents(row.budgetAmount)) classes.push('amount-mismatch');
-  if (row.approxMatch) classes.push('approx-match');
-  return classes.join(' ');
-};
+const smartMatchRowClass = (row: SmartMatchRow) => ({
+  'amount-mismatch': toCents(row.bankAmount) !== toCents(row.budgetAmount),
+  'approx-match': row.approxMatch,
+});
 
 const potentialRowClass = (row: Transaction) => {
   const bankAmount =
     selectedBankTransaction.value?.debitAmount ||
     selectedBankTransaction.value?.creditAmount ||
     0;
-  return toCents(row.amount) !== toCents(bankAmount) ? 'amount-mismatch' : '';
+  return { 'amount-mismatch': toCents(row.amount) !== toCents(bankAmount) };
 };
 
 type TxRow = Transaction;
