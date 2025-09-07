@@ -1192,49 +1192,22 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
     });
   });
 
+  potentialMatches.sort((a, b) => {
+    if (a.approxAmount !== b.approxAmount) return a.approxAmount ? 1 : -1;
+    if (a.merchantScore !== b.merchantScore) return b.merchantScore - a.merchantScore;
+    if (a.dateExact !== b.dateExact) return a.dateExact ? -1 : 1;
+    return 0;
+  });
+
   const usedBudgetTxIds = new Set<string>();
   const usedBankTxIds = new Set<string>();
   const smartMatchesToAdd: typeof potentialMatches = [];
 
-  const matchesByBank: Record<string, typeof potentialMatches> = {};
   potentialMatches.forEach((m) => {
-    if (!matchesByBank[m.importedTx.id]) matchesByBank[m.importedTx.id] = [];
-    matchesByBank[m.importedTx.id].push(m);
-  });
-
-  Object.values(matchesByBank).forEach((cands) => {
-    const available = cands.filter((c) => !usedBudgetTxIds.has(c.budgetTx.id));
-    if (available.length === 0) return;
-    let chosen: (typeof cands)[0] | null = null;
-
-    const exactAmount = available.filter((c) => !c.approxAmount);
-    const pool = exactAmount.length > 0 ? exactAmount : available;
-
-    if (pool.length === 1) {
-      chosen = pool[0]!;
-    } else {
-      const merchantMatches = pool.filter((c) => c.merchantScore >= 0.5);
-      if (merchantMatches.length > 0) {
-        merchantMatches.sort((a, b) => b.merchantScore - a.merchantScore);
-        if (
-          merchantMatches.length === 1 ||
-          merchantMatches[0].merchantScore > merchantMatches[1].merchantScore
-        ) {
-          chosen = merchantMatches[0]!;
-        }
-      }
-      if (!chosen) {
-        const dateMatches = pool.filter((c) => c.dateExact);
-        if (dateMatches.length === 1) {
-          chosen = dateMatches[0]!;
-        }
-      }
-    }
-
-    if (chosen && !usedBudgetTxIds.has(chosen.budgetTx.id) && !usedBankTxIds.has(chosen.importedTx.id)) {
-      smartMatchesToAdd.push(chosen);
-      usedBudgetTxIds.add(chosen.budgetTx.id);
-      usedBankTxIds.add(chosen.importedTx.id);
+    if (!usedBudgetTxIds.has(m.budgetTx.id) && !usedBankTxIds.has(m.importedTx.id)) {
+      smartMatchesToAdd.push(m);
+      usedBudgetTxIds.add(m.budgetTx.id);
+      usedBankTxIds.add(m.importedTx.id);
     }
   });
 
