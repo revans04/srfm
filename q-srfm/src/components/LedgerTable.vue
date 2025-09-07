@@ -23,7 +23,11 @@
     <template #header="h">
       <q-tr :props="h">
         <q-th v-if="props.selection" auto-width>
-          <q-checkbox v-model="h.selected" :indeterminate="h.someSelected" @click.stop />
+          <q-checkbox
+            v-model="h.selected"
+            :indeterminate="selectedInternal.length > 0 && selectedInternal.length < rows.length"
+            @click.stop
+          />
         </q-th>
         <q-th v-for="col in h.cols" :key="col.name" :props="h">
           {{ col.label }}
