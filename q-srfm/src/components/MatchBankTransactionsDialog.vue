@@ -1082,6 +1082,24 @@ function togglePotentialMatchesSortDirection() {
   potentialMatchesSortDirection.value = potentialMatchesSortDirection.value === 'asc' ? 'desc' : 'asc';
 }
 
+function merchantSimilarity(a: string, b: string): number {
+  const normalize = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  const aTokens = normalize(a).split(' ').filter(Boolean);
+  const bTokens = normalize(b).split(' ').filter(Boolean);
+  if (aTokens.length === 0 || bTokens.length === 0) return 0;
+  const bSet = new Set(bTokens);
+  let matches = 0;
+  aTokens.forEach((t) => {
+    if (bSet.has(t)) matches++;
+  });
+  return matches / Math.max(aTokens.length, bTokens.length);
+}
+
 function searchBudgetTransactions() {
   if (!selectedBankTransaction.value) return;
 
@@ -1125,7 +1143,7 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
     budgetId: string;
     bankAmount: number;
     bankType: string;
-    merchantMatch: boolean;
+    merchantScore: number;
     dateExact: boolean;
     approxAmount: boolean;
   }> = [];
@@ -1156,6 +1174,7 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
         typeMatch
       ) {
         const diffCents = Math.abs(toCents(txAmount) - toCents(bankAmount));
+        const score = merchantSimilarity(importedTx.payee || '', tx.merchant);
         potentialMatches.push({
           importedTx,
           budgetTx: tx,
@@ -1165,7 +1184,7 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
               : '',
           bankAmount,
           bankType: importedTx.debitAmount ? 'Debit' : 'Credit',
-          merchantMatch: !!importedTx.payee && importedTx.payee.toLowerCase().includes(tx.merchant.toLowerCase()),
+          merchantScore: score,
           dateExact: normalizedTxDate.getTime() === normalizedBankDate.getTime(),
           approxAmount: diffCents !== 0,
         });
@@ -1194,10 +1213,17 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
     if (pool.length === 1) {
       chosen = pool[0]!;
     } else {
-      const merchantMatches = pool.filter((c) => c.merchantMatch);
-      if (merchantMatches.length === 1) {
-        chosen = merchantMatches[0]!;
-      } else {
+      const merchantMatches = pool.filter((c) => c.merchantScore >= 0.5);
+      if (merchantMatches.length > 0) {
+        merchantMatches.sort((a, b) => b.merchantScore - a.merchantScore);
+        if (
+          merchantMatches.length === 1 ||
+          merchantMatches[0].merchantScore > merchantMatches[1].merchantScore
+        ) {
+          chosen = merchantMatches[0]!;
+        }
+      }
+      if (!chosen) {
         const dateMatches = pool.filter((c) => c.dateExact);
         if (dateMatches.length === 1) {
           chosen = dateMatches[0]!;
