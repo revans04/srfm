@@ -694,8 +694,9 @@ async function confirmSmartMatches() {
     showSnackbar(`${matchesToConfirm.length} smart matches confirmed successfully`);
     emit('transactions-updated');
     const confirmedIds = new Set(matchesToConfirm.map((m) => m.importedTransaction.id));
+    smartMatches.value = smartMatches.value.filter((m) => !confirmedIds.has(m.importedTransaction.id));
+    totalSmartMatches.value = smartMatches.value.length;
     updateRemainingTransactions(confirmedIds);
-    computeSmartMatchesLocal(matchesToConfirm);
   } catch (error: unknown) {
     const err = error as Error;
     console.error('Error confirming smart matches:', err);
