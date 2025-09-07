@@ -359,7 +359,7 @@ const timeout = ref(3000);
 // Local state for Smart Matches sorting
 const activeTab = ref("smart-matches");
 const selectedSmartMatchIds = ref<string[]>([]);
-const smartMatchesSortField = ref<string>("postedDate");
+const smartMatchesSortField = ref<string>("merchant");
 const smartMatchesSortDirection = ref<"asc" | "desc">("asc");
 const smartMatchesSortFields = [
   { text: "Bank Date", value: "postedDate" },

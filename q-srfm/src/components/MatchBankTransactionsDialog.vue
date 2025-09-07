@@ -372,7 +372,7 @@ const findingSmartMatches = ref(false);
 
 // Local state for Smart Matches sorting
 const selectedSmartMatchIds = ref<string[]>([]);
-const smartMatchesSortField = ref<string>('bankDate');
+const smartMatchesSortField = ref<string>('merchant');
 const smartMatchesSortDirection = ref<'asc' | 'desc'>('asc');
 const smartMatchesSortFields = [
   { text: 'Bank Date', value: 'bankDate' },
