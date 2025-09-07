@@ -63,7 +63,7 @@
           :columns="smartMatchColumns"
           :rows="visibleSmartMatches"
           :row-key="rowKey"
-          :row-class="smartMatchRowClass"
+          :table-row-class-fn="smartMatchRowClass"
           selection="multiple"
           v-model:selected="selectedSmartMatchesInternal"
           class="q-mt-lg"
@@ -184,7 +184,7 @@
                   :rows="sortedPotentialMatches"
                   :pagination="{ rowsPerPage: 5 }"
                   row-key="id"
-                  :row-class="potentialRowClass"
+                  :table-row-class-fn="potentialRowClass"
                   selection="single"
                   v-model:selected="selectedBudgetTransactionForMatch"
                 >
@@ -254,7 +254,7 @@
               :rows="sortedPotentialMatches"
               :pagination="{ rowsPerPage: 5 }"
               row-key="id"
-              :row-class="potentialRowClass"
+              :table-row-class-fn="potentialRowClass"
               selection="single"
               v-model:selected="selectedBudgetTransactionForMatch"
             >
