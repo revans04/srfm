@@ -112,7 +112,7 @@ const emit = defineEmits<{
 const selectedInternal = computed<LedgerRow[] | string[]>({
   get() {
     if (!props.selected) return [];
-    return props.rows.filter((r) => props.selected!.includes(r.id));
+    return props.rows.filter((r) => props.selected.includes(r.id));
   },
   set(val) {
     if (Array.isArray(val)) {
