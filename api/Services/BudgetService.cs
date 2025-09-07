@@ -776,12 +776,51 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
         await using var conn = await _db.GetOpenConnectionAsync();
         foreach (var rec in reconciliations)
         {
-            const string sql = "UPDATE imported_transactions SET matched=@match, ignored=@ignore WHERE id=@id";
-            await using var cmd = new NpgsqlCommand(sql, conn);
-            cmd.Parameters.AddWithValue("match", rec.Match);
-            cmd.Parameters.AddWithValue("ignore", rec.Ignore);
-            cmd.Parameters.AddWithValue("id", rec.ImportedTransactionId);
-            await cmd.ExecuteNonQueryAsync();
+            // Update the imported transaction's matched/ignored flags and set status to cleared when matched.
+            const string sqlImported =
+                "UPDATE imported_transactions SET matched=@match, ignored=@ignore, status = CASE WHEN @match THEN 'C' ELSE status END WHERE id=@id";
+            await using (var cmd = new NpgsqlCommand(sqlImported, conn))
+            {
+                cmd.Parameters.AddWithValue("match", rec.Match);
+                cmd.Parameters.AddWithValue("ignore", rec.Ignore);
+                cmd.Parameters.AddWithValue("id", rec.ImportedTransactionId);
+                await cmd.ExecuteNonQueryAsync();
+            }
+
+            // If the transaction is being matched to a budget transaction, copy over account details and clear it.
+            if (rec.Match && !string.IsNullOrEmpty(rec.BudgetTransactionId))
+            {
+                const string sqlGet =
+                    "SELECT account_number, account_source, posted_date, payee, check_number FROM imported_transactions WHERE id=@id";
+                string? acctNum = null, acctSrc = null, payee = null, checkNum = null;
+                DateTime? posted = null;
+                await using (var getCmd = new NpgsqlCommand(sqlGet, conn))
+                {
+                    getCmd.Parameters.AddWithValue("id", rec.ImportedTransactionId);
+                    await using var reader = await getCmd.ExecuteReaderAsync();
+                    if (await reader.ReadAsync())
+                    {
+                        acctNum = reader.IsDBNull(0) ? null : reader.GetString(0);
+                        acctSrc = reader.IsDBNull(1) ? null : reader.GetString(1);
+                        posted = reader.IsDBNull(2) ? (DateTime?)null : reader.GetDateTime(2);
+                        payee = reader.IsDBNull(3) ? null : reader.GetString(3);
+                        checkNum = reader.IsDBNull(4) ? null : reader.GetString(4);
+                    }
+                }
+
+                const string sqlBudget =
+                    "UPDATE transactions SET account_number=@acct, account_source=@src, posted_date=@posted, imported_merchant=@payee, status='C', check_number=@check WHERE id=@tid";
+                await using (var budCmd = new NpgsqlCommand(sqlBudget, conn))
+                {
+                    budCmd.Parameters.AddWithValue("acct", (object?)acctNum ?? DBNull.Value);
+                    budCmd.Parameters.AddWithValue("src", (object?)acctSrc ?? DBNull.Value);
+                    budCmd.Parameters.AddWithValue("posted", (object?)posted ?? DBNull.Value);
+                    budCmd.Parameters.AddWithValue("payee", (object?)payee ?? DBNull.Value);
+                    budCmd.Parameters.AddWithValue("check", (object?)checkNum ?? DBNull.Value);
+                    budCmd.Parameters.AddWithValue("tid", rec.BudgetTransactionId);
+                    await budCmd.ExecuteNonQueryAsync();
+                }
+            }
         }
         await LogEdit(conn, budgetId, userId, userEmail, "batch-reconcile");
     }
