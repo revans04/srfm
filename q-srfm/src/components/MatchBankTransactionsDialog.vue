@@ -61,7 +61,7 @@
         <q-table
           v-if="smartMatches.length > 0"
           :columns="smartMatchColumns"
-          :rows="sortedSmartMatches"
+          :rows="visibleSmartMatches"
           :row-key="rowKey"
           :row-class="smartMatchRowClass"
           selection="multiple"
@@ -382,10 +382,36 @@ const smartMatchesSortFields = [
 const smartMatchDateRange = ref<string>('3');
 const MAX_SMART_MATCHES = 250;
 const totalSmartMatches = ref(0);
+const sortedSmartMatches = computed(() => {
+  const items = [...smartMatches.value];
+  const field = smartMatchesSortField.value;
+  const direction = smartMatchesSortDirection.value;
+
+  return items.sort((a, b) => {
+    let valueA: number | string = 0;
+    let valueB: number | string = 0;
+
+    if (field === 'bankDate') {
+      valueA = new Date(a.bankDate).getTime();
+      valueB = new Date(b.bankDate).getTime();
+    } else if (field === 'merchant') {
+      valueA = a.merchant.toLowerCase();
+      valueB = b.merchant.toLowerCase();
+    } else if (field === 'bankAmount') {
+      valueA = a.bankAmount;
+      valueB = b.bankAmount;
+    }
+
+    if (valueA < valueB) return direction === 'asc' ? -1 : 1;
+    if (valueA > valueB) return direction === 'asc' ? 1 : -1;
+    return 0;
+  });
+});
+const visibleSmartMatches = computed(() => sortedSmartMatches.value.slice(0, MAX_SMART_MATCHES));
 const smartMatchCountLabel = computed(() =>
   totalSmartMatches.value > MAX_SMART_MATCHES
-    ? `${smartMatches.value.length} of ${totalSmartMatches.value}`
-    : `${smartMatches.value.length}`,
+    ? `${visibleSmartMatches.value.length} of ${totalSmartMatches.value}`
+    : `${totalSmartMatches.value}`,
 );
 
 // Local state for Remaining Transactions
@@ -488,44 +514,16 @@ const budgetTransactionColumns = [
 // Bridge selection to ids
 const selectedSmartMatchesInternal = computed({
   get() {
-    // Return selected rows as-is; template only needs length
-    return smartMatches.value.filter((m) => selectedSmartMatchIds.value.includes(m.importedTransaction.id));
+    return visibleSmartMatches.value.filter((m) => selectedSmartMatchIds.value.includes(m.importedTransaction.id));
   },
   set(rows: Array<SmartMatchRow | string>) {
-    const allowedIds = new Set(smartMatches.value.map((m) => m.importedTransaction.id));
+    const allowedIds = new Set(visibleSmartMatches.value.map((m) => m.importedTransaction.id));
     selectedSmartMatchIds.value = Array.isArray(rows)
       ? rows
           .map((r) => (typeof r === 'string' ? r : r.importedTransaction?.id))
           .filter((id): id is string => Boolean(id) && allowedIds.has(id))
       : [];
   },
-});
-
-// Computed properties
-const sortedSmartMatches = computed(() => {
-  const items = [...smartMatches.value];
-  const field = smartMatchesSortField.value;
-  const direction = smartMatchesSortDirection.value;
-
-  return items.sort((a, b) => {
-    let valueA: number | string = 0;
-    let valueB: number | string = 0;
-
-    if (field === 'bankDate') {
-      valueA = new Date(a.bankDate).getTime();
-      valueB = new Date(b.bankDate).getTime();
-    } else if (field === 'merchant') {
-      valueA = a.merchant.toLowerCase();
-      valueB = b.merchant.toLowerCase();
-    } else if (field === 'bankAmount') {
-      valueA = a.bankAmount;
-      valueB = b.bankAmount;
-    }
-
-    if (valueA < valueB) return direction === 'asc' ? -1 : 1;
-    if (valueA > valueB) return direction === 'asc' ? 1 : -1;
-    return 0;
-  });
 });
 
 const sortedPotentialMatches = computed(() => {
@@ -628,6 +626,9 @@ function findSmartMatches() {
   try {
     smartMatches.value = [];
     totalSmartMatches.value = 0;
+    remainingImportedTransactions.value = Array.isArray(props.remainingImportedTransactions)
+      ? [...props.remainingImportedTransactions]
+      : [];
     computeSmartMatchesLocal();
     showSnackbar(
       `Found ${totalSmartMatches.value} smart match${totalSmartMatches.value !== 1 ? 'es' : ''}`,
@@ -698,11 +699,9 @@ async function confirmSmartMatches() {
 
     showSnackbar(`${matchesToConfirm.length} smart matches confirmed successfully`);
     emit('transactions-updated');
-    updateRemainingTransactions();
     const confirmedIds = new Set(matchesToConfirm.map((m) => m.importedTransaction.id));
-    smartMatches.value = smartMatches.value.filter((m) => !confirmedIds.has(m.importedTransaction.id));
-    totalSmartMatches.value = Math.max(totalSmartMatches.value - matchesToConfirm.length, 0);
-    selectedSmartMatchIds.value = [];
+    updateRemainingTransactions(confirmedIds);
+    computeSmartMatchesLocal(matchesToConfirm);
   } catch (error: unknown) {
     const err = error as Error;
     console.error('Error confirming smart matches:', err);
@@ -1128,7 +1127,6 @@ function searchBudgetTransactions() {
 }
 
 function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = []) {
-  console.log('Computing smart matches...');
   const confirmedIds = new Set(confirmedMatches.map((m) => m.importedTransaction.id));
   const newSmartMatches = smartMatches.value.filter((match) => !confirmedIds.has(match.importedTransaction.id));
 
@@ -1229,18 +1227,22 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
   });
 
   totalSmartMatches.value = newSmartMatches.length;
-  smartMatches.value = newSmartMatches.slice(0, MAX_SMART_MATCHES);
+  smartMatches.value = newSmartMatches;
   selectedSmartMatchIds.value = [];
 
   const smartMatchImportedIds = new Set(smartMatches.value.map((m) => m.importedTransaction.id));
   remainingImportedTransactions.value = unmatchedImported.filter((tx) => !smartMatchImportedIds.has(tx.id));
 }
 
-function updateRemainingTransactions() {
-  const matchedIds = new Set(
-    smartMatches.value.filter((match) => selectedSmartMatchIds.value.includes(match.importedTransaction.id)).map((match) => match.importedTransaction.id),
-  );
-  remainingImportedTransactions.value = remainingImportedTransactions.value.filter((importedTx) => !matchedIds.has(importedTx.id));
+function updateRemainingTransactions(matchedIds?: Set<string>) {
+  const ids =
+    matchedIds ||
+    new Set(
+      smartMatches.value
+        .filter((match) => selectedSmartMatchIds.value.includes(match.importedTransaction.id))
+        .map((match) => match.importedTransaction.id),
+    );
+  remainingImportedTransactions.value = remainingImportedTransactions.value.filter((importedTx) => !ids.has(importedTx.id));
 
   if (remainingImportedTransactions.value.length > 0) {
     currentBankTransactionIndex.value = Math.min(currentBankTransactionIndex.value, remainingImportedTransactions.value.length - 1);
@@ -1258,7 +1260,7 @@ function resetState(computeMatches = true) {
   currentBankTransactionIndex.value = remainingImportedTransactions.value.length > 0 ? 0 : -1;
   potentialMatches.value = [];
   selectedBudgetTransactionForMatch.value = [];
-  smartMatchesSortField.value = 'bankDate';
+  smartMatchesSortField.value = 'merchant';
   smartMatchesSortDirection.value = 'asc';
   potentialMatchesSortField.value = 'date';
   potentialMatchesSortDirection.value = 'asc';
