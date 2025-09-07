@@ -359,6 +359,7 @@ type SmartMatchRow = {
   budgetDate: string;
   budgetAmount: number;
   budgetType: string;
+  approxMatch: boolean;
 };
 
 const smartMatches = ref<SmartMatchRow[]>([]);
@@ -459,8 +460,12 @@ const smartMatchColumns = [
 
 const rowKey = (row: SmartMatchRow) => row.importedTransaction.id;
 
-const smartMatchRowClass = (row: SmartMatchRow) =>
-  toCents(row.bankAmount) !== toCents(row.budgetAmount) ? 'amount-mismatch' : '';
+const smartMatchRowClass = (row: SmartMatchRow) => {
+  const classes: string[] = [];
+  if (toCents(row.bankAmount) !== toCents(row.budgetAmount)) classes.push('amount-mismatch');
+  if (row.approxMatch) classes.push('approx-match');
+  return classes.join(' ');
+};
 
 const potentialRowClass = (row: Transaction) => {
   const bankAmount =
@@ -1122,6 +1127,7 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
     bankType: string;
     merchantMatch: boolean;
     dateExact: boolean;
+    approxAmount: boolean;
   }> = [];
 
   unmatchedImported.forEach((importedTx) => {
@@ -1149,6 +1155,7 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
         !tx.deleted &&
         typeMatch
       ) {
+        const diffCents = Math.abs(toCents(txAmount) - toCents(bankAmount));
         potentialMatches.push({
           importedTx,
           budgetTx: tx,
@@ -1160,6 +1167,7 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
           bankType: importedTx.debitAmount ? 'Debit' : 'Credit',
           merchantMatch: !!importedTx.payee && importedTx.payee.toLowerCase().includes(tx.merchant.toLowerCase()),
           dateExact: normalizedTxDate.getTime() === normalizedBankDate.getTime(),
+          approxAmount: diffCents !== 0,
         });
       }
     });
@@ -1180,14 +1188,17 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
     if (available.length === 0) return;
     let chosen: (typeof cands)[0] | null = null;
 
-    if (available.length === 1) {
-      chosen = available[0]!;
+    const exactAmount = available.filter((c) => !c.approxAmount);
+    const pool = exactAmount.length > 0 ? exactAmount : available;
+
+    if (pool.length === 1) {
+      chosen = pool[0]!;
     } else {
-      const merchantMatches = available.filter((c) => c.merchantMatch);
+      const merchantMatches = pool.filter((c) => c.merchantMatch);
       if (merchantMatches.length === 1) {
         chosen = merchantMatches[0]!;
       } else {
-        const dateMatches = available.filter((c) => c.dateExact);
+        const dateMatches = pool.filter((c) => c.dateExact);
         if (dateMatches.length === 1) {
           chosen = dateMatches[0]!;
         }
@@ -1214,6 +1225,7 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
       budgetDate: match.budgetTx.date,
       budgetAmount: match.budgetTx.amount,
       budgetType: match.budgetTx.isIncome ? 'Income' : 'Expense',
+      approxMatch: match.approxAmount,
     });
   });
 
@@ -1275,5 +1287,8 @@ function showSnackbar(text: string, color = 'success') {
 .q-table tbody tr.amount-mismatch.q-tr--selected td,
 .q-table tbody tr.amount-mismatch.selected td {
   background-color: #ffe5cc;
+}
+.q-table tbody tr.approx-match td {
+  font-weight: 600;
 }
 </style>
