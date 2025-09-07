@@ -327,7 +327,7 @@ import { useBudgetStore } from 'src/store/budget';
 import { useFamilyStore } from 'src/store/family';
 import { useUIStore } from 'src/store/ui';
 import { useAuthStore } from 'src/store/auth';
-import { sortBudgetsByMonthDesc } from 'src/utils/budget';
+import { sortBudgetsByMonthDesc, createBudgetForMonth } from 'src/utils/budget';
 import { dataAccess } from 'src/dataAccess';
 import type { Transaction } from 'src/types';
 
@@ -366,6 +366,7 @@ const {
   scrollToDate,
   loadImportedTransactions,
   loadInitial,
+  getImportedTx,
 } = useTransactions();
 
 onMounted(loadBudgets);
@@ -676,31 +677,61 @@ async function executeRegisterBatchMatch() {
   if (!valid) return;
   saving.value = true;
   try {
+    const family = familyStore.family;
+    const ownerUid = family?.ownerUid || auth.user?.uid || '';
     for (const entry of batchEntries.value) {
-      const budget = Array.from(budgetStore.budgets.values()).find(
-        (b) => b.entityId === selectedEntityId.value,
+      const imported = getImportedTx(entry.id);
+      if (!imported || !family) continue;
+      const budgetMonth = entry.date.slice(0, 7);
+      let targetBudget = Array.from(budgetStore.budgets.values()).find(
+        (b) => b.entityId === selectedEntityId.value && b.month === budgetMonth,
       );
-      if (!budget?.budgetId) continue;
+      if (!targetBudget) {
+        targetBudget = await createBudgetForMonth(
+          budgetMonth,
+          family.id,
+          ownerUid,
+          selectedEntityId.value,
+        );
+      }
+      if (!targetBudget?.budgetId) continue;
+      if (!targetBudget.categories.some((cat) => cat.name === entry.category)) {
+        targetBudget.categories.push({
+          name: entry.category,
+          target: 0,
+          isFund: false,
+          group: 'Ungrouped',
+        });
+        await dataAccess.saveBudget(targetBudget.budgetId, targetBudget);
+        budgetStore.updateBudget(targetBudget.budgetId, targetBudget);
+      }
       const tx: Transaction = {
         id: '',
         date: entry.date,
+        budgetMonth,
         merchant: entry.merchant,
-        amount: entry.amount,
-        categories: [{ category: entry.category, amount: entry.amount }],
+        categories: [{ category: entry.category, amount: Math.abs(entry.amount) }],
+        amount: Math.abs(entry.amount),
         notes: '',
         recurring: false,
         recurringInterval: 'Monthly',
         userId: auth.user?.uid || '',
         isIncome: entry.amount > 0,
-        taxMetadata: [],
+        accountSource: imported.accountSource || '',
+        accountNumber: imported.accountNumber || '',
+        postedDate: imported.postedDate,
+        checkNumber: imported.checkNumber,
+        importedMerchant: imported.payee,
         status: 'C',
         entityId: selectedEntityId.value,
+        taxMetadata: imported.taxMetadata || [],
       };
-      await dataAccess.addTransaction(budget.budgetId, tx);
-      const parts = entry.id.split('-');
+      await dataAccess.saveTransaction(targetBudget, tx, false);
+      imported.matched = true;
+      imported.status = 'C';
+      const parts = imported.id.split('-');
       const docId = parts.slice(0, -1).join('-');
-      const importedId = parts[parts.length - 1];
-      await dataAccess.updateImportedTransaction(docId, importedId, true, false);
+      await dataAccess.updateImportedTransaction(docId, imported);
     }
     showRegisterBatchDialog.value = false;
     selectedRegisterIds.value = [];
