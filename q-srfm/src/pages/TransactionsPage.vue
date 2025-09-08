@@ -181,7 +181,48 @@ Key props/usage:
               map-options
               class="col-3"
             />
-            <q-input v-model="filters.search" dense outlined placeholder="Search" class="col" />
+            <q-input
+              v-model="filters.search"
+              dense
+              outlined
+              placeholder="Search"
+              debounce="300"
+              class="col"
+            />
+            <q-input
+              v-model="filters.start"
+              dense
+              outlined
+              mask="####-##-##"
+              placeholder="Start"
+              debounce="300"
+              class="col-2"
+            >
+              <template #append>
+                <q-icon name="event" class="cursor-pointer">
+                  <q-popup-proxy transition-show="scale" transition-hide="scale">
+                    <q-date v-model="filters.start" mask="YYYY-MM-DD" />
+                  </q-popup-proxy>
+                </q-icon>
+              </template>
+            </q-input>
+            <q-input
+              v-model="filters.end"
+              dense
+              outlined
+              mask="####-##-##"
+              placeholder="End"
+              debounce="300"
+              class="col-2"
+            >
+              <template #append>
+                <q-icon name="event" class="cursor-pointer">
+                  <q-popup-proxy transition-show="scale" transition-hide="scale">
+                    <q-date v-model="filters.end" mask="YYYY-MM-DD" />
+                  </q-popup-proxy>
+                </q-icon>
+              </template>
+            </q-input>
             <q-checkbox v-model="filters.unmatchedOnly" label="Unmatched Only" class="col-auto" />
             <q-btn
               dense

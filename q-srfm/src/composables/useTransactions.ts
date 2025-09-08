@@ -313,6 +313,8 @@ export function useTransactions() {
           return false;
       }
       if (f.accountId && r.accountId !== f.accountId) return false;
+      if (f.start && r.date < f.start) return false;
+      if (f.end && r.date > f.end) return false;
       if (f.unmatchedOnly && r.matched) return false;
       return true;
     });
