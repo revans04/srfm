@@ -522,6 +522,7 @@ import { formatCurrency, toBudgetMonth, adjustTransactionDate, todayISO } from "
 import { VForm } from "vuetify/components";
 import { v4 as uuidv4 } from "uuid";
 import { DEFAULT_BUDGET_TEMPLATES } from "../constants/budgetTemplates";
+import { splitImportedId } from "../utils/imported";
 
 // Interface for displayTransactions items
 interface DisplayTransaction {
@@ -1007,9 +1008,7 @@ async function executeAction() {
 
     let updatedBudgetTx: Transaction;
 
-    const parts = id.split("-");
-    const txId = parts[parts.length - 1];
-    const docId = parts.slice(0, -1).join("-");
+    const { docId, txId } = splitImportedId(id);
 
     if (transactionAction.value == "Disconnect" || budgetId) {
       if (!budgetId) {
@@ -1057,19 +1056,20 @@ async function executeAction() {
       }
 
       if (importedTxIndex !== -1) {
+        const { docId: itxDoc, txId: itxId } = splitImportedId(importedTransactions.value[importedTxIndex].id);
         importedTransactions.value[importedTxIndex].matched = false;
-        await dataAccess.updateImportedTransaction(docId, importedTransactions.value[importedTxIndex].id, false, false);
+        await dataAccess.updateImportedTransaction(itxDoc, itxId, false, false);
       }
     }
 
     if (!budgetId && transactionAction.value == "Delete") {
-      await dataAccess.deleteImportedTransaction(docId, id);
+      await dataAccess.deleteImportedTransaction(docId, txId);
       const importedTxIndex = importedTransactions.value.findIndex((tx) => tx.id === id);
       if (importedTxIndex !== -1) {
         importedTransactions.value[importedTxIndex].deleted = true;
       }
     } else if (!budgetId && transactionAction.value == "Ignore") {
-      await dataAccess.updateImportedTransaction(docId, id, false, true);
+      await dataAccess.updateImportedTransaction(docId, txId, false, true);
       const importedTxIndex = importedTransactions.value.findIndex((tx) => tx.id === id);
       if (importedTxIndex !== -1) {
         importedTransactions.value[importedTxIndex].matched = false;
@@ -1153,9 +1153,7 @@ async function executeBatchMatch() {
       }
 
       const { id, date, amount, isIncome } = transaction;
-      const parts = id.split("-");
-      const importedTxId = id;
-      const docId = parts.slice(0, -1).join("-");
+      const { docId, txId: importedTxId } = splitImportedId(id);
       const importedTx = importedTransactions.value.find((tx) => tx.id === id);
       if (!importedTx) {
         console.error(`Imported transaction ${id} not found`);
@@ -1274,14 +1272,13 @@ async function executeBatchAction() {
     for (const txId of selectedRows.value) {
       const tx = displayTransactions.value?.find((t) => t.id === txId);
       if (!tx || tx.status !== "U" || tx.budgetId) continue;
-      const parts = tx.id.split("-");
-      const docId = parts.slice(0, -1).join("-");
+      const { docId, txId: importedId } = splitImportedId(tx.id);
       if (batchAction.value === "Delete") {
-        await dataAccess.deleteImportedTransaction(docId, tx.id);
+        await dataAccess.deleteImportedTransaction(docId, importedId);
         const index = importedTransactions.value.findIndex((itx) => itx.id === tx.id);
         if (index !== -1) importedTransactions.value.splice(index, 1);
       } else if (batchAction.value === "Ignore") {
-        await dataAccess.updateImportedTransaction(docId, tx.id, false, true);
+        await dataAccess.updateImportedTransaction(docId, importedId, false, true);
         const index = importedTransactions.value.findIndex((itx) => itx.id === tx.id);
         if (index !== -1) importedTransactions.value[index].ignored = true;
       }
@@ -1636,9 +1633,8 @@ async function markStatementReconciled() {
     for (const id of selectedRows.value) {
       const idx = importedTransactions.value.findIndex((itx) => itx.id === id);
       if (idx !== -1) {
-        const parts = id.split("-");
-        const docId = parts.slice(0, -1).join("-");
-        const updatedTx = { ...importedTransactions.value[idx], status: "R" };
+        const { docId, txId } = splitImportedId(id);
+        const updatedTx = { ...importedTransactions.value[idx], id: txId, status: "R" };
         importedTransactions.value[idx].status = "R";
         await dataAccess.updateImportedTransaction(docId, updatedTx);
       }
@@ -1688,9 +1684,8 @@ async function unreconcileStatement() {
         itx.postedDate <= selectedStatement.value.endDate &&
         itx.status === "R"
       ) {
-        const parts = itx.id.split("-");
-        const docId = parts.slice(0, -1).join("-");
-        const updatedTx = { ...itx, status: "C" };
+        const { docId, txId } = splitImportedId(itx.id);
+        const updatedTx = { ...itx, id: txId, status: "C" };
         itx.status = "C";
         await dataAccess.updateImportedTransaction(docId, updatedTx);
       }
@@ -1746,9 +1741,8 @@ async function deleteStatement() {
         itx.postedDate <= selectedStatement.value.endDate &&
         itx.status === "R"
       ) {
-        const parts = itx.id.split("-");
-        const docId = parts.slice(0, -1).join("-");
-        const updatedTx = { ...itx, status: "C" };
+        const { docId, txId } = splitImportedId(itx.id);
+        const updatedTx = { ...itx, id: txId, status: "C" };
         itx.status = "C";
         await dataAccess.updateImportedTransaction(docId, updatedTx);
       }

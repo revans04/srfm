@@ -324,6 +324,7 @@ import TransactionDialog from './TransactionDialog.vue';
 import { QForm } from 'quasar';
 import { createBudgetForMonth } from '../utils/budget';
 import { v4 as uuidv4 } from 'uuid';
+import { splitImportedId } from '../utils/imported';
 
 const budgetStore = useBudgetStore();
 const familyStore = useFamilyStore();
@@ -764,9 +765,8 @@ async function matchBankTransaction(budgetTransaction: Transaction) {
 
     await dataAccess.saveTransaction(budget, updatedTransaction, false);
 
-    const parts = importedTx.id.split('-');
-    const docId = parts.slice(0, -1).join('-');
-    await dataAccess.updateImportedTransaction(docId, importedTx.id, true);
+    const { docId, txId } = splitImportedId(importedTx.id);
+    await dataAccess.updateImportedTransaction(docId, txId, true);
 
     showSnackbar('Transaction matched successfully');
     emit('transactions-updated');
@@ -793,9 +793,8 @@ async function ignoreBankTransaction() {
     const user = auth.currentUser;
     if (!user) throw new Error('User not authenticated');
 
-    const parts = importedTx.id.split('-');
-    const docId = parts.slice(0, -1).join('-');
-    await dataAccess.updateImportedTransaction(docId, importedTx.id, undefined, true);
+    const { docId, txId } = splitImportedId(importedTx.id);
+    await dataAccess.updateImportedTransaction(docId, txId, undefined, true);
 
     showSnackbar('Bank transaction ignored');
     updateRemainingTransactions();
@@ -901,9 +900,8 @@ async function saveSplitTransaction() {
       if (updatedBudget) budgetStore.updateBudget(budgetId, updatedBudget);
     }
 
-    const parts = importedTx.id.split('-');
-    const docId = parts.slice(0, -1).join('-');
-    await dataAccess.updateImportedTransaction(docId, importedTx.id, true);
+    const { docId, txId } = splitImportedId(importedTx.id);
+    await dataAccess.updateImportedTransaction(docId, txId, true);
 
     remainingImportedTransactions.value = remainingImportedTransactions.value.filter((tx) => tx.id !== importedTx.id);
     if (remainingImportedTransactions.value.length > 0) {
@@ -956,9 +954,8 @@ async function handleTransactionAdded(savedTransaction: Transaction) {
       transactions: [...budget.transactions, savedTransaction],
     });
 
-    const parts = importedTx.id.split('-');
-    const docId = parts.slice(0, -1).join('-');
-    await dataAccess.updateImportedTransaction(docId, importedTx.id, true);
+    const { docId, txId } = splitImportedId(importedTx.id);
+    await dataAccess.updateImportedTransaction(docId, txId, true);
 
     remainingImportedTransactions.value = remainingImportedTransactions.value.filter((tx) => tx.id !== importedTx.id);
     if (remainingImportedTransactions.value.length > 0) {

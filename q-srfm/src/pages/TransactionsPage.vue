@@ -330,6 +330,7 @@ import { useAuthStore } from 'src/store/auth';
 import { sortBudgetsByMonthDesc, createBudgetForMonth } from 'src/utils/budget';
 import { dataAccess } from 'src/dataAccess';
 import type { Transaction } from 'src/types';
+import { splitImportedId } from 'src/utils/imported';
 
 const tab = ref<'budget' | 'register' | 'match'>('budget');
 
@@ -729,9 +730,8 @@ async function executeRegisterBatchMatch() {
       await dataAccess.saveTransaction(targetBudget, tx, false);
       imported.matched = true;
       imported.status = 'C';
-      const parts = imported.id.split('-');
-      const docId = parts.slice(0, -1).join('-');
-      await dataAccess.updateImportedTransaction(docId, imported);
+      const { docId, txId } = splitImportedId(imported.id);
+      await dataAccess.updateImportedTransaction(docId, { ...imported, id: txId });
     }
     showRegisterBatchDialog.value = false;
     selectedRegisterIds.value = [];
@@ -750,9 +750,7 @@ async function performRegisterBatchAction() {
   saving.value = true;
   try {
     for (const id of selectedRegisterIds.value) {
-      const parts = id.split('-');
-      const docId = parts.slice(0, -1).join('-');
-      const txId = parts[parts.length - 1];
+      const { docId, txId } = splitImportedId(id);
       if (registerBatchAction.value === 'Delete') {
         await dataAccess.deleteImportedTransaction(docId, txId);
       } else if (registerBatchAction.value === 'Ignore') {
