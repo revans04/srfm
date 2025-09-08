@@ -680,6 +680,15 @@ async function executeRegisterBatchMatch() {
   try {
     const family = familyStore.family;
     const ownerUid = family?.ownerUid || auth.user?.uid || '';
+    const matchesByBudget: Record<
+      string,
+      Array<{
+        budgetTransactionId: string;
+        importedTransactionId: string;
+        match: boolean;
+        ignore: boolean;
+      }>
+    > = {};
     for (const entry of batchEntries.value) {
       const imported = getImportedTx(entry.id);
       if (!imported || !family) continue;
@@ -727,12 +736,28 @@ async function executeRegisterBatchMatch() {
         entityId: selectedEntityId.value,
         taxMetadata: imported.taxMetadata || [],
       };
-      await dataAccess.saveTransaction(targetBudget, tx, false);
-      imported.matched = true;
-      imported.status = 'C';
-      const { docId, txId } = splitImportedId(imported.id);
-      await dataAccess.updateImportedTransaction(docId, { ...imported, id: txId });
+      const savedTx = await dataAccess.saveTransaction(targetBudget, tx, false);
+      if (!matchesByBudget[targetBudget.budgetId]) matchesByBudget[targetBudget.budgetId] = [];
+      matchesByBudget[targetBudget.budgetId].push({
+        budgetTransactionId: savedTx.id,
+        importedTransactionId: imported.id,
+        match: true,
+        ignore: false,
+      });
     }
+    await Promise.all(
+      Object.entries(matchesByBudget).map(async ([budgetId, recs]) => {
+        const budget = budgetStore.getBudget(budgetId);
+        if (!budget) return;
+        const reconcileData = {
+          budgetId,
+          reconciliations: recs,
+        };
+        await dataAccess.batchReconcileTransactions(budgetId, budget, reconcileData);
+        const updatedBudget = await dataAccess.getBudget(budgetId);
+        if (updatedBudget) budgetStore.updateBudget(budgetId, updatedBudget);
+      }),
+    );
     showRegisterBatchDialog.value = false;
     selectedRegisterIds.value = [];
     await loadImportedTransactions(true);
