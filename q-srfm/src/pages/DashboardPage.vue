@@ -48,6 +48,7 @@ import { currentMonthISO } from '../utils/helpers';
 import { useGoalNudges } from '../composables/useGoalNudges';
 import { useGoals } from '../composables/useGoals';
 import type { Goal } from '../types';
+import { createBudgetForMonth } from '../utils/budget';
 
 const familyStore = useFamilyStore();
 const auth = useAuthStore();
@@ -61,16 +62,21 @@ onMounted(async () => {
   if (entityId.value) {
     nudges.value = await getNudges(entityId.value);
   }
+  await ensureCurrentMonthBudget();
 });
 
 const familyId = computed(() => familyStore.family?.id || '');
 const entityId = computed(() => familyStore.selectedEntityId || '');
-const budgetId = computed(() => {
-  const uid = auth.user?.uid;
-  const eid = entityId.value;
-  const month = currentMonthISO();
-  return uid && eid ? `${uid}_${eid}_${month}` : '';
-});
+const budgetId = ref<string>('');
+
+async function ensureCurrentMonthBudget() {
+  if (!familyId.value || !entityId.value) return;
+  const family = await familyStore.getFamily?.();
+  const ownerUid = family?.ownerUid || auth.user?.uid || '';
+  if (!ownerUid) return;
+  const b = await createBudgetForMonth(currentMonthISO(), familyId.value, ownerUid, entityId.value);
+  if (b?.budgetId) budgetId.value = b.budgetId;
+}
 
 const currentEntityName = computed(() => {
   if (!entityId.value) return 'All Entities';
