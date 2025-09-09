@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using FamilyBudgetApi.Logging;
 using System;
 using System.IO;
+using System.Text.Json;
 
 // Top-level statements
 var builder = WebApplication.CreateBuilder(args);
@@ -45,7 +46,20 @@ try
     });
 
     var credential = GoogleCredential.FromFile(tempCredentialsPath);
-    projectId = Environment.GetEnvironmentVariable("GOOGLE_CLOUD_PROJECT") ?? builder.Configuration["GoogleCloud:ProjectId"];
+    projectId = Environment.GetEnvironmentVariable("GOOGLE_CLOUD_PROJECT")
+        ?? builder.Configuration["GoogleCloud:ProjectId"];
+    if (string.IsNullOrEmpty(projectId))
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(credentialsJson);
+            projectId = doc.RootElement.GetProperty("project_id").GetString();
+        }
+        catch
+        {
+            // ignore; validated below
+        }
+    }
     if (string.IsNullOrEmpty(projectId))
     {
         throw new InvalidOperationException("Google Cloud project ID not set.");

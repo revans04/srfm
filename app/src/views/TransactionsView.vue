@@ -395,6 +395,7 @@ import { useBudgetStore } from "../store/budget";
 import { useFamilyStore } from "../store/family";
 import { useUIStore } from "../store/ui";
 import { v4 as uuidv4 } from "uuid";
+import { splitImportedId } from "../utils/imported";
 
 const budgetStore = useBudgetStore();
 const familyStore = useFamilyStore();
@@ -849,10 +850,8 @@ async function matchTransaction(importedTx: ImportedTransaction) {
 
     await dataAccess.saveTransaction(budget, updatedTransaction, await !isLastMonth(updatedTransaction));
 
-    const parts = importedTx.id.split("-");
-    const txId = parts[parts.length - 1];
-    const docId = parts.slice(0, -1).join("-");
-    await dataAccess.updateImportedTransaction(docId, { ...importedTx, matched: true });
+    const { docId, txId } = splitImportedId(importedTx.id);
+    await dataAccess.updateImportedTransaction(docId, { ...importedTx, id: txId, matched: true });
 
     const txIndex = importedTransactions.value.findIndex((tx) => tx.id === importedTx.id);
     if (txIndex !== -1) {

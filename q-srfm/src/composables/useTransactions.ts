@@ -91,6 +91,7 @@ export function useTransactions() {
   const pageSize = 100;
   const hasMoreImported = ref(true);
   const loadingMoreRegister = ref(false);
+  const importedMap = ref<Record<string, ImportedTransaction>>({});
 
   const filters = ref<LedgerFilters>({
     search: '',
@@ -210,6 +211,7 @@ export function useTransactions() {
       registerRows.value = [];
       hasMoreImported.value = true;
       loadingRegister.value = true;
+      importedMap.value = {};
     }
     if (!hasMoreImported.value) {
       loadingRegister.value = false;
@@ -239,6 +241,9 @@ export function useTransactions() {
         imported = await dataAccess.getImportedTransactions();
         imported = imported.slice(importedOffset.value, importedOffset.value + pageSize);
       }
+      imported.forEach((t) => {
+        if (!t.deleted) importedMap.value[t.id] = t;
+      });
       const mapped = imported
         .filter((t) => !t.deleted)
         .map((t) => mapImportedToRow(t));
@@ -308,6 +313,8 @@ export function useTransactions() {
           return false;
       }
       if (f.accountId && r.accountId !== f.accountId) return false;
+      if (f.start && r.date < f.start) return false;
+      if (f.end && r.date > f.end) return false;
       if (f.unmatchedOnly && r.matched) return false;
       return true;
     });
@@ -343,6 +350,7 @@ export function useTransactions() {
     // also expose init for callers that want explicit control
     loadInitial,
     loadImportedTransactions,
+    getImportedTx: (id: string) => importedMap.value[id],
   };
 
   // Load budgets initially so selection and options are available

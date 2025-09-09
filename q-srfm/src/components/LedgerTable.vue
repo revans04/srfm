@@ -12,42 +12,54 @@
     :virtual-scroll-item-size="rowHeight"
     :rows-per-page-options="[0]"
     :loading="loading"
+    :selection="selection"
+    v-model:selected="selectedInternal"
     @virtual-scroll="onVirtualScroll"
   >
     <template #top>
       <slot name="header"></slot>
     </template>
 
-    <template #header="props">
-      <q-tr :props="props">
-        <q-th v-for="col in props.cols" :key="col.name" :props="props">
+    <template #header="h">
+      <q-tr :props="h">
+        <q-th v-if="props.selection" auto-width>
+          <q-checkbox
+            v-model="h.selected"
+            :indeterminate="selectedInternal.length > 0 && selectedInternal.length < rows.length"
+            @click.stop
+          />
+        </q-th>
+        <q-th v-for="col in h.cols" :key="col.name" :props="h">
           {{ col.label }}
         </q-th>
       </q-tr>
     </template>
 
-    <template #body="props">
-      <q-tr :props="props" :class="[{ 'dup-row': props.row.isDuplicate }, 'row-striped', 'cursor-pointer']" @click="onRowClick(props.row)">
-        <q-td key="date" :props="props" class="col-date">{{ formatDate(props.row.date) }}</q-td>
-        <q-td key="payee" :props="props" class="col-payee">{{ props.row.payee }}</q-td>
-        <q-td key="category" :props="props" class="col-category">{{ props.row.category }}</q-td>
-        <q-td key="entity" :props="props" class="col-entity">{{ props.row.entityName }}</q-td>
-        <q-td key="amount" :props="props" class="text-right col-amount" :class="{ 'text-negative': props.row.amount < 0 }">
-          {{ money(props.row.amount) }}
+    <template #body="b">
+      <q-tr :props="b" :class="[{ 'dup-row': b.row.isDuplicate }, 'row-striped', 'cursor-pointer']" @click="onRowClick(b.row)">
+        <q-td v-if="props.selection" auto-width>
+          <q-checkbox v-model="b.selected" @click.stop />
         </q-td>
-        <q-td key="status" :props="props" class="col-status">
-          <q-badge v-if="props.row.status === 'C'" color="positive" outline> C </q-badge>
-          <q-badge v-else-if="props.row.status === 'U'" color="warning" outline> U </q-badge>
-          <q-badge v-else-if="props.row.status === 'R'" color="primary" outline> R </q-badge>
-          <q-icon v-if="props.row.linkId" name="link" color="primary" size="16px" class="q-ml-xs" />
-          <q-icon v-if="props.row.isDuplicate" name="warning" color="warning" size="16px" class="q-ml-xs" />
+        <q-td key="date" :props="b" class="col-date">{{ formatDate(b.row.date) }}</q-td>
+        <q-td key="payee" :props="b" class="col-payee">{{ b.row.payee }}</q-td>
+        <q-td key="category" :props="b" class="col-category">{{ b.row.category }}</q-td>
+        <q-td key="entity" :props="b" class="col-entity">{{ b.row.entityName }}</q-td>
+        <q-td key="amount" :props="b" class="text-right col-amount" :class="{ 'text-negative': b.row.amount < 0 }">
+          {{ money(b.row.amount) }}
         </q-td>
-        <q-td key="notes" :props="props" class="col-notes">
-          <q-tooltip v-if="props.row.notes">{{ props.row.notes }}</q-tooltip>
-          <span class="truncate">{{ props.row.notes }}</span>
+        <q-td key="status" :props="b" class="col-status">
+          <q-badge v-if="b.row.status === 'C'" color="positive" outline> C </q-badge>
+          <q-badge v-else-if="b.row.status === 'U'" color="warning" outline> U </q-badge>
+          <q-badge v-else-if="b.row.status === 'R'" color="primary" outline> R </q-badge>
+          <q-icon v-if="b.row.linkId" name="link" color="primary" size="16px" class="q-ml-xs" />
+          <q-icon v-if="b.row.isDuplicate" name="warning" color="warning" size="16px" class="q-ml-xs" />
         </q-td>
-        <q-td key="actions" :props="props" class="col-actions text-right">
-          <slot name="actions" :row="props.row"></slot>
+        <q-td key="notes" :props="b" class="col-notes">
+          <q-tooltip v-if="b.row.notes">{{ b.row.notes }}</q-tooltip>
+          <span class="truncate">{{ b.row.notes }}</span>
+        </q-td>
+        <q-td key="actions" :props="b" class="col-actions text-right">
+          <slot name="actions" :row="b.row"></slot>
         </q-td>
       </q-tr>
     </template>
@@ -97,9 +109,32 @@ const props = defineProps<{
   rowHeight?: number;
   headerOffset?: number;
   entityLabel?: string;
+  selection?: 'single' | 'multiple';
+  selected?: string[];
 }>();
 
-const emit = defineEmits<{ (e: 'load-more'): void; (e: 'row-click', row: LedgerRow): void }>();
+const emit = defineEmits<{
+  (e: 'load-more'): void;
+  (e: 'row-click', row: LedgerRow): void;
+  (e: 'update:selected', ids: string[]): void;
+}>();
+
+const selectedInternal = computed<LedgerRow[] | string[]>({
+  get() {
+    if (!props.selected) return [];
+    return props.rows.filter((r) => props.selected.includes(r.id));
+  },
+  set(val) {
+    if (Array.isArray(val)) {
+      emit(
+        'update:selected',
+        (val as LedgerRow[]).map((r) => (typeof r === 'string' ? r : r.id)),
+      );
+    } else {
+      emit('update:selected', []);
+    }
+  },
+});
 
 const rowHeight = computed(() => props.rowHeight ?? 44);
 const headerOffset = computed(() => props.headerOffset ?? 0);
