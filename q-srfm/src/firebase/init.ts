@@ -8,7 +8,10 @@ const firebaseConfig = {
   authDomain: env.VITE_FIREBASE_AUTH_DOMAIN ?? '',
   projectId: env.VITE_FIREBASE_PROJECT_ID ?? '',
 };
-const apiBaseUrl = env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+const apiBaseUrl = env.VITE_API_BASE_URL
+  || (typeof window !== 'undefined' && window.location.hostname === 'localhost'
+        ? 'http://localhost:8080/api'
+        : '/api');
 
 let auth: ReturnType<typeof getAuth>;
 let provider: GoogleAuthProvider;

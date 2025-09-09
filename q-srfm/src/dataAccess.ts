@@ -23,7 +23,12 @@ import { Timestamp } from 'firebase/firestore';
 type RawAccount = Account & { createdAt?: unknown; updatedAt?: unknown };
 
 export class DataAccess {
-  private apiBaseUrl = (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_API_BASE_URL || 'http://localhost:8080/api';
+  private apiBaseUrl = ((): string => {
+    const env = (import.meta as unknown as { env?: Record<string, string> }).env || {};
+    if (env.VITE_API_BASE_URL) return env.VITE_API_BASE_URL;
+    const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+    return isLocal ? 'http://localhost:8080/api' : '/api';
+  })();
   // Lazily access the auth store to ensure Pinia is active
   private get authStore() {
     return useAuthStore();

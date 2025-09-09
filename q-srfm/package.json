@@ -1,6 +1,6 @@
 {
   "name": "q-srfm",
-  "version": "0.0.1",
+  "version": "0.3.19",
   "description": "A Quasar Project",
   "productName": "SRFM",
   "author": "Ray Evans <ray.evans@flippengroup.com>",
@@ -12,7 +12,10 @@
     "test": "tsc -p tsconfig.tests.json && node scripts/prep-tests.js && node --test dist-tests/tests/*.js",
     "dev": "quasar dev",
     "build": "quasar build",
-    "postinstall": "quasar prepare"
+    "postinstall": "quasar prepare",
+    "update-version-and-deploy": "node scripts/updateVersionAndDeploy.js",
+    "deploy:firebase": "yarn build && npx firebase deploy --only hosting",
+    "update-version-and-deploy:firebase": "node scripts/updateVersionAndDeploy.js --provider=firebase"
   },
   "dependencies": {
     "@quasar/extras": "^1.16.4",
@@ -20,8 +23,10 @@
     "chart.js": "^4.5.0",
     "chartjs-adapter-date-fns": "^3.0.0",
     "date-fns": "^4.1.0",
+    "file-saver": "^2.0.5",
     "firebase": "^12.2.1",
     "jszip": "^3.10.1",
+    "papaparse": "^5.4.1",
     "pinia": "^3.0.1",
     "quasar": "^2.18.0",
     "uuid": "^11.1.0",
@@ -31,7 +36,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.14.0",
-    "@quasar/app-vite": "^2.7.0",
+    "@quasar/app-vite": "2.3.0",
     "@types/node": "^20.5.9",
     "@vue/eslint-config-prettier": "^10.1.0",
     "@vue/eslint-config-typescript": "^14.4.0",
