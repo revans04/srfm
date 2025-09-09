@@ -618,8 +618,21 @@ async function refreshRegister() {
 }
 
 async function onRowClick(row: LedgerRow) {
+  const tx = row.transaction;
+  if (tx) {
+    editTx.value = { ...tx };
+    editBudgetId.value = row.budgetId;
+    showTxDialog.value = true;
+    return;
+  }
+
   let budget = budgetStore.getBudget(row.budgetId);
-  if (!budget) {
+
+  // Some budgets in the store may only contain summary info without
+  // transactions. If we don't have the full budget or its transaction
+  // list hasn't been populated yet, fetch it from the API so we can
+  // locate the transaction to edit.
+  if (!budget || !budget.transactions || budget.transactions.length === 0) {
     try {
       budget = await dataAccess.getBudget(row.budgetId);
       if (budget) budgetStore.updateBudget(row.budgetId, budget);
@@ -627,9 +640,10 @@ async function onRowClick(row: LedgerRow) {
       console.error('Failed to load budget for transaction', row.budgetId, err);
     }
   }
-  const tx = budget?.transactions?.find((t) => t.id === row.id);
-  if (tx) {
-    editTx.value = { ...tx };
+
+  const fetchedTx = budget?.transactions?.find((t) => t.id === row.id);
+  if (fetchedTx) {
+    editTx.value = { ...fetchedTx };
     editBudgetId.value = budget?.budgetId || row.budgetId;
     showTxDialog.value = true;
   }
