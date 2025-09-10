@@ -1368,7 +1368,7 @@ async function handleBankTransactionsFileUpload(files: File | File[] | FileList 
   }
 }
 
-function previewEveryDollarTransactions() {
+async function previewEveryDollarTransactions() {
   importError.value = null;
   importSuccess.value = null;
   everyDollarTransactions.value = [];
@@ -1386,12 +1386,22 @@ function previewEveryDollarTransactions() {
     );
     const categoryMap = new Map<string, string>();
     const existingTxs: { date: string; amount: number }[] = [];
-    budgets.forEach((b) => {
+    for (const b of budgets) {
       b.categories.forEach((c) => categoryMap.set(c.name.toLowerCase(), c.group));
-      (b.transactions || []).forEach((t) => {
+      let txs = b.transactions;
+      if ((!txs || txs.length === 0) && b.budgetId) {
+        try {
+          txs = await dataAccess.getTransactions(b.budgetId);
+          b.transactions = txs;
+        } catch (err) {
+          console.error('Failed to load transactions for duplicate check', err);
+          txs = [];
+        }
+      }
+      (txs || []).forEach((t) => {
         if (!t.deleted) existingTxs.push({ date: t.date, amount: t.amount });
       });
-    });
+    }
     const dupWindowMs = duplicateDays.value * 86400000;
     const isDupTx = (dateStr: string, amount: number) =>
       existingTxs.some((t) => {
