@@ -1415,7 +1415,14 @@ async function previewEveryDollarTransactions() {
         }
       }
       (txs || []).forEach((t) => {
-        if (!t.deleted) existingTxs.push({ date: t.date, amount: t.amount });
+        if (t.deleted) return;
+        if (Array.isArray(t.categories) && t.categories.length > 0) {
+          t.categories.forEach((c) => {
+            existingTxs.push({ date: t.date, amount: c.amount });
+          });
+        } else {
+          existingTxs.push({ date: t.date, amount: t.amount });
+        }
       });
     }
     const dupWindowMs = duplicateDays.value * 86400000;
