@@ -1352,6 +1352,39 @@ function previewEveryDollarBudget() {
           recommended: formatCurrency(planned / 100),
         });
       });
+    } else if (Array.isArray((data as any).transactions)) {
+      const txData = data as any;
+      recommendedMonth.value = txData.startDate
+        ? toBudgetMonth(txData.startDate)
+        : txData.transactions[0]?.date
+        ? toBudgetMonth(txData.transactions[0].date)
+        : '';
+      const sums = new Map<string, number>();
+      const unique = new Set<string>();
+      txData.transactions.forEach((tx: any) => {
+        if (tx.deletedAt) return;
+        (tx.allocations || []).forEach((a: any) => {
+          if (typeof a.amount !== 'number' || typeof a.date !== 'string') return;
+          const key = `${a.date}_${a.amount}`;
+          if (unique.has(key)) return;
+          unique.add(key);
+          const label = a.label || '';
+          const prev = sums.get(label) || 0;
+          sums.set(label, prev + a.amount);
+        });
+      });
+      sums.forEach((total, label) => {
+        if (total >= 0) return;
+        const spentAbs = Math.abs(total);
+        recs.push({
+          id: uuidv4(),
+          group: '',
+          item: label,
+          budgeted: formatCurrency(0),
+          spent: formatCurrency(spentAbs / 100),
+          recommended: formatCurrency(spentAbs / 100),
+        });
+      });
     } else if (Array.isArray((data as any).groups)) {
       recommendedMonth.value = (data as any).date ? toBudgetMonth((data as any).date) : '';
       (data as any).groups.forEach((group: any) => {
@@ -1430,15 +1463,18 @@ async function importEveryDollarBudget() {
 
     everyDollarRecommendations.value.forEach((rec) => {
       const amount = parseAmount(rec.recommended);
-      const cat = budget.categories.find(
-        (c) => c.group === rec.group && c.name === rec.item,
-      );
+      const cat = budget.categories.find((c) => {
+        if (rec.group) {
+          return c.group === rec.group && c.name === rec.item;
+        }
+        return c.name === rec.item;
+      });
       if (cat) {
         cat.target = amount;
       } else {
         budget.categories.push({
           name: rec.item,
-          group: rec.group,
+          group: rec.group || 'Misc',
           target: amount,
           isFund: false,
           carryover: 0,
