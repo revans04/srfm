@@ -1316,23 +1316,47 @@ function previewEveryDollarBudget() {
       return;
     }
     const data = JSON.parse(everyDollarJson.value);
-    recommendedMonth.value = data.date ? toBudgetMonth(data.date) : '';
     const recs: EveryDollarRecommendation[] = [];
-    if (Array.isArray(data.groups)) {
-      data.groups.forEach((group: any) => {
+
+    if (Array.isArray(data)) {
+      recommendedMonth.value = data[0]?.date ? toBudgetMonth(data[0].date) : '';
+      const unique = new Set<string>();
+      data.forEach((entry: any) => {
+        const grp = entry.group || {};
+        const item = grp.item || {};
+        if (item.type === 'income') return;
+        const key = `${entry.date}_${entry.amount}_${item.id}`;
+        if (unique.has(key)) return;
+        unique.add(key);
+        const planned =
+          typeof item.amountPlanned === 'number'
+            ? item.amountPlanned
+            : Math.abs(typeof entry.amount === 'number' ? entry.amount : 0);
+        recs.push({
+          id: item.id || uuidv4(),
+          group: grp.label || '',
+          item: item.label || '',
+          budgeted: formatCurrency(planned / 100),
+          spent: formatCurrency(0),
+          recommended: formatCurrency(planned / 100),
+        });
+      });
+    } else if (Array.isArray((data as any).groups)) {
+      recommendedMonth.value = (data as any).date ? toBudgetMonth((data as any).date) : '';
+      (data as any).groups.forEach((group: any) => {
         if (group.type !== 'expense') return;
         const groupLabel = group.label || '';
         (group.budgetItems || []).forEach((item: any) => {
           const budgeted = typeof item.amountBudgeted === 'number' ? item.amountBudgeted : 0;
           const allocations = Array.isArray(item.allocations) ? item.allocations : [];
-          const unique = new Map<string, any>();
+          const uniqueAlloc = new Map<string, any>();
           allocations.forEach((a: any) => {
             if (typeof a.amount === 'number' && typeof a.date === 'string') {
               const key = `${a.date}_${a.amount}`;
-              if (!unique.has(key)) unique.set(key, a);
+              if (!uniqueAlloc.has(key)) uniqueAlloc.set(key, a);
             }
           });
-          const spent = Array.from(unique.values()).reduce(
+          const spent = Array.from(uniqueAlloc.values()).reduce(
             (sum: number, a: any) => sum + (typeof a.amount === 'number' ? a.amount : 0),
             0,
           );
@@ -1350,6 +1374,7 @@ function previewEveryDollarBudget() {
         });
       });
     }
+
     everyDollarRecommendations.value = recs;
     if (recs.length === 0) {
       importSuccess.value = 'No budget updates recommended.';
