@@ -159,7 +159,7 @@
         </div>
 
         <!-- Search shown only on desktop -->
-        <div v-if="!isMobile" class="col-12 sm:col-6">
+        <div v-if="!isMobile" class="col-12 col-sm-6">
           <div class="q-my-sm bg-white q-pa-md" style="border-radius: 4px">
             <q-input
               dense
@@ -208,23 +208,23 @@
                     <h3 class="text-h6">Categories</h3>
                   </div>
                 </div>
-                <div v-for="(cat, index) in budget.categories" :key="index" class="row items-center no-wrap q-mb-sm">
-                  <div class="col-12 sm:col-3 q-pa-xs">
+                <div v-for="(cat, index) in budget.categories" :key="index" class="row items-center q-col-gutter-sm q-mb-sm">
+                  <div class="col-12 col-sm-3 q-pa-xs">
                     <q-input v-model="cat.name" label="Category" required dense />
                   </div>
-                  <div class="col-12 sm:col-2 q-pa-xs">
+                  <div class="col-12 col-sm-3 q-pa-xs">
                     <q-input v-model="cat.group" label="Group (e.g., Utilities)" dense />
                   </div>
-                  <div class="col-12 sm:col-2 q-pa-xs">
+                  <div class="col-6 col-sm-2 q-pa-xs">
                     <CurrencyInput v-model.number="cat.target" label="Target" class="text-right" dense required />
                   </div>
-                  <div class="col-12 sm:col-2 q-pa-xs">
+                  <div class="col-6 col-sm-2 q-pa-xs">
                     <CurrencyInput v-model="cat.carryover" label="Carryover" class="text-right" dense />
                   </div>
-                  <div class="col-12 sm:col-2 q-pa-xs">
+                  <div class="col-6 col-sm-1 q-pa-xs">
                     <q-checkbox v-model="cat.isFund" label="Is Fund?" dense />
                   </div>
-                  <div class="col-12 sm:col-1 q-pa-xs">
+                  <div class="col-6 col-sm-1 q-pa-xs">
                     <q-btn flat icon="close" color="negative" @click="removeCategory(index)" />
                   </div>
                 </div>
@@ -270,6 +270,36 @@
           </q-card>
           <SavingsConversionPrompt v-if="legacySavingsCategories.length" :categories="legacySavingsCategories" @convert="onConvertLegacy" />
 
+          <!-- Favorites Section -->
+          <q-card v-if="!isEditing && favoriteItems.length" flat bordered class="q-mt-md">
+            <q-card-section>
+              <div class="row text-primary">
+                <div class="col">Favorites</div>
+                <div class="col-auto"><q-space /></div>
+                <div v-if="!isMobile" class="col-2">Planned</div>
+                <div :class="isMobile ? 'col-auto' : 'col-2'">Remaining</div>
+              </div>
+              <div v-for="(item, idx) in favoriteItems" :key="idx">
+                <div class="row cursor-pointer" @click="handleRowClick(item)">
+                  <div class="col row items-center no-wrap">
+                    <q-icon :name="item.favorite ? 'star' : 'star_border'" size="xs" class="q-mr-xs" :color="item.favorite ? 'amber' : 'grey'" />
+                    <q-icon v-if="item.isFund" size="xs" class="q-mr-xs" color="primary" name="savings" />
+                    <span>{{ item.name }}</span>
+                  </div>
+                  <div v-if="!isMobile" class="col-2">{{ formatCurrency(item.target) }}</div>
+                  <div :class="[isMobile ? 'col-auto' : 'col-2', { 'text-negative': item.remaining < 0 }]">
+                    {{ formatCurrency(item.remaining) }}
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="col-12">
+                    <q-linear-progress :value="item.percentage / 100" color="primary" class="q-my-xs" />
+                  </div>
+                </div>
+              </div>
+            </q-card-section>
+          </q-card>
+
           <GoalsGroupCard
             :entity-id="familyStore.selectedEntityId || ''"
             @add="onAddGoal"
@@ -288,7 +318,7 @@
                     <div v-if="!isMobile" class="col-2">Planned</div>
                     <div :class="isMobile ? 'col-auto' : 'col-2'">Remaining</div>
                   </div>
-                  <div v-for="(item, idx) in catTransactions.filter((c) => c.group == g.group)" :key="idx">
+                  <div v-for="(item, idx) in catTransactions.filter((c) => c.group == g.group && !c.favorite).slice().sort((a,b)=>a.name.toLowerCase().localeCompare(b.name.toLowerCase()))" :key="idx">
                     <div class="row cursor-pointer" @click="handleRowClick(item)">
                       <div
                         v-if="!(inlineEdit.item?.name === item.name && inlineEdit.field === 'name')"
@@ -297,6 +327,13 @@
                         @touchend="endTouch"
                         class="col row items-center no-wrap"
                       >
+                        <q-icon
+                          :name="item.favorite ? 'star' : 'star_border'"
+                          size="xs"
+                          class="q-mr-xs cursor-pointer"
+                          :color="item.favorite ? 'amber' : 'grey'"
+                          @click.stop="toggleFavorite(item)"
+                        />
                         <q-icon v-if="item.isFund" size="xs" class="q-mr-xs" color="primary" name="savings" />
                         <span>{{ item.name }}</span>
                         <!-- show the convert icon if the category is in legacySavingsCategories -->
@@ -551,6 +588,22 @@ function onContribute(goal: Goal) {
   contributeDialog.value = true;
 }
 
+async function toggleFavorite(item: BudgetCategoryTrx) {
+  const idx = budget.value.categories.findIndex((c) => c.name === item.name);
+  if (idx === -1) return;
+  const updated = { ...budget.value.categories[idx], favorite: !budget.value.categories[idx].favorite };
+  budget.value.categories.splice(idx, 1, updated);
+  try {
+    if (budgetId.value) {
+      await dataAccess.saveBudget(budgetId.value, budget.value);
+      const b = await dataAccess.getBudget(budgetId.value);
+      if (b) budget.value = b;
+    }
+  } catch (err) {
+    console.error('Failed to save favorite toggle', err);
+  }
+}
+
 async function onViewGoal(goal: Goal) {
   console.log('onViewGoal clicked', goal);
   selectedGoal.value = goal;
@@ -782,19 +835,34 @@ const catTransactions = computed(() => {
   return catTransactions;
 });
 
+// Favorite categories (non-income), sorted A→Z by name
+const favoriteItems = computed(() =>
+  catTransactions.value
+    .filter((t) => t.favorite)
+    .slice()
+    .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase())),
+);
+
 const groups = computed(() => {
   const g: GroupCategory[] = [];
   catTransactions.value.forEach((c) => {
-    if (g.length == 0 || g.filter((f) => f.group == c.group).length == 0) {
-      g.push({ group: c.group, cat: [] });
+    let grp = g.find((f) => f.group === c.group);
+    if (!grp) {
+      grp = { group: c.group, cat: [] };
+      g.push(grp);
     }
-
-    for (let j = 0; j < g.length; j++) {
-      if (g[j].group == c.group) {
-        g[j].cat.push(c.name);
-      }
-    }
+    grp.cat.push(c.name);
   });
+  // Sort groups alphabetically (case-insensitive), pushing empty/undefined to end
+  g.sort((a, b) => {
+    const ga = (a.group || '').toLowerCase();
+    const gb = (b.group || '').toLowerCase();
+    if (!ga && gb) return 1;
+    if (ga && !gb) return -1;
+    return ga.localeCompare(gb);
+  });
+  // Sort categories within each group
+  g.forEach((grp) => grp.cat.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase())));
   return g;
 });
 

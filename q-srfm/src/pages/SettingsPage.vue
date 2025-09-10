@@ -234,6 +234,45 @@
                     Validate Budget Transactions
                   </q-btn>
                 </div>
+
+                <q-separator class="q-my-lg" />
+
+                <div class="row q-col-gutter-md items-end">
+                  <div class="col-12 col-sm-4">
+                    <q-select
+                      v-model="recalcEntityId"
+                      :options="entityOptions"
+                      option-label="label"
+                      option-value="value"
+                      emit-value
+                      map-options
+                      label="Entity"
+                      dense
+                    />
+                  </div>
+                  <div class="col-12 col-sm-4">
+                    <q-select
+                      v-model="recalcStartMonth"
+                      :options="startMonthOptions"
+                      label="Start From Budget Month"
+                      dense
+                      :disable="!recalcEntityId"
+                    />
+                  </div>
+                  <div class="col-auto">
+                    <q-btn
+                      color="primary"
+                      :disable="!recalcEntityId || !recalcStartMonth"
+                      :loading="recalcLoading"
+                      @click="runRecalcCarryover"
+                    >
+                      Recalculate Carryforward (from month → latest)
+                    </q-btn>
+                  </div>
+                </div>
+                <div class="text-caption q-mt-sm text-secondary">
+                  Updates fund category carryover values month-by-month from the selected budget through the latest month.
+                </div>
               </q-card-section>
             </q-card>
           </div>
@@ -358,6 +397,25 @@ const syncSinceTime = ref<string>(''); // format: HH:mm (24h)
 
 const entities = computed(() => family.value?.entities || []);
 
+// Recalculate carryover controls
+const recalcEntityId = ref<string | null>(null);
+const recalcStartMonth = ref<string | null>(null);
+const recalcLoading = ref(false);
+
+const entityOptions = computed(() =>
+  entities.value.map((e) => ({ label: e.name, value: e.id }))
+);
+
+const startMonthOptions = computed(() => {
+  if (!recalcEntityId.value) return [] as string[];
+  const months = budgets.value
+    .filter((b) => b.entityId === recalcEntityId.value)
+    .map((b) => b.month)
+    .sort((a, b) => a.localeCompare(b));
+  // Deduplicate while preserving order
+  return Array.from(new Set(months));
+});
+
 function errorMessage(error: unknown): string {
   return error instanceof Error
     ? error.message
@@ -432,6 +490,18 @@ async function loadAllData() {
     // Load budgets and imported transaction docs
     budgets.value = await dataAccess.loadAccessibleBudgets(user.uid);
     importedTransactionDocs.value = await dataAccess.getImportedTransactionDocs();
+
+    // Seed defaults for recalc controls when obvious
+    if (!recalcEntityId.value && budgets.value.length > 0) {
+      // Prefer the entity with most budgets
+      const counts = budgets.value.reduce((acc, b) => {
+        const key = b.entityId || 'family';
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      const best = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
+      if (best && best !== 'family') recalcEntityId.value = best;
+    }
   } catch (error: unknown) {
     showSnackbar(`Error loading data: ${errorMessage(error)}`, "negative");
   }
@@ -872,6 +942,25 @@ async function syncSnapshotsNow() {
     showSnackbar(`Snapshot sync failed: ${msg}`, 'negative');
   } finally {
     syncingSnapshots.value = false;
+  }
+}
+
+async function runRecalcCarryover() {
+  if (!recalcEntityId.value || !recalcStartMonth.value) {
+    showSnackbar('Select an entity and start month', 'warning');
+    return;
+  }
+  try {
+    recalcLoading.value = true;
+    await dataAccess.recalculateCarryoverFrom(recalcEntityId.value, recalcStartMonth.value);
+    showSnackbar('Carryforward recalculated successfully', 'positive');
+    // Reload budgets so table reflects latest values
+    await loadAllData();
+  } catch (error: unknown) {
+    const msg = toErrorMessage(error);
+    showSnackbar(`Recalc failed: ${msg}`, 'negative');
+  } finally {
+    recalcLoading.value = false;
   }
 }
 </script>

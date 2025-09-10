@@ -58,6 +58,8 @@ namespace FamilyBudgetApi.Models
         public string? Group { get; set; }
         [FirestoreProperty("carryover")]
         public double? Carryover { get; set; }
+        [FirestoreProperty("favorite")]
+        public bool? Favorite { get; set; }
     }
 
     [FirestoreData]

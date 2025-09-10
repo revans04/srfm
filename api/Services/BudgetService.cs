@@ -190,11 +190,11 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
         }
 
         var sqlCats = hasGoalTable
-            ? @"SELECT name, target, is_fund, ""group"", carryover
+            ? @"SELECT name, target, is_fund, ""group"", carryover, favorite
                                 FROM budget_categories
                                 WHERE budget_id=@id
                                   AND NOT EXISTS (SELECT 1 FROM goals_budget_categories gbc WHERE gbc.budget_cat_id = budget_categories.id)"
-            : @"SELECT name, target, is_fund, ""group"", carryover
+            : @"SELECT name, target, is_fund, ""group"", carryover, favorite
                                 FROM budget_categories
                                 WHERE budget_id=@id";
         await using (var catCmd = new NpgsqlCommand(sqlCats, conn))
@@ -209,7 +209,8 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
                     Target = catReader.IsDBNull(1) ? 0 : (double)catReader.GetDecimal(1),
                     IsFund = catReader.IsDBNull(2) ? false : catReader.GetBoolean(2),
                     Group = catReader.IsDBNull(3) ? null : catReader.GetString(3),
-                    Carryover = catReader.IsDBNull(4) ? null : (double?)catReader.GetDecimal(4)
+                    Carryover = catReader.IsDBNull(4) ? null : (double?)catReader.GetDecimal(4),
+                    Favorite = catReader.IsDBNull(5) ? (bool?)null : catReader.GetBoolean(5)
                 });
             }
         }
@@ -300,8 +301,8 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
         if (budget.Categories != null && budget.Categories.Count > 0)
         {
             const string insCatSql = @"INSERT INTO budget_categories
-                (budget_id, name, target, is_fund, ""group"", carryover)
-                VALUES (@budget_id, @name, @target, @is_fund, @group, @carryover)";
+                (budget_id, name, target, is_fund, ""group"", carryover, favorite)
+                VALUES (@budget_id, @name, @target, @is_fund, @group, @carryover, @favorite)";
             foreach (var cat in budget.Categories)
             {
                 await using var catCmd = new NpgsqlCommand(insCatSql, conn, dbTx);
@@ -311,6 +312,7 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
                 catCmd.Parameters.AddWithValue("is_fund", cat.IsFund);
                 catCmd.Parameters.AddWithValue("group", (object?)cat.Group ?? DBNull.Value);
                 catCmd.Parameters.AddWithValue("carryover", cat.Carryover.HasValue ? (object)(decimal)cat.Carryover.Value : DBNull.Value);
+                catCmd.Parameters.AddWithValue("favorite", cat.Favorite ?? false);
                 await catCmd.ExecuteNonQueryAsync();
             }
         }

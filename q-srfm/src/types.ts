@@ -97,6 +97,7 @@ export interface BudgetCategory {
   isFund: boolean;
   group: string;
   carryover?: number;
+  favorite?: boolean;
 }
 
 export interface Budget {

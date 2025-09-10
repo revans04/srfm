@@ -503,6 +503,61 @@ export class DataAccess {
     }
   }
 
+  /**
+   * Recalculate carryover values for all fund categories starting from the provided
+   * budget month (exclusive) through the latest available budget for the same entity.
+   *
+   * Algorithm:
+   * - Identify budgets for the entity sorted by month
+   * - Starting at `startBudgetMonth`, compute the next-month carryover from each budget
+   *   using calculateCarryOver(currentBudget), then write those values into the next
+   *   budget's categories.carryover. Repeat sequentially until the last budget.
+   */
+  async recalculateCarryoverFrom(entityId: string, startBudgetMonth: string): Promise<void> {
+    const budgetStore = useBudgetStore();
+    // Get all budgets for the entity, sorted
+    const all = Array.from(budgetStore.budgets.values()).filter((b) => b.entityId === entityId);
+    all.sort((a, b) => a.month.localeCompare(b.month));
+
+    // Ensure each budget has categories + transactions; fetch if missing
+    const fullBudgets: Budget[] = [];
+    for (const b of all) {
+      if (b.categories?.length && Array.isArray(b.transactions)) {
+        fullBudgets.push(b);
+      } else if (b.budgetId) {
+        const loaded = await this.getBudget(b.budgetId);
+        if (loaded) {
+          fullBudgets.push(loaded);
+          budgetStore.updateBudget(b.budgetId, loaded);
+        }
+      }
+    }
+
+    if (fullBudgets.length === 0) return;
+
+    const startIdx = fullBudgets.findIndex((b) => b.month === startBudgetMonth);
+    if (startIdx === -1) return; // Nothing to do if not found
+
+    // Walk forward, computing carryover month-by-month and applying to the next month
+    for (let i = startIdx; i < fullBudgets.length - 1; i++) {
+      const curr = fullBudgets[i];
+      const next = fullBudgets[i + 1];
+      if (!next?.budgetId) continue;
+
+      const nextCarry = this.calculateCarryOver(curr);
+      const updatedCategories = next.categories.map((cat) => ({
+        ...cat,
+        carryover: cat.isFund ? nextCarry[cat.name] || 0 : 0,
+      }));
+
+      const updatedBudget: Budget = { ...next, categories: updatedCategories };
+      await this.saveBudget(next.budgetId, updatedBudget);
+      budgetStore.updateBudget(next.budgetId, updatedBudget);
+      // Ensure the next iteration sees the updated carryover values
+      fullBudgets[i + 1] = updatedBudget;
+    }
+  }
+
   async saveImportedTransactions(doc: ImportedTransactionDoc): Promise<string> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/budget/imported-transactions`, {
