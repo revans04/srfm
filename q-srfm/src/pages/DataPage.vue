@@ -252,6 +252,17 @@
                       flat
                       bordered
                     ></q-table>
+                    <div class="row q-mt-md">
+                      <div class="col">
+                        <q-btn
+                          color="primary"
+                          @click="importEveryDollarBudget"
+                          :disabled="importing"
+                        >
+                          Import Recommended Updates
+                        </q-btn>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <div v-else-if="importType === 'entities'">
@@ -1382,6 +1393,67 @@ function previewEveryDollarBudget() {
   } catch (err: any) {
     console.error('Error parsing EveryDollar budget:', err);
     importError.value = `Failed to parse EveryDollar budget: ${err.message}`;
+  } finally {
+    importing.value = false;
+  }
+}
+
+async function importEveryDollarBudget() {
+  importError.value = null;
+  importSuccess.value = null;
+  const user = auth.currentUser;
+  if (!user) {
+    showSnackbar('User not authenticated', 'negative');
+    return;
+  }
+  if (!familyId.value) {
+    showSnackbar('Cannot import without a Family/Org', 'negative');
+    return;
+  }
+  if (!selectedEntityId.value) {
+    importError.value = 'Entity selection is required';
+    return;
+  }
+  if (!recommendedMonth.value) {
+    importError.value = 'No budget month detected from JSON';
+    return;
+  }
+
+  try {
+    importing.value = true;
+    const budget = await createBudgetForMonth(
+      recommendedMonth.value,
+      familyId.value,
+      user.uid,
+      selectedEntityId.value,
+    );
+
+    everyDollarRecommendations.value.forEach((rec) => {
+      const amount = parseAmount(rec.recommended);
+      const cat = budget.categories.find(
+        (c) => c.group === rec.group && c.name === rec.item,
+      );
+      if (cat) {
+        cat.target = amount;
+      } else {
+        budget.categories.push({
+          name: rec.item,
+          group: rec.group,
+          target: amount,
+          isFund: false,
+          carryover: 0,
+        });
+      }
+    });
+
+    await dataAccess.saveBudget(budget.budgetId!, budget);
+    budgetStore.updateBudget(budget.budgetId!, budget);
+    importSuccess.value = `Imported ${everyDollarRecommendations.value.length} recommendation(s)`;
+    showSnackbar(importSuccess.value, 'success');
+  } catch (err: any) {
+    console.error('Error importing EveryDollar budget:', err);
+    importError.value = `Failed to import EveryDollar budget: ${err.message}`;
+    showSnackbar(importError.value, 'negative');
   } finally {
     importing.value = false;
   }
