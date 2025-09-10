@@ -74,6 +74,7 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, watch } from 'vue';
+import type { Transaction } from '../types';
 type Align = 'left' | 'right' | 'center';
 // Generic column typing to avoid any
 export type Column<Row = Record<string, unknown>> = {
@@ -99,6 +100,7 @@ export interface LedgerRow {
   notes?: string;
   accountId?: string;
   matched?: boolean;
+  transaction?: Transaction;
 }
 
 const props = defineProps<{

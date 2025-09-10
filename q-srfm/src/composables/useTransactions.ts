@@ -24,6 +24,7 @@ export interface LedgerRow {
   notes?: string;
   accountId?: string;
   matched?: boolean;
+  transaction?: Transaction;
 }
 
 export type BudgetTransaction = Transaction & { linkId?: string };
@@ -131,6 +132,7 @@ export function useTransactions() {
       importedMerchant: tx.importedMerchant || '',
       linkId: tx.accountNumber ? `${tx.accountSource || ''}:${tx.accountNumber}` : undefined,
       notes,
+      transaction: tx,
     };
   }
 
