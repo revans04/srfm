@@ -397,6 +397,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unnecessary-type-assertion */
 import { ref, onMounted, computed, watch } from "vue";
 import { useQuasar, QSpinner } from 'quasar';
+import type { QTableColumn } from 'quasar';
 import { auth } from "../firebase/init";
 import { dataAccess } from "../dataAccess";
 import Papa from "papaparse";
@@ -498,12 +499,12 @@ interface EveryDollarRecommendation {
 
 const everyDollarRecommendations = ref<EveryDollarRecommendation[]>([]);
 const recommendedMonth = ref('');
-const everyDollarColumns = [
-  { name: 'group', label: 'Group', field: 'group', align: 'left' },
-  { name: 'item', label: 'Item', field: 'item', align: 'left' },
-  { name: 'budgeted', label: 'Budgeted', field: 'budgeted', align: 'right' },
-  { name: 'spent', label: 'Spent', field: 'spent', align: 'right' },
-  { name: 'recommended', label: 'Recommended', field: 'recommended', align: 'right' },
+const everyDollarColumns: QTableColumn[] = [
+  { name: 'group', label: 'Group', field: 'group', align: 'left' as const },
+  { name: 'item', label: 'Item', field: 'item', align: 'left' as const },
+  { name: 'budgeted', label: 'Budgeted', field: 'budgeted', align: 'right' as const },
+  { name: 'spent', label: 'Spent', field: 'spent', align: 'right' as const },
+  { name: 'recommended', label: 'Recommended', field: 'recommended', align: 'right' as const },
 ];
 
 // Bank/Card Transactions Import
