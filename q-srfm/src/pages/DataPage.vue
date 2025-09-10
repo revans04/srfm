@@ -264,6 +264,16 @@
                       </div>
                     </div>
                   </div>
+                  <div v-if="everyDollarTransactions.length > 0" class="q-mt-lg">
+                    <h3>Parsed Transactions</h3>
+                    <q-table
+                      :rows="everyDollarTransactions"
+                      :columns="everyDollarTransactionColumns"
+                      row-key="rowId"
+                      flat
+                      bordered
+                    ></q-table>
+                  </div>
                 </div>
                 <div v-else-if="importType === 'entities'">
                   <q-file
@@ -517,6 +527,24 @@ const everyDollarColumns: QTableColumn[] = [
   { name: 'budgeted', label: 'Budgeted', field: 'budgeted', align: 'right' as const },
   { name: 'spent', label: 'Spent', field: 'spent', align: 'right' as const },
   { name: 'recommended', label: 'Recommended', field: 'recommended', align: 'right' as const },
+];
+
+interface EveryDollarTransactionRow {
+  rowId: string;
+  date: string;
+  merchant: string;
+  group: string;
+  item: string;
+  amount: string;
+}
+
+const everyDollarTransactions = ref<EveryDollarTransactionRow[]>([]);
+const everyDollarTransactionColumns: QTableColumn[] = [
+  { name: 'date', label: 'Date', field: 'date', align: 'left' as const },
+  { name: 'merchant', label: 'Merchant', field: 'merchant', align: 'left' as const },
+  { name: 'group', label: 'Group', field: 'group', align: 'left' as const },
+  { name: 'item', label: 'Category', field: 'item', align: 'left' as const },
+  { name: 'amount', label: 'Amount', field: 'amount', align: 'right' as const },
 ];
 
 // Bank/Card Transactions Import
@@ -1320,6 +1348,7 @@ function previewEveryDollarBudget() {
   importError.value = null;
   importSuccess.value = null;
   everyDollarRecommendations.value = [];
+  everyDollarTransactions.value = [];
   try {
     importing.value = true;
     if (!everyDollarJson.value.trim()) {
@@ -1332,6 +1361,7 @@ function previewEveryDollarBudget() {
     if (Array.isArray(data)) {
       recommendedMonth.value = data[0]?.date ? toBudgetMonth(data[0].date) : '';
       const unique = new Set<string>();
+      const txRows: EveryDollarTransactionRow[] = [];
       data.forEach((entry: any) => {
         const grp = entry.group || {};
         const item = grp.item || {};
@@ -1351,7 +1381,16 @@ function previewEveryDollarBudget() {
           spent: formatCurrency(0),
           recommended: formatCurrency(planned / 100),
         });
+        txRows.push({
+          rowId: uuidv4(),
+          date: entry.date || '',
+          merchant: entry.merchant || '',
+          group: grp.label || '',
+          item: item.label || '',
+          amount: formatCurrency((entry.amount || 0) / 100),
+        });
       });
+      everyDollarTransactions.value = txRows;
     } else if (Array.isArray((data as any).transactions)) {
       const txData = data as any;
       recommendedMonth.value = txData.startDate
@@ -1361,16 +1400,25 @@ function previewEveryDollarBudget() {
         : '';
       const sums = new Map<string, number>();
       const unique = new Set<string>();
+      const txRows: EveryDollarTransactionRow[] = [];
       txData.transactions.forEach((tx: any) => {
         if (tx.deletedAt) return;
         (tx.allocations || []).forEach((a: any) => {
           if (typeof a.amount !== 'number' || typeof a.date !== 'string') return;
-          const key = `${a.date}_${a.amount}`;
+          const key = `${a.date}_${a.amount}_${a.transactionId || tx.id}`;
           if (unique.has(key)) return;
           unique.add(key);
           const label = a.label || '';
           const prev = sums.get(label) || 0;
           sums.set(label, prev + a.amount);
+          txRows.push({
+            rowId: uuidv4(),
+            date: a.date,
+            merchant: a.merchant || tx.merchant || '',
+            group: '',
+            item: label,
+            amount: formatCurrency(a.amount / 100),
+          });
         });
       });
       sums.forEach((total, label) => {
@@ -1385,38 +1433,72 @@ function previewEveryDollarBudget() {
           recommended: formatCurrency(spentAbs / 100),
         });
       });
+      everyDollarTransactions.value = txRows;
     } else if (Array.isArray((data as any).groups)) {
       recommendedMonth.value = (data as any).date ? toBudgetMonth((data as any).date) : '';
+      const itemTotals = new Map<string, number>();
+      const itemInfo = new Map<string, { group: string; item: string; budgeted: number }>();
+      const txMap = new Map<string, { date: string; merchant: string; splits: { group: string; item: string; amount: number }[]; amount: number }>();
+      const seenAlloc = new Set<string>();
       (data as any).groups.forEach((group: any) => {
-        if (group.type !== 'expense') return;
         const groupLabel = group.label || '';
+        const isExpense = group.type === 'expense';
         (group.budgetItems || []).forEach((item: any) => {
+          const itemId = item.id || uuidv4();
           const budgeted = typeof item.amountBudgeted === 'number' ? item.amountBudgeted : 0;
+          if (isExpense) {
+            itemInfo.set(itemId, { group: groupLabel, item: item.label || '', budgeted });
+          }
           const allocations = Array.isArray(item.allocations) ? item.allocations : [];
-          const uniqueAlloc = new Map<string, any>();
           allocations.forEach((a: any) => {
-            if (typeof a.amount === 'number' && typeof a.date === 'string') {
-              const key = `${a.date}_${a.amount}`;
-              if (!uniqueAlloc.has(key)) uniqueAlloc.set(key, a);
+            if (typeof a.amount !== 'number' || typeof a.date !== 'string') return;
+            const allocKey = `${a.transactionId || a.id}_${a.date}_${a.amount}_${itemId}`;
+            if (seenAlloc.has(allocKey)) return;
+            seenAlloc.add(allocKey);
+            const txId = a.transactionId || `${a.date}_${a.merchant || ''}_${a.amount}`;
+            let tx = txMap.get(txId);
+            if (!tx) {
+              tx = { date: a.date, merchant: a.merchant || '', splits: [], amount: 0 };
+              txMap.set(txId, tx);
+            }
+            tx.amount += a.amount;
+            tx.splits.push({ group: groupLabel, item: item.label || '', amount: a.amount });
+            if (isExpense) {
+              const prev = itemTotals.get(itemId) || 0;
+              itemTotals.set(itemId, prev + a.amount);
             }
           });
-          const spent = Array.from(uniqueAlloc.values()).reduce(
-            (sum: number, a: any) => sum + (typeof a.amount === 'number' ? a.amount : 0),
-            0,
-          );
-          const spentAbs = Math.abs(spent);
-          if (spentAbs > budgeted) {
-            recs.push({
-              id: item.id || uuidv4(),
-              group: groupLabel,
-              item: item.label || '',
-              budgeted: formatCurrency(budgeted / 100),
-              spent: formatCurrency(spentAbs / 100),
-              recommended: formatCurrency(spentAbs / 100),
-            });
-          }
         });
       });
+      itemTotals.forEach((spent, itemId) => {
+        const info = itemInfo.get(itemId);
+        if (!info) return;
+        const spentAbs = Math.abs(spent);
+        if (spentAbs > info.budgeted) {
+          recs.push({
+            id: itemId,
+            group: info.group,
+            item: info.item,
+            budgeted: formatCurrency(info.budgeted / 100),
+            spent: formatCurrency(spentAbs / 100),
+            recommended: formatCurrency(spentAbs / 100),
+          });
+        }
+      });
+      const txRows: EveryDollarTransactionRow[] = [];
+      txMap.forEach((tx, txId) => {
+        tx.splits.forEach((split) => {
+          txRows.push({
+            rowId: `${txId}_${uuidv4()}`,
+            date: tx.date,
+            merchant: tx.merchant,
+            group: split.group,
+            item: split.item,
+            amount: formatCurrency(split.amount / 100),
+          });
+        });
+      });
+      everyDollarTransactions.value = txRows;
     }
 
     everyDollarRecommendations.value = recs;
