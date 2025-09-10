@@ -278,7 +278,7 @@
                       bordered
                       selection="multiple"
                       v-model:selected="selectedEveryDollarTransactions"
-                      :row-class="transactionRowClass"
+                      :table-row-class-fn="transactionRowClass"
                       :pagination="{ rowsPerPage: 0 }"
                       :rows-per-page-options="[0]"
                       :filter="everyDollarFilter"
