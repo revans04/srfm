@@ -266,12 +266,15 @@
                           outlined
                         />
                       </div>
-                      <div class="col-12 col-md-3">
+                      <div class="col-6 col-md-3">
                         <q-checkbox v-model="selectAllEveryDollar" label="Select All" />
+                      </div>
+                      <div class="col-6 col-md-3">
+                        <q-checkbox v-model="showOnlyUnmatched" label="Only unmatched" />
                       </div>
                     </div>
                     <q-table
-                      :rows="everyDollarTransactions"
+                      :rows="displayedEveryDollarTransactions"
                       :columns="everyDollarTransactionColumns"
                       row-key="rowId"
                       flat
@@ -548,16 +551,32 @@ const everyDollarTransactions = ref<EveryDollarTransactionRow[]>([]);
 const selectedEveryDollarTransactions = ref<EveryDollarTransactionRow[]>([]);
 const everyDollarFilter = ref('');
 const duplicateDays = ref(0);
+const showOnlyUnmatched = ref(false);
+const displayedEveryDollarTransactions = computed(() =>
+  everyDollarTransactions.value.filter(
+    (tx) => !showOnlyUnmatched.value || !tx.isDuplicate
+  )
+);
 const selectAllEveryDollar = computed({
   get: () =>
-    selectedEveryDollarTransactions.value.length === everyDollarTransactions.value.length &&
-    everyDollarTransactions.value.length > 0,
+    selectedEveryDollarTransactions.value.length ===
+      displayedEveryDollarTransactions.value.length &&
+    displayedEveryDollarTransactions.value.length > 0,
   set: (val: boolean) => {
-    selectedEveryDollarTransactions.value = val ? [...everyDollarTransactions.value] : [];
+    selectedEveryDollarTransactions.value = val
+      ? [...displayedEveryDollarTransactions.value]
+      : [];
   },
 });
 watch(everyDollarTransactions, () => {
   selectedEveryDollarTransactions.value = [];
+});
+watch(showOnlyUnmatched, (val) => {
+  if (val) {
+    selectedEveryDollarTransactions.value = selectedEveryDollarTransactions.value.filter(
+      (tx) => !tx.isDuplicate
+    );
+  }
 });
 const everyDollarTransactionColumns: QTableColumn[] = [
   { name: 'date', label: 'Date', field: 'date', align: 'left' as const },
