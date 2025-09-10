@@ -136,30 +136,24 @@ export function formatDateLong(dateStr: string): string {
  * @throws Error if the date is invalid
  */
 export function toBudgetMonth(dateInput: Date | string | number): string {
-  let date: Date;
-
-  // Handle different input types
+  // Handle ISO-like strings directly to avoid timezone shifts
   if (typeof dateInput === 'string') {
-    // Parse string dates (e.g., "2025-03-27", "03/27/2025")
-    date = new Date(dateInput);
-  } else if (typeof dateInput === 'number') {
-    // Handle timestamp (milliseconds since epoch)
-    date = new Date(dateInput);
-  } else if (dateInput instanceof Date) {
-    // Already a Date object
-    date = dateInput;
-  } else {
-    throw new Error('Invalid date input: must be a Date object, string, or timestamp');
+    const match = dateInput.match(/^(\d{4})-(\d{2})/);
+    if (match) {
+      return `${match[1]}-${match[2]}`;
+    }
   }
+
+  const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
 
   // Check if the date is valid
   if (isNaN(date.getTime())) {
     throw new Error('Invalid date: could not parse the input date');
   }
 
-  // Extract year and month
-  const year = date.getFullYear();
-  const month = (date.getMonth() + 1).toString().padStart(2, '0'); // Months are 0-based, so add 1
+  // Extract year and month using UTC to avoid local timezone offsets
+  const year = date.getUTCFullYear();
+  const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
 
   return `${year}-${month}`;
 }

@@ -227,6 +227,78 @@
                     </div>
                   </div>
                 </div>
+                <div v-else-if="importType === 'everyDollarBudget'">
+                  <q-input
+                    v-model="everyDollarJson"
+                    type="textarea"
+                    autogrow
+                    label="Paste EveryDollar Budget JSON"
+                    :disable="importing"
+                    outlined
+                  />
+                  <q-input
+                    v-model.number="duplicateDays"
+                    type="number"
+                    label="Days to check for duplicates"
+                    :disable="importing"
+                    outlined
+                    class="q-mt-md"
+                  />
+                  <div class="row q-mt-md">
+                    <div class="col">
+                      <q-btn
+                        color="primary"
+                        @click="previewEveryDollarTransactions"
+                        :disabled="importing || !everyDollarJson"
+                      >
+                        Preview Transactions
+                      </q-btn>
+                    </div>
+                  </div>
+                  <div v-if="everyDollarTransactions.length > 0" class="q-mt-lg">
+                    <h3>Parsed Transactions for {{ recommendedMonth }}</h3>
+                    <div class="row q-mb-md items-center">
+                      <div class="col-12 col-md-4 q-mb-sm q-mb-md-0">
+                        <q-input
+                          v-model="everyDollarFilter"
+                          label="Filter"
+                          dense
+                          outlined
+                        />
+                      </div>
+                      <div class="col-6 col-md-3">
+                        <q-checkbox v-model="selectAllEveryDollar" label="Select All" />
+                      </div>
+                      <div class="col-6 col-md-3">
+                        <q-checkbox v-model="showOnlyUnmatched" label="Only unmatched" />
+                      </div>
+                    </div>
+                    <q-table
+                      :rows="displayedEveryDollarTransactions"
+                      :columns="everyDollarTransactionColumns"
+                      row-key="rowId"
+                      flat
+                      bordered
+                      selection="multiple"
+                      v-model:selected="selectedEveryDollarTransactions"
+                      :table-row-class-fn="transactionRowClass"
+                      :pagination="{ rowsPerPage: 0 }"
+                      :rows-per-page-options="[0]"
+                      :filter="everyDollarFilter"
+                    ></q-table>
+                    <div class="row q-mt-md">
+                      <div class="col">
+                        <q-btn
+                          color="primary"
+                          @click="importEveryDollarTransactions"
+                          :disabled="importing || selectedEveryDollarTransactions.length === 0"
+                        >
+                          Import Transactions
+                        </q-btn>
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 <div v-else-if="importType === 'entities'">
                   <q-file
                     v-model="entitiesFile"
@@ -371,6 +443,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unnecessary-type-assertion */
 import { ref, onMounted, computed, watch } from "vue";
 import { useQuasar, QSpinner } from 'quasar';
+import type { QTableColumn } from 'quasar';
 import { auth } from "../firebase/init";
 import { dataAccess } from "../dataAccess";
 import Papa from "papaparse";
@@ -381,7 +454,14 @@ import { v4 as uuidv4 } from "uuid";
 import { useBudgetStore } from "../store/budget";
 import { useFamilyStore } from "../store/family";
 import EntityForm from "../components/EntityForm.vue";
-import { timestampToDate, toBudgetMonth, stringToFirestoreTimestamp, parseAmount, todayISO } from "../utils/helpers";
+import {
+  timestampToDate,
+  toBudgetMonth,
+  stringToFirestoreTimestamp,
+  parseAmount,
+  todayISO,
+  formatCurrency,
+} from "../utils/helpers";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import { Timestamp } from "firebase/firestore";
@@ -428,6 +508,7 @@ const importType = ref("bankTransactions");
 const importTypes = [
   { label: "Entities", value: "entities" },
   { label: "Budget/Transactions", value: "budgetTransactions" },
+  { label: "EveryDollar Budget JSON", value: "everyDollarBudget" },
   { label: "Bank/Card Transactions", value: "bankTransactions" },
   { label: "Accounts/Snapshots", value: "accountsAndSnapshots" },
 ];
@@ -451,6 +532,63 @@ const selectedFiles = ref<File[]>([]);
 const bankTransactionsFile = ref<File | null>(null);
 const entitiesFile = ref<File | null>(null);
 const accountsSnapshotsFile = ref<File | null>(null);
+const everyDollarJson = ref('');
+
+const recommendedMonth = ref('');
+
+interface EveryDollarTransactionRow {
+  rowId: string;
+  date: string;
+  merchant: string;
+  group: string;
+  item: string;
+  amount: string;
+  rawAmount: number;
+  isDuplicate: boolean;
+}
+
+const everyDollarTransactions = ref<EveryDollarTransactionRow[]>([]);
+const selectedEveryDollarTransactions = ref<EveryDollarTransactionRow[]>([]);
+const everyDollarFilter = ref('');
+const duplicateDays = ref(0);
+const showOnlyUnmatched = ref(false);
+const displayedEveryDollarTransactions = computed(() =>
+  everyDollarTransactions.value.filter(
+    (tx) => !showOnlyUnmatched.value || !tx.isDuplicate
+  )
+);
+const selectAllEveryDollar = computed({
+  get: () =>
+    selectedEveryDollarTransactions.value.length ===
+      displayedEveryDollarTransactions.value.length &&
+    displayedEveryDollarTransactions.value.length > 0,
+  set: (val: boolean) => {
+    selectedEveryDollarTransactions.value = val
+      ? [...displayedEveryDollarTransactions.value]
+      : [];
+  },
+});
+watch(everyDollarTransactions, () => {
+  selectedEveryDollarTransactions.value = [];
+});
+watch(showOnlyUnmatched, (val) => {
+  if (val) {
+    selectedEveryDollarTransactions.value = selectedEveryDollarTransactions.value.filter(
+      (tx) => !tx.isDuplicate
+    );
+  }
+});
+const everyDollarTransactionColumns: QTableColumn[] = [
+  { name: 'date', label: 'Date', field: 'date', align: 'left' as const },
+  { name: 'merchant', label: 'Merchant', field: 'merchant', align: 'left' as const },
+  { name: 'group', label: 'Group', field: 'group', align: 'left' as const },
+  { name: 'item', label: 'Category', field: 'item', align: 'left' as const },
+  { name: 'amount', label: 'Amount', field: 'amount', align: 'right' as const },
+];
+
+function transactionRowClass(row: EveryDollarTransactionRow) {
+  return row.isDuplicate ? 'bg-yellow-2 text-weight-bold' : '';
+}
 
 // Bank/Card Transactions Import
 const previewBankTransactions = ref<any[]>([]);
@@ -1246,6 +1384,252 @@ async function handleBankTransactionsFileUpload(files: File | File[] | FileList 
     importError.value = `Failed to parse data: ${error.message}`;
   } finally {
     $q.loading.hide();
+  }
+}
+
+async function previewEveryDollarTransactions() {
+  importError.value = null;
+  importSuccess.value = null;
+  everyDollarTransactions.value = [];
+  try {
+    importing.value = true;
+    if (!everyDollarJson.value.trim()) {
+      importError.value = 'No JSON provided';
+      return;
+    }
+    const data = JSON.parse(everyDollarJson.value);
+    const txRows: EveryDollarTransactionRow[] = [];
+
+    const user = auth.currentUser;
+    if (!user) {
+      importError.value = 'User not authenticated';
+      return;
+    }
+    if (!selectedEntityId.value) {
+      importError.value = 'Entity selection is required';
+      return;
+    }
+    if (
+      budgetStore.budgets.size === 0 ||
+      !Array.from(budgetStore.budgets.values()).some((b) => b.entityId === selectedEntityId.value)
+    ) {
+      await budgetStore.loadBudgets(user.uid, selectedEntityId.value);
+    }
+
+    const budgets = Array.from(budgetStore.budgets.values()).filter(
+      (b) => b.entityId === selectedEntityId.value,
+    );
+    const categoryMap = new Map<string, string>();
+    const existingTxs: { date: string; amount: number }[] = [];
+    for (const b of budgets) {
+      b.categories.forEach((c) => categoryMap.set(c.name.toLowerCase(), c.group));
+      let txs = b.transactions;
+      if ((!txs || txs.length === 0) && b.budgetId) {
+        try {
+          txs = await dataAccess.getTransactions(b.budgetId);
+          b.transactions = txs;
+        } catch (err) {
+          console.error('Failed to load transactions for duplicate check', err);
+          txs = [];
+        }
+      }
+      (txs || []).forEach((t) => {
+        if (t.deleted) return;
+        if (Array.isArray(t.categories) && t.categories.length > 0) {
+          t.categories.forEach((c) => {
+            existingTxs.push({ date: t.date, amount: c.amount });
+          });
+        } else {
+          existingTxs.push({ date: t.date, amount: t.amount });
+        }
+      });
+    }
+    const dupWindowMs = duplicateDays.value * 86400000;
+    const isDupTx = (dateStr: string, amount: number) =>
+      existingTxs.some((t) => {
+        const tAmt = Math.round(Math.abs(t.amount) * 100);
+        const aAmt = Math.round(Math.abs(amount) * 100);
+        if (tAmt !== aAmt) return false;
+        const diff = Math.abs(new Date(dateStr).getTime() - new Date(t.date).getTime());
+        return diff <= dupWindowMs;
+      });
+
+    if (Array.isArray(data)) {
+      recommendedMonth.value = data[0]?.date ? toBudgetMonth(data[0].date) : '';
+      const unique = new Set<string>();
+      data.forEach((entry: any) => {
+        const grp = entry.group || {};
+        const item = grp.item || {};
+        if (item.type === 'income') return;
+        const key = `${entry.date}_${entry.amount}_${item.id}`;
+        if (unique.has(key)) return;
+        unique.add(key);
+        const label = item.label || '';
+        const amountNum = (entry.amount || 0) / 100;
+        const groupName = categoryMap.get(label.toLowerCase()) || grp.label || '';
+        const isDup = isDupTx(entry.date || '', amountNum);
+        txRows.push({
+          rowId: uuidv4(),
+          date: entry.date || '',
+          merchant: entry.merchant || '',
+          group: groupName,
+          item: label,
+          amount: formatCurrency(amountNum),
+          rawAmount: amountNum,
+          isDuplicate: isDup,
+        });
+      });
+    } else if (Array.isArray((data as any).transactions)) {
+      const txData = data as any;
+      recommendedMonth.value = txData.startDate
+        ? toBudgetMonth(txData.startDate)
+        : txData.transactions[0]?.date
+        ? toBudgetMonth(txData.transactions[0].date)
+        : '';
+      const unique = new Set<string>();
+      txData.transactions.forEach((tx: any) => {
+        if (tx.deletedAt) return;
+        (tx.allocations || []).forEach((a: any) => {
+          if (typeof a.amount !== 'number' || typeof a.date !== 'string') return;
+          const key = `${a.date}_${a.amount}_${a.transactionId || tx.id}`;
+          if (unique.has(key)) return;
+          unique.add(key);
+          const label = a.label || '';
+          const amountNum = a.amount / 100;
+          const groupName = categoryMap.get(label.toLowerCase()) || '';
+          const isDup = isDupTx(a.date, amountNum);
+          txRows.push({
+            rowId: uuidv4(),
+            date: a.date,
+            merchant: a.merchant || tx.merchant || '',
+            group: groupName,
+            item: label,
+            amount: formatCurrency(amountNum),
+            rawAmount: amountNum,
+            isDuplicate: isDup,
+          });
+        });
+      });
+    } else if (Array.isArray((data as any).groups)) {
+      recommendedMonth.value = (data as any).date ? toBudgetMonth((data as any).date) : '';
+      const txMap = new Map<string, { date: string; merchant: string; splits: { group: string; item: string; amount: number }[] }>();
+      const seenAlloc = new Set<string>();
+      (data as any).groups.forEach((group: any) => {
+        const groupLabel = group.label || '';
+        (group.budgetItems || []).forEach((item: any) => {
+          const allocations = Array.isArray(item.allocations) ? item.allocations : [];
+          allocations.forEach((a: any) => {
+            if (typeof a.amount !== 'number' || typeof a.date !== 'string') return;
+            const allocKey = `${a.transactionId || a.id}_${a.date}_${a.amount}`;
+            if (seenAlloc.has(allocKey)) return;
+            seenAlloc.add(allocKey);
+            const txId = a.transactionId || `${a.date}_${a.merchant || ''}_${a.amount}`;
+            let tx = txMap.get(txId);
+            if (!tx) {
+              tx = { date: a.date, merchant: a.merchant || '', splits: [] };
+              txMap.set(txId, tx);
+            }
+            tx.splits.push({ group: groupLabel, item: item.label || '', amount: a.amount });
+          });
+        });
+      });
+      txMap.forEach((tx, txId) => {
+        tx.splits.forEach((split) => {
+          const label = split.item;
+          const amountNum = split.amount / 100;
+          const groupName = categoryMap.get(label.toLowerCase()) || split.group;
+          const isDup = isDupTx(tx.date, amountNum);
+          txRows.push({
+            rowId: `${txId}_${uuidv4()}`,
+            date: tx.date,
+            merchant: tx.merchant,
+            group: groupName,
+            item: label,
+            amount: formatCurrency(amountNum),
+            rawAmount: amountNum,
+            isDuplicate: isDup,
+          });
+        });
+      });
+    }
+
+    everyDollarTransactions.value = txRows;
+    if (txRows.length === 0) {
+      importSuccess.value = 'No transactions found.';
+    }
+  } catch (err: any) {
+    console.error('Error parsing EveryDollar budget:', err);
+    importError.value = `Failed to parse EveryDollar budget: ${err.message}`;
+  } finally {
+    importing.value = false;
+  }
+}
+
+async function importEveryDollarTransactions() {
+  importError.value = null;
+  importSuccess.value = null;
+  const user = auth.currentUser;
+  if (!user) {
+    showSnackbar('User not authenticated', 'negative');
+    return;
+  }
+  if (!familyId.value) {
+    showSnackbar('Cannot import without a Family/Org', 'negative');
+    return;
+  }
+  if (!selectedEntityId.value) {
+    importError.value = 'Entity selection is required';
+    return;
+  }
+  if (!recommendedMonth.value) {
+    importError.value = 'No budget month detected from JSON';
+    return;
+  }
+
+  try {
+    importing.value = true;
+    const budget = await createBudgetForMonth(
+      recommendedMonth.value,
+      familyId.value,
+      user.uid,
+      selectedEntityId.value,
+    );
+
+    const rowsToImport = selectedEveryDollarTransactions.value;
+    if (rowsToImport.length === 0) {
+      importError.value = 'No transactions selected';
+      importing.value = false;
+      return;
+    }
+
+    rowsToImport.forEach((row) => {
+      const amount = row.rawAmount;
+      const tx: Transaction = {
+        id: uuidv4(),
+        date: row.date,
+        merchant: row.merchant,
+        categories: [{ category: row.item, amount }],
+        amount,
+        notes: '',
+        recurring: false,
+        recurringInterval: 'Monthly',
+        userId: user.uid,
+        isIncome: amount > 0,
+        taxMetadata: [],
+      };
+      budget.transactions.push(tx);
+    });
+
+    await dataAccess.saveBudget(budget.budgetId!, budget);
+    budgetStore.updateBudget(budget.budgetId!, budget);
+    importSuccess.value = `Imported ${rowsToImport.length} transaction(s)`;
+    showSnackbar(importSuccess.value, 'success');
+  } catch (err: any) {
+    console.error('Error importing EveryDollar transactions:', err);
+    importError.value = `Failed to import EveryDollar transactions: ${err.message}`;
+    showSnackbar(importError.value, 'negative');
+  } finally {
+    importing.value = false;
   }
 }
 
