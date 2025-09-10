@@ -228,16 +228,17 @@
                   </div>
                 </div>
                 <div v-else-if="importType === 'everyDollarBudget'">
-                  <q-file
-                    v-model="everyDollarFile"
-                    label="Upload EveryDollar Budget JSON"
-                    accept=".json"
-                    @update:model-value="handleEveryDollarFileUpload"
-                    :disabled="importing"
-                  ></q-file>
+                  <q-input
+                    v-model="everyDollarJson"
+                    type="textarea"
+                    autogrow
+                    label="Paste EveryDollar Budget JSON"
+                    :disable="importing"
+                    outlined
+                  />
                   <div class="row q-mt-md">
                     <div class="col">
-                      <q-btn color="primary" @click="previewEveryDollarBudget" :disabled="importing || !everyDollarFile"
+                      <q-btn color="primary" @click="previewEveryDollarBudget" :disabled="importing || !everyDollarJson"
                         >Preview Recommendations</q-btn
                       >
                     </div>
@@ -486,7 +487,7 @@ const selectedFiles = ref<File[]>([]);
 const bankTransactionsFile = ref<File | null>(null);
 const entitiesFile = ref<File | null>(null);
 const accountsSnapshotsFile = ref<File | null>(null);
-const everyDollarFile = ref<File | null>(null);
+const everyDollarJson = ref('');
 
 interface EveryDollarRecommendation {
   id: string;
@@ -1304,29 +1305,17 @@ async function handleBankTransactionsFileUpload(files: File | File[] | FileList 
   }
 }
 
-function handleEveryDollarFileUpload(file: File | File[] | FileList | null) {
-  everyDollarRecommendations.value = [];
-  if (Array.isArray(file)) {
-    everyDollarFile.value = file[0] || null;
-  } else if (file instanceof FileList) {
-    everyDollarFile.value = file[0] || null;
-  } else {
-    everyDollarFile.value = file as File | null;
-  }
-}
-
-async function previewEveryDollarBudget() {
+function previewEveryDollarBudget() {
   importError.value = null;
   importSuccess.value = null;
   everyDollarRecommendations.value = [];
-  if (!everyDollarFile.value) {
-    importError.value = 'No file selected';
-    return;
-  }
   try {
     importing.value = true;
-    const text = await everyDollarFile.value.text();
-    const data = JSON.parse(text);
+    if (!everyDollarJson.value.trim()) {
+      importError.value = 'No JSON provided';
+      return;
+    }
+    const data = JSON.parse(everyDollarJson.value);
     recommendedMonth.value = data.date ? toBudgetMonth(data.date) : '';
     const recs: EveryDollarRecommendation[] = [];
     if (Array.isArray(data.groups)) {
@@ -1335,12 +1324,18 @@ async function previewEveryDollarBudget() {
         const groupLabel = group.label || '';
         (group.budgetItems || []).forEach((item: any) => {
           const budgeted = typeof item.amountBudgeted === 'number' ? item.amountBudgeted : 0;
-          const spent = Array.isArray(item.allocations)
-            ? item.allocations.reduce(
-                (sum: number, a: any) => sum + (typeof a.amount === 'number' ? a.amount : 0),
-                0,
-              )
-            : 0;
+          const allocations = Array.isArray(item.allocations) ? item.allocations : [];
+          const unique = new Map<string, any>();
+          allocations.forEach((a: any) => {
+            if (typeof a.amount === 'number' && typeof a.date === 'string') {
+              const key = `${a.date}_${a.amount}`;
+              if (!unique.has(key)) unique.set(key, a);
+            }
+          });
+          const spent = Array.from(unique.values()).reduce(
+            (sum: number, a: any) => sum + (typeof a.amount === 'number' ? a.amount : 0),
+            0,
+          );
           const spentAbs = Math.abs(spent);
           if (spentAbs > budgeted) {
             recs.push({
