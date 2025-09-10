@@ -227,6 +227,32 @@
                     </div>
                   </div>
                 </div>
+                <div v-else-if="importType === 'everyDollarBudget'">
+                  <q-file
+                    v-model="everyDollarFile"
+                    label="Upload EveryDollar Budget JSON"
+                    accept=".json"
+                    @update:model-value="handleEveryDollarFileUpload"
+                    :disabled="importing"
+                  ></q-file>
+                  <div class="row q-mt-md">
+                    <div class="col">
+                      <q-btn color="primary" @click="previewEveryDollarBudget" :disabled="importing || !everyDollarFile"
+                        >Preview Recommendations</q-btn
+                      >
+                    </div>
+                  </div>
+                  <div v-if="everyDollarRecommendations.length > 0" class="q-mt-lg">
+                    <h3>Recommended Updates for {{ recommendedMonth }}</h3>
+                    <q-table
+                      :rows="everyDollarRecommendations"
+                      :columns="everyDollarColumns"
+                      row-key="id"
+                      flat
+                      bordered
+                    ></q-table>
+                  </div>
+                </div>
                 <div v-else-if="importType === 'entities'">
                   <q-file
                     v-model="entitiesFile"
@@ -381,7 +407,14 @@ import { v4 as uuidv4 } from "uuid";
 import { useBudgetStore } from "../store/budget";
 import { useFamilyStore } from "../store/family";
 import EntityForm from "../components/EntityForm.vue";
-import { timestampToDate, toBudgetMonth, stringToFirestoreTimestamp, parseAmount, todayISO } from "../utils/helpers";
+import {
+  timestampToDate,
+  toBudgetMonth,
+  stringToFirestoreTimestamp,
+  parseAmount,
+  todayISO,
+  formatCurrency,
+} from "../utils/helpers";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import { Timestamp } from "firebase/firestore";
@@ -428,6 +461,7 @@ const importType = ref("bankTransactions");
 const importTypes = [
   { label: "Entities", value: "entities" },
   { label: "Budget/Transactions", value: "budgetTransactions" },
+  { label: "EveryDollar Budget JSON", value: "everyDollarBudget" },
   { label: "Bank/Card Transactions", value: "bankTransactions" },
   { label: "Accounts/Snapshots", value: "accountsAndSnapshots" },
 ];
@@ -451,6 +485,26 @@ const selectedFiles = ref<File[]>([]);
 const bankTransactionsFile = ref<File | null>(null);
 const entitiesFile = ref<File | null>(null);
 const accountsSnapshotsFile = ref<File | null>(null);
+const everyDollarFile = ref<File | null>(null);
+
+interface EveryDollarRecommendation {
+  id: string;
+  group: string;
+  item: string;
+  budgeted: string;
+  spent: string;
+  recommended: string;
+}
+
+const everyDollarRecommendations = ref<EveryDollarRecommendation[]>([]);
+const recommendedMonth = ref('');
+const everyDollarColumns = [
+  { name: 'group', label: 'Group', field: 'group', align: 'left' },
+  { name: 'item', label: 'Item', field: 'item', align: 'left' },
+  { name: 'budgeted', label: 'Budgeted', field: 'budgeted', align: 'right' },
+  { name: 'spent', label: 'Spent', field: 'spent', align: 'right' },
+  { name: 'recommended', label: 'Recommended', field: 'recommended', align: 'right' },
+];
 
 // Bank/Card Transactions Import
 const previewBankTransactions = ref<any[]>([]);
@@ -1246,6 +1300,69 @@ async function handleBankTransactionsFileUpload(files: File | File[] | FileList 
     importError.value = `Failed to parse data: ${error.message}`;
   } finally {
     $q.loading.hide();
+  }
+}
+
+function handleEveryDollarFileUpload(file: File | File[] | FileList | null) {
+  everyDollarRecommendations.value = [];
+  if (Array.isArray(file)) {
+    everyDollarFile.value = file[0] || null;
+  } else if (file instanceof FileList) {
+    everyDollarFile.value = file[0] || null;
+  } else {
+    everyDollarFile.value = file as File | null;
+  }
+}
+
+async function previewEveryDollarBudget() {
+  importError.value = null;
+  importSuccess.value = null;
+  everyDollarRecommendations.value = [];
+  if (!everyDollarFile.value) {
+    importError.value = 'No file selected';
+    return;
+  }
+  try {
+    importing.value = true;
+    const text = await everyDollarFile.value.text();
+    const data = JSON.parse(text);
+    recommendedMonth.value = data.date ? toBudgetMonth(data.date) : '';
+    const recs: EveryDollarRecommendation[] = [];
+    if (Array.isArray(data.groups)) {
+      data.groups.forEach((group: any) => {
+        if (group.type !== 'expense') return;
+        const groupLabel = group.label || '';
+        (group.budgetItems || []).forEach((item: any) => {
+          const budgeted = typeof item.amountBudgeted === 'number' ? item.amountBudgeted : 0;
+          const spent = Array.isArray(item.allocations)
+            ? item.allocations.reduce(
+                (sum: number, a: any) => sum + (typeof a.amount === 'number' ? a.amount : 0),
+                0,
+              )
+            : 0;
+          const spentAbs = Math.abs(spent);
+          if (spentAbs > budgeted) {
+            recs.push({
+              id: item.id || uuidv4(),
+              group: groupLabel,
+              item: item.label || '',
+              budgeted: formatCurrency(budgeted / 100),
+              spent: formatCurrency(spentAbs / 100),
+              recommended: formatCurrency(spentAbs / 100),
+            });
+          }
+        });
+      });
+    }
+    everyDollarRecommendations.value = recs;
+    if (recs.length === 0) {
+      importSuccess.value = 'No budget updates recommended.';
+    }
+  } catch (err: any) {
+    console.error('Error parsing EveryDollar budget:', err);
+    importError.value = `Failed to parse EveryDollar budget: ${err.message}`;
+  } finally {
+    importing.value = false;
   }
 }
 
