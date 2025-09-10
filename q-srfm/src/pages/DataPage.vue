@@ -1405,7 +1405,9 @@ async function previewEveryDollarTransactions() {
     const dupWindowMs = duplicateDays.value * 86400000;
     const isDupTx = (dateStr: string, amount: number) =>
       existingTxs.some((t) => {
-        if (t.amount !== amount) return false;
+        const tAmt = Math.round(Math.abs(t.amount) * 100);
+        const aAmt = Math.round(Math.abs(amount) * 100);
+        if (tAmt !== aAmt) return false;
         const diff = Math.abs(new Date(dateStr).getTime() - new Date(t.date).getTime());
         return diff <= dupWindowMs;
       });
