@@ -236,6 +236,14 @@
                     :disable="importing"
                     outlined
                   />
+                  <q-input
+                    v-model.number="duplicateDays"
+                    type="number"
+                    label="Days to check for duplicates"
+                    :disable="importing"
+                    outlined
+                    class="q-mt-md"
+                  />
                   <div class="row q-mt-md">
                     <div class="col">
                       <q-btn
@@ -249,22 +257,38 @@
                   </div>
                   <div v-if="everyDollarTransactions.length > 0" class="q-mt-lg">
                     <h3>Parsed Transactions for {{ recommendedMonth }}</h3>
+                    <div class="row q-mb-md items-center">
+                      <div class="col-12 col-md-4 q-mb-sm q-mb-md-0">
+                        <q-input
+                          v-model="everyDollarFilter"
+                          label="Filter"
+                          dense
+                          outlined
+                        />
+                      </div>
+                      <div class="col-12 col-md-3">
+                        <q-checkbox v-model="selectAllEveryDollar" label="Select All" />
+                      </div>
+                    </div>
                     <q-table
                       :rows="everyDollarTransactions"
                       :columns="everyDollarTransactionColumns"
                       row-key="rowId"
                       flat
                       bordered
+                      selection="multiple"
+                      v-model:selected="selectedEveryDollarTransactions"
                       :row-class="transactionRowClass"
                       :pagination="{ rowsPerPage: 0 }"
                       :rows-per-page-options="[0]"
+                      :filter="everyDollarFilter"
                     ></q-table>
                     <div class="row q-mt-md">
                       <div class="col">
                         <q-btn
                           color="primary"
                           @click="importEveryDollarTransactions"
-                          :disabled="importing"
+                          :disabled="importing || selectedEveryDollarTransactions.length === 0"
                         >
                           Import Transactions
                         </q-btn>
@@ -521,6 +545,20 @@ interface EveryDollarTransactionRow {
 }
 
 const everyDollarTransactions = ref<EveryDollarTransactionRow[]>([]);
+const selectedEveryDollarTransactions = ref<EveryDollarTransactionRow[]>([]);
+const everyDollarFilter = ref('');
+const duplicateDays = ref(0);
+const selectAllEveryDollar = computed({
+  get: () =>
+    selectedEveryDollarTransactions.value.length === everyDollarTransactions.value.length &&
+    everyDollarTransactions.value.length > 0,
+  set: (val: boolean) => {
+    selectedEveryDollarTransactions.value = val ? [...everyDollarTransactions.value] : [];
+  },
+});
+watch(everyDollarTransactions, () => {
+  selectedEveryDollarTransactions.value = [];
+});
 const everyDollarTransactionColumns: QTableColumn[] = [
   { name: 'date', label: 'Date', field: 'date', align: 'left' as const },
   { name: 'merchant', label: 'Merchant', field: 'merchant', align: 'left' as const },
@@ -1347,13 +1385,20 @@ function previewEveryDollarTransactions() {
       (b) => b.entityId === selectedEntityId.value,
     );
     const categoryMap = new Map<string, string>();
-    const existingKeys = new Set<string>();
+    const existingTxs: { date: string; amount: number }[] = [];
     budgets.forEach((b) => {
       b.categories.forEach((c) => categoryMap.set(c.name.toLowerCase(), c.group));
       (b.transactions || []).forEach((t) => {
-        if (!t.deleted) existingKeys.add(`${t.date}_${t.amount}`);
+        if (!t.deleted) existingTxs.push({ date: t.date, amount: t.amount });
       });
     });
+    const dupWindowMs = duplicateDays.value * 86400000;
+    const isDupTx = (dateStr: string, amount: number) =>
+      existingTxs.some((t) => {
+        if (t.amount !== amount) return false;
+        const diff = Math.abs(new Date(dateStr).getTime() - new Date(t.date).getTime());
+        return diff <= dupWindowMs;
+      });
 
     if (Array.isArray(data)) {
       recommendedMonth.value = data[0]?.date ? toBudgetMonth(data[0].date) : '';
@@ -1368,7 +1413,7 @@ function previewEveryDollarTransactions() {
         const label = item.label || '';
         const amountNum = (entry.amount || 0) / 100;
         const groupName = categoryMap.get(label.toLowerCase()) || grp.label || '';
-        const isDup = existingKeys.has(`${entry.date}_${amountNum}`);
+        const isDup = isDupTx(entry.date || '', amountNum);
         txRows.push({
           rowId: uuidv4(),
           date: entry.date || '',
@@ -1398,7 +1443,7 @@ function previewEveryDollarTransactions() {
           const label = a.label || '';
           const amountNum = a.amount / 100;
           const groupName = categoryMap.get(label.toLowerCase()) || '';
-          const isDup = existingKeys.has(`${a.date}_${amountNum}`);
+          const isDup = isDupTx(a.date, amountNum);
           txRows.push({
             rowId: uuidv4(),
             date: a.date,
@@ -1439,7 +1484,7 @@ function previewEveryDollarTransactions() {
           const label = split.item;
           const amountNum = split.amount / 100;
           const groupName = categoryMap.get(label.toLowerCase()) || split.group;
-          const isDup = existingKeys.has(`${tx.date}_${amountNum}`);
+          const isDup = isDupTx(tx.date, amountNum);
           txRows.push({
             rowId: `${txId}_${uuidv4()}`,
             date: tx.date,
@@ -1496,7 +1541,14 @@ async function importEveryDollarTransactions() {
       selectedEntityId.value,
     );
 
-    everyDollarTransactions.value.forEach((row) => {
+    const rowsToImport = selectedEveryDollarTransactions.value;
+    if (rowsToImport.length === 0) {
+      importError.value = 'No transactions selected';
+      importing.value = false;
+      return;
+    }
+
+    rowsToImport.forEach((row) => {
       const amount = row.rawAmount;
       const tx: Transaction = {
         id: uuidv4(),
@@ -1516,7 +1568,7 @@ async function importEveryDollarTransactions() {
 
     await dataAccess.saveBudget(budget.budgetId!, budget);
     budgetStore.updateBudget(budget.budgetId!, budget);
-    importSuccess.value = `Imported ${everyDollarTransactions.value.length} transaction(s)`;
+    importSuccess.value = `Imported ${rowsToImport.length} transaction(s)`;
     showSnackbar(importSuccess.value, 'success');
   } catch (err: any) {
     console.error('Error importing EveryDollar transactions:', err);
