@@ -1381,6 +1381,22 @@ async function previewEveryDollarTransactions() {
     const data = JSON.parse(everyDollarJson.value);
     const txRows: EveryDollarTransactionRow[] = [];
 
+    const user = auth.currentUser;
+    if (!user) {
+      importError.value = 'User not authenticated';
+      return;
+    }
+    if (!selectedEntityId.value) {
+      importError.value = 'Entity selection is required';
+      return;
+    }
+    if (
+      budgetStore.budgets.size === 0 ||
+      !Array.from(budgetStore.budgets.values()).some((b) => b.entityId === selectedEntityId.value)
+    ) {
+      await budgetStore.loadBudgets(user.uid, selectedEntityId.value);
+    }
+
     const budgets = Array.from(budgetStore.budgets.values()).filter(
       (b) => b.entityId === selectedEntityId.value,
     );
