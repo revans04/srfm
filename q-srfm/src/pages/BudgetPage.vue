@@ -544,7 +544,9 @@ const legacySavingsCategories = computed(() => {
   return Array.from(unique.values());
 });
 const ownerUid = ref<string | null>(null);
+// Prefer the actual budget's id if present; otherwise fall back to derived id for new budgets
 const budgetId = computed(() => {
+  if (budget.value?.budgetId) return budget.value.budgetId;
   if (!ownerUid.value || !familyStore.selectedEntityId) return '';
   return `${ownerUid.value}_${familyStore.selectedEntityId}_${currentMonth.value}`;
 });
@@ -1250,26 +1252,30 @@ async function selectMonth(month: string) {
   try {
     const family = await familyStore.getFamily();
     const ownerId = family ? family.ownerUid : userId.value;
-    const newBudgetId = `${ownerId}_${familyStore.selectedEntityId}_${month}`;
-    const freshBudget = await dataAccess.getBudget(newBudgetId);
-    if (freshBudget) {
-      budget.value = { ...freshBudget, budgetId: newBudgetId };
-      budgetStore.updateBudget(newBudgetId, freshBudget);
-      categoryOptions.value = freshBudget.categories.map((cat) => cat.name);
-      if (!categoryOptions.value.includes('Income')) {
-        categoryOptions.value.push('Income');
+
+    // Look up an accessible budget for the selected month/entity and use its actual id
+    const existing = availableBudgets.value.find((b) => b.month === month && matchesSelectedEntity(b));
+    if (existing?.budgetId) {
+      const freshBudget = await dataAccess.getBudget(existing.budgetId);
+      if (freshBudget) {
+        budget.value = { ...freshBudget, budgetId: existing.budgetId };
+        budgetStore.updateBudget(existing.budgetId, freshBudget);
+        categoryOptions.value = freshBudget.categories.map((cat) => cat.name);
+        if (!categoryOptions.value.includes('Income')) {
+          categoryOptions.value.push('Income');
+        }
+        return;
       }
-    } else {
-      if (!family) {
-        throw new Error('Family not found');
-      }
-      const b = await createBudgetForMonth(month, family.id, ownerId, familyStore.selectedEntityId);
-      budget.value = { ...b, budgetId: newBudgetId };
-      budgetStore.updateBudget(newBudgetId, b);
-      categoryOptions.value = b.categories.map((cat) => cat.name);
-      if (!categoryOptions.value.includes('Income')) {
-        categoryOptions.value.push('Income');
-      }
+    }
+
+    // If not found, create a new budget for this month
+    if (!family) throw new Error('Family not found');
+    const b = await createBudgetForMonth(month, family.id, ownerId, familyStore.selectedEntityId);
+    budget.value = { ...b };
+    if (b.budgetId) budgetStore.updateBudget(b.budgetId, b);
+    categoryOptions.value = b.categories.map((cat) => cat.name);
+    if (!categoryOptions.value.includes('Income')) {
+      categoryOptions.value.push('Income');
     }
   } catch (error: unknown) {
     const err = error as Error;
