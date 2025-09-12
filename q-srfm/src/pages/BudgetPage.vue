@@ -279,21 +279,34 @@
                 <div v-if="!isMobile" class="col-2">Planned</div>
                 <div :class="isMobile ? 'col-auto' : 'col-2'">Remaining</div>
               </div>
-              <div v-for="(item, idx) in favoriteItems" :key="idx">
-                <div class="row cursor-pointer" @click="handleRowClick(item)">
-                  <div class="col row items-center no-wrap">
-                    <q-icon :name="item.favorite ? 'star' : 'star_border'" size="xs" class="q-mr-xs" :color="item.favorite ? 'amber' : 'grey'" />
-                    <q-icon v-if="item.isFund" size="xs" class="q-mr-xs" color="primary" name="savings" />
-                    <span>{{ item.name }}</span>
-                  </div>
-                  <div v-if="!isMobile" class="col-2">{{ formatCurrency(item.target) }}</div>
-                  <div :class="[isMobile ? 'col-auto' : 'col-2', { 'text-negative': item.remaining < 0 }]">
-                    {{ formatCurrency(item.remaining) }}
-                  </div>
+              <div v-for="(fg, gIdx) in favoriteGroups" :key="gIdx">
+                <div class="row text-secondary q-mt-sm">
+                  <div class="col">{{ fg.group || 'Ungrouped' }}</div>
                 </div>
-                <div class="row">
-                  <div class="col-12">
-                    <q-linear-progress :value="item.percentage / 100" color="primary" class="q-my-xs" />
+                <div v-for="(item, idx) in fg.items" :key="idx">
+                  <div class="row cursor-pointer" @click="handleRowClick(item)">
+                    <div class="col row items-center no-wrap">
+                      <q-icon
+                        :name="item.favorite ? 'star' : 'star_border'"
+                        size="xs"
+                        class="q-mr-xs cursor-pointer"
+                        :color="item.favorite ? 'amber' : 'grey'"
+                        @click.stop="toggleFavorite(item)"
+                      >
+                        <q-tooltip>Toggle Favorite</q-tooltip>
+                      </q-icon>
+                      <q-icon v-if="item.isFund" size="xs" class="q-mr-xs" color="primary" name="savings" />
+                      <span>{{ item.name }}</span>
+                    </div>
+                    <div v-if="!isMobile" class="col-2">{{ formatCurrency(item.target) }}</div>
+                    <div :class="[isMobile ? 'col-auto' : 'col-2', { 'text-negative': item.remaining < 0 }]">
+                      {{ formatCurrency(item.remaining) }}
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-12">
+                      <q-linear-progress :value="item.percentage / 100" color="primary" class="q-my-xs" />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -597,9 +610,15 @@ async function toggleFavorite(item: BudgetCategoryTrx) {
   budget.value.categories.splice(idx, 1, updated);
   try {
     if (budgetId.value) {
+      budget.value.budgetId = budgetId.value;
       await dataAccess.saveBudget(budgetId.value, budget.value);
+      // Keep local and store in sync so favorites re-render consistently
+      budgetStore.updateBudget(budgetId.value, { ...budget.value });
       const b = await dataAccess.getBudget(budgetId.value);
-      if (b) budget.value = b;
+      if (b) {
+        budget.value = b;
+        budgetStore.updateBudget(budgetId.value, b);
+      }
     }
   } catch (err) {
     console.error('Failed to save favorite toggle', err);
@@ -844,6 +863,27 @@ const favoriteItems = computed(() =>
     .slice()
     .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase())),
 );
+
+const favoriteGroups = computed(() => {
+  const map = new Map<string, BudgetCategoryTrx[]>();
+  favoriteItems.value.forEach((item) => {
+    const key = item.group || '';
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(item);
+  });
+  const groups = Array.from(map.entries()).map(([group, items]) => ({
+    group,
+    items: items.slice().sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase())),
+  }));
+  groups.sort((a, b) => {
+    const ga = (a.group || '').toLowerCase();
+    const gb = (b.group || '').toLowerCase();
+    if (!ga && gb) return 1; // push empty group to end
+    if (ga && !gb) return -1;
+    return ga.localeCompare(gb);
+  });
+  return groups;
+});
 
 const groups = computed(() => {
   const g: GroupCategory[] = [];

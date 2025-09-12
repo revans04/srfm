@@ -117,6 +117,10 @@ export class DataAccess {
             isFund: Boolean(cat.isFund ?? false),
             group: typeof cat.group === 'string' ? cat.group : '',
             carryover: typeof cat.carryover === 'number' ? cat.carryover : undefined,
+            favorite:
+              typeof cat.favorite === 'boolean'
+                ? (cat.favorite)
+                : undefined,
           };
         })
       : [];
