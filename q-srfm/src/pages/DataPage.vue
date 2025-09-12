@@ -689,11 +689,13 @@ const entityOptions = computed(() => {
 });
 
 const formattedAccounts = computed(() => {
-  const ret = availableAccounts.value.map((account) => ({
-    title: `${account.name} (*${account.accountNumber ? account.accountNumber.slice(-4) : "N/A"})`,
-    value: account.id,
-  }));
-  return ret;
+  return availableAccounts.value
+    .slice()
+    .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }))
+    .map((account) => ({
+      title: `${account.name} (*${account.accountNumber ? account.accountNumber.slice(-4) : "N/A"})`,
+      value: account.id,
+    }));
 });
 
 const isFieldMappingValid = computed(() => {

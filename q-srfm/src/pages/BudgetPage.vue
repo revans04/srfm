@@ -149,7 +149,7 @@
             </span>
             <q-btn v-if="!isEditing" flat icon="edit" @click="isEditing = true" title="Edit Budget" />
             <q-btn v-if="isEditing" flat icon="close" @click="isEditing = false" title="Cancel" />
-            <q-btn v-if="!isEditing" flat icon="delete" color="negative" title="Delete Budget" />
+            <q-btn v-if="!isEditing" flat icon="delete" color="negative" title="Delete Budget" @click="confirmDeleteBudget" />
           </h4>
           <div class="q-pr-sm q-py-none" :class="{ 'text-left': true, 'text-negative': remainingToBudget < 0 }">
             {{ formatCurrency(toDollars(toCents(Math.abs(remainingToBudget)))) }}
@@ -1231,6 +1231,72 @@ async function createDefaultBudget() {
   } finally {
     loading.value = false;
   }
+}
+
+function confirmDeleteBudget() {
+  const id = budgetId.value;
+  const month = currentMonth.value;
+  if (!id) {
+    showSnackbar('No budget selected to delete', 'negative');
+    return;
+  }
+
+  $q.dialog({
+    title: 'Delete Budget',
+    message: `Are you sure you want to delete the budget for ${formatLongMonth(month)}? This cannot be undone.`,
+    cancel: { label: 'Cancel' },
+    persistent: true,
+    ok: { label: 'Delete', color: 'negative' },
+  }).onOk(() => {
+    void (async () => {
+      try {
+        await dataAccess.deleteBudget(id);
+        budgetStore.removeBudget(id);
+
+        // Determine nearest available month with a budget for the selected entity
+        const months = Array.from(budgetStore.budgets.values())
+          .filter((b) => matchesSelectedEntity(b))
+          .map((b) => b.month);
+
+        const target = findNearestMonth(month, months);
+        if (target) {
+          await selectMonth(target);
+        } else {
+          // No budgets left; clear current view
+          budget.value = {
+            familyId: familyStore.family?.id || '',
+            month: currentMonthISO(),
+            incomeTarget: 0,
+            categories: [],
+            transactions: [],
+            label: '',
+            merchants: [],
+          } as Budget;
+        }
+        showSnackbar('Budget deleted', 'positive');
+      } catch (err) {
+        const e = err as Error;
+        console.error('Failed to delete budget', e);
+        showSnackbar(`Failed to delete budget: ${e.message}`, 'negative');
+      }
+    })();
+  });
+}
+
+function findNearestMonth(target: string, months: string[]): string | null {
+  if (!months || months.length === 0) return null;
+  const t = new Date(`${target}-01`).getTime();
+  let best: string = months[0];
+  let bestDiff = Math.abs(new Date(`${best}-01`).getTime() - t);
+  for (let i = 1; i < months.length; i++) {
+    const m = months[i];
+    const diff = Math.abs(new Date(`${m}-01`).getTime() - t);
+    if (diff < bestDiff) {
+      best = m;
+      bestDiff = diff;
+    }
+  }
+  return best;
 }
 
 function updateMerchants() {
