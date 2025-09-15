@@ -189,12 +189,10 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
             }
         }
 
-        var sqlCats = hasGoalTable
-            ? @"SELECT name, target, is_fund, ""group"", carryover, favorite
-                                FROM budget_categories
-                                WHERE budget_id=@id
-                                  AND NOT EXISTS (SELECT 1 FROM goals_budget_categories gbc WHERE gbc.budget_cat_id = budget_categories.id)"
-            : @"SELECT name, target, is_fund, ""group"", carryover, favorite
+        // Always return all budget categories for a budget. We no longer
+        // exclude categories linked to goals here; the client can decide how
+        // to present goal-linked categories without losing historical data.
+        var sqlCats = @"SELECT name, target, is_fund, ""group"", carryover, favorite
                                 FROM budget_categories
                                 WHERE budget_id=@id";
         await using (var catCmd = new NpgsqlCommand(sqlCats, conn))

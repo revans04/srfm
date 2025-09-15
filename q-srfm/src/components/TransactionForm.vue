@@ -18,8 +18,20 @@
       </div>
       <div class="row form-row">
         <div class="col form-col-label q-pr-xl">Merchant</div>
-        <div class="col form-col col-auto" style="min-width: 150px">
-          <q-select v-model="locTrnsx.merchant" :options="merchantNames" :rules="requiredField" dense borderless menu-icon="" class="text-right" />
+        <div class="col form-col col-auto" style="min-width: 220px">
+          <q-select
+            v-model="locTrnsx.merchant"
+            :options="merchantNames"
+            :rules="requiredField"
+            dense
+            borderless
+            use-input
+            input-debounce="0"
+            new-value-mode="add"
+            clearable
+            menu-icon=""
+            class="text-right"
+          />
         </div>
       </div>
       <div class="row form-row">
@@ -73,7 +85,14 @@
       </div>
 
       <div class="v-row form-row">
-        <q-textarea v-model="locTrnsx.notes" label="Notes" borderless @focus="scrollToNoteField" />
+        <q-input
+          v-model="locTrnsx.notes"
+          type="textarea"
+          autogrow
+          label="Notes"
+          borderless
+          @focus="scrollToNoteField"
+        />
       </div>
 
       <div class="row rounded-5 bg-light q-mb-sm justify-center">

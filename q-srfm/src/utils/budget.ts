@@ -8,9 +8,11 @@ import type { Budget, BudgetCategory, Transaction } from '../types';
 
 /**
  * Creates a budget for the specified month and entity. If a budget already
- * exists it is returned. Otherwise a new budget is created by copying from a
- * template or the most recent existing budget. Recurring transactions from the
- * source budget are added to the new budget.
+ * exists it is returned. Otherwise a new budget is created by copying from the
+ * most recent previous month's budget for that entity; if none exists, falls
+ * back to the entity's template; if that is absent, uses the default template
+ * for the entity type. Recurring transactions from the source budget are added
+ * to the new budget.
  */
 export async function createBudgetForMonth(
   month: string,
@@ -53,52 +55,11 @@ export async function createBudgetForMonth(
   const entity = familyStore.family?.entities?.find((e) => e.id === entityId);
   const templateBudget = entity?.templateBudget;
 
-  if (templateBudget && templateBudget.categories.length > 0) {
-    const newBudget: Budget = {
-      familyId,
-      entityId,
-      month,
-      incomeTarget: 0,
-      categories: templateBudget.categories.map((cat: BudgetCategory) => ({
-        ...cat,
-        carryover: cat.isFund ? 0 : 0,
-      })),
-      transactions: [],
-      label: `Template Budget for ${month}`,
-      merchants: [],
-      budgetId,
-    };
-    await dataAccess.saveBudget(budgetId, newBudget);
-    budgetStore.updateBudget(budgetId, newBudget);
-    return newBudget;
-  }
-
-  if (entity && DEFAULT_BUDGET_TEMPLATES[entity.type]) {
-    const predefinedTemplate = DEFAULT_BUDGET_TEMPLATES[entity.type];
-    const newBudget: Budget = {
-      familyId,
-      entityId,
-      month,
-      incomeTarget: 0,
-      categories: (predefinedTemplate?.categories ?? []).map((cat: BudgetCategory) => ({
-        ...cat,
-        carryover: cat.isFund ? 0 : 0,
-      })),
-      transactions: [],
-      label: `Default ${entity.type} Budget for ${month}`,
-      merchants: [],
-      budgetId,
-    };
-    await dataAccess.saveBudget(budgetId, newBudget);
-    budgetStore.updateBudget(budgetId, newBudget);
-    return newBudget;
-  }
-
+  // 1) Prefer copying from the most recent previous month for this entity
   const availableBudgets = Array.from(budgetStore.budgets.values()).sort((a, b) => a.month.localeCompare(b.month));
-  let sourceBudget = availableBudgets.filter((b) => b.month < month && b.entityId === entityId).pop();
-  if (!sourceBudget) {
-    sourceBudget = availableBudgets.find((b) => b.month > month && b.entityId === entityId);
-  }
+  const sourceBudget = availableBudgets
+    .filter((b) => b.month < month && b.entityId === entityId)
+    .pop();
 
   if (sourceBudget) {
     const [newYear, newMonthNum] = month.split('-').map(Number);
@@ -159,6 +120,50 @@ export async function createBudgetForMonth(
     return newBudget;
   }
 
+  // 2) If no previous month, prefer the entity's template
+  if (templateBudget && templateBudget.categories.length > 0) {
+    const newBudget: Budget = {
+      familyId,
+      entityId,
+      month,
+      incomeTarget: 0,
+      categories: templateBudget.categories.map((cat: BudgetCategory) => ({
+        ...cat,
+        carryover: cat.isFund ? 0 : 0,
+      })),
+      transactions: [],
+      label: `Template Budget for ${month}`,
+      merchants: [],
+      budgetId,
+    };
+    await dataAccess.saveBudget(budgetId, newBudget);
+    budgetStore.updateBudget(budgetId, newBudget);
+    return newBudget;
+  }
+
+  // 3) If no entity template, use the default template for the entity type
+  if (entity && DEFAULT_BUDGET_TEMPLATES[entity.type]) {
+    const predefinedTemplate = DEFAULT_BUDGET_TEMPLATES[entity.type];
+    const newBudget: Budget = {
+      familyId,
+      entityId,
+      month,
+      incomeTarget: 0,
+      categories: (predefinedTemplate?.categories ?? []).map((cat: BudgetCategory) => ({
+        ...cat,
+        carryover: cat.isFund ? 0 : 0,
+      })),
+      transactions: [],
+      label: `Default ${entity.type} Budget for ${month}`,
+      merchants: [],
+      budgetId,
+    };
+    await dataAccess.saveBudget(budgetId, newBudget);
+    budgetStore.updateBudget(budgetId, newBudget);
+    return newBudget;
+  }
+
+  // 4) Fallback: minimal default budget
   const defaultBudget: Budget = {
     familyId,
     entityId,

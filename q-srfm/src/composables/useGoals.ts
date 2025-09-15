@@ -4,7 +4,6 @@ import type { Goal, GoalContribution, GoalSpend } from '../types';
 import type { Timestamp } from 'firebase/firestore';
 import { dataAccess } from '../dataAccess';
 import { useFamilyStore } from '../store/family';
-import { useBudgetStore } from '../store/budget';
 
 /**
  * Composable for managing savings goals.
@@ -21,7 +20,6 @@ const loadedEntities = new Set<string>();
 
 export function useGoals() {
   const familyStore = useFamilyStore();
-  const budgetStore = useBudgetStore();
   function listGoals(entityId: string): Goal[] {
     return goals.value.filter((g) => g.entityId === entityId && !g.archived);
   }
@@ -74,13 +72,8 @@ export function useGoals() {
     goals.value.push(goal);
     await dataAccess.insertGoal(goal);
 
-    // Remove the legacy category from loaded budgets so it no longer shows in the UI
-    for (const [id, b] of budgetStore.budgets.entries()) {
-      if (!b.entityId || b.entityId === goal.entityId) {
-        const filtered = b.categories.filter((c) => c.name !== goal.name);
-        budgetStore.updateBudget(b.budgetId || id, { ...b, categories: filtered });
-      }
-    }
+    // Do not mutate historical budgets' categories automatically here.
+    // Conversion records contributions/spend and optional deltas; category cleanup should be explicit.
 
     return goal;
   }

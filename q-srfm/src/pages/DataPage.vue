@@ -1676,11 +1676,18 @@ async function importEveryDollarTransactions() {
       );
       const categoriesToAddMap = new Map<string, { name: string; group: string }>();
       for (const row of rows) {
-        const name = (row.item || '').trim();
-        if (!name) continue;
-        const key = name.toLowerCase();
-        if (!existingCatNames.has(key) && !categoriesToAddMap.has(key)) {
-          categoriesToAddMap.set(key, { name, group: row.group || '' });
+        // Prefer split line items when provided; otherwise fall back to row.item
+        const splits = Array.isArray(row.splits) ? row.splits : [];
+        const candidates = splits.length > 0
+          ? splits.map((s) => ({ name: (s.category || '').trim(), group: s.group || row.group || 'Uncategorized' }))
+          : [{ name: (row.item || '').trim(), group: row.group || 'Uncategorized' }];
+
+        for (const c of candidates) {
+          if (!c.name) continue;
+          const key = c.name.toLowerCase();
+          if (!existingCatNames.has(key) && !categoriesToAddMap.has(key)) {
+            categoriesToAddMap.set(key, { name: c.name, group: c.group || '' });
+          }
         }
       }
 
@@ -1689,7 +1696,7 @@ async function importEveryDollarTransactions() {
           name: c.name,
           target: 0,
           isFund: false,
-          group: c.group || 'Expenses',
+          group: c.group || 'Uncategorized',
           carryover: 0,
         }));
         budget.categories = [...(budget.categories || []), ...newCats];

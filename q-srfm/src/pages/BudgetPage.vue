@@ -360,6 +360,7 @@
                         >
                           <q-tooltip>Convert to Savings Goal</q-tooltip>
                         </q-icon>
+                        
                       </div>
                       <div v-else class="col">
                         <q-input
@@ -478,7 +479,7 @@ import GoalDetailsPanel from '../components/goals/GoalDetailsPanel.vue';
 import type { Transaction, Budget, IncomeTarget, BudgetCategoryTrx, BudgetCategory, Goal } from '../types';
 import { EntityType } from '../types';
 import version from '../version';
-import { toDollars, toCents, formatCurrency, todayISO, currentMonthISO } from '../utils/helpers';
+import { toDollars, toCents, formatCurrency, todayISO, currentMonthISO, toBudgetMonth } from '../utils/helpers';
 import { useAuthStore } from '../store/auth';
 import { useBudgetStore } from '../store/budget';
 import { useMerchantStore } from '../store/merchants';
@@ -690,12 +691,12 @@ async function convertLegacyCategory(cat: BudgetCategory, data: Partial<Goal>) {
       entityId: familyStore.selectedEntityId || '',
     });
 
-    // For each existing budget, add contributions for underspend and log goal spends
+    // For each existing budget, log contributions (from income splits) and goal spends (from expense splits).
+    // Then reconcile the monthly delta between budget target and total expenses as contribution (+) or withdrawal (-).
     for (const b of budgetStore.budgets.values()) {
       if (b.entityId && b.entityId !== goal.entityId) continue;
-      if (b.month > currentMonth.value) continue;
 
-      let spent = 0;
+      let spent = 0; // total expense allocations for this category in the budget
       for (const t of b.transactions) {
         if (t.deleted || t.isIncome) continue;
         for (const tc of t.categories) {
@@ -707,11 +708,28 @@ async function convertLegacyCategory(cat: BudgetCategory, data: Partial<Goal>) {
         }
       }
 
+      // Record income allocations as contributions
+      for (const t of b.transactions) {
+        if (t.deleted || !t.isIncome) continue;
+        for (const tc of t.categories) {
+          if (tc.category === goal.name) {
+            const amt = Math.abs(tc.amount);
+            addContribution(goal.id, amt, toBudgetMonth(t.date));
+          }
+        }
+      }
+
       const budgetCat = b.categories.find((c) => c.name === goal.name);
       if (budgetCat) {
         const diff = budgetCat.target - spent;
         if (diff > 0) {
+          // Under-spend: treat remaining target as contribution (savings)
           addContribution(goal.id, diff, b.month);
+        } else if (diff < 0) {
+          // Over-spend beyond target: treat the excess as an additional withdrawal from the goal
+          const adjId = `${b.budgetId || 'budget'}:${b.month}:goal-adjust:${goal.id}`;
+          const txDate = `${b.month}-28`;
+          addGoalSpend(goal.id, adjId, Math.abs(diff), txDate);
         }
       }
     }
@@ -803,7 +821,14 @@ const displayYear = computed(() => {
 const catTransactions = computed(() => {
   const catTransactions: BudgetCategoryTrx[] = [];
   if (budget.value && budget.value.categories) {
+    // Hide categories that have been converted into active savings goals
+    const goalNameSet = new Set((goals.value || []).filter((g) => !g.archived).map((g) => (g.name || '').toLowerCase()));
+
     budget.value.categories.forEach((c) => {
+      // Skip income categories here; they are handled separately in incomeItems
+      if (c.group && c.group.toLowerCase() === 'income') return;
+      // Hide categories linked to an active savings goal (matched by name)
+      if (goalNameSet.has((c.name || '').toLowerCase())) return;
       if (c.group !== 'Income') {
         catTransactions.push({
           ...c,
@@ -1468,6 +1493,8 @@ function removeCategory(index: number) {
   const removed = budget.value.categories.splice(index, 1)[0];
   futureCategories.value = futureCategories.value.filter((c) => c !== removed);
 }
+
+ 
 
 async function applyFutureCategories() {
   const entityId = familyStore.selectedEntityId;
