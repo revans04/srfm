@@ -454,6 +454,7 @@ import type { EntityType } from "../types";
 import { useRouter } from "vue-router";
 import { v4 as uuidv4 } from "uuid";
 import { useBudgetStore } from "../store/budget";
+import { useAccountStore } from "../store/accounts";
 import { useFamilyStore } from "../store/family";
 import EntityForm from "../components/EntityForm.vue";
 import {
@@ -470,6 +471,7 @@ import { Timestamp } from "firebase/firestore";
 
 const familyStore = useFamilyStore();
 const budgetStore = useBudgetStore();
+const accountStore = useAccountStore();
 const router = useRouter();
 const $q = useQuasar();
 const budgets = ref<Budget[]>([]);
@@ -501,6 +503,7 @@ const overwriteMonths = ref<string[]>([]);
 const pendingImportData = ref<{
   budgetsById: Map<string, Budget>;
   budgetIdMap: Map<string, string>;
+  existingBudgetIds?: Set<string>;
   entitiesById?: Map<string, Entity>;
   accountsAndSnapshots?: any[];
 } | null>(null);
@@ -515,12 +518,14 @@ const importTypes = [
 ];
 
 watch(importType, async (val) => {
-  if (val === "bankTransactions" && availableAccounts.value.length === 0 && familyId.value) {
+  if (val === "bankTransactions" && familyId.value) {
     try {
-      const accounts = await dataAccess.getAccounts(familyId.value);
-      availableAccounts.value = accounts.filter(
-        (account) => account.type === "Bank" || account.type === "CreditCard"
-      );
+      if (accountStore.getCachedAccounts(familyId.value).length === 0) {
+        await accountStore.fetchAccounts(familyId.value);
+      }
+      availableAccounts.value = accountStore
+        .getCachedAccounts(familyId.value)
+        .filter((account) => account.type === "Bank" || account.type === "CreditCard");
       if (availableAccounts.value.length > 0 && !selectedAccountId.value) {
         selectedAccountId.value = availableAccounts.value[0].id;
       }
@@ -740,14 +745,29 @@ async function loadAllData() {
 
     // Load full budget details for export
     const accessibleBudgets = await dataAccess.loadAccessibleBudgets(user.uid);
-    const fullBudgets = await Promise.all(
-      accessibleBudgets.map((b) => dataAccess.getBudget(b.budgetId))
-    );
-    budgets.value = fullBudgets.filter((b): b is Budget => b !== null);
+    const loadedBudgets: Budget[] = [];
+    const loadedTransactions: Transaction[] = [];
 
-    transactions.value = budgets.value.flatMap((budget) => budget.transactions || []);
+    const concurrency = 3;
+    for (let i = 0; i < accessibleBudgets.length; i += concurrency) {
+      const batch = accessibleBudgets.slice(i, i + concurrency);
+      const batchResults = await Promise.all(
+        batch.map((info) => (info?.budgetId ? dataAccess.getBudget(info.budgetId) : Promise.resolve(null)))
+      );
+      batchResults.forEach((budget) => {
+        if (budget) {
+          loadedBudgets.push(budget);
+          if (Array.isArray(budget.transactions)) {
+            loadedTransactions.push(...budget.transactions);
+          }
+        }
+      });
+    }
 
-    const accounts = await dataAccess.getAccounts(familyId.value);
+    budgets.value = loadedBudgets;
+    transactions.value = loadedTransactions;
+
+    const accounts = await accountStore.fetchAccounts(familyId.value);
     availableAccounts.value = accounts.filter((account) => account.type === "Bank" || account.type === "CreditCard");
     if (availableAccounts.value.length > 0 && !selectedAccountId.value) {
       selectedAccountId.value = availableAccounts.value[0].id;
@@ -818,11 +838,9 @@ async function handleFileUpload(files: File | File[] | FileList | null) {
         throw new Error("Please select an entity before importing budgets or transactions");
       }
       await handleBudgetTransactionImport();
-      console.log('handleBudgetTransactionImport done');
     }
 
     if (previewErrors.value.length > 0) {
-      console.log('Validation errors found.', previewErrors.value);
       importError.value = "Validation errors found.";
     } else if (
       previewData.value.entities.length > 0 ||
@@ -833,7 +851,6 @@ async function handleFileUpload(files: File | File[] | FileList | null) {
       showPreview.value = true;
       previewTab.value = previewData.value.entities.length > 0 ? "entities" : "categories";
     } else {
-      console.log('VNo valid data found.');
       importError.value = "No valid data found.";
     }
   } catch (error: any) {
@@ -881,6 +898,7 @@ async function handleEntityImport() {
         header: true,
         skipEmptyLines: true,
         transformHeader: (header: string) => header.toLowerCase().replace(/\s+/g, ""),
+        worker: true,
       });
       if (result.errors.length > 0) {
         throw new Error(result.errors.map((e: any) => e.message).join("; "));
@@ -1017,6 +1035,7 @@ async function handleBudgetTransactionImport() {
         header: true,
         skipEmptyLines: true,
         transformHeader: (header: any) => header.toLowerCase().replace(/\s+/g, ""),
+        worker: true,
       });
 
       if (result.errors.length > 0) {
@@ -1034,11 +1053,9 @@ async function handleBudgetTransactionImport() {
       const isTransactionCsv = headers.includes("transactiondate") && (headers.includes("income_expense") || headers.includes("isincome"));
 
       if (isBudgetCsv) {
-        console.log(`budget found ${file.name}`);
         budgetCSVData = data;
         budgetCSVFile = file.name;
       } else if (isTransactionCsv) {
-        console.log(`transactions found ${file.name}`);
         transactionCSVData = data;
         transactionCSVFile = file.name;
       }
@@ -1046,7 +1063,6 @@ async function handleBudgetTransactionImport() {
   }
 
   if (budgetCSVData) {
-    console.log(`budget found`, budgetCSVData);
     budgetCSVData.forEach((row, index) => {
       if (!row.budgetmonth) {
         previewErrors.value.push(`File ${budgetCSVFile}, Row ${index + 1}: budgetMonth is required`);
@@ -1089,7 +1105,6 @@ async function handleBudgetTransactionImport() {
   }
 
   if (transactionCSVData) {
-    console.log(`transactions found`, transactionCSVData);
     transactionCSVData.forEach((row, index) => {
       let month = row.budgetmonth;
       if (!month && row.budgetid) {
@@ -1135,7 +1150,6 @@ async function handleBudgetTransactionImport() {
       }
 
       if (!budgetsById.has(budgetId)) {
-        console.log('no budget');
         budgetsById.set(budgetId, {
           budgetId: budgetId,
           budgetMonth: month,
@@ -1176,7 +1190,6 @@ async function handleBudgetTransactionImport() {
           categories = [{ category: row.category || "", amount: amount }];
         }
       } catch (e: any) {
-        console.log(e);
         previewErrors.value.push(`File ${transactionCSVFile}, Row ${index + 1}: Invalid categories format - ${e.message}`);
         return;
       }
@@ -1248,7 +1261,6 @@ async function handleBudgetTransactionImport() {
     entityName: familyStore.family?.entities?.find((e) => e.id === transaction.entityId)?.name || "",
   }));
 
-  console.log('previewData.value', previewData.value);
 }
 
 async function handleAccountsAndSnapshotsImport(files: File | File[] | FileList | null) {
@@ -1380,7 +1392,7 @@ async function handleBankTransactionsFileUpload(files: File | File[] | FileList 
 
   try {
     const text = await file.text();
-    const result = Papa.parse(text, { header: true, skipEmptyLines: true });
+    const result = Papa.parse(text, { header: true, skipEmptyLines: true, worker: true });
 
     if (result.errors.length > 0) {
       throw new Error(result.errors.map((e) => e.message).join("; "));
@@ -1513,7 +1525,6 @@ async function previewEveryDollarTransactions() {
         existingTxs.push({ date: t.date, amount: total });
       });
     }
-    console.log('existingTxs', existingTxs);
     const dupWindowMs = duplicateDays.value * 86400000;
     const isDupTx = (dateStr: string, amount: number) =>
       existingTxs.some((t) => {
@@ -1642,8 +1653,6 @@ async function previewEveryDollarTransactions() {
         });
       });
     }
-    console.log('txRows', txRows);
-
     everyDollarTransactions.value = txRows;
     if (txRows.length === 0) {
       importSuccess.value = 'No transactions found.';
@@ -2080,6 +2089,7 @@ async function confirmImport() {
   } else if (importType.value === "budgetTransactions") {
     const budgetsById = new Map<string, Budget>();
     const budgetIdMap = new Map<string, string>();
+    const existingBudgetIds = new Set<string>();
     const budgetIdToIncomeTarget = new Map<string, number>();
 
     try {
@@ -2112,6 +2122,10 @@ async function confirmImport() {
           const existingId = monthToExistingId.get(month);
           const targetBudgetId = existingId || uuidv4();
           budgetIdMap.set(originalBudgetId, targetBudgetId);
+
+          if (existingId) {
+            existingBudgetIds.add(targetBudgetId);
+          }
 
           const budget: Budget = {
             budgetId: targetBudgetId,
@@ -2222,11 +2236,11 @@ async function confirmImport() {
       overwriteMonths.value = Array.from(importMonths).filter((m) => existingMonths.has(m));
 
       if (overwriteMonths.value.length > 0) {
-        pendingImportData.value = { budgetsById, budgetIdMap, entitiesById: new Map() };
+        pendingImportData.value = { budgetsById, budgetIdMap, existingBudgetIds, entitiesById: new Map() };
         showPreview.value = false; // ensure the overwrite dialog is visible
         showOverwriteDialog.value = true;
       } else {
-        pendingImportData.value = { budgetsById, budgetIdMap, entitiesById: new Map() };
+        pendingImportData.value = { budgetsById, budgetIdMap, existingBudgetIds, entitiesById: new Map() };
         await proceedWithImport();
       }
     } catch (e: any) {
@@ -2432,34 +2446,59 @@ async function proceedWithImport() {
     const user = auth.currentUser;
     if (!user) throw new Error("User not authenticated");
 
-    const budgetsById: Map<string, Budget> = pendingImportData.value?.budgetsById ?? new Map();
+    const importContext = pendingImportData.value;
+    const budgetsById: Map<string, Budget> = importContext?.budgetsById ?? new Map();
+    const existingBudgetIds = importContext?.existingBudgetIds ?? new Set<string>();
     pendingImportData.value = null;
 
-    for (const [budgetId, budget] of budgetsById) {
-      // Delete any existing budget to avoid merging old data
-      try {
-        const targetId = budget.budgetId || budgetId;
-        await dataAccess.deleteBudget(targetId);
-      } catch {
-        // Ignore if budget does not exist
+    const entries = Array.from(budgetsById.entries());
+
+    let savedCount = 0;
+
+    if (entries.length === 0) {
+      showSnackbar('No budgets to import', 'warning');
+    } else {
+      const entriesToDelete = entries.filter(([targetId]) => existingBudgetIds.has(targetId));
+      if (entriesToDelete.length > 0) {
+        const deleteResults = await Promise.allSettled(
+          entriesToDelete.map(([targetId]) => dataAccess.deleteBudget(targetId))
+        );
+        deleteResults.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            console.warn(
+              `Failed to delete existing budget ${entriesToDelete[index][0]} before import`,
+              result.reason,
+            );
+          }
+        });
       }
 
-      // Recalculate merchants from imported transactions
-      const merchantCounts = budget.transactions
-        .filter((t) => t.merchant && t.merchant.trim() !== "")
-        .reduce((acc, t) => {
-          acc[t.merchant] = (acc[t.merchant] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>);
-      budget.merchants = Object.entries(merchantCounts)
-        .map(([name, usageCount]) => ({ name, usageCount }))
-        .sort((a, b) => b.usageCount - a.usageCount);
+      entries.forEach(([, budget]) => {
+        const merchantCounts = budget.transactions
+          .filter((t) => t.merchant && t.merchant.trim() !== '')
+          .reduce((acc, t) => {
+            acc[t.merchant] = (acc[t.merchant] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>);
 
-      const targetId = budget.budgetId || budgetId;
-      const toSave = { ...budget, budgetId: targetId } as Budget;
-      await dataAccess.saveBudget(targetId, toSave);
-      budgetStore.updateBudget(targetId, toSave);
-      showSnackbar(`Saved budget ${toSave.month} with ${toSave.transactions.length} transactions`);
+        budget.merchants = Object.entries(merchantCounts)
+          .map(([name, usageCount]) => ({ name, usageCount }))
+          .sort((a, b) => b.usageCount - a.usageCount);
+      });
+
+      const concurrency = 3;
+      for (let i = 0; i < entries.length; i += concurrency) {
+        const batch = entries.slice(i, i + concurrency).map(async ([targetId, budget]) => {
+          const resolvedId = budget.budgetId || targetId;
+          const toSave = { ...budget, budgetId: resolvedId } as Budget;
+          await dataAccess.saveBudget(resolvedId, toSave);
+          budgetStore.updateBudget(resolvedId, toSave);
+        });
+        await Promise.all(batch);
+      }
+
+      savedCount = entries.length;
+      showSnackbar(`Saved ${savedCount} budget${savedCount === 1 ? '' : 's'}`);
     }
 
     const budgetMonths = Array.from(budgetsById.values()).map((budget) => budget.month);

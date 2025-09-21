@@ -11,6 +11,9 @@ namespace FamilyBudgetApi.Controllers
     [Route("api/budget")]
     public class BudgetController : ControllerBase
     {
+        private const string UserIdItemKey = "UserId";
+        private const string UserEmailItemKey = "UserEmail";
+
         private readonly BudgetService _budgetService;
 
         public BudgetController(BudgetService budgetService)
@@ -35,7 +38,7 @@ namespace FamilyBudgetApi.Controllers
         {
             try
             {
-                var userId = HttpContext.Items["UserId"]?.ToString() ?? throw new Exception("User ID not found");
+                var userId = HttpContext.Items[UserIdItemKey]?.ToString() ?? throw new Exception("User ID not found");
                 var budgets = await _budgetService.LoadAccessibleBudgets(userId, entityId);
                 return Ok(budgets);
             }
@@ -52,7 +55,7 @@ namespace FamilyBudgetApi.Controllers
         {
             try
             {
-                var userId = HttpContext.Items["UserId"]?.ToString() ?? throw new Exception("User ID not found");
+                var userId = HttpContext.Items[UserIdItemKey]?.ToString() ?? throw new Exception("User ID not found");
                 var sharedBudgets = await _budgetService.GetSharedBudgets(userId);
                 return Ok(sharedBudgets);
             }
@@ -69,7 +72,7 @@ namespace FamilyBudgetApi.Controllers
         {
             try
             {
-                var userId = HttpContext.Items["UserId"]?.ToString() ?? throw new Exception("User ID not found");
+                var userId = HttpContext.Items[UserIdItemKey]?.ToString() ?? throw new Exception("User ID not found");
                 var budget = await _budgetService.GetBudget(budgetId);
                 if (budget == null)
                 {
@@ -92,8 +95,8 @@ namespace FamilyBudgetApi.Controllers
         {
             try
             {
-                var userId = HttpContext.Items["UserId"]?.ToString() ?? throw new Exception("User ID not found");
-                var userEmail = (await FirebaseAuth.DefaultInstance.GetUserAsync(userId)).Email;
+                var userId = HttpContext.Items[UserIdItemKey]?.ToString() ?? throw new Exception("User ID not found");
+                var userEmail = await ResolveUserEmailAsync(userId);
                 await _budgetService.SaveBudget(budgetId, budget, userId, userEmail);
                 return Ok();
             }
@@ -110,8 +113,8 @@ namespace FamilyBudgetApi.Controllers
         {
             try
             {
-                var userId = HttpContext.Items["UserId"]?.ToString() ?? throw new Exception("User ID not found");
-                var userEmail = (await FirebaseAuth.DefaultInstance.GetUserAsync(userId)).Email;
+                var userId = HttpContext.Items[UserIdItemKey]?.ToString() ?? throw new Exception("User ID not found");
+                var userEmail = await ResolveUserEmailAsync(userId);
                 await _budgetService.DeleteBudget(budgetId, userId, userEmail);
                 return Ok();
             }
@@ -145,8 +148,8 @@ namespace FamilyBudgetApi.Controllers
         {
             try
             {
-                var userId = HttpContext.Items["UserId"]?.ToString() ?? throw new Exception("User ID not found");
-                var userEmail = (await FirebaseAuth.DefaultInstance.GetUserAsync(userId)).Email;
+                var userId = HttpContext.Items[UserIdItemKey]?.ToString() ?? throw new Exception("User ID not found");
+                var userEmail = await ResolveUserEmailAsync(userId);
                 await _budgetService.AddTransaction(budgetId, transaction, userId, userEmail);
                 return Ok(new { TransactionId = transaction.Id });
             }
@@ -164,8 +167,8 @@ namespace FamilyBudgetApi.Controllers
             try
             {
                 transaction.Id = transactionId;
-                var userId = HttpContext.Items["UserId"]?.ToString() ?? throw new Exception("User ID not found");
-                var userEmail = (await FirebaseAuth.DefaultInstance.GetUserAsync(userId)).Email;
+                var userId = HttpContext.Items[UserIdItemKey]?.ToString() ?? throw new Exception("User ID not found");
+                var userEmail = await ResolveUserEmailAsync(userId);
                 await _budgetService.SaveTransaction(budgetId, transaction, userId, userEmail);
                 return Ok();
             }
@@ -182,8 +185,8 @@ namespace FamilyBudgetApi.Controllers
         {
             try
             {
-                var userId = HttpContext.Items["UserId"]?.ToString() ?? throw new Exception("User ID not found");
-                var userEmail = (await FirebaseAuth.DefaultInstance.GetUserAsync(userId)).Email;
+                var userId = HttpContext.Items[UserIdItemKey]?.ToString() ?? throw new Exception("User ID not found");
+                var userEmail = await ResolveUserEmailAsync(userId);
                 await _budgetService.DeleteTransaction(budgetId, transactionId, userId, userEmail);
                 return Ok();
             }
@@ -200,8 +203,8 @@ namespace FamilyBudgetApi.Controllers
         {
             try
             {
-                var userId = HttpContext.Items["UserId"]?.ToString() ?? throw new Exception("User ID not found");
-                var userEmail = (await FirebaseAuth.DefaultInstance.GetUserAsync(userId)).Email;
+                var userId = HttpContext.Items[UserIdItemKey]?.ToString() ?? throw new Exception("User ID not found");
+                var userEmail = await ResolveUserEmailAsync(userId);
                 await _budgetService.BatchSaveTransactions(budgetId, transactions, userId, userEmail);
                 return Ok();
             }
@@ -218,7 +221,7 @@ namespace FamilyBudgetApi.Controllers
         {
             try
             {
-                var userId = HttpContext.Items["UserId"]?.ToString() ?? throw new Exception("User ID not found");
+                var userId = HttpContext.Items[UserIdItemKey]?.ToString() ?? throw new Exception("User ID not found");
                 var docId = await _budgetService.SaveImportedTransactions(userId, doc);
                 return Ok(new { DocId = docId });
             }
@@ -252,7 +255,7 @@ namespace FamilyBudgetApi.Controllers
         {
             try
             {
-                var userId = HttpContext.Items["UserId"]?.ToString() ?? throw new Exception("User ID not found");
+                var userId = HttpContext.Items[UserIdItemKey]?.ToString() ?? throw new Exception("User ID not found");
                 var importedDocs = await _budgetService.GetImportedTransactions(userId);
                 return Ok(importedDocs);
             }
@@ -269,7 +272,7 @@ namespace FamilyBudgetApi.Controllers
         {
             try
             {
-                var userId = HttpContext.Items["UserId"]?.ToString() ?? throw new Exception("User ID not found");
+                var userId = HttpContext.Items[UserIdItemKey]?.ToString() ?? throw new Exception("User ID not found");
                 await _budgetService.DeleteImportedTransactionDoc(id);
                 return Ok();
             }
@@ -286,7 +289,7 @@ namespace FamilyBudgetApi.Controllers
         {
             try
             {
-                var userId = HttpContext.Items["UserId"]?.ToString() ?? throw new Exception("User ID not found");
+                var userId = HttpContext.Items[UserIdItemKey]?.ToString() ?? throw new Exception("User ID not found");
                 var transactions = await _budgetService.GetImportedTransactionsByAccountId(accountId, offset, limit);
                 return Ok(transactions);
             }
@@ -320,7 +323,7 @@ namespace FamilyBudgetApi.Controllers
         {
             try
             {
-                var userId = HttpContext.Items["UserId"]?.ToString() ?? throw new Exception("User ID not found");
+                var userId = HttpContext.Items[UserIdItemKey]?.ToString() ?? throw new Exception("User ID not found");
                 var transactions = await _budgetService.GetBudgetTransactionsMatchedToImported(accountId, userId);
                 return Ok(transactions);
             }
@@ -337,8 +340,8 @@ namespace FamilyBudgetApi.Controllers
         {
             try
             {
-                var userId = HttpContext.Items["UserId"]?.ToString() ?? throw new Exception("User ID not found");
-                var userEmail = (await FirebaseAuth.DefaultInstance.GetUserAsync(userId)).Email;
+                var userId = HttpContext.Items[UserIdItemKey]?.ToString() ?? throw new Exception("User ID not found");
+                var userEmail = await ResolveUserEmailAsync(userId);
                 await _budgetService.BatchUpdateBudgetTransactions(transactions, userId, userEmail);
                 Console.WriteLine($"Batch updated {transactions.Count} budget transactions");
                 return Ok();
@@ -356,8 +359,8 @@ namespace FamilyBudgetApi.Controllers
         {
             try
             {
-                var userId = HttpContext.Items["UserId"]?.ToString() ?? throw new Exception("User ID not found");
-                var userEmail = (await FirebaseAuth.DefaultInstance.GetUserAsync(userId)).Email;
+                var userId = HttpContext.Items[UserIdItemKey]?.ToString() ?? throw new Exception("User ID not found");
+                var userEmail = await ResolveUserEmailAsync(userId);
                 if (request.BudgetId != budgetId) throw new Exception("BudgetId in payload does not match URL");
                 await _budgetService.BatchReconcileTransactions(budgetId, request.Reconciliations, userId, userEmail);
                 return Ok();
@@ -367,6 +370,20 @@ namespace FamilyBudgetApi.Controllers
                 Console.WriteLine($"Error in BatchReconcileTransactions: {ex.Message}\nStack Trace: {ex.StackTrace}");
                 return BadRequest(ex.Message);
             }
+        }
+
+        private async Task<string> ResolveUserEmailAsync(string userId)
+        {
+            var cached = HttpContext.Items[UserEmailItemKey] as string;
+            if (!string.IsNullOrWhiteSpace(cached))
+            {
+                return cached;
+            }
+
+            var userRecord = await FirebaseAuth.DefaultInstance.GetUserAsync(userId);
+            var email = userRecord.Email ?? string.Empty;
+            HttpContext.Items[UserEmailItemKey] = email;
+            return email;
         }
     }
 

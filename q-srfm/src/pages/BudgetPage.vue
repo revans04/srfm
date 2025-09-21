@@ -319,9 +319,12 @@
             @contribute="onContribute"
             @view="onViewGoal"
           />
+        </div>
+      </div>
 
-          <!-- Category Tables -->
-          <div v-if="!isEditing && catTransactions" class="row q-mt-lg">
+      <div class="row q-gutter-lg q-mt-none items-start budget-content-row">
+        <div class="col-12 col-xl-8 content-main">
+          <div v-if="!isEditing && catTransactions" class="row">
             <div class="col-12" v-for="(g, gIdx) in groups" :key="gIdx">
               <q-card flat bordered>
                 <q-card-section>
@@ -349,7 +352,6 @@
                         />
                         <q-icon v-if="item.isFund" size="xs" class="q-mr-xs" color="primary" name="savings" />
                         <span>{{ item.name }}</span>
-                        <!-- show the convert icon if the category is in legacySavingsCategories -->
                         <q-icon
                           v-if="legacySavingsCategories.find((c) => c.name === item.name)"
                           name="change_circle"
@@ -360,7 +362,6 @@
                         >
                           <q-tooltip>Convert to Savings Goal</q-tooltip>
                         </q-icon>
-                        
                       </div>
                       <div v-else class="col">
                         <q-input
@@ -411,8 +412,24 @@
           </div>
         </div>
 
+        <div
+          v-if="!isMobile && !selectedCategory && !selectedGoal && !isEditing"
+          class="col-12 col-xl-4 content-sidebar"
+        >
+          <BudgetTransactionList
+            :transactions="budget.transactions || []"
+            @edit="editBudgetTransaction"
+            @add="addTransaction"
+            @refresh="refreshCurrentBudget"
+          />
+        </div>
+
         <!-- Transaction List Sidebar -->
-        <div v-if="selectedCategory && !isEditing" :class="isMobile ? 'col-12' : 'col-4'" class="sidebar">
+        <div
+          v-if="selectedCategory && !isEditing"
+          :class="isMobile ? 'col-12' : 'col-12 col-xl-4 content-sidebar'"
+          class="sidebar"
+        >
           <CategoryTransactions
             :category="selectedCategory"
             :transactions="budget.transactions"
@@ -427,7 +444,11 @@
         </div>
 
         <!-- Goal Details Sidebar -->
-        <div v-if="selectedGoal && !isEditing" :class="isMobile ? 'col-12' : 'col-4'" class="sidebar">
+        <div
+          v-if="selectedGoal && !isEditing"
+          :class="isMobile ? 'col-12' : 'col-12 col-xl-4 content-sidebar'"
+          class="sidebar"
+        >
           <GoalDetailsPanel :goal="selectedGoal" @close="selectedGoal = null" />
         </div>
       </div>
@@ -472,6 +493,7 @@ import CategoryTransactions from '../components/CategoryTransactions.vue';
 import TransactionForm from '../components/TransactionForm.vue';
 import EntitySelector from '../components/EntitySelector.vue';
 import GoalsGroupCard from '../components/goals/GoalsGroupCard.vue';
+import BudgetTransactionList from '../components/BudgetTransactionList.vue';
 import GoalDialog from '../components/goals/GoalDialog.vue';
 import ContributeDialog from '../components/goals/ContributeDialog.vue';
 import SavingsConversionPrompt from '../components/goals/SavingsConversionPrompt.vue';
@@ -1354,6 +1376,25 @@ function updateTransactions(newTransactions: Transaction[]) {
   }
 }
 
+async function refreshCurrentBudget() {
+  const id = budgetId.value;
+  if (!id) return;
+  try {
+    const latest = await dataAccess.getBudget(id);
+    if (latest) {
+      budget.value = latest;
+      budgetStore.updateBudget(id, latest);
+      updateMerchants();
+      if (selectedCategory.value) {
+        selectedCategory.value = getCategoryInfo(selectedCategory.value.name);
+      }
+    }
+  } catch (error: unknown) {
+    const err = error as Error;
+    showSnackbar(`Failed to refresh transactions: ${err.message}`, 'negative');
+  }
+}
+
 function shiftMonths(offset: number) {
   monthOffset.value = offset;
 }
@@ -1494,7 +1535,7 @@ function removeCategory(index: number) {
   futureCategories.value = futureCategories.value.filter((c) => c !== removed);
 }
 
- 
+
 
 async function applyFutureCategories() {
   const entityId = familyStore.selectedEntityId;
@@ -1609,6 +1650,19 @@ function addTransactionForCategory(category: string) {
     isIncomeTransaction.value = false;
     showTransactionDialog.value = true;
   }
+}
+
+function editBudgetTransaction(transaction: Transaction) {
+  const cloned: Transaction = {
+    ...transaction,
+    categories: transaction.categories?.map((c) => ({ ...c })) ?? [],
+    taxMetadata: transaction.taxMetadata ? [...transaction.taxMetadata] : [],
+  };
+  newTransaction.value = cloned;
+  isIncomeTransaction.value = transaction.isIncome;
+  selectedCategory.value = getCategoryInfo(transaction.categories?.[0]?.category || '');
+  selectedGoal.value = null;
+  showTransactionDialog.value = true;
 }
 
 async function duplicateCurrentMonth(month: string) {
@@ -1787,6 +1841,26 @@ interface GroupCategory {
   position: sticky;
   top: 64px;
   overflow-y: auto;
+}
+
+.budget-content-row {
+  flex-wrap: wrap;
+}
+
+@media (min-width: 1024px) {
+  .budget-content-row {
+    flex-wrap: nowrap !important;
+  }
+  .budget-content-row > .content-main {
+    flex: 0 0 65%;
+    max-width: 65%;
+  }
+  .budget-content-row > .content-sidebar {
+    flex: 0 0 35%;
+    max-width: 35%;
+    display: flex;
+    flex-direction: column;
+  }
 }
 
 .q-card {

@@ -1,9 +1,5 @@
 using System;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Npgsql;
-using NpgsqlTypes;
-using FamilyBudgetApi.Services;
 
 namespace FamilyBudgetApi.Logging;
 
@@ -13,14 +9,12 @@ namespace FamilyBudgetApi.Logging;
 public class SupabaseLogger : ILogger
 {
     private readonly string _categoryName;
-    private readonly SupabaseDbService _dbService;
-    private bool _loggingDisabled;
-    private static bool _globalLoggingDisabled;
+    private readonly SupabaseLogQueue _queue;
 
-    public SupabaseLogger(string categoryName, SupabaseDbService dbService)
+    public SupabaseLogger(string categoryName, SupabaseLogQueue queue)
     {
         _categoryName = categoryName;
-        _dbService = dbService;
+        _queue = queue;
     }
 
     public IDisposable BeginScope<TState>(TState state) => null!;
@@ -34,40 +28,11 @@ public class SupabaseLogger : ILogger
             return;
 
         var message = formatter(state, exception);
-        _ = WriteLogAsync(logLevel, message, exception);
-    }
+        var entry = new SupabaseLogEntry(DateTime.UtcNow, logLevel.ToString(), _categoryName, message, exception?.ToString());
 
-    private async Task WriteLogAsync(LogLevel level, string message, Exception? exception)
-    {
-        if (_loggingDisabled || _globalLoggingDisabled)
+        if (!_queue.TryWrite(entry))
         {
-            WriteToConsole(level, message, exception);
-            return;
-        }
-
-        try
-        {
-            await using var conn = await _dbService.GetOpenConnectionAsync();
-            const string sql = "INSERT INTO logs (timestamp, level, category, message, exception) VALUES (@timestamp, @level, @category, @message, @exception);";
-            await using var cmd = new NpgsqlCommand(sql, conn);
-            cmd.Parameters.AddWithValue("@timestamp", DateTime.UtcNow);
-            cmd.Parameters.AddWithValue("@level", level.ToString());
-            cmd.Parameters.AddWithValue("@category", _categoryName);
-            cmd.Parameters.AddWithValue("@message", message);
-            cmd.Parameters.Add("@exception", NpgsqlDbType.Text).Value = (object?)exception?.ToString() ?? DBNull.Value;
-            await cmd.ExecuteNonQueryAsync();
-        }
-        catch (PostgresException ex) when (ex.SqlState == "42P01")
-        {
-            // If the logs table is missing, write the entry to console instead
-            WriteToConsole(level, message, exception);
-        }
-        catch (Exception ex)
-        {
-            _loggingDisabled = true;
-            _globalLoggingDisabled = true;
-            Console.WriteLine($"Error writing log to Supabase: {ex.Message}");
-            WriteToConsole(level, message, exception);
+            WriteToConsole(logLevel, message, exception);
         }
     }
 

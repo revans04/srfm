@@ -268,7 +268,7 @@ namespace FamilyBudgetApi.Controllers
             var pendingInvite = new PendingInvite
             {
                 InviterUid = uid,
-                InviterEmail = HttpContext.Items["Email"]?.ToString() ?? "no-reply@budgetapp.com",
+                InviterEmail = HttpContext.Items["UserEmail"]?.ToString() ?? "no-reply@budgetapp.com",
                 InviteeEmail = request.InviteeEmail.ToLower().Trim(),
                 Token = token,
                 CreatedAt = Timestamp.FromDateTime(DateTime.UtcNow),
@@ -295,7 +295,7 @@ namespace FamilyBudgetApi.Controllers
         public async Task<IActionResult> AcceptInvite([FromBody] AcceptInviteRequest request)
         {
             var uid = HttpContext.Items["UserId"]?.ToString();
-            var email = HttpContext.Items["Email"]?.ToString();
+            var email = HttpContext.Items["UserEmail"]?.ToString();
             var pendingInvite = await _familyService.GetPendingInviteByToken(request.Token);
             if (pendingInvite == null || pendingInvite.ExpiresAt.ToDateTime() < DateTime.UtcNow)
                 return BadRequest(new { Error = "Invalid or expired invite" });

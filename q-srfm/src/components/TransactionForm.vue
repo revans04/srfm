@@ -21,6 +21,7 @@
         <div class="col form-col col-auto" style="min-width: 220px">
           <q-select
             v-model="locTrnsx.merchant"
+            v-model:input-value="merchantInput"
             :options="merchantNames"
             :rules="requiredField"
             dense
@@ -179,7 +180,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, reactive } from 'vue';
+import { ref, computed, onMounted, reactive, watch } from 'vue';
 import { useQuasar } from 'quasar';
 import { dataAccess } from '../dataAccess';
 import type { Budget, Transaction, Goal } from '../types';
@@ -254,6 +255,24 @@ const goalList = ref<Goal[]>([]);
 const goalOptions = computed(() => goalList.value.map((g) => ({ label: g.name, value: g.id })));
 
 const merchantNames = computed(() => merchantStore.merchantNames);
+const merchantInput = ref('');
+
+watch(
+  () => locTrnsx.merchant,
+  (val) => {
+    merchantInput.value = val || '';
+    if (val && val.trim()) {
+      merchantStore.ensureMerchant(val);
+    }
+  },
+  { immediate: true },
+);
+
+watch(merchantInput, (val) => {
+  if ((locTrnsx.merchant || '') !== val) {
+    locTrnsx.merchant = val;
+  }
+});
 
 const availableMonths = computed(() => {
   return budgetStore.availableBudgetMonths;

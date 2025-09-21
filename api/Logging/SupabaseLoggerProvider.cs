@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using FamilyBudgetApi.Services;
 
 namespace FamilyBudgetApi.Logging;
 
@@ -8,16 +7,16 @@ namespace FamilyBudgetApi.Logging;
 /// </summary>
 public class SupabaseLoggerProvider : ILoggerProvider
 {
-    private readonly SupabaseDbService _dbService;
+    private readonly SupabaseLogQueue _queue;
 
-    public SupabaseLoggerProvider(SupabaseDbService dbService)
+    public SupabaseLoggerProvider(SupabaseLogQueue queue)
     {
-        _dbService = dbService;
+        _queue = queue;
     }
 
     public ILogger CreateLogger(string categoryName)
     {
-        return new SupabaseLogger(categoryName, _dbService);
+        return new SupabaseLogger(categoryName, _queue);
     }
 
     public void Dispose() { }

@@ -42,6 +42,15 @@ export const useMerchantStore = defineStore('merchants', () => {
       .sort((a, b) => b.usageCount - a.usageCount);
   }
 
+  function ensureMerchant(name: string) {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const exists = merchants.value.some((m) => m.name.localeCompare(trimmed, undefined, { sensitivity: 'accent' }) === 0);
+    if (!exists) {
+      merchants.value = [{ name: trimmed, usageCount: 0 }, ...merchants.value];
+    }
+  }
+
   // Getter: Get the list of merchant names for autocomplete
   const merchantNames = computed(() => merchants.value.map((m) => m.name));
 
@@ -49,6 +58,7 @@ export const useMerchantStore = defineStore('merchants', () => {
     merchants,
     updateMerchants,
     updateMerchantsFromCounts,
+    ensureMerchant,
     merchantNames,
   };
 });
