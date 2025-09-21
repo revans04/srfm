@@ -1434,10 +1434,67 @@ async function previewEveryDollarTransactions() {
     const budgets = Array.from(budgetStore.budgets.values()).filter(
       (b) => b.entityId === selectedEntityId.value,
     );
+
+    // Accessible budget summaries omit category data, so fetch the full
+    // documents when needed before building the EveryDollar preview mapping.
+    const budgetsNeedingCategories = budgets.filter(
+      (b) => (!b.categories || b.categories.length === 0) && !!b.budgetId,
+    );
+
+    const loadingMessage = budgetsNeedingCategories.length > 0
+      ? `Loading ${budgetsNeedingCategories.length} budget${budgetsNeedingCategories.length === 1 ? '' : 's'} to sync categories…`
+      : 'Preparing EveryDollar preview…';
+
+    $q.loading.show({
+      message: loadingMessage,
+      spinner: QSpinner,
+      spinnerColor: 'primary',
+      spinnerSize: 50,
+      customClass: 'q-ml-sm',
+      boxClass: 'flex items-center justify-center',
+    });
+
+    let categoriesLoaded = 0;
+    const budgetsWithCategories = await Promise.all(
+      budgets.map(async (b) => {
+        const needsCategories = (!b.categories || b.categories.length === 0) && b.budgetId;
+        if (needsCategories) {
+          try {
+            const full = await dataAccess.getBudget(b.budgetId!);
+            categoriesLoaded += 1;
+            if (budgetsNeedingCategories.length > 0) {
+              $q.loading.show({
+                message: `Loading budget categories (${categoriesLoaded}/${budgetsNeedingCategories.length})…`,
+                spinner: QSpinner,
+                spinnerColor: 'primary',
+                spinnerSize: 50,
+                customClass: 'q-ml-sm',
+                boxClass: 'flex items-center justify-center',
+              });
+            }
+            if (full) {
+              budgetStore.updateBudget(b.budgetId!, full);
+              return full;
+            }
+          } catch (err) {
+            console.error(`Failed to load category data for budget ${b.budgetId}`, err);
+          }
+        }
+        return b;
+      }),
+    );
+
+    const defaultGroupName = 'Uncategorized';
     const categoryMap = new Map<string, string>();
     const existingTxs: { date: string; amount: number }[] = [];
-    for (const b of budgets) {
-      b.categories.forEach((c) => categoryMap.set(c.name.toLowerCase(), c.group));
+    for (const b of budgetsWithCategories) {
+      b.categories.forEach((c) => {
+        if (!c?.name) return;
+        const key = c.name.toLowerCase();
+        if (!key) return;
+        const groupName = c.group && c.group.trim() ? c.group : defaultGroupName;
+        categoryMap.set(key, groupName);
+      });
       let txs = b.transactions;
       if ((!txs || txs.length === 0) && b.budgetId) {
         try {
@@ -1480,7 +1537,7 @@ async function previewEveryDollarTransactions() {
         const label = item.label || '';
         const amountNum = (entry.amount || 0) / 100;
         const total = amountNum;
-        const groupName = categoryMap.get(label.toLowerCase()) || grp.label || '';
+        const groupName = categoryMap.get(label.toLowerCase()) || grp.label || defaultGroupName;
         const isDup = isDupTx(entry.date || '', Math.abs(total));
         txRows.push({
           rowId: uuidv4(),
@@ -1515,7 +1572,7 @@ async function previewEveryDollarTransactions() {
             txAgg.set(txId, rec);
           }
           const label = a.label || '';
-          const groupName = categoryMap.get(label.toLowerCase()) || '';
+          const groupName = categoryMap.get(label.toLowerCase()) || defaultGroupName;
           const amountNum = a.amount / 100;
           rec.splits.push({ category: label, group: groupName, amount: Math.abs(amountNum) });
           rec.total += amountNum;
@@ -1558,12 +1615,14 @@ async function previewEveryDollarTransactions() {
               tx = { date: a.date, merchant: a.merchant || '', splits: [] };
               txMap.set(txId, tx);
             }
-            tx.splits.push({ group: groupLabel, item: item.label || '', amount: a.amount });
+            const matchedGroup = categoryMap.get((item.label || '').toLowerCase());
+            const resolvedGroup = matchedGroup || groupLabel || defaultGroupName;
+            tx.splits.push({ group: resolvedGroup, item: item.label || '', amount: a.amount });
           });
         });
       });
       txMap.forEach((tx, txId) => {
-        const splits = tx.splits.map((s) => ({ category: s.item, group: s.group, amount: Math.abs(s.amount / 100) }));
+        const splits = tx.splits.map((s) => ({ category: s.item, group: s.group || defaultGroupName, amount: Math.abs(s.amount / 100) }));
         const total = tx.splits.reduce((sum, s) => sum + s.amount / 100, 0);
         const cats = splits.map((s) => s.category).filter(Boolean);
         const item = cats.length > 1 ? `Split (${cats.join(', ')})` : cats[0] || '';
@@ -1573,7 +1632,7 @@ async function previewEveryDollarTransactions() {
           date: tx.date,
           month: toBudgetMonth(tx.date),
           merchant: tx.merchant,
-          group: splits[0]?.group || '',
+          group: splits[0]?.group || defaultGroupName,
           item,
           amount: formatCurrency(Math.abs(total)),
           rawAmount: total,
@@ -1594,6 +1653,7 @@ async function previewEveryDollarTransactions() {
     importError.value = `Failed to parse EveryDollar budget: ${err.message}`;
   } finally {
     importing.value = false;
+    $q.loading.hide();
   }
 }
 
@@ -1622,6 +1682,15 @@ async function importEveryDollarTransactions() {
 
   try {
     importing.value = true;
+
+    $q.loading.show({
+      message: 'Importing EveryDollar transactions…',
+      spinner: QSpinner,
+      spinnerColor: 'primary',
+      spinnerSize: 50,
+      customClass: 'q-ml-sm',
+      boxClass: 'flex items-center justify-center',
+    });
 
     // Group rows by their budget month (derived from date)
     const byMonth = new Map<string, typeof rowsToImport>();
@@ -1670,36 +1739,113 @@ async function importEveryDollarTransactions() {
         continue;
       }
 
-      // Ensure any missing categories from EveryDollar rows exist in the target budget
-      const existingCatNames = new Set(
-        (budget.categories || []).map((c) => (c.name || "").toLowerCase()),
-      );
-      const categoriesToAddMap = new Map<string, { name: string; group: string }>();
-      for (const row of rows) {
-        // Prefer split line items when provided; otherwise fall back to row.item
-        const splits = Array.isArray(row.splits) ? row.splits : [];
-        const candidates = splits.length > 0
-          ? splits.map((s) => ({ name: (s.category || '').trim(), group: s.group || row.group || 'Uncategorized' }))
-          : [{ name: (row.item || '').trim(), group: row.group || 'Uncategorized' }];
+      $q.loading.show({
+        message: `Processing ${rows.length} transaction${rows.length === 1 ? '' : 's'} for ${month}…`,
+        spinner: QSpinner,
+        spinnerColor: 'primary',
+        spinnerSize: 50,
+        customClass: 'q-ml-sm',
+        boxClass: 'flex items-center justify-center',
+      });
 
-        for (const c of candidates) {
-          if (!c.name) continue;
-          const key = c.name.toLowerCase();
-          if (!existingCatNames.has(key) && !categoriesToAddMap.has(key)) {
-            categoriesToAddMap.set(key, { name: c.name, group: c.group || '' });
+      const defaultGroupName = 'Uncategorized';
+      const existingCategories = Array.isArray(budget.categories)
+        ? [...budget.categories]
+        : [];
+      const categoryLookup = new Map<string, BudgetCategory>();
+      existingCategories.forEach((cat) => {
+        if (!cat?.name) return;
+        categoryLookup.set(cat.name.trim().toLowerCase(), cat);
+      });
+
+      const categoriesToPersist: BudgetCategory[] = [];
+
+      const registerNewCategory = (cat: BudgetCategory) => {
+        const key = (cat.name || '').trim().toLowerCase();
+        if (!key || categoryLookup.has(key)) return;
+        existingCategories.push(cat);
+        categoryLookup.set(key, cat);
+        categoriesToPersist.push(cat);
+      };
+
+      const ensureCategory = (label: string | undefined | null): BudgetCategory => {
+        const trimmed = (label ?? '').trim();
+        if (trimmed) {
+          const key = trimmed.toLowerCase();
+          const existing = categoryLookup.get(key);
+          if (existing) {
+            return existing;
           }
+          const newCat: BudgetCategory = {
+            name: trimmed,
+            target: 0,
+            isFund: false,
+            group: defaultGroupName,
+            carryover: 0,
+          };
+          registerNewCategory(newCat);
+          return newCat;
+        }
+
+        const fallbackKey = defaultGroupName.toLowerCase();
+        const fallbackExisting = categoryLookup.get(fallbackKey);
+        if (fallbackExisting) {
+          return fallbackExisting;
+        }
+        const fallbackCat: BudgetCategory = {
+          name: defaultGroupName,
+          target: 0,
+          isFund: false,
+          group: defaultGroupName,
+          carryover: 0,
+        };
+        registerNewCategory(fallbackCat);
+        return fallbackCat;
+      };
+
+      for (const row of rows) {
+        const fallbackAmount = typeof row.rawAmount === 'number' ? Math.abs(row.rawAmount) : 0;
+        const baseSplits = Array.isArray(row.splits) && row.splits.length > 0
+          ? row.splits
+          : [{ category: (row.item || '').trim(), group: row.group || defaultGroupName, amount: fallbackAmount }];
+
+        const mappedSplits = baseSplits.map((split) => {
+          const matchedCategory = ensureCategory(split.category || row.item || defaultGroupName);
+          const amount = typeof split.amount === 'number' ? Math.abs(split.amount) : fallbackAmount;
+          return {
+            ...split,
+            category: matchedCategory.name,
+            group: matchedCategory.group || defaultGroupName,
+            amount,
+          };
+        });
+
+        if (mappedSplits.length === 0) {
+          const fallback = ensureCategory(defaultGroupName);
+          mappedSplits.push({ category: fallback.name, group: fallback.group || defaultGroupName, amount: fallbackAmount });
+        }
+
+        row.splits = mappedSplits;
+        row.group = mappedSplits[0]?.group || defaultGroupName;
+
+        if (mappedSplits.length === 1) {
+          row.item = mappedSplits[0].category;
+        } else {
+          const labels = mappedSplits.map((s) => s.category).filter(Boolean);
+          row.item = labels.length > 1 ? `Split (${labels.join(', ')})` : labels[0] || row.item;
         }
       }
 
-      if (categoriesToAddMap.size > 0) {
-        const newCats: BudgetCategory[] = Array.from(categoriesToAddMap.values()).map((c) => ({
-          name: c.name,
-          target: 0,
-          isFund: false,
-          group: c.group || 'Uncategorized',
-          carryover: 0,
-        }));
-        budget.categories = [...(budget.categories || []), ...newCats];
+      if (categoriesToPersist.length > 0) {
+        $q.loading.show({
+          message: `Syncing categories for ${month}…`,
+          spinner: QSpinner,
+          spinnerColor: 'primary',
+          spinnerSize: 50,
+          customClass: 'q-ml-sm',
+          boxClass: 'flex items-center justify-center',
+        });
+        budget.categories = existingCategories;
         // Persist category additions before posting transactions
         await dataAccess.saveBudget(budget.budgetId, budget);
         budgetStore.updateBudget(budget.budgetId, budget);
@@ -1732,6 +1878,14 @@ async function importEveryDollarTransactions() {
         return tx;
       });
 
+      $q.loading.show({
+        message: `Saving transactions for ${month}…`,
+        spinner: QSpinner,
+        spinnerColor: 'primary',
+        spinnerSize: 50,
+        customClass: 'q-ml-sm',
+        boxClass: 'flex items-center justify-center',
+      });
       await dataAccess.batchSaveTransactions(budget.budgetId, budget, txs);
       totalImported += txs.length;
     }
@@ -1758,6 +1912,7 @@ async function importEveryDollarTransactions() {
     showSnackbar(importError.value, 'negative');
   } finally {
     importing.value = false;
+    $q.loading.hide();
   }
 }
 

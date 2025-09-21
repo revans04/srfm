@@ -1,7 +1,7 @@
 <!-- ReportsView.vue -->
 <template>
-  <q-page fluid>
-    <h1>Budget Reporting</h1>
+  <q-page class="bg-grey-2 q-pa-md" fluid>
+    <h1 class="page-title text-h5 q-mb-md">Budget Reporting</h1>
 
     <!-- Tabs -->
     <q-tabs v-model="tab" color="primary">
@@ -848,6 +848,12 @@ function openGroup(name: string) {
 .text-h5 {
   font-size: 1.5rem;
   font-weight: 500;
+}
+
+.page-title {
+  font-weight: 600;
+  color: #1f2937;
+  margin-top: 0;
 }
 
 .v-table th {

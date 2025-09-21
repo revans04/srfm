@@ -958,10 +958,11 @@ export class DataAccess {
 
   async saveSnapshot(familyId: string, snapshot: Snapshot): Promise<void> {
     const headers = await this.getAuthHeaders();
+    const payload = this.prepareSnapshotPayload(snapshot);
     const response = await fetch(`${this.apiBaseUrl}/families/${familyId}/snapshots/${snapshot.id}`, {
       method: 'PUT',
       headers,
-      body: JSON.stringify(snapshot),
+      body: JSON.stringify(payload),
     });
     if (!response.ok) throw new Error(`Failed to save snapshot: ${response.statusText}`);
   }
@@ -1254,6 +1255,50 @@ export class DataAccess {
       headers,
     });
     if (!response.ok) throw new Error(`Failed to remove entity member: ${response.statusText}`);
+  }
+
+  private prepareSnapshotPayload(snapshot: Snapshot): Record<string, unknown> {
+    const toIsoString = (value: unknown): string | undefined => {
+      if (!value) return undefined;
+      if (value instanceof Timestamp) return value.toDate().toISOString();
+      if (typeof value === 'string') return value;
+      if (typeof value === 'object') {
+        const maybe = value as { seconds?: unknown; nanoseconds?: unknown };
+        if (typeof maybe.seconds === 'number') {
+          const seconds = maybe.seconds;
+          const nanos = typeof maybe.nanoseconds === 'number' ? maybe.nanoseconds : 0;
+          const millis = seconds * 1000 + Math.floor(nanos / 1_000_000);
+          return new Date(millis).toISOString();
+        }
+        if ('toDate' in maybe && typeof (maybe as { toDate?: () => Date }).toDate === 'function') {
+          return (maybe as { toDate: () => Date }).toDate().toISOString();
+        }
+      }
+      return undefined;
+    };
+
+    const accounts = Array.isArray(snapshot.accounts)
+      ? snapshot.accounts.map((acct) => ({
+          accountId: acct.accountId,
+          accountName: acct.accountName,
+          type: acct.type,
+          value: Number(acct.value ?? 0),
+        }))
+      : [];
+
+    const payload: Record<string, unknown> = {
+      id: snapshot.id,
+      accounts,
+      netWorth: Number(snapshot.netWorth ?? 0),
+    };
+
+    const dateIso = toIsoString(snapshot.date);
+    if (dateIso) payload.date = dateIso;
+
+    const createdIso = toIsoString(snapshot.createdAt);
+    if (createdIso) payload.createdAt = createdIso;
+
+    return payload;
   }
 }
 

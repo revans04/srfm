@@ -1,7 +1,7 @@
 <!-- src/views/AccountsView.vue -->
 <template>
-  <q-page fluid>
-    <h1>Accounts</h1>
+  <q-page class="bg-grey-2 q-pa-md" fluid>
+    <h1 class="page-title text-h5 q-mb-md">Accounts</h1>
 
     <!-- Loading handled via $q.loading -->
 
@@ -9,7 +9,7 @@
     <q-banner v-if="!familyId" type="warning" class="q-mb-lg"> Please create or join a family to manage accounts. </q-banner>
 
     <!-- Tabs -->
-    <q-tabs v-model="tab" color="primary" :disabled="!familyId">
+    <q-tabs v-model="tab" color="primary">
       <q-tab name="bank" label="Bank Accounts" />
       <q-tab name="credit" label="Credit Cards" />
       <q-tab name="investment" label="Investments" />
@@ -83,7 +83,7 @@
               :columns="snapshotColumns"
               :rows="snapshotsWithSelection"
               class="elevation-1"
-              :pagination="{ rowsPerPage: 10 }"
+              v-model:pagination="snapshotTablePagination"
               row-key="id"
               @row-click="viewSnapshotDetails"
             >
@@ -94,7 +94,7 @@
               </template>
               <template #body-cell-select="props">
                 <q-td :props="props">
-                  <q-checkbox v-model="selectedSnapshots" :value="props.row.id" dense @update:modelValue="updateSelectAll" @click.stop />
+                  <q-checkbox v-model="selectedSnapshots" :val="props.row.id" dense @update:modelValue="updateSelectAll" @click.stop />
                 </q-td>
               </template>
               <template #body-cell-date="props">
@@ -338,9 +338,15 @@ const loanAccounts = computed(() => accounts.value.filter((acc) => acc.type === 
 
 const snapshotColumns = [
   { name: 'select', label: '', field: 'select', sortable: false },
-  { name: 'date', label: 'Date', field: 'date' },
-  { name: 'netWorth', label: 'Net Worth', field: 'netWorth' },
-  { name: 'actions', label: 'Actions', field: 'actions' },
+  {
+    name: 'date',
+    label: 'Date',
+    field: 'date',
+    sortable: true,
+    sort: (_a: unknown, _b: unknown, rowA: Snapshot, rowB: Snapshot) => timestampToMillis(rowA.date) - timestampToMillis(rowB.date),
+  },
+  { name: 'netWorth', label: 'Net Worth', field: 'netWorth', sortable: true },
+  { name: 'actions', label: 'Actions', field: 'actions', sortable: false },
 ];
 
 const snapshotAccountColumns = [
@@ -355,15 +361,27 @@ const snapshotDetailColumns = [
   { name: 'value', label: 'Value', field: 'value' },
 ];
 
-const snapshotsWithSelection = computed(() => {
-  return snapshots.value.map((snapshot) => ({
-    ...snapshot,
-    selected: selectedSnapshots.value.includes(snapshot.id),
-  }));
+const selectedSnapshotIds = computed(() => {
+  const current = selectedSnapshots.value;
+  return Array.isArray(current)
+    ? current
+    : typeof current === 'string' && current
+      ? [current]
+      : [];
 });
 
+const snapshotsWithSelection = computed(() =>
+  snapshots.value.map((snapshot) => ({
+    ...snapshot,
+    selected: selectedSnapshotIds.value.includes(snapshot.id),
+  })),
+);
+
+const snapshotTablePagination = ref({ sortBy: 'date', descending: true, rowsPerPage: 10 });
+
 function updateSelectAll() {
-  selectAll.value = snapshots.value.length > 0 && selectedSnapshots.value.length === snapshots.value.length;
+  const ids = selectedSnapshotIds.value;
+  selectAll.value = snapshots.value.length > 0 && ids.length === snapshots.value.length;
 }
 
 function toggleSelectAll(value: boolean) {
@@ -450,25 +468,43 @@ function editAccount(account: Account) {
   showAccountDialog.value = true;
 }
 
+function normalizeBalance(raw: unknown): number | null {
+  if (raw === null || raw === undefined) return null;
+  const numeric = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw.replace(/,/g, '').trim()) : Number.NaN;
+  if (!Number.isFinite(numeric)) return null;
+  return Math.round(numeric * 100) / 100;
+}
+
 async function saveAccount(account: Account, isPersonal: boolean) {
   saving.value = true;
   try {
-    if (isPersonal) {
-      account.userId = userId.value;
-    } else {
-      delete account.userId;
+    const normalizedBalance = normalizeBalance(account.balance);
+    if (normalizedBalance === null) {
+      showSnackbar('Please enter a valid balance amount', 'negative');
+      return;
     }
 
-    // Detect changes in accountNumber or name (only in edit mode)
-    let accountNumberChanged = false;
-    let accountNameChanged = false;
-    if (editMode.value) {
-      accountNumberChanged = originalAccountNumber.value !== account.accountNumber;
-      accountNameChanged = originalAccountName.value !== account.name;
+    const accountPayload: Account = {
+      ...account,
+      balance: normalizedBalance,
+      updatedAt: Timestamp.now(),
+      details: { ...(account.details || {}) },
+    };
+
+    if (isPersonal) {
+      accountPayload.userId = userId.value;
+    } else {
+      delete accountPayload.userId;
     }
 
     // Save the account
-    await dataAccess.saveAccount(familyId.value, account);
+    await dataAccess.saveAccount(familyId.value, accountPayload);
+
+    const persistedAccount = (await dataAccess.getAccount(familyId.value, accountPayload.id)) ?? accountPayload;
+
+    // Detect changes in accountNumber or name (only in edit mode, using persisted values)
+    const accountNumberChanged = editMode.value && originalAccountNumber.value !== persistedAccount.accountNumber;
+    const accountNameChanged = editMode.value && originalAccountName.value !== persistedAccount.name;
 
     let snapshot = null;
     if (!editMode.value) {
@@ -477,18 +513,18 @@ async function saveAccount(account: Account, isPersonal: boolean) {
         date: Timestamp.fromDate(new Date()),
         accounts: [
           {
-            accountId: account.id,
-            accountName: account.name,
-            type: account.type,
+            accountId: persistedAccount.id,
+            accountName: persistedAccount.name,
+            type: persistedAccount.type,
             value: (() => {
-              const bal = account.balance ?? 0;
-              return account.category === 'Liability' && bal > 0 ? -bal : bal;
+              const bal = persistedAccount.balance ?? 0;
+              return persistedAccount.category === 'Liability' && bal > 0 ? -bal : bal;
             })(),
           },
         ],
         netWorth: (() => {
-          const bal = account.balance ?? 0;
-          return account.category === 'Liability' && bal > 0 ? -bal : bal;
+          const bal = persistedAccount.balance ?? 0;
+          return persistedAccount.category === 'Liability' && bal > 0 ? -bal : bal;
         })(),
         createdAt: Timestamp.now(),
       };
@@ -496,11 +532,11 @@ async function saveAccount(account: Account, isPersonal: boolean) {
     }
 
     // Update the local accounts array
-    const index = accounts.value.findIndex((a) => a.id === account.id);
+    const index = accounts.value.findIndex((a) => a.id === persistedAccount.id);
     if (index >= 0) {
-      accounts.value[index] = { ...account };
+      accounts.value.splice(index, 1, { ...persistedAccount });
     } else {
-      accounts.value.push({ ...account });
+      accounts.value.push({ ...persistedAccount });
     }
 
     if (!editMode.value && snapshot) {
@@ -511,15 +547,15 @@ async function saveAccount(account: Account, isPersonal: boolean) {
     // Handle updates to ImportedTransactions and Budget Transactions if accountNumber or name changed
     if (editMode.value && (accountNumberChanged || accountNameChanged)) {
       // Fetch ImportedTransactions for this account
-      const importedTxs = await dataAccess.getImportedTransactionsByAccountId(account.id);
+      const importedTxs = await dataAccess.getImportedTransactionsByAccountId(persistedAccount.id);
       affectedImportedTransactionCount.value = importedTxs.length;
 
       if (affectedImportedTransactionCount.value > 0) {
         // Update ImportedTransactions
         const updatedImportedTxs = importedTxs.map((tx) => ({
           ...tx,
-          ...(accountNumberChanged && account.accountNumber ? { accountNumber: account.accountNumber } : {}),
-          ...(accountNameChanged ? { accountSource: account.institution || account.name } : {}),
+          ...(accountNumberChanged && persistedAccount.accountNumber ? { accountNumber: persistedAccount.accountNumber } : {}),
+          ...(accountNameChanged ? { accountSource: persistedAccount.institution || persistedAccount.name } : {}),
         }));
         await dataAccess.updateImportedTransactions(updatedImportedTxs);
 
@@ -532,7 +568,7 @@ async function saveAccount(account: Account, isPersonal: boolean) {
         });
 
         // Fetch potentially affected Budget Transactions
-        const budgetTxsWithBudgetId = await dataAccess.getBudgetTransactionsMatchedToImported(account.id);
+        const budgetTxsWithBudgetId = await dataAccess.getBudgetTransactionsMatchedToImported(persistedAccount.id);
         affectedBudgetTransactionCount.value = budgetTxsWithBudgetId.length;
 
         if (affectedBudgetTransactionCount.value > 0) {
@@ -746,5 +782,9 @@ function showSnackbar(text: string, color = 'success') {
 </script>
 
 <style scoped>
-/* No specific styles needed */
+.page-title {
+  font-weight: 600;
+  color: #1f2937;
+  margin-top: 0;
+}
 </style>

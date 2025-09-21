@@ -1,6 +1,6 @@
 <!-- src/components/AccountForm.vue -->
 <template>
-  <q-form v-model="validForm" @submit.prevent="save">
+  <q-form ref="formRef" @submit.prevent="save">
     <q-input
       v-model="localAccount.name"
       label="Account Name"
@@ -55,13 +55,15 @@
       v-model.number="localAccount.balance"
       :label="localAccount.category === 'Liability' ? 'Current Balance (as positive #)' : 'Current Value'"
       type="number"
+      inputmode="decimal"
+      step="0.01"
       variant="outlined"
       density="compact"
       hint="Enter the current balance or value as of today"
       :rules="[(v: number | null) => v !== null || 'Balance is required']"
     ></q-input>
     <div class="q-mt-lg">
-      <q-btn type="submit" color="primary" :loading="saving" :disabled="!validForm"> Save </q-btn>
+      <q-btn type="submit" color="primary" :loading="saving" :disable="saving"> Save </q-btn>
       <q-btn color="grey" variant="text" @click="cancel" class="q-ml-sm"> Cancel </q-btn>
     </div>
   </q-form>
@@ -72,6 +74,7 @@ import { ref, watch, defineProps, defineEmits } from 'vue';
 import type { Account, AccountType } from '../types';
 import { Timestamp } from 'firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';
+import type { QForm } from 'quasar';
 
 type AccountTypeLiteral = Account['type']; // "Bank" | "CreditCard" | ...
 
@@ -88,9 +91,9 @@ const emit = defineEmits<{
   (e: 'cancel'): void;
 }>();
 
-const validForm = ref(false);
 const saving = ref(false);
 const isPersonalAccount = ref(false);
+const formRef = ref<QForm | null>(null);
 
 type AccountWithDetails = Account & { details: NonNullable<Account['details']> };
 
@@ -127,6 +130,7 @@ watch(
         details: { ...(newAccount.details || {}) },
       };
       isPersonalAccount.value = !!newAccount.userId;
+      formRef.value?.resetValidation();
     }
   },
   { immediate: true },
@@ -138,13 +142,25 @@ watch(
     const t = normalizeType(newType);
     localAccount.value.type = t;
     localAccount.value.category = t === 'CreditCard' || t === 'Loan' ? 'Liability' : 'Asset';
+    formRef.value?.resetValidation();
   },
 );
 
-function save() {
+async function save() {
+  const form = formRef.value;
+  if (form) {
+    const isValid = await form.validate();
+    if (!isValid) {
+      return;
+    }
+  }
   saving.value = true;
-  localAccount.value.updatedAt = Timestamp.now();
-  emit('save', localAccount.value, isPersonalAccount.value);
+  const accountToEmit: Account = {
+    ...localAccount.value,
+    updatedAt: Timestamp.now(),
+    details: { ...localAccount.value.details },
+  };
+  emit('save', accountToEmit, isPersonalAccount.value);
   saving.value = false;
 }
 
