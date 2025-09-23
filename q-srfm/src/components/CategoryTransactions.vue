@@ -119,16 +119,6 @@
       </q-scroll-area>
     </q-card>
 
-    <q-fab
-      icon="add"
-      :app="true"
-      color="primary"
-      @click="$emit('add-transaction')"
-      location="bottom right"
-      class="category-fab"
-      :class="isMobile ? 'q-mb-xl' : 'q-mb-sm'"
-    />
-
     <q-dialog v-model="showEditDialog" :width="!isMobile ? '550px' : undefined" :fullscreen="isMobile">
       <q-card dense>
         <q-card-section class="bg-primary row items-center q-py-md">
@@ -618,11 +608,6 @@ onMounted(() => {
   font-weight: 600;
 }
 
-.category-fab {
-  position: fixed;
-  right: 24px;
-}
-
 @media (max-width: 1023px) {
   .category-details-card {
     height: auto;
@@ -630,11 +615,6 @@ onMounted(() => {
 
   .transactions-scroll {
     max-height: none;
-  }
-
-  .category-fab {
-    position: absolute;
-    right: 16px;
   }
 }
 </style>

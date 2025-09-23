@@ -707,7 +707,7 @@ const searchInput = ref(null);
 const search = ref('');
 const debouncedSearch = ref('');
 const transactionSearch = ref('');
-const transactionFilter = ref<'tracked' | 'new' | 'deleted'>('tracked');
+const transactionFilter = ref<'matched' | 'unmatched' | 'deleted'>('matched');
 const monthOffset = ref(0);
 const menuOpen = ref(false);
 
@@ -1102,24 +1102,29 @@ const monthlyTransactions = computed(() => {
 });
 
 const transactionCounts = computed(() => ({
-  new: monthlyTransactions.value.filter((tx) => !tx.deleted && tx.status === 'U').length,
-  tracked: monthlyTransactions.value.filter((tx) => !tx.deleted && tx.status !== 'U').length,
+  unmatched: monthlyTransactions.value.filter((tx) => !tx.deleted && tx.status === 'U').length,
+  matched: monthlyTransactions.value.filter(
+    (tx) => !tx.deleted && (tx.status === 'C' || tx.status === 'R'),
+  ).length,
   deleted: monthlyTransactions.value.filter((tx) => !!tx.deleted).length,
 }));
 
 const transactionFilterOptions = computed(() => [
-  { label: `New (${transactionCounts.value.new})`, value: 'new' },
-  { label: `Tracked (${transactionCounts.value.tracked})`, value: 'tracked' },
+  { label: `Unmatched (${transactionCounts.value.unmatched})`, value: 'unmatched' },
+  { label: `Matched (${transactionCounts.value.matched})`, value: 'matched' },
   { label: `Deleted (${transactionCounts.value.deleted})`, value: 'deleted' },
 ]);
 
 const filteredMonthTransactions = computed(() => {
   const searchTerm = transactionSearch.value.trim().toLowerCase();
   return monthlyTransactions.value.filter((tx) => {
-    if (transactionFilter.value === 'new' && (tx.status !== 'U' || tx.deleted)) {
+    if (transactionFilter.value === 'unmatched' && (tx.status !== 'U' || tx.deleted)) {
       return false;
     }
-    if (transactionFilter.value === 'tracked' && (tx.deleted || tx.status === 'U')) {
+    if (
+      transactionFilter.value === 'matched' &&
+      (tx.deleted || (tx.status !== 'C' && tx.status !== 'R'))
+    ) {
       return false;
     }
     if (transactionFilter.value === 'deleted' && !tx.deleted) {
@@ -1136,13 +1141,13 @@ const filteredMonthTransactions = computed(() => {
 });
 
 const transactionEmptyLabel = computed(() => {
-  if (transactionFilter.value === 'new') {
-    return 'No new transactions this month.';
+  if (transactionFilter.value === 'unmatched') {
+    return 'No unmatched transactions this month.';
   }
   if (transactionFilter.value === 'deleted') {
     return 'No deleted transactions this month.';
   }
-  return 'No tracked transactions for this month yet.';
+  return 'No matched transactions for this month yet.';
 });
 
 function monthExists(month: string) {
