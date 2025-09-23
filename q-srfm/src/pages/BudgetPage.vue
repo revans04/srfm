@@ -29,8 +29,9 @@
 
     <!-- Main Content -->
     <div v-else>
-      <div v-if="isMobile" class="row q-pa-none" style="overflow: visible; min-height: 60px">
-        <div class="col-12">
+      <div class="row" :class="isMobile ? 'q-pa-none' : 'q-pr-xl'" style="overflow: visible; min-height: 60px">
+        <!-- Mobile Header -->
+        <div v-if="isMobile" class="col-12">
           <div class="row items-center no-wrap q-px-md q-pt-md">
             <div class="col">
               <EntitySelector @change="loadBudgets" />
@@ -100,89 +101,106 @@
             />
           </div>
         </div>
-      </div>
 
-      <div class="row q-col-gutter-lg" :class="isMobile ? '' : 'desktop-layout'">
-        <template v-if="!isMobile">
-          <div class="col-12 col-md-3 col-lg-2 desktop-menu">
-            <q-card flat bordered class="desktop-menu-card q-pa-md">
-              <div class="text-subtitle2 text-uppercase text-grey-7 q-mb-xs">Budget</div>
-              <EntitySelector @change="loadBudgets" class="q-mb-md" />
-              <div class="month-selector no-wrap text-h6 q-mb-sm">
-                {{ formatLongMonth(currentMonth) }}
-                <q-btn flat dense round icon="expand_more" size="sm">
-                  <q-menu
-                    v-model="menuOpen"
-                    anchor="bottom left"
-                    self="top left"
-                    :offset="[0, 4]"
-                    :close-on-content-click="false"
-                    @show="onMonthMenuShow"
-                    @hide="onMonthMenuHide"
-                  >
-                    <q-card class="month-menu">
-                      <div class="row no-wrap items-center q-px-sm q-py-xs border-bottom">
-                        <div class="col-auto">
-                          <q-btn flat dense icon="chevron_left" @click.stop="shiftMonths(-6)" />
-                        </div>
-                        <div class="col text-center">
-                          <span>{{ displayYear }}</span>
-                        </div>
-                        <div class="col-auto">
-                          <q-btn flat dense icon="chevron_right" @click.stop="shiftMonths(6)" />
-                        </div>
-                      </div>
-                      <div class="row">
-                        <div v-for="month in displayedMonths" :key="month.value" class="col-4">
-                          <div
-                            class="q-pa-xs q-ma-xs text-center cursor-pointer border rounded"
-                            :class="month.value === currentMonth ? 'bg-primary text-white' : 'text-primary'"
-                            :style="monthExists(month.value) ? 'border-style: solid' : 'border-style: dashed'"
-                            @click="selectMonth(month.value)"
-                          >
-                            {{ month.label }}
+        <!-- Desktop Header -->
+        <div v-else class="col-12">
+          <div class="row items-center no-wrap q-pt-lg">
+            <div class="col">
+              <EntitySelector @change="loadBudgets" />
+            </div>
+            <div class="col-auto">
+              <q-btn v-if="!isEditing" flat dense icon="edit" @click="isEditing = true" title="Edit Budget" />
+              <q-btn v-else flat dense icon="close" @click="isEditing = false" title="Cancel" />
+              <q-btn
+                v-if="!isEditing"
+                flat
+                dense
+                icon="delete"
+                color="negative"
+                title="Delete Budget"
+                class="q-ml-xs"
+                @click="confirmDeleteBudget"
+              />
+            </div>
+          </div>
+          <div class="row items-center q-mt-sm">
+            <div class="col">
+              <h4 class="q-mb-none">
+                <span class="month-selector no-wrap">
+                  {{ formatLongMonth(currentMonth) }}
+                  <q-btn flat dense round icon="expand_more" size="sm">
+                    <q-menu
+                      v-model="menuOpen"
+                      anchor="bottom left"
+                      self="top left"
+                      :offset="[0, 4]"
+                      :close-on-content-click="false"
+                      @show="onMonthMenuShow"
+                      @hide="onMonthMenuHide"
+                    >
+                      <q-card class="month-menu">
+                        <div class="row no-wrap items-center q-px-sm q-py-xs border-bottom">
+                          <div class="col-auto">
+                            <q-btn flat dense icon="chevron_left" @click.stop="shiftMonths(-6)" />
+                          </div>
+                          <div class="col text-center">
+                            <span>{{ displayYear }}</span>
+                          </div>
+                          <div class="col-auto">
+                            <q-btn flat dense icon="chevron_right" @click.stop="shiftMonths(6)" />
                           </div>
                         </div>
-                      </div>
-                    </q-card>
-                  </q-menu>
-                </q-btn>
-              </div>
-              <div class="row items-center q-mb-sm">
-                <div class="col-auto">
-                  <q-btn v-if="!isEditing" flat dense icon="edit" @click="isEditing = true" title="Edit Budget" />
-                  <q-btn v-else flat dense icon="close" @click="isEditing = false" title="Cancel" />
-                </div>
-                <div class="col text-right">
-                  <q-btn
-                    v-if="!isEditing"
-                    flat
-                    dense
-                    icon="delete"
-                    color="negative"
-                    title="Delete Budget"
-                    @click="confirmDeleteBudget"
-                  />
-                </div>
-              </div>
-              <div class="text-subtitle2" :class="{ 'text-negative': remainingToBudget < 0 }">
-                {{ formatCurrency(toDollars(toCents(Math.abs(remainingToBudget)))) }}
-                {{ remainingToBudget >= 0 ? 'left to budget' : 'over budget' }}
-              </div>
-              <div class="text-caption text-grey-7 q-mb-md">
-                Monthly Savings: {{ formatCurrency(toDollars(toCents(savingsTotal))) }}
-              </div>
-              <q-separator spaced />
-              <div class="text-caption text-grey-7 q-mb-sm">Jump to</div>
-              <q-list dense bordered class="desktop-menu-links">
-                <q-item v-for="section in desktopMenuSections" :key="section.id" clickable @click="scrollToSection(section.id)">
-                  <q-item-section>{{ section.label }}</q-item-section>
-                </q-item>
-              </q-list>
-            </q-card>
+                        <div class="row">
+                          <div v-for="month in displayedMonths" :key="month.value" class="col-4">
+                            <div
+                              class="q-pa-xs q-ma-xs text-center cursor-pointer border rounded"
+                              :class="month.value === currentMonth ? 'bg-primary text-white' : 'text-primary'"
+                              :style="monthExists(month.value) ? 'border-style: solid' : 'border-style: dashed'"
+                              @click="selectMonth(month.value)"
+                            >
+                              {{ month.label }}
+                            </div>
+                          </div>
+                        </div>
+                      </q-card>
+                    </q-menu>
+                  </q-btn>
+                </span>
+              </h4>
+            </div>
+            <div class="col-auto">
+              <q-btn round dense icon="add" color="primary" @click="addTransaction" />
+            </div>
           </div>
-        </template>
+          <div class="row items-center q-mt-xs">
+            <div class="col text-subtitle1" :class="{ 'text-negative': remainingToBudget < 0 }">
+              {{ formatCurrency(toDollars(toCents(Math.abs(remainingToBudget)))) }}
+              {{ remainingToBudget >= 0 ? 'left to budget' : 'over budget' }}
+            </div>
+            <div class="col-auto text-caption text-grey-7">
+              Monthly Savings: {{ formatCurrency(toDollars(toCents(savingsTotal))) }}
+            </div>
+          </div>
+          <div class="row q-mt-md">
+            <div class="col-12 col-sm-6">
+              <div class="q-my-sm bg-white q-pa-md" style="border-radius: 4px" id="budget-search">
+                <q-input
+                  dense
+                  label="Search"
+                  v-model="search"
+                  clearable
+                  ref="searchInput"
+                  append-icon="search"
+                  @keyup.enter="blurSearchInput"
+                  @clear="clearSearch"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
+      <div class="row q-col-gutter-lg">
         <!-- Main Content -->
         <div
           :class="[
@@ -190,22 +208,9 @@
               ? selectedCategory || selectedGoal
                 ? 'col-0 d-none'
                 : 'col-12'
-              : 'col-12 col-md-6 col-lg-7',
+              : 'col-12 col-lg-8',
           ]"
-          class="main-pane"
         >
-          <div v-if="!isMobile" id="budget-search" class="q-my-sm bg-white q-pa-md desktop-search">
-            <q-input
-              dense
-              label="Search"
-              v-model="search"
-              clearable
-              ref="searchInput"
-              append-icon="search"
-              @keyup.enter="blurSearchInput"
-              @clear="clearSearch"
-            />
-          </div>
           <!-- Budget Editing Form -->
           <q-card v-if="isEditing" flat bordered>
             <q-card-section>Edit Budget for {{ selectedEntity?.name || 'selected entity' }}</q-card-section>
@@ -460,7 +465,7 @@
         </div>
 
         <!-- Desktop Sidebar -->
-        <div v-if="!isMobile" class="col-12 col-md-3 col-lg-3 desktop-sidebar">
+        <div v-if="!isMobile" class="col-12 col-lg-4 desktop-sidebar">
           <CategoryTransactions
             v-if="selectedCategory && !isEditing"
             :category="selectedCategory"
@@ -1026,36 +1031,15 @@ const plannedIncome = computed(() => {
 
 const currentMonthTransactions = computed(() => {
   const transactions = budget.value?.transactions ?? [];
+  const monthPrefix = `${currentMonth.value}-`;
   return transactions
-    .filter((tx) => !tx.deleted)
+    .filter((tx) => !tx.deleted && (!tx.date || tx.date.startsWith(monthPrefix)))
     .slice()
     .sort((a, b) => b.date.localeCompare(a.date));
 });
 
-const desktopMenuSections = computed(() => {
-  const sections: Array<{ id: string; label: string }> = [{ id: 'budget-search', label: 'Search' }];
-  if (incomeItems.value && incomeItems.value.length) {
-    sections.push({ id: 'income-section', label: 'Income' });
-  }
-  if (favoriteItems.value.length) {
-    sections.push({ id: 'favorites-section', label: 'Favorites' });
-  }
-  sections.push({ id: 'goals-section', label: 'Goals' });
-  if (groups.value.length) {
-    sections.push({ id: 'groups-section', label: 'Groups' });
-  }
-  return sections;
-});
-
 function monthExists(month: string) {
   return availableBudgets.value.some((b) => b.month === month && matchesSelectedEntity(b));
-}
-
-function scrollToSection(sectionId: string) {
-  const el = document.getElementById(sectionId);
-  if (el) {
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
 }
 
 function onIncomeRowClick(item: IncomeTarget) {
@@ -1875,32 +1859,10 @@ interface GroupCategory {
 </script>
 
 <style scoped>
-.desktop-layout {
-  align-items: flex-start;
-}
-
-.desktop-menu-card {
-  position: sticky;
-  top: 72px;
-  background: #ffffff;
-  border-radius: 8px;
-}
-
-.desktop-menu-links .q-item {
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.desktop-menu-links .q-item:last-child {
-  border-bottom: none;
-}
-
-.desktop-search {
-  border-radius: 4px;
-}
-
 .desktop-sidebar {
   position: sticky;
-  top: 72px;
+  top: 64px;
+  overflow-y: auto;
 }
 
 .desktop-monthly-transactions {
