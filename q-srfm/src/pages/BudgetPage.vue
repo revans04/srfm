@@ -533,7 +533,7 @@
 
             <q-separator />
 
-            <q-scroll-area class="transaction-panel-scroll">
+            <div class="transaction-panel-scroll">
               <q-list separator>
                 <q-item v-for="transaction in filteredMonthTransactions" :key="transaction.id" class="transaction-panel-item">
                   <q-item-section avatar>
@@ -560,7 +560,7 @@
               <div v-if="!filteredMonthTransactions.length" class="transaction-empty q-pa-lg text-center text-grey-6">
                 {{ transactionEmptyLabel }}
               </div>
-            </q-scroll-area>
+            </div>
           </q-card>
         </div>
       </div>
@@ -2035,13 +2035,17 @@ interface GroupCategory {
 .desktop-sidebar {
   position: sticky;
   top: 64px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 96px);
   overflow-y: auto;
 }
 
 .desktop-monthly-transactions {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 160px);
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -2097,7 +2101,9 @@ interface GroupCategory {
 
 .transaction-panel-scroll {
   flex: 1;
+  min-height: 0;
   padding: 0 8px 16px;
+  overflow-y: auto;
 }
 
 .transaction-panel-item {
