@@ -704,7 +704,9 @@ const searchInput = ref(null);
 const search = ref('');
 const debouncedSearch = ref('');
 const transactionSearch = ref('');
-const transactionFilter = ref<'matched' | 'unmatched' | 'deleted'>('matched');
+type TransactionFilterKey = 'matched' | 'unmatched' | 'deleted';
+
+const transactionFilter = ref<TransactionFilterKey>('unmatched');
 const monthOffset = ref(0);
 const menuOpen = ref(false);
 
@@ -1098,7 +1100,7 @@ const monthlyTransactions = computed(() => {
     });
 });
 
-const transactionCounts = computed(() => ({
+const transactionCounts = computed<Record<TransactionFilterKey, number>>(() => ({
   unmatched: monthlyTransactions.value.filter((tx) => !tx.deleted && tx.status === 'U').length,
   matched: monthlyTransactions.value.filter(
     (tx) => !tx.deleted && (tx.status === 'C' || tx.status === 'R'),
@@ -1111,6 +1113,23 @@ const transactionFilterOptions = computed(() => [
   { label: `Matched (${transactionCounts.value.matched})`, value: 'matched' },
   { label: `Deleted (${transactionCounts.value.deleted})`, value: 'deleted' },
 ]);
+
+watch(
+  transactionCounts,
+  (counts) => {
+    if (counts[transactionFilter.value] > 0) {
+      return;
+    }
+
+    const prioritizedFilters: TransactionFilterKey[] = ['unmatched', 'matched', 'deleted'];
+    const nextFilter = prioritizedFilters.find((key) => counts[key] > 0);
+
+    if (nextFilter) {
+      transactionFilter.value = nextFilter;
+    }
+  },
+  { immediate: true },
+);
 
 const filteredMonthTransactions = computed(() => {
   const searchTerm = transactionSearch.value.trim().toLowerCase();
