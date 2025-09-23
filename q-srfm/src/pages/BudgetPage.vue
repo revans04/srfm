@@ -489,38 +489,81 @@
             @update-transactions="updateTransactions"
           />
           <GoalDetailsPanel v-else-if="selectedGoal && !isEditing" :goal="selectedGoal" @close="selectedGoal = null" />
-          <q-card v-else flat bordered class="desktop-monthly-transactions">
-            <q-card-section class="row items-center no-wrap">
+          <q-card v-else flat bordered class="desktop-monthly-transactions modern-transaction-panel column">
+            <div class="transaction-panel-hero row items-center no-wrap">
+              <div class="col-auto">
+                <q-avatar size="44px" color="primary" text-color="white">
+                  <q-icon name="payments" size="24px" />
+                </q-avatar>
+              </div>
               <div class="col">
-                <div class="text-subtitle1">Transactions for {{ formatLongMonth(currentMonth) }}</div>
-                <div class="text-caption text-grey-7">
-                  {{ currentMonthTransactions.length }} {{ currentMonthTransactions.length === 1 ? 'transaction' : 'transactions' }}
-                </div>
+                <div class="hero-title">Transactions</div>
+                <div class="hero-subtitle">{{ formatLongMonth(currentMonth) }}</div>
+              </div>
+              <div class="col-auto text-right">
+                <div class="hero-count">{{ filteredMonthTransactions.length }}</div>
+                <div class="hero-count-label">{{ filteredMonthTransactions.length === 1 ? 'item' : 'items' }}</div>
               </div>
               <div class="col-auto">
-                <q-btn flat dense round icon="add" color="primary" @click="addTransaction" />
+                <q-btn round dense color="primary" icon="add" @click="addTransaction" />
               </div>
+            </div>
+
+            <q-card-section class="transaction-panel-tabs">
+              <q-btn-toggle
+                v-model="transactionFilter"
+                dense
+                spread
+                toggle-color="primary"
+                color="white"
+                text-color="primary"
+                class="transaction-filter-toggle"
+                :options="transactionFilterOptions"
+              />
             </q-card-section>
+
+            <q-card-section class="transaction-panel-search q-pt-none">
+              <q-input
+                v-model="transactionSearch"
+                dense
+                rounded
+                outlined
+                clearable
+                placeholder="Search transactions"
+                prepend-icon="search"
+              />
+            </q-card-section>
+
             <q-separator />
-            <q-list dense separator class="q-py-none">
-              <q-item v-for="transaction in currentMonthTransactions" :key="transaction.id" class="q-py-xs">
-                <q-item-section>
-                  <div class="text-body2 text-weight-medium">{{ transaction.merchant || 'Unnamed' }}</div>
-                  <div class="text-caption text-grey-7">
-                    {{ formatDateLong(transaction.date) }}
-                    <span v-if="transaction.categories?.length">
-                      • {{ formatTransactionCategories(transaction) }}
-                    </span>
-                  </div>
-                </q-item-section>
-                <q-item-section side class="text-right">
-                  <div :class="transaction.isIncome ? 'text-positive' : ''">{{ formatTransactionAmount(transaction) }}</div>
-                </q-item-section>
-              </q-item>
-              <q-item v-if="!currentMonthTransactions.length">
-                <q-item-section>No transactions recorded for this month.</q-item-section>
-              </q-item>
-            </q-list>
+
+            <q-scroll-area class="transaction-panel-scroll">
+              <q-list separator>
+                <q-item v-for="transaction in filteredMonthTransactions" :key="transaction.id" class="transaction-panel-item">
+                  <q-item-section avatar>
+                    <div class="transaction-date-pill">
+                      <div class="month">{{ formatTransactionMonthShort(transaction.date) }}</div>
+                      <div class="day">{{ formatTransactionDay(transaction.date) }}</div>
+                    </div>
+                  </q-item-section>
+                  <q-item-section>
+                    <div class="transaction-name">{{ transaction.merchant || 'Unnamed transaction' }}</div>
+                    <div class="transaction-meta">
+                      <span>{{ formatTransactionCategories(transaction) }}</span>
+                      <span class="dot" />
+                      <span>{{ formatDateLong(transaction.date) }}</span>
+                    </div>
+                  </q-item-section>
+                  <q-item-section side class="text-right">
+                    <div class="transaction-value" :class="transaction.isIncome ? 'text-positive' : 'text-negative'">
+                      {{ transaction.isIncome ? '+' : '-' }}{{ formatTransactionAmount(transaction) }}
+                    </div>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+              <div v-if="!filteredMonthTransactions.length" class="transaction-empty q-pa-lg text-center text-grey-6">
+                {{ transactionEmptyLabel }}
+              </div>
+            </q-scroll-area>
           </q-card>
         </div>
       </div>
@@ -663,6 +706,8 @@ const newMerchantName = ref('');
 const searchInput = ref(null);
 const search = ref('');
 const debouncedSearch = ref('');
+const transactionSearch = ref('');
+const transactionFilter = ref<'tracked' | 'new' | 'deleted'>('tracked');
 const monthOffset = ref(0);
 const menuOpen = ref(false);
 
@@ -1039,13 +1084,65 @@ const plannedIncome = computed(() => {
   return incomeItems.value.reduce((sum, t) => sum + (t.planned || 0), 0);
 });
 
-const currentMonthTransactions = computed(() => {
+const monthlyTransactions = computed(() => {
   const transactions = budget.value?.transactions ?? [];
   const monthPrefix = `${currentMonth.value}-`;
   return transactions
-    .filter((tx) => !tx.deleted && (!tx.date || tx.date.startsWith(monthPrefix)))
+    .filter((tx) => !tx.date || tx.date.startsWith(monthPrefix))
     .slice()
-    .sort((a, b) => b.date.localeCompare(a.date));
+    .sort((a, b) => {
+      const dateCompare = (b.date || '').localeCompare(a.date || '');
+      if (dateCompare !== 0) {
+        return dateCompare;
+      }
+      const merchantA = a.merchant || '';
+      const merchantB = b.merchant || '';
+      return merchantA.localeCompare(merchantB);
+    });
+});
+
+const transactionCounts = computed(() => ({
+  new: monthlyTransactions.value.filter((tx) => !tx.deleted && tx.status === 'U').length,
+  tracked: monthlyTransactions.value.filter((tx) => !tx.deleted && tx.status !== 'U').length,
+  deleted: monthlyTransactions.value.filter((tx) => !!tx.deleted).length,
+}));
+
+const transactionFilterOptions = computed(() => [
+  { label: `New (${transactionCounts.value.new})`, value: 'new' },
+  { label: `Tracked (${transactionCounts.value.tracked})`, value: 'tracked' },
+  { label: `Deleted (${transactionCounts.value.deleted})`, value: 'deleted' },
+]);
+
+const filteredMonthTransactions = computed(() => {
+  const searchTerm = transactionSearch.value.trim().toLowerCase();
+  return monthlyTransactions.value.filter((tx) => {
+    if (transactionFilter.value === 'new' && (tx.status !== 'U' || tx.deleted)) {
+      return false;
+    }
+    if (transactionFilter.value === 'tracked' && (tx.deleted || tx.status === 'U')) {
+      return false;
+    }
+    if (transactionFilter.value === 'deleted' && !tx.deleted) {
+      return false;
+    }
+    if (!searchTerm) {
+      return true;
+    }
+    const merchant = tx.merchant?.toLowerCase() ?? '';
+    const notes = tx.notes?.toLowerCase() ?? '';
+    const categories = tx.categories?.map((c) => c.category.toLowerCase()).join(' ') ?? '';
+    return merchant.includes(searchTerm) || notes.includes(searchTerm) || categories.includes(searchTerm);
+  });
+});
+
+const transactionEmptyLabel = computed(() => {
+  if (transactionFilter.value === 'new') {
+    return 'No new transactions this month.';
+  }
+  if (transactionFilter.value === 'deleted') {
+    return 'No deleted transactions this month.';
+  }
+  return 'No tracked transactions for this month yet.';
 });
 
 function monthExists(month: string) {
@@ -1077,6 +1174,30 @@ function formatTransactionCategories(transaction: Transaction): string {
 function formatTransactionAmount(transaction: Transaction): string {
   const amount = Math.abs(Number(transaction.amount) || 0);
   return formatCurrency(toDollars(toCents(amount)));
+}
+
+function formatTransactionMonthShort(dateStr: string): string {
+  const [yearStr, monthStr, dayStr] = dateStr.split('-');
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  const day = Number(dayStr);
+  const date = new Date(year, month - 1, day);
+  if (Number.isNaN(date.getTime())) {
+    return '--';
+  }
+  return date.toLocaleDateString('en-US', { month: 'short' });
+}
+
+function formatTransactionDay(dateStr: string): string {
+  const [yearStr, monthStr, dayStr] = dateStr.split('-');
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  const day = Number(dayStr);
+  const date = new Date(year, month - 1, day);
+  if (Number.isNaN(date.getTime())) {
+    return '--';
+  }
+  return date.toLocaleDateString('en-US', { day: '2-digit' });
 }
 
 const updateSearch = debounce((value: string) => {
@@ -1876,8 +1997,132 @@ interface GroupCategory {
 }
 
 .desktop-monthly-transactions {
+  display: flex;
+  flex-direction: column;
   max-height: calc(100vh - 160px);
-  overflow-y: auto;
+  overflow: hidden;
+}
+
+.modern-transaction-panel {
+  background: linear-gradient(180deg, rgba(33, 150, 243, 0.05) 0%, rgba(33, 150, 243, 0.02) 100%);
+  border-radius: 16px;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
+}
+
+.transaction-panel-hero {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  background: white;
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+}
+
+.transaction-panel-hero .hero-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.transaction-panel-hero .hero-subtitle {
+  font-size: 0.85rem;
+  color: #607d8b;
+}
+
+.transaction-panel-hero .hero-count {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.transaction-panel-hero .hero-count-label {
+  font-size: 0.75rem;
+  color: #90a4ae;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.transaction-panel-tabs {
+  padding: 16px 24px 0;
+}
+
+.transaction-filter-toggle .q-btn {
+  border-radius: 999px !important;
+  text-transform: none;
+  font-weight: 600;
+}
+
+.transaction-panel-search {
+  padding: 8px 24px 16px;
+}
+
+.transaction-panel-scroll {
+  flex: 1;
+  padding: 0 8px 16px;
+}
+
+.transaction-panel-item {
+  margin: 12px 8px 0;
+  padding: 8px 12px;
+  border-radius: 16px;
+  transition: background 0.2s ease;
+  background: white;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.transaction-panel-item:hover {
+  background: rgba(33, 150, 243, 0.12);
+}
+
+.transaction-date-pill {
+  width: 52px;
+  height: 60px;
+  border-radius: 18px;
+  background: rgba(33, 150, 243, 0.12);
+  color: #1f2937;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+.transaction-date-pill .month {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: #1e88e5;
+}
+
+.transaction-date-pill .day {
+  font-size: 1.1rem;
+}
+
+.transaction-name {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.transaction-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #607d8b;
+}
+
+.transaction-meta .dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #b0bec5;
+}
+
+.transaction-value {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.transaction-empty {
+  background: white;
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
 }
 
 .q-card {
