@@ -206,8 +206,8 @@
         </div>
       </div>
 
-      <q-page-sticky v-if="!isMobile" position="bottom-right" :offset="[24, 24]">
-        <q-btn round color="primary" icon="add" @click="addTransaction" />
+      <q-page-sticky v-if="!isMobile" position="bottom-right" :offset="[24, 24]" class="desktop-budget-fab">
+        <q-btn round color="primary" icon="add" class="desktop-budget-fab__btn" @click="addTransaction" />
       </q-page-sticky>
 
       <div class="row q-col-gutter-lg">
@@ -2039,6 +2039,14 @@ interface GroupCategory {
   flex-direction: column;
   max-height: calc(100vh - 96px);
   overflow-y: auto;
+}
+
+.desktop-budget-fab {
+  z-index: 1200;
+}
+
+.desktop-budget-fab__btn {
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.18);
 }
 
 .desktop-monthly-transactions {
