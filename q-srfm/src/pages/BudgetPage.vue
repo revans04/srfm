@@ -108,77 +108,83 @@
             <div class="col">
               <EntitySelector @change="loadBudgets" />
             </div>
-            <div class="col-auto">
-              <q-btn v-if="!isEditing" flat dense icon="edit" @click="isEditing = true" title="Edit Budget" />
-              <q-btn v-else flat dense icon="close" @click="isEditing = false" title="Cancel" />
-              <q-btn
-                v-if="!isEditing"
-                flat
-                dense
-                icon="delete"
-                color="negative"
-                title="Delete Budget"
-                class="q-ml-xs"
-                @click="confirmDeleteBudget"
-              />
-            </div>
           </div>
           <div class="row items-center q-mt-sm">
             <div class="col">
-              <h4 class="q-mb-none">
-                <span class="month-selector no-wrap">
-                  {{ formatLongMonth(currentMonth) }}
-                  <q-btn flat dense round icon="expand_more" size="sm">
-                    <q-menu
-                      v-model="menuOpen"
-                      anchor="bottom left"
-                      self="top left"
-                      :offset="[0, 4]"
-                      :close-on-content-click="false"
-                      @show="onMonthMenuShow"
-                      @hide="onMonthMenuHide"
-                    >
-                      <q-card class="month-menu">
-                        <div class="row no-wrap items-center q-px-sm q-py-xs border-bottom">
-                          <div class="col-auto">
-                            <q-btn flat dense icon="chevron_left" @click.stop="shiftMonths(-6)" />
-                          </div>
-                          <div class="col text-center">
-                            <span>{{ displayYear }}</span>
-                          </div>
-                          <div class="col-auto">
-                            <q-btn flat dense icon="chevron_right" @click.stop="shiftMonths(6)" />
-                          </div>
-                        </div>
-                        <div class="row">
-                          <div v-for="month in displayedMonths" :key="month.value" class="col-4">
-                            <div
-                              class="q-pa-xs q-ma-xs text-center cursor-pointer border rounded"
-                              :class="month.value === currentMonth ? 'bg-primary text-white' : 'text-primary'"
-                              :style="monthExists(month.value) ? 'border-style: solid' : 'border-style: dashed'"
-                              @click="selectMonth(month.value)"
-                            >
-                              {{ month.label }}
+              <div class="row items-center no-wrap">
+                <div class="col-auto">
+                  <h4 class="q-mb-none">
+                    <span class="month-selector no-wrap">
+                      {{ formatLongMonth(currentMonth) }}
+                      <q-btn flat dense round icon="expand_more" size="sm">
+                        <q-menu
+                          v-model="menuOpen"
+                          anchor="bottom left"
+                          self="top left"
+                          :offset="[0, 4]"
+                          :close-on-content-click="false"
+                          @show="onMonthMenuShow"
+                          @hide="onMonthMenuHide"
+                        >
+                          <q-card class="month-menu">
+                            <div class="row no-wrap items-center q-px-sm q-py-xs border-bottom">
+                              <div class="col-auto">
+                                <q-btn flat dense icon="chevron_left" @click.stop="shiftMonths(-6)" />
+                              </div>
+                              <div class="col text-center">
+                                <span>{{ displayYear }}</span>
+                              </div>
+                              <div class="col-auto">
+                                <q-btn flat dense icon="chevron_right" @click.stop="shiftMonths(6)" />
+                              </div>
                             </div>
-                          </div>
-                        </div>
-                      </q-card>
-                    </q-menu>
-                  </q-btn>
-                </span>
-              </h4>
-            </div>
-            <div class="col-auto">
-              <q-btn round dense icon="add" color="primary" @click="addTransaction" />
+                            <div class="row">
+                              <div v-for="month in displayedMonths" :key="month.value" class="col-4">
+                                <div
+                                  class="q-pa-xs q-ma-xs text-center cursor-pointer border rounded"
+                                  :class="month.value === currentMonth ? 'bg-primary text-white' : 'text-primary'"
+                                  :style="monthExists(month.value) ? 'border-style: solid' : 'border-style: dashed'"
+                                  @click="selectMonth(month.value)"
+                                >
+                                  {{ month.label }}
+                                </div>
+                              </div>
+                            </div>
+                          </q-card>
+                        </q-menu>
+                      </q-btn>
+                    </span>
+                  </h4>
+                </div>
+                <div class="col-auto q-ml-sm row items-center no-wrap q-gutter-xs">
+                  <div class="col-auto">
+                    <q-btn v-if="!isEditing" flat dense icon="edit" @click="isEditing = true" title="Edit Budget" />
+                    <q-btn v-else flat dense icon="close" @click="isEditing = false" title="Cancel" />
+                  </div>
+                  <div class="col-auto">
+                    <q-btn
+                      v-if="!isEditing"
+                      flat
+                      dense
+                      icon="delete"
+                      color="negative"
+                      title="Delete Budget"
+                      @click="confirmDeleteBudget"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="row items-center q-mt-xs">
-            <div class="col text-subtitle1" :class="{ 'text-negative': remainingToBudget < 0 }">
-              {{ formatCurrency(toDollars(toCents(Math.abs(remainingToBudget)))) }}
-              {{ remainingToBudget >= 0 ? 'left to budget' : 'over budget' }}
-            </div>
-            <div class="col-auto text-caption text-grey-7">
-              Monthly Savings: {{ formatCurrency(toDollars(toCents(savingsTotal))) }}
+          <div class="row q-mt-xs">
+            <div class="col">
+              <div class="text-subtitle1" :class="{ 'text-negative': remainingToBudget < 0 }">
+                {{ formatCurrency(toDollars(toCents(Math.abs(remainingToBudget)))) }}
+                {{ remainingToBudget >= 0 ? 'left to budget' : 'over budget' }}
+              </div>
+              <div class="text-caption text-grey-7 q-mt-xs">
+                Monthly Savings: {{ formatCurrency(toDollars(toCents(savingsTotal))) }}
+              </div>
             </div>
           </div>
           <div class="row q-mt-md">
@@ -199,6 +205,10 @@
           </div>
         </div>
       </div>
+
+      <q-page-sticky v-if="!isMobile" position="bottom-right" :offset="[24, 24]">
+        <q-btn round color="primary" icon="add" @click="addTransaction" />
+      </q-page-sticky>
 
       <div class="row q-col-gutter-lg">
         <!-- Main Content -->
