@@ -88,7 +88,7 @@
               {{ remainingToBudget >= 0 ? 'left to budget' : 'over budget' }}
             </div>
           </div>
-          <div class="q-px-md q-mt-md">
+          <div class="q-px-md q-mt-md" id="budget-search">
             <q-input
               dense
               label="Search"
@@ -104,80 +104,123 @@
 
         <!-- Desktop Header -->
         <div v-else class="col-12">
-          <!-- Entity Dropdown -->
-          <EntitySelector @change="loadBudgets" class="q-mb-sm" />
-          <h4>
-            <span class="month-selector no-wrap">
-              {{ formatLongMonth(currentMonth) }}
-              <q-btn flat dense round icon="expand_more" size="sm">
-                <q-menu
-                  v-model="menuOpen"
-                  anchor="bottom left"
-                  self="top left"
-                  :offset="[0, 4]"
-                  :close-on-content-click="false"
-                  @show="onMonthMenuShow"
-                  @hide="onMonthMenuHide"
-                >
-                  <q-card class="month-menu">
-                    <div class="row no-wrap items-center q-px-sm q-py-xs border-bottom">
-                      <div class="col-auto">
-                        <q-btn flat dense icon="chevron_left" @click.stop="shiftMonths(-6)" />
-                      </div>
-                      <div class="col text-center">
-                        <span>{{ displayYear }}</span>
-                      </div>
-                      <div class="col-auto">
-                        <q-btn flat dense icon="chevron_right" @click.stop="shiftMonths(6)" />
-                      </div>
-                    </div>
-                    <div class="row">
-                      <div v-for="month in displayedMonths" :key="month.value" class="col-4">
-                        <div
-                          class="q-pa-xs q-ma-xs text-center cursor-pointer border rounded"
-                          :class="month.value === currentMonth ? 'bg-primary text-white' : 'text-primary'"
-                          :style="monthExists(month.value) ? 'border-style: solid' : 'border-style: dashed'"
-                          @click="selectMonth(month.value)"
-                        >
-                          {{ month.label }}
-                        </div>
-                      </div>
-                    </div>
-                  </q-card>
-                </q-menu>
-              </q-btn>
-            </span>
-            <q-btn v-if="!isEditing" flat icon="edit" @click="isEditing = true" title="Edit Budget" />
-            <q-btn v-if="isEditing" flat icon="close" @click="isEditing = false" title="Cancel" />
-            <q-btn v-if="!isEditing" flat icon="delete" color="negative" title="Delete Budget" @click="confirmDeleteBudget" />
-          </h4>
-          <div class="q-pr-sm q-py-none" :class="{ 'text-left': true, 'text-negative': remainingToBudget < 0 }">
-            {{ formatCurrency(toDollars(toCents(Math.abs(remainingToBudget)))) }}
-            {{ remainingToBudget >= 0 ? 'left to budget' : 'over budget' }}
-            <div class="text-caption">Monthly Savings: {{ formatCurrency(toDollars(toCents(savingsTotal))) }}</div>
+          <div class="row items-center no-wrap q-pt-lg">
+            <div class="col">
+              <EntitySelector @change="loadBudgets" />
+            </div>
           </div>
-        </div>
-
-        <!-- Search shown only on desktop -->
-        <div v-if="!isMobile" class="col-12 col-sm-6">
-          <div class="q-my-sm bg-white q-pa-md" style="border-radius: 4px">
-            <q-input
-              dense
-              label="Search"
-              v-model="search"
-              clearable
-              ref="searchInput"
-              append-icon="search"
-              @keyup.enter="blurSearchInput"
-              @clear="clearSearch"
-            />
+          <div class="row items-center q-mt-sm">
+            <div class="col">
+              <div class="row items-center no-wrap">
+                <div class="col-auto">
+                  <h4 class="q-mb-none">
+                    <span class="month-selector no-wrap">
+                      {{ formatLongMonth(currentMonth) }}
+                      <q-btn flat dense round icon="expand_more" size="sm">
+                        <q-menu
+                          v-model="menuOpen"
+                          anchor="bottom left"
+                          self="top left"
+                          :offset="[0, 4]"
+                          :close-on-content-click="false"
+                          @show="onMonthMenuShow"
+                          @hide="onMonthMenuHide"
+                        >
+                          <q-card class="month-menu">
+                            <div class="row no-wrap items-center q-px-sm q-py-xs border-bottom">
+                              <div class="col-auto">
+                                <q-btn flat dense icon="chevron_left" @click.stop="shiftMonths(-6)" />
+                              </div>
+                              <div class="col text-center">
+                                <span>{{ displayYear }}</span>
+                              </div>
+                              <div class="col-auto">
+                                <q-btn flat dense icon="chevron_right" @click.stop="shiftMonths(6)" />
+                              </div>
+                            </div>
+                            <div class="row">
+                              <div v-for="month in displayedMonths" :key="month.value" class="col-4">
+                                <div
+                                  class="q-pa-xs q-ma-xs text-center cursor-pointer border rounded"
+                                  :class="month.value === currentMonth ? 'bg-primary text-white' : 'text-primary'"
+                                  :style="monthExists(month.value) ? 'border-style: solid' : 'border-style: dashed'"
+                                  @click="selectMonth(month.value)"
+                                >
+                                  {{ month.label }}
+                                </div>
+                              </div>
+                            </div>
+                          </q-card>
+                        </q-menu>
+                      </q-btn>
+                    </span>
+                  </h4>
+                </div>
+                <div class="col-auto q-ml-sm row items-center no-wrap q-gutter-xs">
+                  <div class="col-auto">
+                    <q-btn v-if="!isEditing" flat dense icon="edit" @click="isEditing = true" title="Edit Budget" />
+                    <q-btn v-else flat dense icon="close" @click="isEditing = false" title="Cancel" />
+                  </div>
+                  <div class="col-auto">
+                    <q-btn
+                      v-if="!isEditing"
+                      flat
+                      dense
+                      icon="delete"
+                      color="negative"
+                      title="Delete Budget"
+                      @click="confirmDeleteBudget"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="row q-mt-xs">
+            <div class="col">
+              <div class="text-subtitle1" :class="{ 'text-negative': remainingToBudget < 0 }">
+                {{ formatCurrency(toDollars(toCents(Math.abs(remainingToBudget)))) }}
+                {{ remainingToBudget >= 0 ? 'left to budget' : 'over budget' }}
+              </div>
+              <div class="text-caption text-grey-7 q-mt-xs">
+                Monthly Savings: {{ formatCurrency(toDollars(toCents(savingsTotal))) }}
+              </div>
+            </div>
+          </div>
+          <div class="row q-mt-md">
+            <div class="col-12 col-sm-6">
+              <div class="q-my-sm bg-white q-pa-md" style="border-radius: 4px" id="budget-search">
+                <q-input
+                  dense
+                  label="Search"
+                  v-model="search"
+                  clearable
+                  ref="searchInput"
+                  append-icon="search"
+                  @keyup.enter="blurSearchInput"
+                  @clear="clearSearch"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="row">
+      <q-page-sticky v-if="!isMobile" position="bottom-right" :offset="[24, 24]" class="desktop-budget-fab">
+        <q-btn round color="primary" icon="add" class="desktop-budget-fab__btn" @click="addTransaction" />
+      </q-page-sticky>
+
+      <div class="row q-col-gutter-lg">
         <!-- Main Content -->
-        <div :class="selectedCategory || selectedGoal ? (isMobile ? 'col-0 d-none' : 'col-8') : 'col-12'">
+        <div
+          :class="[
+            isMobile
+              ? selectedCategory || selectedGoal
+                ? 'col-0 d-none'
+                : 'col-12'
+              : 'col-12 col-lg-8',
+          ]"
+        >
           <!-- Budget Editing Form -->
           <q-card v-if="isEditing" flat bordered>
             <q-card-section>Edit Budget for {{ selectedEntity?.name || 'selected entity' }}</q-card-section>
@@ -237,7 +280,7 @@
           </q-card>
 
           <!-- Income Section -->
-          <q-card v-if="!isEditing && incomeItems" flat bordered class="q-mt-md">
+          <q-card v-if="!isEditing && incomeItems" id="income-section" flat bordered class="q-mt-md">
             <q-card-section>
               <div class="row text-bold">
                 <div class="col">Income for {{ selectedEntity?.name || 'selected entity' }}</div>
@@ -271,7 +314,7 @@
           <SavingsConversionPrompt v-if="legacySavingsCategories.length" :categories="legacySavingsCategories" @convert="onConvertLegacy" />
 
           <!-- Favorites Section -->
-          <q-card v-if="!isEditing && favoriteItems.length" flat bordered class="q-mt-md">
+          <q-card v-if="!isEditing && favoriteItems.length" id="favorites-section" flat bordered class="q-mt-md">
             <q-card-section>
               <div class="row text-primary">
                 <div class="col">Favorites</div>
@@ -313,17 +356,19 @@
             </q-card-section>
           </q-card>
 
-          <GoalsGroupCard
-            :entity-id="familyStore.selectedEntityId || ''"
-            @add="onAddGoal"
-            @contribute="onContribute"
-            @view="onViewGoal"
-          />
+          <div id="goals-section" class="q-mt-md">
+            <GoalsGroupCard
+              :entity-id="familyStore.selectedEntityId || ''"
+              @add="onAddGoal"
+              @contribute="onContribute"
+              @view="onViewGoal"
+            />
+          </div>
 
           <!-- Category Tables -->
-          <div v-if="!isEditing && catTransactions" class="row q-mt-lg">
+          <div v-if="!isEditing && catTransactions" id="groups-section" class="row q-mt-lg">
             <div class="col-12" v-for="(g, gIdx) in groups" :key="gIdx">
-              <q-card flat bordered>
+              <q-card flat bordered :id="`group-${gIdx}`">
                 <q-card-section>
                   <div class="row text-primary">
                     <div class="col">{{ g.group || 'Ungrouped' }}</div>
@@ -410,8 +455,8 @@
           </div>
         </div>
 
-        <!-- Transaction List Sidebar -->
-        <div v-if="selectedCategory && !isEditing" :class="isMobile ? 'col-12' : 'col-4'" class="sidebar">
+        <!-- Mobile Detail Panels -->
+        <div v-if="isMobile && selectedCategory && !isEditing" class="col-12 q-mt-md">
           <CategoryTransactions
             :category="selectedCategory"
             :transactions="budget.transactions"
@@ -425,9 +470,98 @@
           />
         </div>
 
-        <!-- Goal Details Sidebar -->
-        <div v-if="selectedGoal && !isEditing" :class="isMobile ? 'col-12' : 'col-4'" class="sidebar">
+        <div v-if="isMobile && selectedGoal && !isEditing" class="col-12 q-mt-md">
           <GoalDetailsPanel :goal="selectedGoal" @close="selectedGoal = null" />
+        </div>
+
+        <!-- Desktop Sidebar -->
+        <div v-if="!isMobile" class="col-12 col-lg-4 desktop-sidebar">
+          <CategoryTransactions
+            v-if="selectedCategory && !isEditing"
+            :category="selectedCategory"
+            :transactions="budget.transactions"
+            :target="selectedCategory.target || 0"
+            :budget-id="budgetId"
+            :user-id="userId"
+            :category-options="categoryOptions"
+            @close="selectedCategory = null"
+            @add-transaction="addTransactionForCategory(selectedCategory.name)"
+            @update-transactions="updateTransactions"
+          />
+          <GoalDetailsPanel v-else-if="selectedGoal && !isEditing" :goal="selectedGoal" @close="selectedGoal = null" />
+          <q-card v-else flat bordered class="desktop-monthly-transactions modern-transaction-panel column">
+            <div class="transaction-panel-hero row items-center no-wrap">
+              <div class="col-auto">
+                <q-avatar size="44px" color="primary" text-color="white">
+                  <q-icon name="payments" size="24px" />
+                </q-avatar>
+              </div>
+              <div class="col">
+                <div class="hero-title">Transactions</div>
+                <div class="hero-subtitle">{{ formatLongMonth(currentMonth) }}</div>
+              </div>
+              <div class="col-auto text-right">
+                <div class="hero-count">{{ filteredMonthTransactions.length }}</div>
+                <div class="hero-count-label">{{ filteredMonthTransactions.length === 1 ? 'item' : 'items' }}</div>
+              </div>
+            </div>
+
+            <q-card-section class="transaction-panel-tabs">
+              <q-btn-toggle
+                v-model="transactionFilter"
+                dense
+                spread
+                toggle-color="primary"
+                color="white"
+                text-color="primary"
+                class="transaction-filter-toggle"
+                :options="transactionFilterOptions"
+              />
+            </q-card-section>
+
+            <q-card-section class="transaction-panel-search q-pt-none">
+              <q-input
+                v-model="transactionSearch"
+                dense
+                rounded
+                outlined
+                clearable
+                placeholder="Search transactions"
+                prepend-icon="search"
+              />
+            </q-card-section>
+
+            <q-separator />
+
+            <div class="transaction-panel-scroll">
+              <q-list separator>
+                <q-item v-for="transaction in filteredMonthTransactions" :key="transaction.id" class="transaction-panel-item">
+                  <q-item-section avatar>
+                    <div class="transaction-date-pill">
+                      <div class="month">{{ formatTransactionMonthShort(transaction.date) }}</div>
+                      <div class="day">{{ formatTransactionDay(transaction.date) }}</div>
+                    </div>
+                  </q-item-section>
+                  <q-item-section>
+                    <div class="transaction-name">{{ transaction.merchant || 'Unnamed transaction' }}</div>
+                    <div class="transaction-meta">
+                      <span>{{ formatTransactionCategories(transaction) }}</span>
+                      <span class="dot" />
+                      <span>{{ formatTransactionDateLong(transaction.date) }}</span>
+                    </div>
+                  </q-item-section>
+                  <q-item-section side class="text-right">
+                    <div class="transaction-value" :class="transaction.isIncome ? 'text-positive' : 'text-negative'">
+                      {{ transaction.isIncome ? '+' : '-' }}{{ formatTransactionAmount(transaction) }}
+                    </div>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+              <div v-if="!filteredMonthTransactions.length" class="transaction-empty q-pa-lg text-center text-grey-6">
+                {{ transactionEmptyLabel }}
+              </div>
+            </div>
+          </q-card>
         </div>
       </div>
 
@@ -478,7 +612,7 @@ import GoalDetailsPanel from '../components/goals/GoalDetailsPanel.vue';
 import type { Transaction, Budget, IncomeTarget, BudgetCategoryTrx, BudgetCategory, Goal } from '../types';
 import { EntityType } from '../types';
 import version from '../version';
-import { toDollars, toCents, formatCurrency, todayISO, currentMonthISO } from '../utils/helpers';
+import { toDollars, toCents, formatCurrency, formatDateLong, todayISO, currentMonthISO } from '../utils/helpers';
 import { useAuthStore } from '../store/auth';
 import { useBudgetStore } from '../store/budget';
 import { useMerchantStore } from '../store/merchants';
@@ -569,6 +703,10 @@ const newMerchantName = ref('');
 const searchInput = ref(null);
 const search = ref('');
 const debouncedSearch = ref('');
+const transactionSearch = ref('');
+type TransactionFilterKey = 'matched' | 'unmatched' | 'deleted';
+
+const transactionFilter = ref<TransactionFilterKey>('unmatched');
 const monthOffset = ref(0);
 const menuOpen = ref(false);
 
@@ -945,6 +1083,89 @@ const plannedIncome = computed(() => {
   return incomeItems.value.reduce((sum, t) => sum + (t.planned || 0), 0);
 });
 
+const monthlyTransactions = computed(() => {
+  const transactions = budget.value?.transactions ?? [];
+  const monthPrefix = `${currentMonth.value}-`;
+  return transactions
+    .filter((tx) => !tx.date || tx.date.startsWith(monthPrefix))
+    .slice()
+    .sort((a, b) => {
+      const dateCompare = (b.date || '').localeCompare(a.date || '');
+      if (dateCompare !== 0) {
+        return dateCompare;
+      }
+      const merchantA = a.merchant || '';
+      const merchantB = b.merchant || '';
+      return merchantA.localeCompare(merchantB);
+    });
+});
+
+const transactionCounts = computed<Record<TransactionFilterKey, number>>(() => ({
+  unmatched: monthlyTransactions.value.filter((tx) => !tx.deleted && tx.status === 'U').length,
+  matched: monthlyTransactions.value.filter(
+    (tx) => !tx.deleted && (tx.status === 'C' || tx.status === 'R'),
+  ).length,
+  deleted: monthlyTransactions.value.filter((tx) => !!tx.deleted).length,
+}));
+
+const transactionFilterOptions = computed(() => [
+  { label: `Unmatched (${transactionCounts.value.unmatched})`, value: 'unmatched' },
+  { label: `Matched (${transactionCounts.value.matched})`, value: 'matched' },
+  { label: `Deleted (${transactionCounts.value.deleted})`, value: 'deleted' },
+]);
+
+watch(
+  transactionCounts,
+  (counts) => {
+    if (counts[transactionFilter.value] > 0) {
+      return;
+    }
+
+    const prioritizedFilters: TransactionFilterKey[] = ['unmatched', 'matched', 'deleted'];
+    const nextFilter = prioritizedFilters.find((key) => counts[key] > 0);
+
+    if (nextFilter) {
+      transactionFilter.value = nextFilter;
+    }
+  },
+  { immediate: true },
+);
+
+const filteredMonthTransactions = computed(() => {
+  const searchTerm = transactionSearch.value.trim().toLowerCase();
+  return monthlyTransactions.value.filter((tx) => {
+    if (transactionFilter.value === 'unmatched' && (tx.status !== 'U' || tx.deleted)) {
+      return false;
+    }
+    if (
+      transactionFilter.value === 'matched' &&
+      (tx.deleted || (tx.status !== 'C' && tx.status !== 'R'))
+    ) {
+      return false;
+    }
+    if (transactionFilter.value === 'deleted' && !tx.deleted) {
+      return false;
+    }
+    if (!searchTerm) {
+      return true;
+    }
+    const merchant = tx.merchant?.toLowerCase() ?? '';
+    const notes = tx.notes?.toLowerCase() ?? '';
+    const categories = tx.categories?.map((c) => c.category.toLowerCase()).join(' ') ?? '';
+    return merchant.includes(searchTerm) || notes.includes(searchTerm) || categories.includes(searchTerm);
+  });
+});
+
+const transactionEmptyLabel = computed(() => {
+  if (transactionFilter.value === 'unmatched') {
+    return 'No unmatched transactions this month.';
+  }
+  if (transactionFilter.value === 'deleted') {
+    return 'No deleted transactions this month.';
+  }
+  return 'No matched transactions for this month yet.';
+});
+
 function monthExists(month: string) {
   return availableBudgets.value.some((b) => b.month === month && matchesSelectedEntity(b));
 }
@@ -962,6 +1183,63 @@ function onCategoryRowClick(item: BudgetCategoryTrx) {
 
 function getCategoryInfo(name: string): BudgetCategory {
   return budget.value.categories.filter((c) => c.name == name)[0];
+}
+
+function formatTransactionCategories(transaction: Transaction): string {
+  if (!transaction.categories || transaction.categories.length === 0) {
+    return 'Uncategorized';
+  }
+  return transaction.categories.map((c) => c.category).join(', ');
+}
+
+function formatTransactionAmount(transaction: Transaction): string {
+  const amount = Math.abs(Number(transaction.amount) || 0);
+  return formatCurrency(toDollars(toCents(amount)));
+}
+
+function formatTransactionMonthShort(dateStr?: string): string {
+  if (!dateStr) {
+    return '--';
+  }
+
+  const [yearStr, monthStr, dayStr] = dateStr.split('-');
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  const day = Number(dayStr);
+  const date = new Date(year, month - 1, day);
+  if (Number.isNaN(date.getTime())) {
+    return '--';
+  }
+  return date.toLocaleDateString('en-US', { month: 'short' });
+}
+
+function formatTransactionDay(dateStr?: string): string {
+  if (!dateStr) {
+    return '--';
+  }
+
+  const [yearStr, monthStr, dayStr] = dateStr.split('-');
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  const day = Number(dayStr);
+  const date = new Date(year, month - 1, day);
+  if (Number.isNaN(date.getTime())) {
+    return '--';
+  }
+  return date.toLocaleDateString('en-US', { day: '2-digit' });
+}
+
+function formatTransactionDateLong(dateStr?: string): string {
+  if (!dateStr) {
+    return '--';
+  }
+
+  try {
+    return formatDateLong(dateStr);
+  } catch (err) {
+    console.warn('Unable to format transaction date', dateStr, err);
+    return '--';
+  }
 }
 
 const updateSearch = debounce((value: string) => {
@@ -1754,12 +2032,153 @@ interface GroupCategory {
 </script>
 
 <style scoped>
-.sidebar {
-  background-color: #f5f5f5;
-  height: calc(100vh - 64px);
+.desktop-sidebar {
   position: sticky;
   top: 64px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 96px);
   overflow-y: auto;
+}
+
+.desktop-budget-fab {
+  z-index: 1200;
+}
+
+.desktop-budget-fab__btn {
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.18);
+}
+
+.desktop-monthly-transactions {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.modern-transaction-panel {
+  background: linear-gradient(180deg, rgba(33, 150, 243, 0.05) 0%, rgba(33, 150, 243, 0.02) 100%);
+  border-radius: 16px;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
+}
+
+.transaction-panel-hero {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  background: white;
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+}
+
+.transaction-panel-hero .hero-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.transaction-panel-hero .hero-subtitle {
+  font-size: 0.85rem;
+  color: #607d8b;
+}
+
+.transaction-panel-hero .hero-count {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.transaction-panel-hero .hero-count-label {
+  font-size: 0.75rem;
+  color: #90a4ae;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.transaction-panel-tabs {
+  padding: 16px 24px 0;
+}
+
+.transaction-filter-toggle .q-btn {
+  border-radius: 999px !important;
+  text-transform: none;
+  font-weight: 600;
+}
+
+.transaction-panel-search {
+  padding: 8px 24px 16px;
+}
+
+.transaction-panel-scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 0 8px 16px;
+  overflow-y: auto;
+}
+
+.transaction-panel-item {
+  margin: 12px 8px 0;
+  padding: 8px 12px;
+  border-radius: 16px;
+  transition: background 0.2s ease;
+  background: white;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.transaction-panel-item:hover {
+  background: rgba(33, 150, 243, 0.12);
+}
+
+.transaction-date-pill {
+  width: 52px;
+  height: 60px;
+  border-radius: 18px;
+  background: rgba(33, 150, 243, 0.12);
+  color: #1f2937;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+.transaction-date-pill .month {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: #1e88e5;
+}
+
+.transaction-date-pill .day {
+  font-size: 1.1rem;
+}
+
+.transaction-name {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.transaction-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #607d8b;
+}
+
+.transaction-meta .dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #b0bec5;
+}
+
+.transaction-value {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.transaction-empty {
+  background: white;
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
 }
 
 .q-card {

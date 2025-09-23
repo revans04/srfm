@@ -1,100 +1,124 @@
 <!-- CategoryTransactions.vue -->
 <template>
-  <q-page fluid class="category-transactions text-black bg-grey-2 q-pa-md">
-    <!-- Header -->
-    <div class="row header items-center">
-      <div class="col">
-        <h2 class="category-title">{{ category.name }}</h2>
-      </div>
-      <div class="col-auto">
-        <q-btn flat dense icon="close" class="q-mt-sm" @click="$emit('close')" />
-      </div>
-    </div>
-
-    <!-- Progress Bar and Remaining -->
-    <div class="row q-mt-sm">
-      <div class="col">
-        <div class="progress-section">
-          <div class="progress-label">
-            <span :class="!isIncome && spent > category.target ? 'text-negative' : ''">{{ formatCurrency(toDollars(toCents(spent))) }}</span>
-            {{ isIncome ? 'received' : 'spent' }} of
-            {{ formatCurrency(toDollars(toCents(category.target))) }}
+  <div class="category-transactions-panel column">
+    <q-card flat bordered class="category-details-card column">
+      <div :class="heroClass">
+        <div class="hero-main row items-start no-wrap">
+          <q-avatar size="56px" class="hero-avatar" text-color="white" :color="isIncome ? 'positive' : 'primary'">
+            <q-icon :name="heroIcon" size="28px" />
+          </q-avatar>
+          <div class="hero-text column">
+            <div class="hero-name text-weight-medium">{{ category.name }}</div>
+            <div class="hero-progress-summary">{{ progressSummary }}</div>
           </div>
-          <q-linear-progress
-            v-model="progressPercentage"
-            height="10"
-            :color="isIncome ? 'green' : 'primary'"
-            background-color="#e0e0e0"
-            rounded
-          ></q-linear-progress>
         </div>
-        <div class="remaining-section" :class="{ 'over-budget': (remaining || 0) < 0 && !isIncome }">
-          <span class="remaining-label"> {{ category.group == 'Income' ? 'Left to Receive ' : 'Available ' }}</span>
-          <span class="remaining-amount">
-            {{ formatCurrency(toDollars(toCents(available))) }}
-          </span>
+        <div class="hero-amount text-right">
+          <div class="hero-amount-label">{{ availableLabel }}</div>
+          <div class="hero-amount-value" :class="{ 'text-negative': available < 0 && !isIncome }">
+            {{ availableDisplay }}
+          </div>
         </div>
+        <q-btn flat dense round icon="close" class="hero-close" text-color="white" @click="$emit('close')" />
       </div>
-    </div>
 
-    <!-- Transactions List -->
-    <div class="row flex-grow-1 q-mt-lg q-pl-none q-pr-none">
-      <div class="col transaction-list q-pl-none q-pr-none">
-        <h3 class="section-title q-pb-sm">Transactions ({{ categoryTransactions.length }})</h3>
-        <div class="q-mt-sm q-mb-lg bg-white q-pa-sm" style="border-radius: 4px">
-          <q-input v-model="search" label="Search" dense clearable prepend-icon="search"></q-input>
+      <q-card-section class="hero-progress-wrapper">
+        <q-linear-progress :value="progressPercentage / 100" color="white" track-color="white" class="hero-progress" />
+      </q-card-section>
+
+      <q-card-section class="summary-grid q-gutter-md">
+        <div class="summary-item">
+          <div class="summary-label">Budgeted</div>
+          <div class="summary-value">{{ budgetedDisplay }}</div>
         </div>
-        <q-card flat class="bg-white" rounded>
-          <q-list dense>
-            <q-item
-              v-for="transaction in categoryTransactions"
-              :key="transaction.id"
-              class="transaction-item"
-              dense
-              clickable
-              @click="editTransaction(transaction)"
-              style="border-bottom: 1px solid rgb(var(--v-theme-light))"
-            >
-              <q-item-section class="d-flex align-center">
-                <div class="row q-pa-sm align-center no-gutters">
-                  <div class="col q-pt-sm font-weight-bold text-primary col-2" style="min-width: 60px; font-size: 10px">
-                    {{ formatDate(transaction.date) }}
-                  </div>
-                  <div class="col text-truncate" style="flex: 1; min-width: 0">
-                    {{ transaction.merchant }}
-                  </div>
-                  <div class="col-auto q-ml-sm">
-                    <GoalFundingPill :goal="goalMap[transaction.fundedByGoalId || '']" />
-                  </div>
-                  <div class="col text-right no-wrap col-auto" :class="transaction.isIncome ? 'text-green' : ''" style="min-width: 60px">
-                    ${{ Math.abs(getCategoryAmount(transaction)).toFixed(2) }}
-                  </div>
-                  <div class="col text-right col-auto" style="min-width: 40px">
-                    <q-icon small name="delete" color="negative" title="Move to Trash" @click.stop="confirmDelete(transaction)" />
-                  </div>
-                </div>
-              </q-item-section>
-            </q-item>
-            <q-item v-if="categoryTransactions.length === 0">
-              <q-item-label>No transactions for this category.</q-item-label>
-            </q-item>
-          </q-list>
-        </q-card>
-      </div>
-    </div>
+        <div class="summary-item">
+          <div class="summary-label">{{ isIncome ? 'Received' : 'Spent' }}</div>
+          <div class="summary-value">{{ spentDisplay }}</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">{{ availableLabel }}</div>
+          <div class="summary-value" :class="{ 'text-negative': available < 0 && !isIncome }">
+            {{ availableDisplay }}
+          </div>
+        </div>
+        <div v-if="showCarryover" class="summary-item">
+          <div class="summary-label">Carryover</div>
+          <div class="summary-value">{{ carryoverDisplay }}</div>
+        </div>
+      </q-card-section>
 
-    <!-- Floating Action Button -->
-    <q-fab
-      icon="add"
-      :app="true"
-      color="primary"
-      @click="$emit('add-transaction')"
-      location="bottom left"
-      class="q-ml-sm"
-      :class="isMobile ? 'q-mb-xl' : 'q-mb-sm'"
-    />
+      <q-separator class="q-mx-md" />
 
-    <!-- Edit Transaction Dialog -->
+      <q-card-section class="transactions-header row items-center no-wrap q-mt-sm">
+        <div class="col">
+          <div class="transactions-title">Activity this month</div>
+          <div class="transactions-subtitle">
+            {{ categoryTransactions.length }}
+            {{ categoryTransactions.length === 1 ? 'transaction' : 'transactions' }}
+          </div>
+        </div>
+      </q-card-section>
+
+      <q-card-section class="q-pt-none q-px-md">
+        <q-input
+          v-model="search"
+          dense
+          rounded
+          outlined
+          clearable
+          placeholder="Search transactions"
+          prepend-icon="search"
+        />
+      </q-card-section>
+
+      <q-separator class="q-mx-md" />
+
+      <q-scroll-area class="transactions-scroll">
+        <q-list separator class="transactions-list">
+          <q-item
+            v-for="transaction in categoryTransactions"
+            :key="transaction.id"
+            clickable
+            class="transaction-row"
+            @click="editTransaction(transaction)"
+          >
+            <q-item-section avatar>
+              <div class="date-pill">
+                <div class="date-month">{{ formatDateMonth(transaction.date) }}</div>
+                <div class="date-day">{{ formatDateDay(transaction.date) }}</div>
+              </div>
+            </q-item-section>
+            <q-item-section>
+              <div class="transaction-merchant">{{ transaction.merchant || 'Unnamed transaction' }}</div>
+              <div class="transaction-meta">
+                <span>{{ formatTransactionCategories(transaction) }}</span>
+                <GoalFundingPill
+                  v-if="transaction.fundedByGoalId"
+                  :goal="goalMap[transaction.fundedByGoalId]"
+                  class="q-ml-xs"
+                />
+              </div>
+            </q-item-section>
+            <q-item-section side class="text-right">
+              <div class="transaction-amount" :class="transaction.isIncome ? 'text-positive' : 'text-negative'">
+                {{ transaction.isIncome ? '+' : '-' }}{{ formatTransactionAmount(transaction) }}
+              </div>
+              <q-btn
+                flat
+                dense
+                round
+                icon="delete"
+                color="negative"
+                @click.stop="confirmDelete(transaction)"
+              />
+            </q-item-section>
+          </q-item>
+        </q-list>
+        <div v-if="!categoryTransactions.length" class="q-pa-lg text-center text-grey-6">
+          No transactions for this category.
+        </div>
+      </q-scroll-area>
+    </q-card>
+
     <q-dialog v-model="showEditDialog" :width="!isMobile ? '550px' : undefined" :fullscreen="isMobile">
       <q-card dense>
         <q-card-section class="bg-primary row items-center q-py-md">
@@ -117,7 +141,6 @@
       </q-card>
     </q-dialog>
 
-    <!-- Delete Confirmation Dialog -->
     <q-dialog v-model="showDeleteDialog" max-width="400">
       <q-card>
         <q-card-section class="bg-negative q-py-sm">
@@ -134,7 +157,7 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
-  </q-page>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -206,11 +229,6 @@ const carryOverAndTarget = computed(() => {
   return (props.category.isFund ? Number(props.category.carryover) || 0 : 0) + Number(props.category.target) || 0;
 });
 
-const remaining = computed(() => {
-  if (props.category.group === 'Income') return (Number(spent.value) || 0) - (Number(props.category.target) || 0);
-  return (Number(props.category.target) || 0) - (Number(spent.value) || 0);
-});
-
 const available = computed(() => {
   if (props.category.group === 'Income') {
     const avail = (Number(spent.value) || 0) - carryOverAndTarget.value;
@@ -233,6 +251,29 @@ const isIncome = computed(() => {
   return props.category.group === 'Income';
 });
 
+const heroIcon = computed(() => {
+  if (props.category.isFund) return 'savings';
+  if (isIncome.value) return 'trending_up';
+  return 'payments';
+});
+
+const heroClass = computed(() => {
+  if (isIncome.value) return 'category-hero income';
+  if (props.category.isFund) return 'category-hero fund';
+  return 'category-hero expense';
+});
+
+const availableDisplay = computed(() => formatCurrency(toDollars(toCents(available.value))));
+const budgetedDisplay = computed(() => formatCurrency(toDollars(toCents(Number(props.category.target) || 0))));
+const spentDisplay = computed(() => formatCurrency(toDollars(toCents(Number(spent.value) || 0))));
+const carryoverDisplay = computed(() => formatCurrency(toDollars(toCents(Number(props.category.carryover) || 0))));
+const availableLabel = computed(() => (isIncome.value ? 'To receive' : 'Available'));
+const showCarryover = computed(() => props.category.isFund && !!Number(props.category.carryover));
+const progressSummary = computed(() => {
+  const totalPlanned = formatCurrency(toDollars(toCents(carryOverAndTarget.value)));
+  return `${spentDisplay.value} ${isIncome.value ? 'received' : 'spent'} of ${totalPlanned}`;
+});
+
 const categoryTransactions = computed(() => {
   let temp = props.transactions || [];
   temp = temp
@@ -244,12 +285,19 @@ const categoryTransactions = computed(() => {
       if (dateA.getTime() !== dateB.getTime()) {
         return dateB.getTime() - dateA.getTime();
       }
-      return a.merchant.localeCompare(b.merchant);
+      const merchantA = a.merchant || '';
+      const merchantB = b.merchant || '';
+      return merchantA.localeCompare(merchantB);
     });
   if (search.value && search.value !== '') {
-    temp = temp.filter(
-      (t) => t.merchant.toLowerCase().includes(search.value.toLowerCase()) || t.amount.toString().toLowerCase().includes(search.value.toLowerCase()),
-    );
+    const searchTerm = search.value.toLowerCase();
+    temp = temp.filter((t) => {
+      const merchantMatch = t.merchant?.toLowerCase().includes(searchTerm);
+      const amountMatch = t.amount?.toString().toLowerCase().includes(searchTerm);
+      const categoryMatch = t.categories?.some((split) => split.category.toLowerCase().includes(searchTerm));
+      const notesMatch = t.notes?.toLowerCase().includes(searchTerm);
+      return Boolean(merchantMatch || amountMatch || categoryMatch || notesMatch);
+    });
   }
   return temp;
 });
@@ -258,22 +306,74 @@ function isLastMonth(transaction: Transaction) {
   return transaction.budgetMonth == budgetStore.availableBudgetMonths[budgetStore.availableBudgetMonths.length - 1];
 }
 
-const getCategoryAmount = (transaction: Transaction) => {
-  const split = transaction.categories?.find((s) => s.category === props.category.name);
-  return split ? split.amount : 0;
-};
+function formatDate(dateStr?: string): string {
+  if (!dateStr) {
+    return '--';
+  }
 
-const formatDate = (dateStr: string): string => {
   const [yearStr, monthStr, dayStr] = dateStr.split('-');
   const year = Number(yearStr);
   const month = Number(monthStr);
   const day = Number(dayStr);
   const date = new Date(year, month - 1, day);
+  if (Number.isNaN(date.getTime())) {
+    return '--';
+  }
+
   return `
     ${date.toLocaleDateString('en-US', { month: 'short' })}
     ${date.toLocaleDateString('en-US', { day: 'numeric' })}
   `;
-};
+}
+
+function formatDateMonth(dateStr?: string): string {
+  if (!dateStr) {
+    return '--';
+  }
+
+  const [yearStr, monthStr, dayStr] = dateStr.split('-');
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  const day = Number(dayStr);
+  const date = new Date(year, month - 1, day);
+  if (Number.isNaN(date.getTime())) {
+    return '--';
+  }
+  return date.toLocaleDateString('en-US', { month: 'short' });
+}
+
+function formatDateDay(dateStr?: string): string {
+  if (!dateStr) {
+    return '--';
+  }
+
+  const [yearStr, monthStr, dayStr] = dateStr.split('-');
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  const day = Number(dayStr);
+  const date = new Date(year, month - 1, day);
+  if (Number.isNaN(date.getTime())) {
+    return '--';
+  }
+  return date.toLocaleDateString('en-US', { day: '2-digit' });
+}
+
+function formatTransactionCategories(transaction: Transaction): string {
+  if (!transaction.categories || transaction.categories.length === 0) {
+    return 'Uncategorized';
+  }
+  return transaction.categories.map((c) => c.category).join(', ');
+}
+
+function getCategoryAmount(transaction: Transaction): number {
+  const split = transaction.categories?.find((s) => s.category === props.category.name);
+  return split ? split.amount : 0;
+}
+
+function formatTransactionAmount(transaction: Transaction): string {
+  const amount = Math.abs(Number(getCategoryAmount(transaction)) || 0);
+  return formatCurrency(toDollars(toCents(amount)));
+}
 
 function editTransaction(transaction: Transaction) {
   transactionToEdit.value = { ...transaction };
@@ -326,8 +426,8 @@ function updateTransactions(updatedTransactions: Transaction[]) {
 }
 
 onMounted(() => {
-  const budget = budgetStore.getBudget(props.budgetId);
-  if (!budget) {
+  const foundBudget = budgetStore.getBudget(props.budgetId);
+  if (!foundBudget) {
     console.error(`Budget ${props.budgetId} not found in store`);
   }
   if (familyStore.selectedEntityId) {
@@ -337,4 +437,200 @@ onMounted(() => {
 });
 </script>
 
-<style scoped></style>
+<style scoped>
+.category-transactions-panel {
+  position: relative;
+  min-height: 100%;
+}
+
+.category-details-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--q-grey-1);
+}
+
+.category-hero {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 24px;
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+  color: white;
+  background: linear-gradient(135deg, rgba(63, 81, 181, 0.95), rgba(33, 150, 243, 0.85));
+}
+
+.category-hero.income {
+  background: linear-gradient(135deg, rgba(56, 142, 60, 0.95), rgba(129, 199, 132, 0.85));
+}
+
+.category-hero.fund {
+  background: linear-gradient(135deg, rgba(21, 101, 192, 0.95), rgba(100, 181, 246, 0.85));
+}
+
+.hero-main {
+  gap: 16px;
+}
+
+.hero-avatar {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.hero-text {
+  gap: 6px;
+}
+
+.hero-name {
+  font-size: 1.15rem;
+}
+
+.hero-progress-summary {
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.hero-amount {
+  text-align: right;
+}
+
+.hero-amount-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.hero-amount-value {
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.hero-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+.hero-progress-wrapper {
+  padding: 12px 24px 0;
+}
+
+.hero-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  padding: 16px 24px;
+}
+
+.summary-item {
+  background: white;
+  border-radius: 12px;
+  padding: 12px 16px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.summary-label {
+  font-size: 0.75rem;
+  color: #546e7a;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+
+.summary-value {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.transactions-header {
+  padding: 8px 24px;
+}
+
+.transactions-title {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.transactions-subtitle {
+  font-size: 0.85rem;
+  color: #607d8b;
+}
+
+.transactions-scroll {
+  flex: 1;
+  max-height: 420px;
+}
+
+.transactions-list {
+  padding: 0 8px 16px;
+}
+
+.transaction-row {
+  border-radius: 12px;
+  margin: 8px 8px 0;
+  padding: 4px 8px;
+  transition: background 0.2s ease;
+}
+
+.transaction-row:hover {
+  background: rgba(33, 150, 243, 0.08);
+}
+
+.date-pill {
+  width: 48px;
+  height: 56px;
+  border-radius: 18px;
+  background: white;
+  color: #1f2937;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+.date-month {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: #1e88e5;
+}
+
+.date-day {
+  font-size: 1.1rem;
+}
+
+.transaction-merchant {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.transaction-meta {
+  font-size: 0.85rem;
+  color: #607d8b;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.transaction-amount {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+@media (max-width: 1023px) {
+  .category-details-card {
+    height: auto;
+  }
+
+  .transactions-scroll {
+    max-height: none;
+  }
+}
+</style>
