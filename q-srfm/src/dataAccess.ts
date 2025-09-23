@@ -151,7 +151,6 @@ export class DataAccess {
 
   // Budget Functions
   async loadAccessibleBudgets(userId: string, entityId?: string): Promise<BudgetInfo[]> {
-    console.log('loadAccessibleBudgets', entityId);
     if (!userId) throw new Error('User ID is required to load budgets');
 
     const headers = await this.getAuthHeaders();
@@ -582,7 +581,7 @@ export class DataAccess {
   }
 
   async deleteImportedTransactionDoc(id: string): Promise<void> {
-    console.log(`Deleting imported transactions:`, id);
+    if (import.meta.env.DEV) console.debug('Deleting imported transactions:', id);
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/budget/imported-transactions/${id}`, {
       method: 'DELETE',
@@ -593,7 +592,7 @@ export class DataAccess {
       console.error(`Failed to update imported transaction doc: ${response.status} ${response.statusText} - ${errorText}`);
       throw new Error(`Failed to update imported transaction doc: ${response.statusText}`);
     }
-    console.log(`Imported transactions updated successfully`);
+    if (import.meta.env.DEV) console.debug('Imported transactions updated successfully');
   }
 
   async getImportedTransactions(): Promise<ImportedTransaction[]> {
@@ -657,7 +656,7 @@ export class DataAccess {
   }
 
   async getImportedTransactionsByAccountId(accountId: string, offset = 0, limit = 100): Promise<ImportedTransaction[]> {
-    console.log(`Fetching imported transactions for accountId: ${accountId}`);
+    if (import.meta.env.DEV) console.debug(`Fetching imported transactions for accountId: ${accountId}`);
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/budget/imported-transactions/by-account/${accountId}?offset=${offset}&limit=${limit}`, { headers });
     if (!response.ok) {
@@ -670,7 +669,7 @@ export class DataAccess {
   }
 
   async updateImportedTransactions(transactions: ImportedTransaction[]): Promise<void> {
-    console.log(`Updating imported transactions:`, transactions);
+    if (import.meta.env.DEV) console.debug('Updating imported transactions:', transactions);
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/budget/imported-transactions/batch-update`, {
       method: 'POST',
@@ -682,7 +681,7 @@ export class DataAccess {
       console.error(`Failed to update imported transactions: ${response.status} ${response.statusText} - ${errorText}`);
       throw new Error(`Failed to update imported transactions: ${response.statusText}`);
     }
-    console.log(`Imported transactions updated successfully`);
+    if (import.meta.env.DEV) console.debug('Imported transactions updated successfully');
   }
 
   async getBudgetTransactionsMatchedToImported(accountId: string): Promise<{ budgetId: string; transaction: Transaction }[]> {
@@ -698,7 +697,7 @@ export class DataAccess {
   }
 
   async updateBudgetTransactions(transactions: { budgetId: string; transaction: Transaction; oldId?: string }[]): Promise<void> {
-    console.log(`Updating budget transactions:`, transactions);
+    if (import.meta.env.DEV) console.debug('Updating budget transactions:', transactions);
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/budget/transactions/batch-update`, {
       method: 'POST',
@@ -710,7 +709,7 @@ export class DataAccess {
       console.error(`Failed to update budget transactions: ${response.status} ${response.statusText} - ${errorText}`);
       throw new Error(`Failed to update budget transactions: ${response.statusText}`);
     }
-    console.log(`Budget transactions updated successfully`);
+    if (import.meta.env.DEV) console.debug('Budget transactions updated successfully');
 
     const budgetStore = useBudgetStore();
     for (const { budgetId, transaction } of transactions) {
@@ -958,10 +957,11 @@ export class DataAccess {
 
   async saveSnapshot(familyId: string, snapshot: Snapshot): Promise<void> {
     const headers = await this.getAuthHeaders();
+    const payload = this.prepareSnapshotPayload(snapshot);
     const response = await fetch(`${this.apiBaseUrl}/families/${familyId}/snapshots/${snapshot.id}`, {
       method: 'PUT',
       headers,
-      body: JSON.stringify(snapshot),
+      body: JSON.stringify(payload),
     });
     if (!response.ok) throw new Error(`Failed to save snapshot: ${response.statusText}`);
   }
@@ -1195,14 +1195,14 @@ export class DataAccess {
 
   async getGoalDetails(goalId: string): Promise<{ contributions: GoalContribution[]; spend: GoalSpend[] }> {
     const headers = await this.getAuthHeaders();
-    console.log('Fetching goal details from API', goalId);
+    if (import.meta.env.DEV) console.debug('Fetching goal details from API', goalId);
     const response = await fetch(`${this.apiBaseUrl}/goals/${goalId}/details`, { headers });
     if (!response.ok) {
       console.error('Failed goal details response', response.status, await response.text());
       throw new Error(`Failed to load goal details: ${response.statusText}`);
     }
     const json = await response.json();
-    console.log('Received goal details', goalId, json);
+    if (import.meta.env.DEV) console.debug('Received goal details', goalId, json);
     return json;
   }
 
@@ -1254,6 +1254,50 @@ export class DataAccess {
       headers,
     });
     if (!response.ok) throw new Error(`Failed to remove entity member: ${response.statusText}`);
+  }
+
+  private prepareSnapshotPayload(snapshot: Snapshot): Record<string, unknown> {
+    const toIsoString = (value: unknown): string | undefined => {
+      if (!value) return undefined;
+      if (value instanceof Timestamp) return value.toDate().toISOString();
+      if (typeof value === 'string') return value;
+      if (typeof value === 'object') {
+        const maybe = value as { seconds?: unknown; nanoseconds?: unknown };
+        if (typeof maybe.seconds === 'number') {
+          const seconds = maybe.seconds;
+          const nanos = typeof maybe.nanoseconds === 'number' ? maybe.nanoseconds : 0;
+          const millis = seconds * 1000 + Math.floor(nanos / 1_000_000);
+          return new Date(millis).toISOString();
+        }
+        if ('toDate' in maybe && typeof (maybe as { toDate?: () => Date }).toDate === 'function') {
+          return (maybe as { toDate: () => Date }).toDate().toISOString();
+        }
+      }
+      return undefined;
+    };
+
+    const accounts = Array.isArray(snapshot.accounts)
+      ? snapshot.accounts.map((acct) => ({
+          accountId: acct.accountId,
+          accountName: acct.accountName,
+          type: acct.type,
+          value: Number(acct.value ?? 0),
+        }))
+      : [];
+
+    const payload: Record<string, unknown> = {
+      id: snapshot.id,
+      accounts,
+      netWorth: Number(snapshot.netWorth ?? 0),
+    };
+
+    const dateIso = toIsoString(snapshot.date);
+    if (dateIso) payload.date = dateIso;
+
+    const createdIso = toIsoString(snapshot.createdAt);
+    if (createdIso) payload.createdAt = createdIso;
+
+    return payload;
   }
 }
 

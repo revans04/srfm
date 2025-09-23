@@ -2,6 +2,7 @@ using FamilyBudgetApi.Models;
 using Google.Cloud.Firestore;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using NpgsqlTypes;
 using System;
 
 namespace FamilyBudgetApi.Services;
@@ -122,9 +123,22 @@ public class AccountService
         cmd.Parameters.AddWithValue("cat", account.Category);
         cmd.Parameters.AddWithValue("acctNum", (object?)account.AccountNumber ?? DBNull.Value);
         cmd.Parameters.AddWithValue("inst", account.Institution ?? string.Empty);
-        cmd.Parameters.AddWithValue("bal", (object?)account.Balance ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("ir", (object?)account.Details?.InterestRate ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("appVal", (object?)account.Details?.AppraisedValue ?? DBNull.Value);
+        if (account.Balance.HasValue && !double.IsNaN(account.Balance.Value) && !double.IsInfinity(account.Balance.Value))
+            cmd.Parameters.Add("bal", NpgsqlDbType.Numeric).Value = (decimal)account.Balance.Value;
+        else
+            cmd.Parameters.Add("bal", NpgsqlDbType.Numeric).Value = DBNull.Value;
+
+        var interestRate = account.Details?.InterestRate;
+        if (interestRate.HasValue && !double.IsNaN(interestRate.Value) && !double.IsInfinity(interestRate.Value))
+            cmd.Parameters.Add("ir", NpgsqlDbType.Numeric).Value = (decimal)interestRate.Value;
+        else
+            cmd.Parameters.Add("ir", NpgsqlDbType.Numeric).Value = DBNull.Value;
+
+        var appraisedValue = account.Details?.AppraisedValue;
+        if (appraisedValue.HasValue && !double.IsNaN(appraisedValue.Value) && !double.IsInfinity(appraisedValue.Value))
+            cmd.Parameters.Add("appVal", NpgsqlDbType.Numeric).Value = (decimal)appraisedValue.Value;
+        else
+            cmd.Parameters.Add("appVal", NpgsqlDbType.Numeric).Value = DBNull.Value;
         if (DateTime.TryParse(account.Details?.MaturityDate, out var mat))
             cmd.Parameters.AddWithValue("mat", mat);
         else
@@ -255,7 +269,7 @@ public class AccountService
         if (snapshot.Accounts != null)
         {
             const string insSql = @"INSERT INTO snapshot_accounts (snapshot_id, account_id, account_name, value, account_type)
-                                     VALUES (@sid,@aid,@name,@value,@type)";
+                                     VALUES (@sid,@aid,@name,@value,@type::account_type)";
             foreach (var acc in snapshot.Accounts)
             {
                 await using var insCmd = new NpgsqlCommand(insSql, conn);
@@ -367,4 +381,3 @@ public class AccountService
         return account;
     }
 }
-

@@ -1,27 +1,19 @@
-import { ref } from 'vue';
+import { defineStore } from 'pinia';
+import { computed, ref } from 'vue';
 import { v4 as uuidv4 } from 'uuid';
 import type { Goal, GoalContribution, GoalSpend } from '../types';
 import type { Timestamp } from 'firebase/firestore';
 import { dataAccess } from '../dataAccess';
 import { useFamilyStore } from '../store/family';
-import { useBudgetStore } from '../store/budget';
 
-/**
- * Composable for managing savings goals.
- *
- * Sample seed in console:
- * const { createGoal, addContribution } = useGoals();
- * const goal = await createGoal({ entityId: 'demo', name: 'Vacation', totalTarget: 5000, monthlyTarget: 500 });
- * await addContribution(goal.id, 500, '2025-08');
- */
-const goals = ref<Goal[]>([]);
-const contributions = ref<Record<string, GoalContribution[]>>({});
-const spends = ref<Record<string, GoalSpend[]>>({});
-const loadedEntities = new Set<string>();
+const useGoalsStore = defineStore('goals', () => {
+  const goals = ref<Goal[]>([]);
+  const contributions = ref<Record<string, GoalContribution[]>>({});
+  const spends = ref<Record<string, GoalSpend[]>>({});
+  const loadedEntities = ref<Set<string>>(new Set());
 
-export function useGoals() {
   const familyStore = useFamilyStore();
-  const budgetStore = useBudgetStore();
+
   function listGoals(entityId: string): Goal[] {
     return goals.value.filter((g) => g.entityId === entityId && !g.archived);
   }
@@ -39,23 +31,28 @@ export function useGoals() {
   }
 
   async function loadGoals(entityId: string): Promise<void> {
-    if (!entityId || loadedEntities.has(entityId)) return;
+    if (!entityId || loadedEntities.value.has(entityId)) return;
     const fetched = await dataAccess.getGoals(entityId);
     goals.value = goals.value.filter((g) => g.entityId !== entityId);
     goals.value.push(...fetched);
-    loadedEntities.add(entityId);
+    loadedEntities.value.add(entityId);
+  }
+
+  async function ensureEntity(entityId?: string): Promise<string> {
+    let resolvedEntityId = entityId || familyStore.selectedEntityId;
+    if (!resolvedEntityId) {
+      await familyStore.loadFamily();
+      resolvedEntityId = familyStore.selectedEntityId || familyStore.family?.entities?.[0]?.id || '';
+    }
+    if (!resolvedEntityId) {
+      throw new Error('Entity ID is required to create a goal');
+    }
+    return resolvedEntityId;
   }
 
   async function createGoal(data: Partial<Goal>): Promise<Goal> {
     const now = new Date();
-    let entityId = data.entityId || familyStore.selectedEntityId;
-    if (!entityId) {
-      await familyStore.loadFamily();
-      entityId = familyStore.selectedEntityId || familyStore.family?.entities?.[0]?.id || '';
-    }
-    if (!entityId) {
-      throw new Error('Entity ID is required to create a goal');
-    }
+    const entityId = await ensureEntity(data.entityId);
     const goal: Goal = {
       id: uuidv4(),
       name: data.name || '',
@@ -73,15 +70,6 @@ export function useGoals() {
     };
     goals.value.push(goal);
     await dataAccess.insertGoal(goal);
-
-    // Remove the legacy category from loaded budgets so it no longer shows in the UI
-    for (const [id, b] of budgetStore.budgets.entries()) {
-      if (!b.entityId || b.entityId === goal.entityId) {
-        const filtered = b.categories.filter((c) => c.name !== goal.name);
-        budgetStore.updateBudget(b.budgetId || id, { ...b, categories: filtered });
-      }
-    }
-
     return goal;
   }
 
@@ -103,9 +91,7 @@ export function useGoals() {
   }
 
   async function loadGoalDetails(goalId: string): Promise<void> {
-    console.log('Loading goal details', goalId);
     const details = await dataAccess.getGoalDetails(goalId);
-    console.log('Loaded goal details', goalId, details);
     contributions.value[goalId] = details.contributions;
     spends.value[goalId] = details.spend;
     recomputeRollups(goalId);
@@ -117,13 +103,7 @@ export function useGoals() {
     recomputeRollups(goalId);
   }
 
-  function addGoalSpend(
-    goalId: string,
-    txId: string,
-    amount: number,
-    txDate: string,
-    note?: string,
-  ): void {
+  function addGoalSpend(goalId: string, txId: string, amount: number, txDate: string, note?: string): void {
     const list = spends.value[goalId] || (spends.value[goalId] = []);
     list.push({ goalId, txId, amount, txDate, note });
     recomputeRollups(goalId);
@@ -136,7 +116,9 @@ export function useGoals() {
     const spent = (spends.value[goalId] || []).reduce((s, c) => s + c.amount, 0);
     goal.savedToDate = saved;
     goal.spentToDate = spent;
-    goal.status = saved >= goal.totalTarget ? 'reached' : goal.status;
+    if (goal.totalTarget > 0 && saved >= goal.totalTarget) {
+      goal.status = 'reached';
+    }
     goal.updatedAt = new Date() as unknown as Timestamp;
   }
 
@@ -152,8 +134,21 @@ export function useGoals() {
     return activeGoals.reduce((sum, g) => sum + g.monthlyTarget, 0);
   }
 
+  function resetForFamilyChange() {
+    goals.value = [];
+    contributions.value = {};
+    spends.value = {};
+    loadedEntities.value = new Set();
+  }
+
+  const goalCount = computed(() => goals.value.length);
+
   return {
+    goals,
+    goalCount,
     listGoals,
+    listContributions,
+    listGoalSpends,
     getGoal,
     loadGoals,
     createGoal,
@@ -165,7 +160,11 @@ export function useGoals() {
     recomputeRollups,
     monthlySavingsTotal,
     contributionsForMonth,
-    listContributions,
-    listGoalSpends,
+    resetForFamilyChange,
   };
+});
+
+export function useGoals() {
+  return useGoalsStore();
 }
+

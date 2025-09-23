@@ -319,9 +319,12 @@
             @contribute="onContribute"
             @view="onViewGoal"
           />
+        </div>
+      </div>
 
-          <!-- Category Tables -->
-          <div v-if="!isEditing && catTransactions" class="row q-mt-lg">
+      <div class="row q-gutter-lg q-mt-none items-start budget-content-row">
+        <div class="col-12 col-xl-8 content-main">
+          <div v-if="!isEditing && catTransactions" class="row">
             <div class="col-12" v-for="(g, gIdx) in groups" :key="gIdx">
               <q-card flat bordered>
                 <q-card-section>
@@ -349,7 +352,6 @@
                         />
                         <q-icon v-if="item.isFund" size="xs" class="q-mr-xs" color="primary" name="savings" />
                         <span>{{ item.name }}</span>
-                        <!-- show the convert icon if the category is in legacySavingsCategories -->
                         <q-icon
                           v-if="legacySavingsCategories.find((c) => c.name === item.name)"
                           name="change_circle"
@@ -410,8 +412,24 @@
           </div>
         </div>
 
+        <div
+          v-if="!isMobile && !selectedCategory && !selectedGoal && !isEditing"
+          class="col-12 col-xl-4 content-sidebar"
+        >
+          <BudgetTransactionList
+            :transactions="budget.transactions || []"
+            @edit="editBudgetTransaction"
+            @add="addTransaction"
+            @refresh="refreshCurrentBudget"
+          />
+        </div>
+
         <!-- Transaction List Sidebar -->
-        <div v-if="selectedCategory && !isEditing" :class="isMobile ? 'col-12' : 'col-4'" class="sidebar">
+        <div
+          v-if="selectedCategory && !isEditing"
+          :class="isMobile ? 'col-12' : 'col-12 col-xl-4 content-sidebar'"
+          class="sidebar"
+        >
           <CategoryTransactions
             :category="selectedCategory"
             :transactions="budget.transactions"
@@ -426,7 +444,11 @@
         </div>
 
         <!-- Goal Details Sidebar -->
-        <div v-if="selectedGoal && !isEditing" :class="isMobile ? 'col-12' : 'col-4'" class="sidebar">
+        <div
+          v-if="selectedGoal && !isEditing"
+          :class="isMobile ? 'col-12' : 'col-12 col-xl-4 content-sidebar'"
+          class="sidebar"
+        >
           <GoalDetailsPanel :goal="selectedGoal" @close="selectedGoal = null" />
         </div>
       </div>
@@ -471,6 +493,7 @@ import CategoryTransactions from '../components/CategoryTransactions.vue';
 import TransactionForm from '../components/TransactionForm.vue';
 import EntitySelector from '../components/EntitySelector.vue';
 import GoalsGroupCard from '../components/goals/GoalsGroupCard.vue';
+import BudgetTransactionList from '../components/BudgetTransactionList.vue';
 import GoalDialog from '../components/goals/GoalDialog.vue';
 import ContributeDialog from '../components/goals/ContributeDialog.vue';
 import SavingsConversionPrompt from '../components/goals/SavingsConversionPrompt.vue';
@@ -478,7 +501,7 @@ import GoalDetailsPanel from '../components/goals/GoalDetailsPanel.vue';
 import type { Transaction, Budget, IncomeTarget, BudgetCategoryTrx, BudgetCategory, Goal } from '../types';
 import { EntityType } from '../types';
 import version from '../version';
-import { toDollars, toCents, formatCurrency, todayISO, currentMonthISO } from '../utils/helpers';
+import { toDollars, toCents, formatCurrency, todayISO, currentMonthISO, toBudgetMonth } from '../utils/helpers';
 import { useAuthStore } from '../store/auth';
 import { useBudgetStore } from '../store/budget';
 import { useMerchantStore } from '../store/merchants';
@@ -690,12 +713,12 @@ async function convertLegacyCategory(cat: BudgetCategory, data: Partial<Goal>) {
       entityId: familyStore.selectedEntityId || '',
     });
 
-    // For each existing budget, add contributions for underspend and log goal spends
+    // For each existing budget, log contributions (from income splits) and goal spends (from expense splits).
+    // Then reconcile the monthly delta between budget target and total expenses as contribution (+) or withdrawal (-).
     for (const b of budgetStore.budgets.values()) {
       if (b.entityId && b.entityId !== goal.entityId) continue;
-      if (b.month > currentMonth.value) continue;
 
-      let spent = 0;
+      let spent = 0; // total expense allocations for this category in the budget
       for (const t of b.transactions) {
         if (t.deleted || t.isIncome) continue;
         for (const tc of t.categories) {
@@ -707,11 +730,28 @@ async function convertLegacyCategory(cat: BudgetCategory, data: Partial<Goal>) {
         }
       }
 
+      // Record income allocations as contributions
+      for (const t of b.transactions) {
+        if (t.deleted || !t.isIncome) continue;
+        for (const tc of t.categories) {
+          if (tc.category === goal.name) {
+            const amt = Math.abs(tc.amount);
+            addContribution(goal.id, amt, toBudgetMonth(t.date));
+          }
+        }
+      }
+
       const budgetCat = b.categories.find((c) => c.name === goal.name);
       if (budgetCat) {
         const diff = budgetCat.target - spent;
         if (diff > 0) {
+          // Under-spend: treat remaining target as contribution (savings)
           addContribution(goal.id, diff, b.month);
+        } else if (diff < 0) {
+          // Over-spend beyond target: treat the excess as an additional withdrawal from the goal
+          const adjId = `${b.budgetId || 'budget'}:${b.month}:goal-adjust:${goal.id}`;
+          const txDate = `${b.month}-28`;
+          addGoalSpend(goal.id, adjId, Math.abs(diff), txDate);
         }
       }
     }
@@ -803,7 +843,14 @@ const displayYear = computed(() => {
 const catTransactions = computed(() => {
   const catTransactions: BudgetCategoryTrx[] = [];
   if (budget.value && budget.value.categories) {
+    // Hide categories that have been converted into active savings goals
+    const goalNameSet = new Set((goals.value || []).filter((g) => !g.archived).map((g) => (g.name || '').toLowerCase()));
+
     budget.value.categories.forEach((c) => {
+      // Skip income categories here; they are handled separately in incomeItems
+      if (c.group && c.group.toLowerCase() === 'income') return;
+      // Hide categories linked to an active savings goal (matched by name)
+      if (goalNameSet.has((c.name || '').toLowerCase())) return;
       if (c.group !== 'Income') {
         catTransactions.push({
           ...c,
@@ -1329,6 +1376,25 @@ function updateTransactions(newTransactions: Transaction[]) {
   }
 }
 
+async function refreshCurrentBudget() {
+  const id = budgetId.value;
+  if (!id) return;
+  try {
+    const latest = await dataAccess.getBudget(id);
+    if (latest) {
+      budget.value = latest;
+      budgetStore.updateBudget(id, latest);
+      updateMerchants();
+      if (selectedCategory.value) {
+        selectedCategory.value = getCategoryInfo(selectedCategory.value.name);
+      }
+    }
+  } catch (error: unknown) {
+    const err = error as Error;
+    showSnackbar(`Failed to refresh transactions: ${err.message}`, 'negative');
+  }
+}
+
 function shiftMonths(offset: number) {
   monthOffset.value = offset;
 }
@@ -1469,6 +1535,8 @@ function removeCategory(index: number) {
   futureCategories.value = futureCategories.value.filter((c) => c !== removed);
 }
 
+
+
 async function applyFutureCategories() {
   const entityId = familyStore.selectedEntityId;
   const family = await familyStore.getFamily();
@@ -1582,6 +1650,19 @@ function addTransactionForCategory(category: string) {
     isIncomeTransaction.value = false;
     showTransactionDialog.value = true;
   }
+}
+
+function editBudgetTransaction(transaction: Transaction) {
+  const cloned: Transaction = {
+    ...transaction,
+    categories: transaction.categories?.map((c) => ({ ...c })) ?? [],
+    taxMetadata: transaction.taxMetadata ? [...transaction.taxMetadata] : [],
+  };
+  newTransaction.value = cloned;
+  isIncomeTransaction.value = transaction.isIncome;
+  selectedCategory.value = getCategoryInfo(transaction.categories?.[0]?.category || '');
+  selectedGoal.value = null;
+  showTransactionDialog.value = true;
 }
 
 async function duplicateCurrentMonth(month: string) {
@@ -1760,6 +1841,26 @@ interface GroupCategory {
   position: sticky;
   top: 64px;
   overflow-y: auto;
+}
+
+.budget-content-row {
+  flex-wrap: wrap;
+}
+
+@media (min-width: 1024px) {
+  .budget-content-row {
+    flex-wrap: nowrap !important;
+  }
+  .budget-content-row > .content-main {
+    flex: 0 0 65%;
+    max-width: 65%;
+  }
+  .budget-content-row > .content-sidebar {
+    flex: 0 0 35%;
+    max-width: 35%;
+    display: flex;
+    flex-direction: column;
+  }
 }
 
 .q-card {

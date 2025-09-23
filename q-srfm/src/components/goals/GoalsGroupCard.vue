@@ -25,8 +25,9 @@
               <div>{{ formatCurrency(goal.totalTarget - (goal.savedToDate || 0)) }}</div>
             </div>
           </div>
-          <div v-if="!isMobile" class="col-auto">
-            <q-btn flat dense label="Contribute" @click.stop="$emit('contribute', goal)" />
+          <div v-if="!isMobile" class="col-auto row items-center no-wrap">
+            <q-btn flat dense label="Contribute" class="q-mr-sm" @click.stop="$emit('contribute', goal)" />
+            <q-btn flat dense round icon="delete" color="negative" @click.stop="confirmArchive(goal)" />
           </div>
         </div>
       </div>
@@ -46,7 +47,7 @@ import type { Goal } from '../../types';
 
 const props = defineProps<{ entityId: string }>();
 const goals = ref<Goal[]>([]);
-const { listGoals, loadGoals } = useGoals();
+const { listGoals, loadGoals, archiveGoal } = useGoals();
 const $q = useQuasar();
 const isMobile = $q.platform.is.mobile;
 
@@ -65,4 +66,19 @@ watch(
     void load();
   },
 );
+
+function confirmArchive(goal: Goal) {
+  $q.dialog({
+    title: 'Delete Savings Goal',
+    message: `Are you sure you want to delete the goal "${goal.name}"? This hides it from budgets but keeps historical contributions/spend.`,
+    cancel: { label: 'Cancel' },
+    persistent: true,
+    ok: { label: 'Delete', color: 'negative' },
+  }).onOk(() => {
+    void (async () => {
+      await archiveGoal(goal.id);
+      await load();
+    })();
+  });
+}
 </script>

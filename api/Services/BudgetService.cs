@@ -2,7 +2,9 @@ using FamilyBudgetApi.Models;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 namespace FamilyBudgetApi.Services;
 
@@ -15,6 +17,9 @@ public class BudgetService
 {
     private readonly SupabaseDbService _db;
     private readonly ILogger<BudgetService> _logger;
+
+    private static bool? _goalLinkTableExists;
+    private static readonly SemaphoreSlim GoalsTableSemaphore = new(1, 1);
 
     public BudgetService(SupabaseDbService db, ILogger<BudgetService> logger)
     {
@@ -105,18 +110,39 @@ public class BudgetService
         return map.Values.ToList();
     }
 
+    private async Task<bool> GoalsBudgetCategoriesTableExistsAsync(NpgsqlConnection conn)
+    {
+        if (_goalLinkTableExists.HasValue)
+            return _goalLinkTableExists.Value;
+
+        await GoalsTableSemaphore.WaitAsync();
+        try
+        {
+            if (!_goalLinkTableExists.HasValue)
+            {
+                const string checkSql = "SELECT to_regclass('public.goals_budget_categories') IS NOT NULL";
+                await using var checkCmd = new NpgsqlCommand(checkSql, conn);
+                var result = await checkCmd.ExecuteScalarAsync();
+                _goalLinkTableExists = result is bool exists && exists;
+            }
+        }
+        catch
+        {
+            _goalLinkTableExists = false;
+        }
+        finally
+        {
+            GoalsTableSemaphore.Release();
+        }
+
+        return _goalLinkTableExists ?? false;
+    }
+
     private async Task LoadBudgetDetails(NpgsqlConnection conn, Budget budget, bool includeTransactions = true)
     {
         // Determine if the goals_budget_categories table exists so we can
         // gracefully fall back when the migration hasn't run yet.
-        var hasGoalTable = false;
-        const string checkSql = "SELECT to_regclass('public.goals_budget_categories') IS NOT NULL";
-        await using (var checkCmd = new NpgsqlCommand(checkSql, conn))
-        {
-            var result = await checkCmd.ExecuteScalarAsync();
-            if (result is bool b)
-                hasGoalTable = b;
-        }
+        var hasGoalTable = await GoalsBudgetCategoriesTableExistsAsync(conn);
 
         if (includeTransactions)
         {
@@ -189,12 +215,10 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
             }
         }
 
-        var sqlCats = hasGoalTable
-            ? @"SELECT name, target, is_fund, ""group"", carryover, favorite
-                                FROM budget_categories
-                                WHERE budget_id=@id
-                                  AND NOT EXISTS (SELECT 1 FROM goals_budget_categories gbc WHERE gbc.budget_cat_id = budget_categories.id)"
-            : @"SELECT name, target, is_fund, ""group"", carryover, favorite
+        // Always return all budget categories for a budget. We no longer
+        // exclude categories linked to goals here; the client can decide how
+        // to present goal-linked categories without losing historical data.
+        var sqlCats = @"SELECT name, target, is_fund, ""group"", carryover, favorite
                                 FROM budget_categories
                                 WHERE budget_id=@id";
         await using (var catCmd = new NpgsqlCommand(sqlCats, conn))
@@ -330,10 +354,10 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
     private DateTime? ParseDate(string? input) =>
         DateTime.TryParse(input, out var dt) ? dt : (DateTime?)null;
 
-    private async Task LogEdit(NpgsqlConnection conn, string budgetId, string userId, string userEmail, string action)
+    private async Task LogEdit(NpgsqlConnection conn, string budgetId, string userId, string userEmail, string action, NpgsqlTransaction? dbTx = null)
     {
         const string sql = "INSERT INTO budget_edit_history (budget_id, user_id, user_email, timestamp, action) VALUES (@bid,@uid,@email, now(), @action)";
-        await using var cmd = new NpgsqlCommand(sql, conn);
+        await using var cmd = new NpgsqlCommand(sql, conn, dbTx);
         cmd.Parameters.AddWithValue("bid", budgetId);
         cmd.Parameters.AddWithValue("uid", (object?)userId ?? DBNull.Value);
         cmd.Parameters.AddWithValue("email", (object?)userEmail ?? DBNull.Value);
@@ -384,21 +408,21 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
         }
     }
 
-    private async Task SaveCategories(NpgsqlConnection conn, string txId, List<TransactionCategory>? categories)
+    private async Task SaveCategories(NpgsqlConnection conn, string txId, List<TransactionCategory>? categories, NpgsqlTransaction? dbTx = null)
     {
         const string delSql = "DELETE FROM transaction_categories WHERE transaction_id=@id";
-        await using (var delCmd = new NpgsqlCommand(delSql, conn))
+        await using (var delCmd = new NpgsqlCommand(delSql, conn, dbTx))
         {
             delCmd.Parameters.AddWithValue("id", txId);
             await delCmd.ExecuteNonQueryAsync();
         }
 
-        if (categories == null) return;
+        if (categories == null || categories.Count == 0) return;
 
         const string insSql = "INSERT INTO transaction_categories (transaction_id, category_name, amount) VALUES (@id,@name,@amount)";
         foreach (var cat in categories)
         {
-            await using var insCmd = new NpgsqlCommand(insSql, conn);
+            await using var insCmd = new NpgsqlCommand(insSql, conn, dbTx);
             insCmd.Parameters.AddWithValue("id", txId);
             insCmd.Parameters.AddWithValue("name", cat.Category ?? string.Empty);
             insCmd.Parameters.AddWithValue("amount", (decimal)cat.Amount);
@@ -457,17 +481,22 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
 
     public async Task SaveTransaction(string budgetId, Transaction transaction, string userId, string userEmail)
     {
+        await using var conn = await _db.GetOpenConnectionAsync();
+        await SaveTransactionInternal(conn, budgetId, transaction, userId, userEmail);
+    }
+
+    private async Task SaveTransactionInternal(NpgsqlConnection conn, string budgetId, Transaction transaction, string userId, string userEmail, NpgsqlTransaction? dbTx = null)
+    {
         if (string.IsNullOrEmpty(transaction.Id))
             transaction.Id = Guid.NewGuid().ToString();
-        await using var conn = await _db.GetOpenConnectionAsync();
+
         const string sql = @"INSERT INTO transactions (id, budget_id, date, budget_month, merchant, amount, notes, recurring, recurring_interval, user_id, is_income, account_number, account_source, posted_date, imported_merchant, status, check_number, deleted, entity_id, created_at, updated_at)
 VALUES (@id,@budget_id,@date,@budget_month,@merchant,@amount,@notes,@recurring,@recurring_interval,@user_id,@is_income,@account_number,@account_source,@posted_date,@imported_merchant,@status,@check_number,@deleted,@entity_id, now(), now())
 ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date, budget_month=EXCLUDED.budget_month, merchant=EXCLUDED.merchant, amount=EXCLUDED.amount, notes=EXCLUDED.notes, recurring=EXCLUDED.recurring, recurring_interval=EXCLUDED.recurring_interval, user_id=EXCLUDED.user_id, is_income=EXCLUDED.is_income, account_number=EXCLUDED.account_number, account_source=EXCLUDED.account_source, posted_date=EXCLUDED.posted_date, imported_merchant=EXCLUDED.imported_merchant, status=EXCLUDED.status, check_number=EXCLUDED.check_number, deleted=EXCLUDED.deleted, entity_id=EXCLUDED.entity_id, updated_at=now();";
-        await using var cmd = new NpgsqlCommand(sql, conn);
+        await using var cmd = new NpgsqlCommand(sql, conn, dbTx);
         BindTransactionParameters(cmd.Parameters, budgetId, transaction);
         await cmd.ExecuteNonQueryAsync();
-        // Ensure at least one split row exists. If none provided, create a default
-        // split using either 'Income' or 'Uncategorized' for the full amount.
+
         var cats = transaction.Categories;
         if (cats == null || cats.Count == 0)
         {
@@ -480,19 +509,25 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
                 }
             };
         }
-        await SaveCategories(conn, transaction.Id, cats);
-        await LogEdit(conn, budgetId, userId, userEmail, "save-transaction");
+
+        await SaveCategories(conn, transaction.Id, cats, dbTx);
+        await LogEdit(conn, budgetId, userId, userEmail, "save-transaction", dbTx);
     }
 
     public async Task DeleteTransaction(string budgetId, string transactionId, string userId, string userEmail)
     {
         await using var conn = await _db.GetOpenConnectionAsync();
+        await DeleteTransactionInternal(conn, budgetId, transactionId, userId, userEmail);
+    }
+
+    private async Task DeleteTransactionInternal(NpgsqlConnection conn, string budgetId, string transactionId, string userId, string userEmail, NpgsqlTransaction? dbTx = null)
+    {
         const string sql = "DELETE FROM transaction_categories WHERE transaction_id=@id; DELETE FROM transactions WHERE id=@id AND budget_id=@bid";
-        await using var cmd = new NpgsqlCommand(sql, conn);
+        await using var cmd = new NpgsqlCommand(sql, conn, dbTx);
         cmd.Parameters.AddWithValue("id", transactionId);
         cmd.Parameters.AddWithValue("bid", budgetId);
         await cmd.ExecuteNonQueryAsync();
-        await LogEdit(conn, budgetId, userId, userEmail, "delete-transaction");
+        await LogEdit(conn, budgetId, userId, userEmail, "delete-transaction", dbTx);
     }
 
     public async Task BatchSaveTransactions(string budgetId, List<Transaction> transactions, string userId, string userEmail)
@@ -617,6 +652,8 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
         cmd.Parameters.AddWithValue("uid", userId);
         await using var reader = await cmd.ExecuteReaderAsync();
         var map = new Dictionary<Guid, ImportedTransactionDoc>();
+        var transactionsMap = new Dictionary<Guid, List<ImportedTransaction>>();
+
         while (await reader.ReadAsync())
         {
             var docId = reader.GetGuid(0);
@@ -630,11 +667,12 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
                     importedTransactions = Array.Empty<ImportedTransaction>()
                 };
                 map[docId] = doc;
+                transactionsMap[docId] = new List<ImportedTransaction>();
             }
 
             if (!reader.IsDBNull(3))
             {
-                var list = doc.importedTransactions.ToList();
+                var list = transactionsMap[docId];
                 list.Add(new ImportedTransaction
                 {
                     Id = reader.GetString(3),
@@ -652,9 +690,21 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
                     Matched = reader.IsDBNull(15) ? false : reader.GetBoolean(15),
                     Ignored = reader.IsDBNull(16) ? false : reader.GetBoolean(16)
                 });
-                doc.importedTransactions = list.ToArray();
             }
         }
+
+        foreach (var kvp in map)
+        {
+            if (transactionsMap.TryGetValue(kvp.Key, out var items) && items.Count > 0)
+            {
+                kvp.Value.importedTransactions = items.ToArray();
+            }
+            else
+            {
+                kvp.Value.importedTransactions = Array.Empty<ImportedTransaction>();
+            }
+        }
+
         return map.Values.ToList();
     }
 
@@ -761,15 +811,31 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
 
     public async Task BatchUpdateBudgetTransactions(List<TransactionWithBudgetId> transactions, string userId, string userEmail)
     {
-        foreach (var item in transactions)
+        await using var conn = await _db.GetOpenConnectionAsync();
+        await using var dbTx = await conn.BeginTransactionAsync();
+
+        try
         {
-            var tx = item.Transaction;
-            if (string.IsNullOrEmpty(tx.Id)) tx.Id = Guid.NewGuid().ToString();
-            await SaveTransaction(item.BudgetId, tx, userId, userEmail);
-            if (!string.IsNullOrEmpty(item.OldId) && item.OldId != tx.Id)
+            foreach (var item in transactions)
             {
-                await DeleteTransaction(item.BudgetId, item.OldId, userId, userEmail);
+                var tx = item.Transaction;
+                if (string.IsNullOrEmpty(tx.Id))
+                    tx.Id = Guid.NewGuid().ToString();
+
+                await SaveTransactionInternal(conn, item.BudgetId, tx, userId, userEmail, dbTx);
+
+                if (!string.IsNullOrEmpty(item.OldId) && item.OldId != tx.Id)
+                {
+                    await DeleteTransactionInternal(conn, item.BudgetId, item.OldId, userId, userEmail, dbTx);
+                }
             }
+
+            await dbTx.CommitAsync();
+        }
+        catch
+        {
+            await dbTx.RollbackAsync();
+            throw;
         }
     }
 
