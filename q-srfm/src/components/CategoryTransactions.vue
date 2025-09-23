@@ -306,19 +306,31 @@ function isLastMonth(transaction: Transaction) {
   return transaction.budgetMonth == budgetStore.availableBudgetMonths[budgetStore.availableBudgetMonths.length - 1];
 }
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr?: string): string {
+  if (!dateStr) {
+    return '--';
+  }
+
   const [yearStr, monthStr, dayStr] = dateStr.split('-');
   const year = Number(yearStr);
   const month = Number(monthStr);
   const day = Number(dayStr);
   const date = new Date(year, month - 1, day);
+  if (Number.isNaN(date.getTime())) {
+    return '--';
+  }
+
   return `
     ${date.toLocaleDateString('en-US', { month: 'short' })}
     ${date.toLocaleDateString('en-US', { day: 'numeric' })}
   `;
 }
 
-function formatDateMonth(dateStr: string): string {
+function formatDateMonth(dateStr?: string): string {
+  if (!dateStr) {
+    return '--';
+  }
+
   const [yearStr, monthStr, dayStr] = dateStr.split('-');
   const year = Number(yearStr);
   const month = Number(monthStr);
@@ -330,7 +342,11 @@ function formatDateMonth(dateStr: string): string {
   return date.toLocaleDateString('en-US', { month: 'short' });
 }
 
-function formatDateDay(dateStr: string): string {
+function formatDateDay(dateStr?: string): string {
+  if (!dateStr) {
+    return '--';
+  }
+
   const [yearStr, monthStr, dayStr] = dateStr.split('-');
   const year = Number(yearStr);
   const month = Number(monthStr);

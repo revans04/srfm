@@ -547,7 +547,7 @@
                     <div class="transaction-meta">
                       <span>{{ formatTransactionCategories(transaction) }}</span>
                       <span class="dot" />
-                      <span>{{ formatDateLong(transaction.date) }}</span>
+                      <span>{{ formatTransactionDateLong(transaction.date) }}</span>
                     </div>
                   </q-item-section>
                   <q-item-section side class="text-right">
@@ -1197,7 +1197,11 @@ function formatTransactionAmount(transaction: Transaction): string {
   return formatCurrency(toDollars(toCents(amount)));
 }
 
-function formatTransactionMonthShort(dateStr: string): string {
+function formatTransactionMonthShort(dateStr?: string): string {
+  if (!dateStr) {
+    return '--';
+  }
+
   const [yearStr, monthStr, dayStr] = dateStr.split('-');
   const year = Number(yearStr);
   const month = Number(monthStr);
@@ -1209,7 +1213,11 @@ function formatTransactionMonthShort(dateStr: string): string {
   return date.toLocaleDateString('en-US', { month: 'short' });
 }
 
-function formatTransactionDay(dateStr: string): string {
+function formatTransactionDay(dateStr?: string): string {
+  if (!dateStr) {
+    return '--';
+  }
+
   const [yearStr, monthStr, dayStr] = dateStr.split('-');
   const year = Number(yearStr);
   const month = Number(monthStr);
@@ -1219,6 +1227,19 @@ function formatTransactionDay(dateStr: string): string {
     return '--';
   }
   return date.toLocaleDateString('en-US', { day: '2-digit' });
+}
+
+function formatTransactionDateLong(dateStr?: string): string {
+  if (!dateStr) {
+    return '--';
+  }
+
+  try {
+    return formatDateLong(dateStr);
+  } catch (err) {
+    console.warn('Unable to format transaction date', dateStr, err);
+    return '--';
+  }
 }
 
 const updateSearch = debounce((value: string) => {
