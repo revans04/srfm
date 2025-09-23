@@ -504,9 +504,6 @@
                 <div class="hero-count">{{ filteredMonthTransactions.length }}</div>
                 <div class="hero-count-label">{{ filteredMonthTransactions.length === 1 ? 'item' : 'items' }}</div>
               </div>
-              <div class="col-auto">
-                <q-btn round dense color="primary" icon="add" @click="addTransaction" />
-              </div>
             </div>
 
             <q-card-section class="transaction-panel-tabs">
