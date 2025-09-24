@@ -1,6 +1,6 @@
 <template>
   <div>
-    <q-banner v-if="show" class="bg-warning text-dark q-mb-md" rounded>
+    <q-banner v-if="show" class="bg-warning text-dark q-my-md" rounded>
       <div class="row items-center no-wrap">
         <div class="col">
           <div class="text-body2">We detected legacy Savings categories. Convert them to the new Savings Goals feature.</div>

@@ -203,13 +203,14 @@ function onRowClick(row: LedgerRow) {
   position: sticky;
   top: var(--header-offset);
   z-index: 2;
-  background: #fff;
+  background: var(--color-surface-card);
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.08);
 }
 .row-striped:nth-child(even) {
-  background: rgba(0, 0, 0, 0.02);
+  background: rgba(37, 99, 235, 0.04);
 }
 .dup-row {
-  background: #fff4e5;
+  background: rgba(255, 196, 140, 0.18);
 }
 .truncate {
   display: inline-block;

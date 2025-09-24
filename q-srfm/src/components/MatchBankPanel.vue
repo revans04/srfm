@@ -1,5 +1,5 @@
 <template>
-  <div class="relative-position" :class="{ 'cursor-wait': !ready }" style="min-height: 200px">
+  <div class="relative-position panel-card match-panel" :class="{ 'cursor-wait': !ready }">
     <MatchBankTransactionsDialog
       v-if="ready"
       :remaining-imported-transactions="remainingImportedTransactions"
@@ -90,3 +90,9 @@ async function loadData() {
 
 onMounted(loadData);
 </script>
+
+<style scoped>
+.match-panel {
+  min-height: 220px;
+}
+</style>

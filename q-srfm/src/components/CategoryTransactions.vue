@@ -12,12 +12,6 @@
             <div class="hero-progress-summary">{{ progressSummary }}</div>
           </div>
         </div>
-        <div class="hero-amount text-right">
-          <div class="hero-amount-label">{{ availableLabel }}</div>
-          <div class="hero-amount-value" :class="{ 'text-negative': available < 0 && !isIncome }">
-            {{ availableDisplay }}
-          </div>
-        </div>
         <q-btn flat dense round icon="close" class="hero-close" text-color="white" @click="$emit('close')" />
       </div>
 
@@ -26,14 +20,6 @@
       </q-card-section>
 
       <q-card-section class="summary-grid q-gutter-md">
-        <div class="summary-item">
-          <div class="summary-label">Budgeted</div>
-          <div class="summary-value">{{ budgetedDisplay }}</div>
-        </div>
-        <div class="summary-item">
-          <div class="summary-label">{{ isIncome ? 'Received' : 'Spent' }}</div>
-          <div class="summary-value">{{ spentDisplay }}</div>
-        </div>
         <div class="summary-item">
           <div class="summary-label">{{ availableLabel }}</div>
           <div class="summary-value" :class="{ 'text-negative': available < 0 && !isIncome }">
@@ -72,51 +58,53 @@
 
       <q-separator class="q-mx-md" />
 
-      <q-scroll-area class="transactions-scroll">
-        <q-list separator class="transactions-list">
-          <q-item
-            v-for="transaction in categoryTransactions"
-            :key="transaction.id"
-            clickable
-            class="transaction-row"
-            @click="editTransaction(transaction)"
-          >
-            <q-item-section avatar>
-              <div class="date-pill">
-                <div class="date-month">{{ formatDateMonth(transaction.date) }}</div>
-                <div class="date-day">{{ formatDateDay(transaction.date) }}</div>
-              </div>
-            </q-item-section>
-            <q-item-section>
-              <div class="transaction-merchant">{{ transaction.merchant || 'Unnamed transaction' }}</div>
-              <div class="transaction-meta">
-                <span>{{ formatTransactionCategories(transaction) }}</span>
-                <GoalFundingPill
-                  v-if="transaction.fundedByGoalId"
-                  :goal="goalMap[transaction.fundedByGoalId]"
-                  class="q-ml-xs"
+      <q-card-section class="category-transactions-scroll q-pt-none q-px-md q-pb-md">
+        <q-scroll-area class="category-transactions-scroll__area">
+          <q-list separator>
+            <q-item
+              v-for="transaction in categoryTransactions"
+              :key="transaction.id"
+              clickable
+              class="transaction-row"
+              @click="editTransaction(transaction)"
+            >
+              <q-item-section avatar>
+                <div class="date-pill">
+                  <div class="date-month">{{ formatDateMonth(transaction.date) }}</div>
+                  <div class="date-day">{{ formatDateDay(transaction.date) }}</div>
+                </div>
+              </q-item-section>
+              <q-item-section>
+                <div class="transaction-merchant">{{ transaction.merchant || 'Unnamed transaction' }}</div>
+                <div class="transaction-meta">
+                  <span>{{ formatTransactionCategories(transaction) }}</span>
+                  <GoalFundingPill
+                    v-if="transaction.fundedByGoalId"
+                    :goal="goalMap[transaction.fundedByGoalId]"
+                    class="q-ml-xs"
+                  />
+                </div>
+              </q-item-section>
+              <q-item-section side class="text-right">
+                <div class="transaction-amount" :class="transaction.isIncome ? 'text-positive' : 'text-negative'">
+                  {{ transaction.isIncome ? '+' : '-' }}{{ formatTransactionAmount(transaction) }}
+                </div>
+                <q-btn
+                  flat
+                  dense
+                  round
+                  icon="delete"
+                  color="negative"
+                  @click.stop="confirmDelete(transaction)"
                 />
-              </div>
-            </q-item-section>
-            <q-item-section side class="text-right">
-              <div class="transaction-amount" :class="transaction.isIncome ? 'text-positive' : 'text-negative'">
-                {{ transaction.isIncome ? '+' : '-' }}{{ formatTransactionAmount(transaction) }}
-              </div>
-              <q-btn
-                flat
-                dense
-                round
-                icon="delete"
-                color="negative"
-                @click.stop="confirmDelete(transaction)"
-              />
-            </q-item-section>
-          </q-item>
-        </q-list>
-        <div v-if="!categoryTransactions.length" class="q-pa-lg text-center text-grey-6">
-          No transactions for this category.
-        </div>
-      </q-scroll-area>
+              </q-item-section>
+            </q-item>
+          </q-list>
+          <div v-if="!categoryTransactions.length" class="q-pa-lg text-center text-grey-6">
+            No transactions for this category.
+          </div>
+        </q-scroll-area>
+      </q-card-section>
     </q-card>
 
     <q-dialog v-model="showEditDialog" :width="!isMobile ? '550px' : undefined" :fullscreen="isMobile">
@@ -264,7 +252,6 @@ const heroClass = computed(() => {
 });
 
 const availableDisplay = computed(() => formatCurrency(toDollars(toCents(available.value))));
-const budgetedDisplay = computed(() => formatCurrency(toDollars(toCents(Number(props.category.target) || 0))));
 const spentDisplay = computed(() => formatCurrency(toDollars(toCents(Number(spent.value) || 0))));
 const carryoverDisplay = computed(() => formatCurrency(toDollars(toCents(Number(props.category.carryover) || 0))));
 const availableLabel = computed(() => (isIncome.value ? 'To receive' : 'Available'));
@@ -444,10 +431,10 @@ onMounted(() => {
 }
 
 .category-details-card {
-  display: flex;
-  flex-direction: column;
   height: 100%;
   background: var(--q-grey-1);
+  display: flex;
+  flex-direction: column;
 }
 
 .category-hero {
@@ -552,6 +539,30 @@ onMounted(() => {
   padding: 8px 24px;
 }
 
+.category-transactions-scroll {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.category-transactions-scroll__area {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.category-transactions-scroll__area :deep(.q-scrollarea) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.category-transactions-scroll__area :deep(.q-scrollarea__container) {
+  flex: 1;
+  min-height: 0;
+}
+
 .transactions-title {
   font-size: 1rem;
   font-weight: 600;
@@ -560,15 +571,6 @@ onMounted(() => {
 .transactions-subtitle {
   font-size: 0.85rem;
   color: #607d8b;
-}
-
-.transactions-scroll {
-  flex: 1;
-  max-height: 420px;
-}
-
-.transactions-list {
-  padding: 0 8px 16px;
 }
 
 .transaction-row {
@@ -627,10 +629,6 @@ onMounted(() => {
 @media (max-width: 1023px) {
   .category-details-card {
     height: auto;
-  }
-
-  .transactions-scroll {
-    max-height: none;
   }
 }
 </style>

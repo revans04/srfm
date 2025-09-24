@@ -1,7 +1,7 @@
 <template>
   <q-layout view="lHh Lpr lFf">
 
-    <q-header v-if="isMobile && !isLoginRoute" class="bg-white text-primary">
+    <q-header v-if="isMobile && !isLoginRoute" class="mobile-header">
       <div class="row items-center no-wrap q-px-md q-py-sm">
         <img
           src="../assets/family-funds-sm.png"
@@ -16,23 +16,24 @@
     <q-drawer
       v-model="leftDrawerOpen"
       show-if-above
-      bordered
       side="left"
-      :width="250"
-      class="column"
+      :width="260"
+      class="column app-drawer"
     >
-      <div class="column justify-between fit">
+      <div class="column justify-between fit app-drawer__content">
         <div>
-          <div class="text-center q-pa-md">
-            <img src="../assets/family-funds-sm.png" alt="Steady Rise Financial Management" width="100" />
+          <div class="app-drawer__brand">
+            <img src="../assets/family-funds-sm.png" alt="Steady Rise Financial Management" />
+            <div class="app-drawer__brand-name">Steady Rise</div>
           </div>
-          <q-list>
+          <q-list class="app-drawer__nav">
             <q-item
               v-for="item in navItems.filter(i => i.desktop)"
               :key="item.title"
               :to="item.path"
               clickable
-              active-class="text-primary"
+              class="app-drawer__item"
+              active-class="app-drawer__item--active"
               @click="onNavClick(item)"
             >
               <q-item-section avatar>
@@ -45,13 +46,13 @@
         <q-list>
           <q-item disabled>
             <q-item-section>
-              <div class="text-caption text-center">Version: {{ appVersion }}</div>
+              <div class="text-caption text-center text-white text-opacity">Version: {{ appVersion }}</div>
             </q-item-section>
           </q-item>
-          <q-separator />
-          <q-item clickable @click="signOut" :title="auth.user?.email">
+          <q-separator dark inset />
+          <q-item clickable @click="signOut" :title="auth.user?.email" class="app-drawer__profile">
             <q-item-section avatar>
-              <q-avatar size="36">
+              <q-avatar size="36" color="white" text-color="primary">
                 <img :src="auth.avatarSrc" alt="User Avatar" />
               </q-avatar>
             </q-item-section>
@@ -65,8 +66,8 @@
       <router-view />
     </q-page-container>
 
-    <q-footer v-if="isMobile && !isLoginRoute" class="bg-primary text-white q-pa-xs">
-      <div class="row no-wrap justify-around items-center bg-primary text-white">
+    <q-footer v-if="isMobile && !isLoginRoute" class="mobile-footer">
+      <div class="row no-wrap justify-around items-center">
         <q-btn
           v-for="item in navItems.filter(i => i.mobile)"
           :key="item.title"
@@ -144,5 +145,117 @@ onUnmounted(() => {
 <style scoped>
 .q-drawer {
   transition: transform 0.3s ease-in-out;
+  background: transparent;
+}
+
+.app-drawer {
+  background: linear-gradient(180deg, #1d4ed8 0%, #1e3a8a 100%);
+  color: #ffffff;
+}
+
+.app-drawer__content {
+  gap: 24px;
+}
+
+.app-drawer__brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 16px 24px;
+  text-align: center;
+  gap: 12px;
+}
+
+.app-drawer__brand img {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: #ffffff;
+  padding: 8px;
+  box-shadow: var(--shadow-subtle);
+}
+
+.app-drawer__brand-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.app-drawer__nav {
+  padding: 0 12px;
+  background: transparent;
+}
+
+.app-drawer__item {
+  border-radius: 14px;
+  margin-bottom: 6px;
+  padding: 12px 14px;
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.9);
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.app-drawer__item:hover {
+  background: #ffffff;
+  transform: translateX(4px);
+}
+
+.app-drawer__item :deep(.q-item__label),
+.app-drawer__item :deep(.q-icon) {
+  color: inherit;
+}
+
+.app-drawer__item--active {
+  background: #ffffff;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.app-drawer__item--active :deep(.q-icon) {
+  color: #1d4ed8;
+}
+
+.app-drawer__footer {
+  padding: 16px 12px 24px;
+}
+
+.app-drawer__profile {
+  border-radius: 12px;
+}
+
+.app-drawer__profile:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.text-opacity {
+  opacity: 0.7;
+}
+
+.mobile-header {
+  background: linear-gradient(90deg, #1d4ed8 0%, #1e3a8a 100%);
+  color: #ffffff;
+  padding: 12px 16px;
+}
+
+.mobile-header img {
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 6px;
+}
+
+.mobile-footer {
+  background: linear-gradient(90deg, #1d4ed8 0%, #1e3a8a 100%);
+  color: #ffffff;
+  padding: 6px 12px;
+}
+
+.mobile-footer .q-btn {
+  flex: 1;
+  border-radius: 12px;
+  min-height: 48px;
+}
+
+.mobile-footer .q-btn span {
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 </style>

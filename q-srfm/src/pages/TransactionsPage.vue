@@ -11,122 +11,181 @@ Key props/usage:
 - `scrollToDate` (via Jump to Date control) scrolls to first row >= date
 -->
 <template>
-  <q-page class="bg-grey-2">
-    <!-- Sticky header: title and tabs -->
-    <div class="top-bar bg-grey-2 q-px-md q-pt-md">
-      <div class="row items-center q-gutter-md">
-        <div class="col-auto text-h5">Transactions</div>
-        <q-tabs v-model="tab" dense class="col">
+  <q-page class="transactions-page">
+    <section class="transactions-hero panel-card no-round-bottom">
+      <div class="transactions-hero__header">
+        <div class="transactions-hero__title-group">
+          <div class="transactions-hero__title">Transactions</div>
+          <div class="transactions-hero__subtitle">Monitor budgets and accounts side by side</div>
+        </div>
+        <q-tabs v-model="tab" dense class="transactions-hero__tabs" align="left">
           <q-tab name="budget" label="Budget Register" />
           <q-tab name="register" label="Account Register" />
           <q-tab name="match" label="Match Bank Transactions" />
         </q-tabs>
       </div>
-    </div>
+      <div class="transactions-hero__metrics">
+        <div class="tx-metric tx-metric--primary">
+          <div class="tx-metric__label">Total Records</div>
+          <div class="tx-metric__value">{{ overviewCounts.total }}</div>
+        </div>
+        <div class="tx-metric">
+          <div class="tx-metric__label">Cleared</div>
+          <div class="tx-metric__value">{{ overviewCounts.cleared }}</div>
+        </div>
+        <div class="tx-metric">
+          <div class="tx-metric__label">Reconciled</div>
+          <div class="tx-metric__value">{{ overviewCounts.reconciled }}</div>
+        </div>
+        <div class="tx-metric">
+          <div class="tx-metric__label">Uncleared</div>
+          <div class="tx-metric__value">{{ overviewCounts.uncleared }}</div>
+        </div>
+      </div>
+    </section>
 
     <q-tab-panels v-model="tab" animated>
       <!-- Budget Register Tab -->
-      <q-tab-panel name="budget">
-        <div class="filter-bar shadow-2 bg-white q-pa-sm">
-          <div class="column q-gutter-sm">
-            <EntitySelector @change="loadBudgets" class="col-auto" />
-            <div class="row q-col-gutter-sm items-center">
-              <q-select
-                v-model="selectedBudgetIds"
-                :options="budgetOptions"
-                dense
-                outlined
-                multiple
-                use-chips
-                emit-value
-                map-options
-                placeholder="Select Budgets"
-                class="col-6"
-              />
-              <q-btn
-                dense
-                flat
-                label="Refresh"
-                class="col-auto"
-                @click="refreshBudget"
-              />
-              <q-btn
-                dense
-                flat
-                label="Clear All"
-                class="col-auto"
-                @click="clearBudgetFilters"
-              />
+      <q-tab-panel name="budget" class="transactions-panel">
+        <div class="transactions-layout">
+          <div class="transactions-layout__main">
+            <div class="transactions-filters panel-card">
+              <div class="transactions-filters__row">
+                <EntitySelector class="transactions-filters__entity" @change="loadBudgets" />
+                <q-select
+                  v-model="selectedBudgetIds"
+                  :options="budgetOptions"
+                  dense
+                  outlined
+                  multiple
+                  use-chips
+                  emit-value
+                  map-options
+                  placeholder="Select Budgets"
+                  class="transactions-filters__control"
+                />
+                <q-input
+                  v-model="filters.search"
+                  dense
+                  outlined
+                  placeholder="Search"
+                  class="transactions-filters__control"
+                />
+                <q-input
+                  v-model="filters.importedMerchant"
+                  dense
+                  outlined
+                  placeholder="Imported Merchant"
+                  class="transactions-filters__control"
+                />
+              </div>
+              <div class="transactions-filters__row transactions-filters__row--narrow">
+                <q-input
+                  v-model="minAmtInput"
+                  type="number"
+                  dense
+                  outlined
+                  placeholder="Amount Min"
+                  class="transactions-filters__control"
+                />
+                <q-input
+                  v-model="maxAmtInput"
+                  type="number"
+                  dense
+                  outlined
+                  placeholder="Amount Max"
+                  class="transactions-filters__control"
+                />
+                <q-input
+                  v-model="filters.start"
+                  dense
+                  outlined
+                  placeholder="Start Date"
+                  mask="####-##-##"
+                  class="transactions-filters__control"
+                >
+                  <template #append>
+                    <q-icon name="event" class="cursor-pointer">
+                      <q-popup-proxy transition-show="scale" transition-hide="scale">
+                        <q-date v-model="filters.start" mask="YYYY-MM-DD" />
+                      </q-popup-proxy>
+                    </q-icon>
+                  </template>
+                </q-input>
+                <q-input
+                  v-model="filters.end"
+                  dense
+                  outlined
+                  placeholder="End Date"
+                  mask="####-##-##"
+                  class="transactions-filters__control"
+                >
+                  <template #append>
+                    <q-icon name="event" class="cursor-pointer">
+                      <q-popup-proxy transition-show="scale" transition-hide="scale">
+                        <q-date v-model="filters.end" mask="YYYY-MM-DD" />
+                      </q-popup-proxy>
+                    </q-icon>
+                  </template>
+                </q-input>
+              </div>
+              <div class="transactions-filters__toggles">
+                <q-btn
+                  dense
+                  :color="filters.cleared ? 'primary' : 'grey-5'"
+                  text-color="white"
+                  label="Cleared"
+                  @click="filters.cleared = !filters.cleared"
+                />
+                <q-btn
+                  dense
+                  :color="filters.uncleared ? 'primary' : 'grey-5'"
+                  text-color="white"
+                  label="Uncleared"
+                  @click="filters.uncleared = !filters.uncleared"
+                />
+                <q-btn
+                  dense
+                  :color="filters.reconciled ? 'primary' : 'grey-5'"
+                  text-color="white"
+                  label="Reconciled"
+                  @click="filters.reconciled = !filters.reconciled"
+                />
+                <q-btn
+                  dense
+                  :color="filters.duplicatesOnly ? 'primary' : 'grey-5'"
+                  text-color="white"
+                  label="Duplicates"
+                  @click="filters.duplicatesOnly = !filters.duplicatesOnly"
+                />
+                <q-space />
+                <q-btn dense flat label="Refresh" @click="refreshBudget" />
+                <q-btn dense flat label="Clear All" @click="clearBudgetFilters" />
+              </div>
+              <div class="transactions-filters__chips" v-if="Object.keys(activeChips).length">
+                <q-chip
+                  v-for="(val, key) in activeChips"
+                  :key="key"
+                  dense
+                  removable
+                  @remove="() => removeChip(key)"
+                >
+                  {{ key }}<template v-if="val">: {{ val }}</template>
+                </q-chip>
+              </div>
             </div>
-            <div class="row q-col-gutter-sm">
-              <q-input v-model="filters.search" dense outlined placeholder="Search" class="col" />
-              <q-input v-model="filters.importedMerchant" dense outlined placeholder="Imported Merchant" class="col-2" />
-              <q-input v-model="minAmtInput" type="number" dense outlined placeholder="Amount Min" class="col-2" />
-              <q-input v-model="maxAmtInput" type="number" dense outlined placeholder="Amount Max" class="col-2" />
-              <q-input v-model="filters.start" dense outlined placeholder="Date" mask="####-##-##" class="col-2">
-                <template #append>
-                  <q-icon name="event" class="cursor-pointer">
-                    <q-popup-proxy transition-show="scale" transition-hide="scale">
-                      <q-date v-model="filters.start" mask="YYYY-MM-DD" />
-                    </q-popup-proxy>
-                  </q-icon>
-                </template>
-              </q-input>
-            </div>
-            <div class="row items-center q-gutter-sm">
-              <q-btn
-                dense
-                :color="filters.cleared ? 'primary' : 'grey-5'"
-                text-color="white"
-                label="Cleared"
-                @click="filters.cleared = !filters.cleared"
+            <div class="transactions-table">
+              <ledger-table
+                :rows="transactions"
+                :loading="loading"
+                :row-height="52"
+                :header-offset="0"
+                @load-more="fetchMore"
+                @row-click="onRowClick"
               />
-              <q-btn
-                dense
-                :color="filters.uncleared ? 'primary' : 'grey-5'"
-                text-color="white"
-                label="Uncleared"
-                @click="filters.uncleared = !filters.uncleared"
-              />
-              <q-btn
-                dense
-                :color="filters.reconciled ? 'primary' : 'grey-5'"
-                text-color="white"
-                label="Reconciled"
-                @click="filters.reconciled = !filters.reconciled"
-              />
-              <q-btn
-                dense
-                :color="filters.duplicatesOnly ? 'primary' : 'grey-5'"
-                text-color="white"
-                label="Duplicates"
-                @click="filters.duplicatesOnly = !filters.duplicatesOnly"
-              />
-              <q-space />
-              <q-btn dense flat label="Jump to Date">
-                <q-menu v-model="jumpMenu" anchor="bottom right" self="top right">
-                  <q-date v-model="jumpDate" mask="YYYY-MM-DD" @update:model-value="onJump" />
-                </q-menu>
-              </q-btn>
-            </div>
-            <!-- Active filter chips -->
-            <div class="q-mt-sm">
-              <q-chip
-                v-for="(val, key) in activeChips"
-                :key="key"
-                dense
-                removable
-                @remove="() => removeChip(key)"
-              >{{ key }}<template v-if="val">: {{ val }}</template></q-chip>
             </div>
           </div>
         </div>
-        <ledger-table
-          :rows="transactions"
-          :loading="loading"
-          @load-more="fetchMore"
-          @row-click="onRowClick"
-        />
         <q-dialog
           v-model="showTxDialog"
           :width="!isMobile ? '550px' : undefined"
@@ -163,113 +222,139 @@ Key props/usage:
           </q-card>
         </q-dialog>
       </q-tab-panel>
-
       <!-- Account Register Tab -->
-      <q-tab-panel name="register">
-        <statement-header class="q-mb-sm" />
-        <div class="filter-bar shadow-2 bg-white q-pa-sm">
-          <!-- reuse same filters for demo -->
-          <div class="row q-col-gutter-sm items-center">
-            <q-select
-              v-model="filters.accountId"
-              :options="accountOptions"
-              dense
-              outlined
-              label="Account"
-              clearable
-              emit-value
-              map-options
-              class="col-3"
-            />
-            <q-input
-              v-model="filters.search"
-              dense
-              outlined
-              placeholder="Search"
-              debounce="300"
-              class="col"
-            />
-            <q-input
-              v-model="filters.start"
-              dense
-              outlined
-              mask="####-##-##"
-              placeholder="Start"
-              debounce="300"
-              class="col-2"
-            >
-              <template #append>
-                <q-icon name="event" class="cursor-pointer">
-                  <q-popup-proxy transition-show="scale" transition-hide="scale">
-                    <q-date v-model="filters.start" mask="YYYY-MM-DD" />
-                  </q-popup-proxy>
-                </q-icon>
-              </template>
-            </q-input>
-            <q-input
-              v-model="filters.end"
-              dense
-              outlined
-              mask="####-##-##"
-              placeholder="End"
-              debounce="300"
-              class="col-2"
-            >
-              <template #append>
-                <q-icon name="event" class="cursor-pointer">
-                  <q-popup-proxy transition-show="scale" transition-hide="scale">
-                    <q-date v-model="filters.end" mask="YYYY-MM-DD" />
-                  </q-popup-proxy>
-                </q-icon>
-              </template>
-            </q-input>
-            <q-checkbox v-model="filters.unmatchedOnly" label="Unmatched Only" class="col-auto" />
-            <q-btn
-              dense
-              flat
-              label="Refresh"
-              class="col-auto"
-              @click="refreshRegister"
-            />
-            <q-btn
-              dense
-              flat
-              label="Clear All"
-              class="col-auto"
-              @click="clearRegisterFilters"
-            />
+      <q-tab-panel name="register" class="transactions-panel">
+        <div class="transactions-layout">
+          <div class="transactions-layout__main">
+            <statement-header class="panel-card transactions-statement q-mb-md" />
+            <div class="transactions-filters panel-card">
+              <div class="transactions-filters__row">
+                <q-select
+                  v-model="filters.accountId"
+                  :options="accountOptions"
+                  dense
+                  outlined
+                  label="Account"
+                  clearable
+                  emit-value
+                  map-options
+                  class="transactions-filters__control"
+                />
+                <q-input
+                  v-model="filters.search"
+                  dense
+                  outlined
+                  placeholder="Search"
+                  debounce="300"
+                  class="transactions-filters__control"
+                />
+                <q-input
+                  v-model="filters.start"
+                  dense
+                  outlined
+                  mask="####-##-##"
+                  placeholder="Start"
+                  debounce="300"
+                  class="transactions-filters__control"
+                >
+                  <template #append>
+                    <q-icon name="event" class="cursor-pointer">
+                      <q-popup-proxy transition-show="scale" transition-hide="scale">
+                        <q-date v-model="filters.start" mask="YYYY-MM-DD" />
+                      </q-popup-proxy>
+                    </q-icon>
+                  </template>
+                </q-input>
+                <q-input
+                  v-model="filters.end"
+                  dense
+                  outlined
+                  mask="####-##-##"
+                  placeholder="End"
+                  debounce="300"
+                  class="transactions-filters__control"
+                >
+                  <template #append>
+                    <q-icon name="event" class="cursor-pointer">
+                      <q-popup-proxy transition-show="scale" transition-hide="scale">
+                        <q-date v-model="filters.end" mask="YYYY-MM-DD" />
+                      </q-popup-proxy>
+                    </q-icon>
+                  </template>
+                </q-input>
+              </div>
+              <div class="transactions-filters__row transactions-filters__row--narrow">
+                <q-input
+                  v-model="minAmtInput"
+                  type="number"
+                  dense
+                  outlined
+                  placeholder="Amount Min"
+                  class="transactions-filters__control"
+                />
+                <q-input
+                  v-model="maxAmtInput"
+                  type="number"
+                  dense
+                  outlined
+                  placeholder="Amount Max"
+                  class="transactions-filters__control"
+                />
+                <q-checkbox v-model="filters.unmatchedOnly" label="Unmatched Only" class="transactions-filters__checkbox" />
+                <q-space />
+                <q-btn dense flat label="Refresh" @click="refreshRegister" />
+                <q-btn dense flat label="Clear All" @click="clearRegisterFilters" />
+              </div>
+            </div>
+            <div v-if="selectedRegisterIds.length" class="transactions-selection panel-card">
+              <div class="transactions-selection__title">{{ selectedRegisterIds.length }} transaction{{ selectedRegisterIds.length > 1 ? 's' : '' }} selected</div>
+              <div class="transactions-selection__actions">
+                <q-btn color="primary" label="Create Budget Transactions" @click="openRegisterBatchDialog" />
+                <q-btn color="warning" label="Ignore" @click="confirmRegisterBatchAction('Ignore')" />
+                <q-btn color="negative" label="Delete" @click="confirmRegisterBatchAction('Delete')" />
+              </div>
+            </div>
+            <div class="transactions-table">
+              <ledger-table
+                :rows="registerRows"
+                :loading="loadingRegister"
+                entity-label="Account"
+                :row-height="52"
+                :header-offset="0"
+                :can-load-more="canLoadMoreRegister"
+                :loading-more="loadingMoreRegister"
+                selection="multiple"
+                v-model:selected="selectedRegisterIds"
+                @row-click="onRegisterRowClick"
+                @load-more="fetchMoreRegister"
+              />
+            </div>
           </div>
+          <aside class="transactions-layout__aside">
+            <q-card class="panel-card transactions-summary-card">
+              <div class="summary-title">Selection</div>
+              <div class="summary-row">
+                <span class="summary-label">Selected</span>
+                <span class="summary-value">{{ selectedRegisterIds.length }}</span>
+              </div>
+              <div class="summary-row">
+                <span class="summary-label">Account</span>
+                <span class="summary-value">{{ registerAccountLabel }}</span>
+              </div>
+            </q-card>
+            <q-card class="panel-card transactions-summary-card">
+              <div class="summary-title">Imported Status</div>
+              <div class="summary-row">
+                <span class="summary-label">Records</span>
+                <span class="summary-value">{{ registerRows.length }}</span>
+              </div>
+              <div class="summary-row">
+                <span class="summary-label">More Available</span>
+                <span class="summary-value">{{ canLoadMoreRegister ? 'Yes' : 'No' }}</span>
+              </div>
+            </q-card>
+          </aside>
         </div>
-        <div class="q-pa-sm" v-if="selectedRegisterIds.length">
-          <q-btn
-            color="primary"
-            label="Create Budget Transactions"
-            class="q-mr-sm"
-            @click="openRegisterBatchDialog"
-          />
-          <q-btn
-            color="warning"
-            label="Ignore"
-            class="q-mr-sm"
-            @click="confirmRegisterBatchAction('Ignore')"
-          />
-          <q-btn
-            color="negative"
-            label="Delete"
-            @click="confirmRegisterBatchAction('Delete')"
-          />
-        </div>
-        <ledger-table
-          :rows="registerRows"
-          :loading="loadingRegister"
-          entity-label="Account"
-          :can-load-more="canLoadMoreRegister"
-          :loading-more="loadingMoreRegister"
-          selection="multiple"
-          v-model:selected="selectedRegisterIds"
-          @row-click="onRegisterRowClick"
-          @load-more="fetchMoreRegister"
-        />
         <q-dialog v-model="showRegisterBatchDialog" max-width="500" @keyup.enter="executeRegisterBatchMatch">
           <q-card>
             <q-card-section class="bg-primary q-py-md">
@@ -344,9 +429,8 @@ Key props/usage:
           </q-card>
         </q-dialog>
       </q-tab-panel>
-
       <!-- Match Bank Transactions Tab -->
-      <q-tab-panel name="match">
+      <q-tab-panel name="match" class="transactions-panel">
         <match-bank-panel />
       </q-tab-panel>
     </q-tab-panels>
@@ -373,6 +457,7 @@ import { dataAccess } from 'src/dataAccess';
 import type { Transaction } from 'src/types';
 import { splitImportedId } from 'src/utils/imported';
 
+
 const tab = ref<'budget' | 'register' | 'match'>('budget');
 
 const budgetStore = useBudgetStore();
@@ -395,6 +480,14 @@ const accountOptions = computed(() => {
   return [{ label: 'All', value: null }, ...opts];
 });
 
+const registerAccountLabel = computed(() => {
+  if (!filters.value.accountId) {
+    return 'All accounts';
+  }
+  const option = accountOptions.value.find((opt) => opt.value === filters.value.accountId);
+  return option?.label || 'Account';
+});
+
 const {
   transactions,
   filters,
@@ -405,11 +498,35 @@ const {
   loadingRegister,
   canLoadMoreRegister,
   loadingMoreRegister,
-  scrollToDate,
   loadImportedTransactions,
   loadInitial,
   getImportedTx,
 } = useTransactions();
+
+
+const activeRows = computed(() => {
+  if (tab.value === 'budget') {
+    return transactions.value;
+  }
+  if (tab.value === 'register') {
+    return registerRows.value;
+  }
+  return [];
+});
+
+const overviewCounts = computed(() => {
+  const counts = { total: activeRows.value.length, cleared: 0, reconciled: 0, uncleared: 0 };
+  activeRows.value.forEach((row) => {
+    if (row.status === 'C') {
+      counts.cleared += 1;
+    } else if (row.status === 'R') {
+      counts.reconciled += 1;
+    } else {
+      counts.uncleared += 1;
+    }
+  });
+  return counts;
+});
 
 onMounted(loadBudgets);
 
@@ -689,14 +806,6 @@ function removeChip(key: string) {
   removeFilter(key as keyof typeof filters.value);
 }
 
-// Jump to date
-const jumpDate = ref('');
-const jumpMenu = ref(false);
-function onJump(val: string) {
-  jumpMenu.value = false;
-  if (val) scrollToDate(val);
-}
-
 function onRegisterRowClick(row: LedgerRow) {
   if (row.status === 'U') {
     selectedRegisterIds.value = [row.id];
@@ -847,3 +956,260 @@ async function performRegisterBatchAction() {
 
 </script>
 
+<style scoped>
+.transactions-page {
+  padding: 24px 24px 56px;
+}
+
+@media (min-width: 1280px) {
+  .transactions-page {
+    padding: 32px 48px 72px;
+  }
+}
+
+.transactions-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.transactions-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.transactions-hero__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.transactions-hero__tabs {
+  flex: 1 1 auto;
+}
+
+.transactions-hero__title {
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.transactions-hero__subtitle {
+  font-size: 0.95rem;
+  color: var(--color-text-muted);
+  margin-top: 4px;
+}
+
+.transactions-hero__metrics {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.tx-metric {
+  background: var(--color-surface-subtle);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  box-shadow: var(--shadow-subtle);
+}
+
+.tx-metric--primary {
+  background: linear-gradient(140deg, rgba(37, 99, 235, 0.16), rgba(14, 165, 233, 0.08));
+}
+
+.tx-metric__label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.tx-metric__value {
+  margin-top: 8px;
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.transactions-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex: 1;
+  min-height: 0;
+}
+
+@media (min-width: 1200px) {
+  .transactions-layout {
+    flex-direction: row;
+    align-items: stretch;
+  }
+}
+
+.transactions-layout__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.transactions-layout__aside {
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (max-width: 1199px) {
+  .transactions-layout__aside {
+    width: 100%;
+    min-height: 0;
+  }
+}
+
+.transactions-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.transactions-filters__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.transactions-filters__row--narrow {
+  align-items: center;
+}
+
+.transactions-filters__control {
+  flex: 1 1 200px;
+  min-width: 160px;
+}
+
+.transactions-filters__entity {
+  flex: 1 1 220px;
+  min-width: 200px;
+}
+
+.transactions-filters__checkbox {
+  padding-top: 6px;
+}
+
+.transactions-filters__toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.transactions-filters__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.transactions-filters__chips :deep(.q-chip) {
+  background: rgba(37, 99, 235, 0.1);
+}
+
+.transactions-summary-card {
+  padding: 18px 20px;
+}
+
+.summary-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  font-size: 0.95rem;
+}
+
+.summary-label {
+  color: var(--color-text-muted);
+}
+
+.summary-value {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-align: right;
+}
+
+.transactions-selection {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.transactions-selection__title {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.transactions-selection__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.transactions-statement {
+  padding: 18px 20px;
+}
+
+
+.transactions-table {
+  flex: 1;
+  min-height: 360px;
+  display: flex;
+  min-width: 0;
+}
+
+.transactions-table :deep(.q-table) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.transactions-table :deep(.q-table__middle) {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.transactions-table :deep(.q-virtual-scroll) {
+  flex: 1;
+}
+
+.transactions-hero__tabs :deep(.q-tab) {
+  min-width: 0;
+}
+
+@media (max-width: 959px) {
+  .transactions-page {
+    padding: 16px 12px 48px;
+  }
+
+  .transactions-hero__metrics {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+
+  .transactions-layout__aside {
+    width: 100%;
+  }
+}
+</style>

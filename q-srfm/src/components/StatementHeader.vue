@@ -1,5 +1,5 @@
 <template>
-  <q-card flat bordered class="q-pa-sm">
+  <q-card class="panel-card statement-card">
     <div class="row items-center q-col-gutter-sm">
       <div class="col-auto text-subtitle2">Statement (placeholder)</div>
       <div class="col">
@@ -20,3 +20,9 @@ import { ref } from 'vue';
 const begin = ref(0);
 const end = ref(0);
 </script>
+
+<style scoped>
+.statement-card {
+  padding: 16px;
+}
+</style>
