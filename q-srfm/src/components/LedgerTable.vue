@@ -29,7 +29,7 @@
             @click.stop
           />
         </q-th>
-        <q-th v-for="col in h.cols" :key="col.name" :props="h">
+        <q-th v-for="col in h.cols" :key="col.name" :props="h" :class="[`col-${col.name}`]">
           {{ col.label }}
         </q-th>
       </q-tr>
@@ -40,10 +40,10 @@
         <q-td v-if="props.selection" auto-width>
           <q-checkbox v-model="b.selected" @click.stop />
         </q-td>
-        <q-td key="date" :props="b" class="col-date">{{ formatDate(b.row.date) }}</q-td>
-        <q-td key="payee" :props="b" class="col-payee">{{ b.row.payee }}</q-td>
-        <q-td key="category" :props="b" class="col-category">{{ b.row.category }}</q-td>
-        <q-td key="entity" :props="b" class="col-entity">{{ b.row.entityName }}</q-td>
+        <q-td key="date" :props="b" class="col-date ellipsis">{{ formatDate(b.row.date) }}</q-td>
+        <q-td key="payee" :props="b" class="col-payee ellipsis">{{ b.row.payee }}</q-td>
+        <q-td key="category" :props="b" class="col-category ellipsis">{{ b.row.category }}</q-td>
+        <q-td key="entity" :props="b" class="col-entity ellipsis">{{ b.row.entityName }}</q-td>
         <q-td key="amount" :props="b" class="text-right col-amount" :class="{ 'text-negative': b.row.amount < 0 }">
           {{ money(b.row.amount) }}
         </q-td>
@@ -54,7 +54,7 @@
           <q-icon v-if="b.row.linkId" name="link" color="primary" size="16px" class="q-ml-xs" />
           <q-icon v-if="b.row.isDuplicate" name="warning" color="warning" size="16px" class="q-ml-xs" />
         </q-td>
-        <q-td key="notes" :props="b" class="col-notes">
+        <q-td key="notes" :props="b" class="col-notes ellipsis">
           <q-tooltip v-if="b.row.notes">{{ b.row.notes }}</q-tooltip>
           <span class="truncate">{{ b.row.notes }}</span>
         </q-td>
@@ -147,7 +147,7 @@ const baseColumns = computed<Column<LedgerRow>[]>(() => [
   { name: 'category', label: 'Category', field: 'category', align: 'left' },
   { name: 'entity', label: props.entityLabel ?? 'Entity/Budget', field: 'entityName', align: 'left' },
   { name: 'amount', label: 'Amount', field: 'amount', align: 'right', sortable: true },
-  { name: 'status', label: 'Status', field: 'status', align: 'left' },
+  { name: 'status', label: 'Status', field: 'status', align: 'center' },
   { name: 'notes', label: 'Notes', field: 'notes', align: 'left' },
   { name: 'actions', label: '', field: 'id', align: 'right' },
 ]);
@@ -206,6 +206,50 @@ function onRowClick(row: LedgerRow) {
   background: var(--color-surface-card);
   box-shadow: 0 1px 0 rgba(15, 23, 42, 0.08);
 }
+.ledger-table :deep(table) {
+  table-layout: fixed;
+  width: 100%;
+}
+.ledger-table :deep(th),
+.ledger-table :deep(td) {
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ledger-table :deep(.col-date) {
+  width: 96px;
+  max-width: 80px;
+}
+.ledger-table :deep(.col-payee) {
+  width: 18%;
+  max-width: 160px;
+}
+.ledger-table :deep(.col-category) {
+  width: 14%;
+  max-width: 140px;
+}
+.ledger-table :deep(.col-entity) {
+  width: 14%;
+  max-width: 140px;
+}
+.ledger-table :deep(.col-amount) {
+  width: 120px;
+  max-width: 120px;
+}
+.ledger-table :deep(.col-status) {
+  width: 96px;
+  max-width: 96px;
+  text-align: center;
+}
+.ledger-table :deep(.col-notes) {
+  width: 18%;
+  max-width: 180px;
+}
+.ledger-table :deep(.col-actions) {
+  width: 64px;
+  max-width: 64px;
+}
 .row-striped:nth-child(even) {
   background: rgba(37, 99, 235, 0.04);
 }
@@ -218,20 +262,5 @@ function onRowClick(row: LedgerRow) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.col-notes {
-  max-width: 360px;
-}
-.col-payee {
-  max-width: 280px;
-}
-.col-category {
-  max-width: 160px;
-}
-.col-entity {
-  max-width: 220px;
-}
-.col-amount {
-  width: 140px;
 }
 </style>

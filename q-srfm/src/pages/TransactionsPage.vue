@@ -50,8 +50,21 @@ Key props/usage:
         <div class="transactions-layout">
           <div class="transactions-layout__main">
             <div class="transactions-filters panel-card">
-              <div class="transactions-filters__row">
+              <div class="transactions-filters__row transactions-filters__row--entity">
                 <EntitySelector class="transactions-filters__entity" @change="loadBudgets" />
+                <q-input
+                  v-model="filters.search"
+                  dense
+                  outlined
+                  placeholder="Search"
+                  class="transactions-filters__control"
+                />
+                <div class="transactions-filters__actions">
+                  <q-btn dense flat label="Refresh" @click="refreshBudget" />
+                  <q-btn dense flat label="Clear All" @click="clearBudgetFilters" />
+                </div>
+              </div>
+              <div class="transactions-filters__row transactions-filters__row--select">
                 <q-select
                   v-model="selectedBudgetIds"
                   :options="budgetOptions"
@@ -62,15 +75,10 @@ Key props/usage:
                   emit-value
                   map-options
                   placeholder="Select Budgets"
-                  class="transactions-filters__control"
+                  class="transactions-filters__control transactions-filters__control--full"
                 />
-                <q-input
-                  v-model="filters.search"
-                  dense
-                  outlined
-                  placeholder="Search"
-                  class="transactions-filters__control"
-                />
+              </div>
+              <div class="transactions-filters__row transactions-filters__row--inputs">
                 <q-input
                   v-model="filters.importedMerchant"
                   dense
@@ -78,8 +86,6 @@ Key props/usage:
                   placeholder="Imported Merchant"
                   class="transactions-filters__control"
                 />
-              </div>
-              <div class="transactions-filters__row transactions-filters__row--narrow">
                 <q-input
                   v-model="minAmtInput"
                   type="number"
@@ -130,37 +136,34 @@ Key props/usage:
                 </q-input>
               </div>
               <div class="transactions-filters__toggles">
-                <q-btn
-                  dense
-                  :color="filters.cleared ? 'primary' : 'grey-5'"
-                  text-color="white"
-                  label="Cleared"
+                <q-chip
+                  clickable
+                  class="filter-chip"
+                  :color="filters.cleared ? 'primary' : 'white'"
+                  :text-color="filters.cleared ? 'white' : 'primary'"
                   @click="filters.cleared = !filters.cleared"
-                />
-                <q-btn
-                  dense
-                  :color="filters.uncleared ? 'primary' : 'grey-5'"
-                  text-color="white"
-                  label="Uncleared"
+                >Cleared</q-chip>
+                <q-chip
+                  clickable
+                  class="filter-chip"
+                  :color="filters.uncleared ? 'primary' : 'white'"
+                  :text-color="filters.uncleared ? 'white' : 'primary'"
                   @click="filters.uncleared = !filters.uncleared"
-                />
-                <q-btn
-                  dense
-                  :color="filters.reconciled ? 'primary' : 'grey-5'"
-                  text-color="white"
-                  label="Reconciled"
+                >Uncleared</q-chip>
+                <q-chip
+                  clickable
+                  class="filter-chip"
+                  :color="filters.reconciled ? 'primary' : 'white'"
+                  :text-color="filters.reconciled ? 'white' : 'primary'"
                   @click="filters.reconciled = !filters.reconciled"
-                />
-                <q-btn
-                  dense
-                  :color="filters.duplicatesOnly ? 'primary' : 'grey-5'"
-                  text-color="white"
-                  label="Duplicates"
+                >Reconciled</q-chip>
+                <q-chip
+                  clickable
+                  class="filter-chip"
+                  :color="filters.duplicatesOnly ? 'primary' : 'white'"
+                  :text-color="filters.duplicatesOnly ? 'white' : 'primary'"
                   @click="filters.duplicatesOnly = !filters.duplicatesOnly"
-                />
-                <q-space />
-                <q-btn dense flat label="Refresh" @click="refreshBudget" />
-                <q-btn dense flat label="Clear All" @click="clearBudgetFilters" />
+                >Duplicates</q-chip>
               </div>
               <div class="transactions-filters__chips" v-if="Object.keys(activeChips).length">
                 <q-chip
@@ -228,7 +231,7 @@ Key props/usage:
           <div class="transactions-layout__main">
             <statement-header class="panel-card transactions-statement q-mb-md" />
             <div class="transactions-filters panel-card">
-              <div class="transactions-filters__row">
+              <div class="transactions-filters__row transactions-filters__row--entity">
                 <q-select
                   v-model="filters.accountId"
                   :options="accountOptions"
@@ -238,7 +241,7 @@ Key props/usage:
                   clearable
                   emit-value
                   map-options
-                  class="transactions-filters__control"
+                  class="transactions-filters__control transactions-filters__control--full"
                 />
                 <q-input
                   v-model="filters.search"
@@ -246,6 +249,36 @@ Key props/usage:
                   outlined
                   placeholder="Search"
                   debounce="300"
+                  class="transactions-filters__control"
+                />
+                <div class="transactions-filters__actions">
+                  <q-btn dense flat label="Refresh" @click="refreshRegister" />
+                  <q-btn dense flat label="Clear All" @click="clearRegisterFilters" />
+                </div>
+              </div>
+              <div class="transactions-filters__row transactions-filters__row--inputs">
+                <q-input
+                  v-model="filters.search"
+                  dense
+                  outlined
+                  placeholder="Search"
+                  debounce="300"
+                  class="transactions-filters__control"
+                />
+                <q-input
+                  v-model="minAmtInput"
+                  type="number"
+                  dense
+                  outlined
+                  placeholder="Amount Min"
+                  class="transactions-filters__control"
+                />
+                <q-input
+                  v-model="maxAmtInput"
+                  type="number"
+                  dense
+                  outlined
+                  placeholder="Amount Max"
                   class="transactions-filters__control"
                 />
                 <q-input
@@ -283,27 +316,14 @@ Key props/usage:
                   </template>
                 </q-input>
               </div>
-              <div class="transactions-filters__row transactions-filters__row--narrow">
-                <q-input
-                  v-model="minAmtInput"
-                  type="number"
-                  dense
-                  outlined
-                  placeholder="Amount Min"
-                  class="transactions-filters__control"
-                />
-                <q-input
-                  v-model="maxAmtInput"
-                  type="number"
-                  dense
-                  outlined
-                  placeholder="Amount Max"
-                  class="transactions-filters__control"
-                />
-                <q-checkbox v-model="filters.unmatchedOnly" label="Unmatched Only" class="transactions-filters__checkbox" />
-                <q-space />
-                <q-btn dense flat label="Refresh" @click="refreshRegister" />
-                <q-btn dense flat label="Clear All" @click="clearRegisterFilters" />
+              <div class="transactions-filters__toggles">
+                <q-chip
+                  clickable
+                  class="filter-chip"
+                  :color="filters.unmatchedOnly ? 'primary' : 'white'"
+                  :text-color="filters.unmatchedOnly ? 'white' : 'primary'"
+                  @click="filters.unmatchedOnly = !filters.unmatchedOnly"
+                >Unmatched Only</q-chip>
               </div>
             </div>
             <div v-if="selectedRegisterIds.length" class="transactions-selection panel-card">
@@ -1086,8 +1106,18 @@ async function performRegisterBatchAction() {
   align-items: center;
 }
 
-.transactions-filters__row--narrow {
-  align-items: center;
+.transactions-filters__row--entity {
+  justify-content: space-between;
+}
+
+.transactions-filters__row--select {
+  margin-top: -4px;
+}
+
+.transactions-filters__row--inputs {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .transactions-filters__control {
@@ -1095,13 +1125,20 @@ async function performRegisterBatchAction() {
   min-width: 160px;
 }
 
+.transactions-filters__control--full {
+  flex: 1 1 100%;
+  min-width: 100%;
+}
+
 .transactions-filters__entity {
   flex: 1 1 220px;
   min-width: 200px;
 }
 
-.transactions-filters__checkbox {
-  padding-top: 6px;
+.transactions-filters__actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
 }
 
 .transactions-filters__toggles {
@@ -1109,6 +1146,23 @@ async function performRegisterBatchAction() {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+}
+
+.filter-chip {
+  border-radius: 999px;
+  padding: 4px 14px;
+  font-weight: 600;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.12);
+}
+
+.filter-chip:not(.bg-primary) {
+  box-shadow: none;
+  border: 1px solid rgba(37, 99, 235, 0.22);
+}
+
+.filter-chip:hover {
+  transform: translateY(-1px);
 }
 
 .transactions-filters__chips {
