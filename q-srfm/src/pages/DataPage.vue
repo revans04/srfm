@@ -2434,15 +2434,39 @@ async function proceedWithImport() {
     const budgetsById: Map<string, Budget> = pendingImportData.value?.budgetsById ?? new Map();
     pendingImportData.value = null;
 
-    for (const [budgetId, budget] of budgetsById) {
-      // Delete any existing budget to avoid merging old data
+    const entries = Array.from(budgetsById.entries()).map(([key, budget]) => {
+      const targetId = budget.budgetId || key;
+      return { key, targetId, budget };
+    });
+
+    for (const { targetId } of entries) {
       try {
-        const targetId = budget.budgetId || budgetId;
         await dataAccess.deleteBudget(targetId);
       } catch {
         // Ignore if budget does not exist
       }
+    }
 
+    const parseBudgetMonth = (input: string) => {
+      const [yearStr, monthStr] = input.split("-");
+      const year = Number(yearStr);
+      const month = Number(monthStr);
+      if (Number.isFinite(year) && Number.isFinite(month)) {
+        return new Date(Date.UTC(year, month - 1, 1));
+      }
+      const parsed = new Date(input);
+      return isNaN(parsed.getTime()) ? new Date(0) : parsed;
+    };
+
+    const sortedEntries = entries.sort((a, b) => {
+      const dateA = parseBudgetMonth(a.budget.month);
+      const dateB = parseBudgetMonth(b.budget.month);
+      return dateA.getTime() - dateB.getTime();
+    });
+
+    const fundCategories = new Set<string>();
+
+    for (const { targetId, budget } of sortedEntries) {
       // Recalculate merchants from imported transactions
       const merchantCounts = budget.transactions
         .filter((t) => t.merchant && t.merchant.trim() !== "")
@@ -2454,14 +2478,31 @@ async function proceedWithImport() {
         .map(([name, usageCount]) => ({ name, usageCount }))
         .sort((a, b) => b.usageCount - a.usageCount);
 
-      const targetId = budget.budgetId || budgetId;
+      budget.categories
+        ?.filter((category) => category.isFund && category.name)
+        .forEach((category) => {
+          const name = (category.name || "").trim();
+          if (name) {
+            fundCategories.add(name);
+          }
+        });
+
       const toSave = { ...budget, budgetId: targetId } as Budget;
-      await dataAccess.saveBudget(targetId, toSave);
+      await dataAccess.saveBudget(targetId, toSave, { skipCarryoverRecalc: true });
       budgetStore.updateBudget(targetId, toSave);
       showSnackbar(`Saved budget ${toSave.month} with ${toSave.transactions.length} transactions`);
     }
 
-    const budgetMonths = Array.from(budgetsById.values()).map((budget) => budget.month);
+    if (sortedEntries.length > 0 && fundCategories.size > 0) {
+      try {
+        await dataAccess.recalculateCarryover(sortedEntries[0].targetId, Array.from(fundCategories));
+      } catch (error) {
+        console.error("Failed to recalculate carryover after import", error);
+        showSnackbar("Budgets imported, but carryover recalculation failed. Please refresh and verify fund balances.", "warning");
+      }
+    }
+
+    const budgetMonths = sortedEntries.map(({ budget }) => budget.month);
     const mostRecentMonth = budgetMonths.sort((a, b) => {
       const dateA = new Date(a);
       const dateB = new Date(b);

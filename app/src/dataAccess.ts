@@ -51,14 +51,30 @@ export class DataAccess {
     return await response.json();
   }
 
-  async saveBudget(budgetId: string, budget: Budget): Promise<void> {
+  async saveBudget(budgetId: string, budget: Budget, options?: { skipCarryoverRecalc?: boolean }): Promise<void> {
     const headers = await this.getAuthHeaders();
-    const response = await fetch(`${this.apiBaseUrl}/budget/${budgetId}`, {
+    const params = options?.skipCarryoverRecalc ? "?skipCarryover=true" : "";
+    const response = await fetch(`${this.apiBaseUrl}/budget/${budgetId}${params}`, {
       method: "POST",
       headers,
       body: JSON.stringify(budget),
     });
     if (!response.ok) throw new Error(`Failed to save budget: ${response.statusText}`);
+  }
+
+  async recalculateCarryover(budgetId: string, categoryNames: string[]): Promise<void> {
+    if (categoryNames.length === 0) {
+      return;
+    }
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(`${this.apiBaseUrl}/budget/${budgetId}/carryover/recalculate`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ categoryNames }),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to recalculate carryover: ${response.statusText}`);
+    }
   }
 
   async deleteBudget(budgetId: string): Promise<void> {

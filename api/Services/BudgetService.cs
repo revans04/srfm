@@ -273,7 +273,7 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
     /// <summary>
     /// Upsert a budget and its transactions into Supabase.
     /// </summary>
-    public async Task SaveBudget(string budgetId, Budget budget, string userId, string userEmail)
+    public async Task SaveBudget(string budgetId, Budget budget, string userId, string userEmail, bool skipCarryoverRecalc = false)
     {
         _logger.LogInformation("Saving budget {BudgetId}", budgetId);
         await using var conn = await _db.GetOpenConnectionAsync();
@@ -322,10 +322,16 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
 
         if (budget.Transactions != null && budget.Transactions.Count > 0)
         {
-            await BatchSaveTransactions(budgetId, budget.Transactions, userId, userEmail);
+            await BatchSaveTransactions(budgetId, budget.Transactions, userId, userEmail, !skipCarryoverRecalc);
         }
         await LogEdit(conn, budgetId, userId, userEmail, "save-budget");
         _logger.LogInformation("Budget {BudgetId} saved with {CatCount} categories and {TxCount} transactions", budgetId, budget.Categories?.Count ?? 0, budget.Transactions?.Count ?? 0);
+    }
+
+    public async Task RecalculateCarryover(string budgetId, IEnumerable<string> categoryNames, string userId, string userEmail)
+    {
+        await using var conn = await _db.GetOpenConnectionAsync();
+        await RecalculateCarryoverForAffectedCategories(conn, budgetId, categoryNames, userId, userEmail);
     }
 
     private DateTime? ParseDate(string? input) =>
@@ -520,7 +526,7 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
         await RecalculateCarryoverForAffectedCategories(conn, budgetId, impactedCategories, userId, userEmail);
     }
 
-    public async Task BatchSaveTransactions(string budgetId, List<Transaction> transactions, string userId, string userEmail)
+    public async Task BatchSaveTransactions(string budgetId, List<Transaction> transactions, string userId, string userEmail, bool recalculateCarryover = true)
     {
         await using var conn = await _db.GetOpenConnectionAsync();
         await using var dbTx = await conn.BeginTransactionAsync();
@@ -561,11 +567,14 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
         await batch.ExecuteNonQueryAsync();
         await dbTx.CommitAsync();
 
-        var impactedCategories = transactions
-            .SelectMany(t => t.Categories ?? new List<TransactionCategory>())
-            .Where(c => !string.IsNullOrWhiteSpace(c.Category))
-            .Select(c => c.Category!);
-        await RecalculateCarryoverForAffectedCategories(conn, budgetId, impactedCategories, userId, userEmail);
+        if (recalculateCarryover)
+        {
+            var impactedCategories = transactions
+                .SelectMany(t => t.Categories ?? new List<TransactionCategory>())
+                .Where(c => !string.IsNullOrWhiteSpace(c.Category))
+                .Select(c => c.Category!);
+            await RecalculateCarryoverForAffectedCategories(conn, budgetId, impactedCategories, userId, userEmail);
+        }
     }
 
     private async Task RecalculateCarryoverForAffectedCategories(
@@ -645,15 +654,18 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
 
         var startBudget = budgets[startIndex];
         var impactedFundCategories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var category in startBudget.Categories)
+        for (var i = startIndex; i < budgets.Count; i++)
         {
-            var name = category.Name?.Trim();
-            if (string.IsNullOrEmpty(name))
-                continue;
-            if (!category.IsFund)
-                continue;
-            if (normalizedCategories.Contains(name))
-                impactedFundCategories.Add(name);
+            foreach (var category in budgets[i].Categories)
+            {
+                var name = category.Name?.Trim();
+                if (string.IsNullOrEmpty(name))
+                    continue;
+                if (!category.IsFund)
+                    continue;
+                if (normalizedCategories.Contains(name))
+                    impactedFundCategories.Add(name);
+            }
         }
 
         if (impactedFundCategories.Count == 0)
