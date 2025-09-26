@@ -1,6 +1,7 @@
 using FamilyBudgetApi.Models;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using NpgsqlTypes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -138,7 +139,7 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
             await using (var txCmd = new NpgsqlCommand(sqlTx, conn))
             {
                 txCmd.Parameters.AddWithValue("id", budget.BudgetId);
-                txCmd.Parameters.AddWithValue("entity", string.IsNullOrEmpty(budget.EntityId) ? (object)DBNull.Value : Guid.Parse(budget.EntityId));
+                SetOptionalGuid(txCmd.Parameters, "entity", budget.EntityId);
                 await using var txReader = await txCmd.ExecuteReaderAsync();
                 while (await txReader.ReadAsync())
                 {
@@ -284,7 +285,7 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
         await using var cmd = new NpgsqlCommand(sql, conn, dbTx);
         cmd.Parameters.AddWithValue("id", budgetId);
         cmd.Parameters.AddWithValue("family_id", Guid.Parse(budget.FamilyId));
-        cmd.Parameters.AddWithValue("entity_id", string.IsNullOrEmpty(budget.EntityId) ? (object)DBNull.Value : Guid.Parse(budget.EntityId));
+        SetOptionalGuid(cmd.Parameters, "entity_id", budget.EntityId);
         cmd.Parameters.AddWithValue("month", budget.Month);
         cmd.Parameters.AddWithValue("label", (object?)budget.Label ?? DBNull.Value);
         cmd.Parameters.AddWithValue("income_target", (decimal)budget.IncomeTarget);
@@ -374,7 +375,24 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
         parameters.AddWithValue("status", (object?)tx.Status ?? DBNull.Value);
         parameters.AddWithValue("check_number", (object?)tx.CheckNumber ?? DBNull.Value);
         parameters.AddWithValue("deleted", tx.Deleted.HasValue ? (object)tx.Deleted.Value : DBNull.Value);
-        parameters.AddWithValue("entity_id", string.IsNullOrEmpty(tx.EntityId) ? (object)DBNull.Value : Guid.Parse(tx.EntityId));
+        SetOptionalGuid(parameters, "entity_id", tx.EntityId);
+    }
+
+    private static void SetOptionalGuid(NpgsqlParameterCollection parameters, string name, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            SetOptionalGuid(parameters, name, (Guid?)null);
+            return;
+        }
+
+        SetOptionalGuid(parameters, name, Guid.Parse(value));
+    }
+
+    private static void SetOptionalGuid(NpgsqlParameterCollection parameters, string name, Guid? value)
+    {
+        var parameter = parameters.Add(name, NpgsqlDbType.Uuid);
+        parameter.Value = value.HasValue ? value.Value : (object)DBNull.Value;
     }
 
     private void AddCategoryCommands(NpgsqlBatch batch, string txId, List<TransactionCategory>? categories)
@@ -622,7 +640,7 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
         await using (var budgetsCmd = new NpgsqlCommand(budgetsSql, conn))
         {
             budgetsCmd.Parameters.AddWithValue("fid", familyId);
-            budgetsCmd.Parameters.AddWithValue("entity", entityId.HasValue ? (object)entityId.Value : DBNull.Value);
+            SetOptionalGuid(budgetsCmd.Parameters, "entity", entityId);
             budgetsCmd.Parameters.AddWithValue("month", startMonth);
             await using var reader = await budgetsCmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
