@@ -402,7 +402,8 @@
                           </li>
                         </ul>
                       </div>
-                      Do you want to overwrite them?
+                      Confirming will delete the existing budgets for these months before importing the new data. Do you want to
+                      continue?
                     </q-card-section>
                     <q-card-actions>
                       <q-space></q-space>
@@ -512,6 +513,7 @@ const pendingImportData = ref<{
   budgetIdMap: Map<string, string>;
   entitiesById?: Map<string, Entity>;
   accountsAndSnapshots?: any[];
+  existingBudgetIds?: Set<string>;
 } | null>(null);
 const previewTab = ref("categories");
 const importType = ref("bankTransactions");
@@ -2080,9 +2082,16 @@ async function confirmImport() {
     const budgetsById = new Map<string, Budget>();
     const budgetIdMap = new Map<string, string>();
     const budgetIdToIncomeTarget = new Map<string, number>();
+    const existingTargetBudgetIds = new Set<string>();
 
     try {
       importRunning.value = true;
+
+      const existingInfos = await dataAccess.loadAccessibleBudgets(user.uid, selectedEntityId.value);
+      const monthToExistingId = new Map<string, string>();
+      existingInfos.forEach((info) => {
+        if (info.month && info.budgetId) monthToExistingId.set(info.month, info.budgetId);
+      });
 
       if (previewData.value.categories.length > 0) {
         const budgetIdToMonth = new Map<string, string>();
@@ -2099,18 +2108,16 @@ async function confirmImport() {
             budgetIdToIncomeTarget.set(originalBudgetId, Number(category.incomeTarget) || 0);
           }
         });
-        // Resolve existing budgets for the target entity, keyed by month
-        const existingInfos = await dataAccess.loadAccessibleBudgets(user.uid, selectedEntityId.value);
-        const monthToExistingId = new Map<string, string>();
-        existingInfos.forEach((info) => {
-          if (info.month && info.budgetId) monthToExistingId.set(info.month, info.budgetId);
-        });
 
         // Build target budgets (use existing budgetId when present, otherwise a new id)
         for (const [originalBudgetId, month] of budgetIdToMonth) {
           const existingId = monthToExistingId.get(month);
           const targetBudgetId = existingId || uuidv4();
           budgetIdMap.set(originalBudgetId, targetBudgetId);
+
+          if (existingId) {
+            existingTargetBudgetIds.add(existingId);
+          }
 
           const budget: Budget = {
             budgetId: targetBudgetId,
@@ -2215,17 +2222,26 @@ async function confirmImport() {
       }
 
       // Determine which months will overwrite existing budgets
-      const existingForEntity = await dataAccess.loadAccessibleBudgets(user.uid, selectedEntityId.value);
-      const existingMonths = new Set(existingForEntity.map((b) => b.month));
+      const existingMonths = new Set(existingInfos.map((b) => b.month));
       const importMonths = new Set(Array.from(budgetsById.values()).map((b) => b.month));
       overwriteMonths.value = Array.from(importMonths).filter((m) => existingMonths.has(m));
 
       if (overwriteMonths.value.length > 0) {
-        pendingImportData.value = { budgetsById, budgetIdMap, entitiesById: new Map() };
+        pendingImportData.value = {
+          budgetsById,
+          budgetIdMap,
+          entitiesById: new Map(),
+          existingBudgetIds: existingTargetBudgetIds,
+        };
         showPreview.value = false; // ensure the overwrite dialog is visible
         showOverwriteDialog.value = true;
       } else {
-        pendingImportData.value = { budgetsById, budgetIdMap, entitiesById: new Map() };
+        pendingImportData.value = {
+          budgetsById,
+          budgetIdMap,
+          entitiesById: new Map(),
+          existingBudgetIds: existingTargetBudgetIds,
+        };
         await proceedWithImport();
       }
     } catch (e: any) {
@@ -2431,7 +2447,9 @@ async function proceedWithImport() {
     const user = auth.currentUser;
     if (!user) throw new Error("User not authenticated");
 
-    const budgetsById: Map<string, Budget> = pendingImportData.value?.budgetsById ?? new Map();
+    const storedPending = pendingImportData.value;
+    const budgetsById: Map<string, Budget> = storedPending?.budgetsById ?? new Map();
+    const existingBudgetIds = new Set(storedPending?.existingBudgetIds ?? []);
     pendingImportData.value = null;
 
     const entries = Array.from(budgetsById.entries()).map(([key, budget]) => {
@@ -2439,11 +2457,16 @@ async function proceedWithImport() {
       return { key, targetId, budget };
     });
 
-    for (const { targetId } of entries) {
-      try {
-        await dataAccess.deleteBudget(targetId);
-      } catch {
-        // Ignore if budget does not exist
+    const shouldDeleteExisting = existingBudgetIds.size > 0 && overwriteMonths.value.length > 0;
+
+    if (shouldDeleteExisting) {
+      for (const { targetId } of entries) {
+        if (!existingBudgetIds.has(targetId)) continue;
+        try {
+          await dataAccess.deleteBudget(targetId);
+        } catch {
+          // Ignore if budget does not exist
+        }
       }
     }
 
@@ -2526,6 +2549,7 @@ async function proceedWithImport() {
     previewData.value = { entities: [], categories: [], transactions: [], accountsAndSnapshots: [] };
     previewErrors.value = [];
     selectedEntityId.value = "";
+    overwriteMonths.value = [];
   }
 }
 
