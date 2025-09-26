@@ -272,28 +272,44 @@ export class DataAccess {
     return retValue;
   }
 
-  async batchSaveTransactions(budgetId: string, budget: Budget, transactions: Transaction[]): Promise<void> {
+  async batchSaveTransactions(
+    budgetId: string,
+    budget: Budget,
+    transactions: Transaction[],
+    chunkSize = 50,
+  ): Promise<void> {
+    if (transactions.length === 0) {
+      return;
+    }
+
     const headers = await this.getAuthHeaders();
     const budgetStore = useBudgetStore();
 
-    const response = await fetch(`${this.apiBaseUrl}/budget/${budgetId}/transactions/batch`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(transactions),
-    });
-    if (!response.ok) throw new Error(`Failed to batch save transactions: ${response.statusText}`);
+    for (let i = 0; i < transactions.length; i += chunkSize) {
+      const chunk = transactions.slice(i, i + chunkSize);
+      const response = await fetch(`${this.apiBaseUrl}/budget/${budgetId}/transactions/batch`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(chunk),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to batch save transactions: ${response.statusText}`);
+      }
+    }
 
     if (budget.budgetId) {
       budget.transactions = [...budget.transactions, ...transactions];
-      budgetStore.updateBudget(budget.budgetId, budget);
+      budgetStore.updateBudget(budget.budgetId, { ...budget });
 
-      for (const transaction of transactions) {
-        if (this.hasFundCategory(transaction, budget) && budget.budgetId && budget.entityId) {
-          await this.recalculateCarryoverForFutureBudgets(
-            budget.entityId,
-            budget.month,
-            transaction.categories,
-          );
+      if (budget.entityId) {
+        for (const transaction of transactions) {
+          if (this.hasFundCategory(transaction, budget)) {
+            await this.recalculateCarryoverForFutureBudgets(
+              budget.entityId,
+              budget.month,
+              transaction.categories,
+            );
+          }
         }
       }
     }

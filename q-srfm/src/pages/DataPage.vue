@@ -1631,40 +1631,56 @@ async function importEveryDollarTransactions() {
       byMonth.get(month)!.push(row);
     }
 
-    // Build a quick lookup of budgets by month for the selected entity
+    // Build a lookup for full budgets (including categories) per month
     const budgetList = Array.from(budgetStore.budgets.values());
     const monthToBudget = new Map<string, Budget>();
-    for (const b of budgetList) {
-      if (b.entityId === selectedEntityId.value) {
-        monthToBudget.set(b.month, b);
+
+    let accessibleBudgets: Awaited<ReturnType<typeof dataAccess.loadAccessibleBudgets>> | null = null;
+
+    const loadFullBudget = async (month: string): Promise<Budget | null> => {
+      if (monthToBudget.has(month)) {
+        return monthToBudget.get(month)!;
       }
-    }
+
+      let budgetId: string | undefined;
+
+      const storeBudget = budgetList.find(
+        (b) => b.month === month && b.entityId === selectedEntityId.value && b.budgetId,
+      );
+      if (storeBudget?.budgetId) {
+        budgetId = storeBudget.budgetId;
+      } else {
+        if (!accessibleBudgets) {
+          accessibleBudgets = await dataAccess.loadAccessibleBudgets(user.uid, selectedEntityId.value);
+        }
+        if (accessibleBudgets) {
+          const info = accessibleBudgets.find((b) => b.month === month && b.budgetId);
+          if (info?.budgetId) {
+            budgetId = info.budgetId;
+          }
+        }
+      }
+
+      if (!budgetId) {
+        return null;
+      }
+
+      const fullBudget = await dataAccess.getBudget(budgetId);
+      if (fullBudget) {
+        monthToBudget.set(month, fullBudget);
+        budgetStore.updateBudget(budgetId, fullBudget);
+        return fullBudget;
+      }
+
+      return null;
+    };
 
     const missingMonths: string[] = [];
     let totalImported = 0;
 
-    // Ensure we try to load a budget for months not in the store yet
-    for (const [month] of byMonth) {
-      if (!monthToBudget.has(month)) {
-        try {
-          const infos = await dataAccess.loadAccessibleBudgets(user.uid, selectedEntityId.value);
-          const match = infos.find((i) => i.month === month && i.budgetId);
-          if (match?.budgetId) {
-            const full = await dataAccess.getBudget(match.budgetId);
-            if (full) {
-              monthToBudget.set(month, full);
-              budgetStore.updateBudget(match.budgetId, full);
-            }
-          }
-        } catch {
-          /* ignore and mark as missing below if still not found */
-        }
-      }
-    }
-
     // Save transactions per month into existing budgets only
     for (const [month, rows] of byMonth) {
-      const budget = monthToBudget.get(month);
+      const budget = await loadFullBudget(month);
       if (!budget || !budget.budgetId) {
         missingMonths.push(month);
         continue;
@@ -1672,15 +1688,23 @@ async function importEveryDollarTransactions() {
 
       // Ensure any missing categories from EveryDollar rows exist in the target budget
       const existingCatNames = new Set(
-        (budget.categories || []).map((c) => (c.name || "").toLowerCase()),
+        (budget.categories || []).map((c) => (c.name || '').trim().toLowerCase()),
       );
-      const categoriesToAddMap = new Map<string, { name: string; group: string }>();
+      const categoriesToAddMap = new Map<string, { name: string }>();
+      const candidateCategories = (row: EveryDollarTransactionRow) => {
+        if (Array.isArray(row.splits) && row.splits.length > 0) {
+          return row.splits.map((s) => (s.category || '').trim());
+        }
+        return [(row.item || '').trim()];
+      };
+
       for (const row of rows) {
-        const name = (row.item || '').trim();
-        if (!name) continue;
-        const key = name.toLowerCase();
-        if (!existingCatNames.has(key) && !categoriesToAddMap.has(key)) {
-          categoriesToAddMap.set(key, { name, group: row.group || '' });
+        for (const name of candidateCategories(row)) {
+          if (!name) continue;
+          const key = name.toLowerCase();
+          if (!existingCatNames.has(key) && !categoriesToAddMap.has(key)) {
+            categoriesToAddMap.set(key, { name });
+          }
         }
       }
 
@@ -1689,20 +1713,30 @@ async function importEveryDollarTransactions() {
           name: c.name,
           target: 0,
           isFund: false,
-          group: c.group || 'Expenses',
+          group: 'Uncategorized',
           carryover: 0,
         }));
         budget.categories = [...(budget.categories || []), ...newCats];
         // Persist category additions before posting transactions
+        console.log('updating budget with new categories', budget);
         await dataAccess.saveBudget(budget.budgetId, budget);
         budgetStore.updateBudget(budget.budgetId, budget);
+
+        newCats.forEach((c) => existingCatNames.add(c.name.toLowerCase()));
       }
 
       // Rows are aggregated at transaction level; build transactions directly
+      const findCategoryName = (name: string) => {
+        const trimmed = name.trim();
+        if (!trimmed) return trimmed;
+        const match = budget.categories?.find((cat) => cat.name?.trim().toLowerCase() === trimmed.toLowerCase());
+        return match?.name || trimmed;
+      };
+
       const txs: Transaction[] = rows.map((r) => {
         const splits = Array.isArray(r.splits) && r.splits.length > 0
-          ? r.splits.map((s) => ({ category: s.category, amount: Math.abs(s.amount) }))
-          : [{ category: r.item, amount: Math.abs(r.rawAmount) }];
+          ? r.splits.map((s) => ({ category: findCategoryName(s.category || ''), amount: Math.abs(s.amount) }))
+          : [{ category: findCategoryName(r.item || ''), amount: Math.abs(r.rawAmount) }];
         const total = Array.isArray(r.splits) && r.splits.length > 0
           ? r.splits.reduce((sum, s) => sum + (r.rawAmount >= 0 ? s.amount : -s.amount), 0)
           : r.rawAmount;
