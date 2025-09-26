@@ -635,10 +635,18 @@ async function ensureBudgetsLoadedForMonths(
 
   const monthsToFetch = forceReload
     ? normalizedMonths
-    : normalizedMonths.filter((month) => !budgetsForEntity.some((b) => b.month === month));
+    : normalizedMonths.filter((month) => {
+        const existing = budgetsForEntity.find((b) => b.month === month);
+        if (!existing) {
+          return true;
+        }
+        const hasCategories = Array.isArray(existing.categories) && existing.categories.length > 0;
+        const hasTransactions = Array.isArray(existing.transactions) && existing.transactions.length > 0;
+        return !(hasCategories && hasTransactions);
+      });
 
   let accessible = presetAccessible || null;
-  if (!accessible || monthsToFetch.length > 0) {
+  if (!accessible || forceReload) {
     accessible = await dataAccess.loadAccessibleBudgets(targetUserId, selectedEntityId.value);
   }
 
@@ -648,18 +656,21 @@ async function ensureBudgetsLoadedForMonths(
     return relevantAccessible;
   }
 
-  for (const month of monthsToFetch) {
-    const info = relevantAccessible.find((b) => b.month === month && b.budgetId);
-    if (!info?.budgetId) continue;
-    try {
-      const fullBudget = await dataAccess.getBudget(info.budgetId);
-      if (fullBudget) {
-        budgetStore.updateBudget(info.budgetId, fullBudget);
+  await Promise.all(
+    monthsToFetch.map(async (month) => {
+      const info = relevantAccessible.find((b) => b.month === month && b.budgetId);
+      if (!info?.budgetId) return;
+      try {
+        const fullBudget = await dataAccess.getBudget(info.budgetId);
+        if (fullBudget) {
+          if (!fullBudget.budgetId) fullBudget.budgetId = info.budgetId;
+          budgetStore.updateBudget(info.budgetId, fullBudget);
+        }
+      } catch (err) {
+        console.error(`Failed to load budget for month ${month}`, err);
       }
-    } catch (err) {
-      console.error(`Failed to load budget for month ${month}`, err);
-    }
-  }
+    }),
+  );
 
   return relevantAccessible;
 }
