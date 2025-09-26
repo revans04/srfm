@@ -449,7 +449,16 @@ import type { QTableColumn } from 'quasar';
 import { auth } from "../firebase/init";
 import { dataAccess } from "../dataAccess";
 import Papa from "papaparse";
-import type { Budget, Transaction, Account, Entity, ImportedTransaction, ImportedTransactionDoc, BudgetCategory } from "../types";
+import type {
+  Budget,
+  Transaction,
+  Account,
+  Entity,
+  ImportedTransaction,
+  ImportedTransactionDoc,
+  BudgetCategory,
+  BudgetInfo,
+} from "../types";
 import type { EntityType } from "../types";
 import { useRouter } from "vue-router";
 import { v4 as uuidv4 } from "uuid";
@@ -601,6 +610,57 @@ const everyDollarTransactionColumns: QTableColumn[] = [
 
 function transactionRowClass(row: EveryDollarTransactionRow) {
   return row.isDuplicate ? 'bg-yellow-2 text-weight-bold' : '';
+}
+
+async function ensureBudgetsLoadedForMonths(
+  months: string[],
+  userId?: string,
+  presetAccessible?: BudgetInfo[],
+): Promise<BudgetInfo[]> {
+  const targetUserId = userId || auth.currentUser?.uid;
+  if (!targetUserId || !selectedEntityId.value) {
+    return [];
+  }
+
+  const normalizedMonths = Array.from(new Set(months.filter((m): m is string => !!m)));
+  if (normalizedMonths.length === 0) {
+    return [];
+  }
+
+  const monthSet = new Set(normalizedMonths);
+  const budgetsForEntity = Array.from(budgetStore.budgets.values()).filter(
+    (b) => b.entityId === selectedEntityId.value && monthSet.has(b.month),
+  );
+
+  const missingMonths = normalizedMonths.filter(
+    (month) => !budgetsForEntity.some((b) => b.month === month),
+  );
+
+  let accessible = presetAccessible || null;
+  if (!accessible || missingMonths.length > 0) {
+    accessible = await dataAccess.loadAccessibleBudgets(targetUserId, selectedEntityId.value);
+  }
+
+  const relevantAccessible = accessible.filter((info) => info.month && monthSet.has(info.month));
+
+  if (missingMonths.length === 0) {
+    return relevantAccessible;
+  }
+
+  for (const month of missingMonths) {
+    const info = relevantAccessible.find((b) => b.month === month && b.budgetId);
+    if (!info?.budgetId) continue;
+    try {
+      const fullBudget = await dataAccess.getBudget(info.budgetId);
+      if (fullBudget) {
+        budgetStore.updateBudget(info.budgetId, fullBudget);
+      }
+    } catch (err) {
+      console.error(`Failed to load budget for month ${month}`, err);
+    }
+  }
+
+  return relevantAccessible;
 }
 
 // Bank/Card Transactions Import
@@ -1585,6 +1645,9 @@ async function previewEveryDollarTransactions() {
     }
     console.log('txRows', txRows);
 
+    const monthsInData = txRows.map((row) => row.month || '').filter((m): m is string => !!m);
+    await ensureBudgetsLoadedForMonths(monthsInData, user.uid);
+
     everyDollarTransactions.value = txRows;
     if (txRows.length === 0) {
       importSuccess.value = 'No transactions found.';
@@ -1626,35 +1689,66 @@ async function importEveryDollarTransactions() {
     // Group rows by their budget month (derived from date)
     const byMonth = new Map<string, typeof rowsToImport>();
     for (const row of rowsToImport) {
-      const month = toBudgetMonth(row.date);
-      if (!byMonth.has(month)) byMonth.set(month, []);
-      byMonth.get(month)!.push(row);
+      try {
+        const month = toBudgetMonth(row.date);
+        if (!byMonth.has(month)) byMonth.set(month, []);
+        byMonth.get(month)!.push(row);
+      } catch (err) {
+        console.warn('Skipping EveryDollar transaction with invalid date', row, err);
+      }
     }
 
-    // Build a lookup for full budgets (including categories) per month
-    const budgetList = Array.from(budgetStore.budgets.values());
-    const monthToBudget = new Map<string, Budget>();
+    const monthsBeingImported = Array.from(byMonth.keys());
+    if (monthsBeingImported.length === 0) {
+      importError.value = 'Unable to determine budget months for the selected transactions';
+      showSnackbar(importError.value, 'negative');
+      return;
+    }
 
-    let accessibleBudgets: Awaited<ReturnType<typeof dataAccess.loadAccessibleBudgets>> | null = null;
+    let accessibleBudgetsForImport = await ensureBudgetsLoadedForMonths(monthsBeingImported, user.uid);
+    const monthToBudget = new Map<string, Budget>();
+    const monthsToImportSet = new Set(monthsBeingImported);
+    const accessibleLookup = new Map<string, BudgetInfo>();
+    accessibleBudgetsForImport.forEach((info) => {
+      if (info.month && monthsToImportSet.has(info.month)) {
+        accessibleLookup.set(info.month, info);
+      }
+    });
 
     const loadFullBudget = async (month: string): Promise<Budget | null> => {
+      if (!monthsToImportSet.has(month)) {
+        return null;
+      }
       if (monthToBudget.has(month)) {
         return monthToBudget.get(month)!;
       }
 
-      let budgetId: string | undefined;
-
-      const storeBudget = budgetList.find(
-        (b) => b.month === month && b.entityId === selectedEntityId.value && b.budgetId,
+      const storeBudget = Array.from(budgetStore.budgets.values()).find(
+        (b) => b.entityId === selectedEntityId.value && b.month === month && !!b.budgetId,
       );
-      if (storeBudget?.budgetId) {
-        budgetId = storeBudget.budgetId;
-      } else {
-        if (!accessibleBudgets) {
-          accessibleBudgets = await dataAccess.loadAccessibleBudgets(user.uid, selectedEntityId.value);
+
+      let budgetId = storeBudget?.budgetId;
+      if (!budgetId) {
+        const info = accessibleLookup.get(month);
+        if (info?.budgetId) {
+          budgetId = info.budgetId;
         }
-        if (accessibleBudgets) {
-          const info = accessibleBudgets.find((b) => b.month === month && b.budgetId);
+      }
+
+      if (!budgetId) {
+        const refreshed = await ensureBudgetsLoadedForMonths([month], user.uid, accessibleBudgetsForImport);
+        if (refreshed.length > 0) {
+          const merged = new Map<string, BudgetInfo>();
+          [...accessibleBudgetsForImport, ...refreshed].forEach((info) => {
+            if (info.month) merged.set(info.month, info);
+          });
+          accessibleBudgetsForImport = Array.from(merged.values());
+          merged.forEach((info, key) => {
+            if (monthsToImportSet.has(key)) {
+              accessibleLookup.set(key, info);
+            }
+          });
+          const info = accessibleLookup.get(month);
           if (info?.budgetId) {
             budgetId = info.budgetId;
           }
@@ -1665,8 +1759,14 @@ async function importEveryDollarTransactions() {
         return null;
       }
 
-      const fullBudget = await dataAccess.getBudget(budgetId);
+      const hasCategories =
+        Array.isArray(storeBudget?.categories) && ((storeBudget?.categories?.length ?? 0) > 0);
+      const hasTransactions = Array.isArray(storeBudget?.transactions);
+      const needsFetch = !storeBudget || !hasCategories || !hasTransactions;
+      const fullBudget = !needsFetch && storeBudget ? storeBudget : await dataAccess.getBudget(budgetId);
+
       if (fullBudget) {
+        if (!fullBudget.budgetId) fullBudget.budgetId = budgetId;
         monthToBudget.set(month, fullBudget);
         budgetStore.updateBudget(budgetId, fullBudget);
         return fullBudget;
