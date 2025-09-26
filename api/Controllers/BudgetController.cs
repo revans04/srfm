@@ -113,7 +113,11 @@ namespace FamilyBudgetApi.Controllers
             {
                 var userId = HttpContext.Items["UserId"]?.ToString() ?? throw new Exception("User ID not found");
                 var userEmail = (await FirebaseAuth.DefaultInstance.GetUserAsync(userId)).Email;
-                await _budgetService.RecalculateCarryover(budgetId, request.CategoryNames ?? Array.Empty<string>(), userId, userEmail);
+                await _budgetService.RecalculateCarryover(
+                    budgetId,
+                    request.CategoryNames?.ToArray() ?? Array.Empty<string>(),
+                    userId,
+                    userEmail);
                 return Ok();
             }
             catch (Exception ex)
