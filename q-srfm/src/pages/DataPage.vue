@@ -614,6 +614,48 @@ function transactionRowClass(row: EveryDollarTransactionRow) {
   return row.isDuplicate ? 'bg-yellow-2 text-weight-bold' : '';
 }
 
+async function fetchBudgetsForAccessibleInfos(infos: BudgetInfo[]): Promise<Budget[]> {
+  if (infos.length === 0) {
+    return [];
+  }
+
+  const dedupedById = new Map<string, BudgetInfo>();
+  infos.forEach((info) => {
+    if (info?.budgetId) {
+      dedupedById.set(info.budgetId, info);
+    }
+  });
+
+  if (dedupedById.size === 0) {
+    return [];
+  }
+
+  const results = await Promise.allSettled(
+    Array.from(dedupedById.entries()).map(async ([budgetId]) => {
+      try {
+        const budget = await dataAccess.getBudget(budgetId);
+        if (budget) {
+          if (!budget.budgetId) budget.budgetId = budgetId;
+          budgetStore.updateBudget(budgetId, budget);
+        }
+        return budget;
+      } catch (err) {
+        console.error(`Failed to load budget ${budgetId}`, err);
+        return null;
+      }
+    }),
+  );
+
+  const loadedBudgets: Budget[] = [];
+  results.forEach((result) => {
+    if (result.status === 'fulfilled' && result.value) {
+      loadedBudgets.push(result.value);
+    }
+  });
+
+  return loadedBudgets;
+}
+
 async function ensureBudgetsLoadedForMonths(
   months: string[],
   userId?: string,
@@ -654,25 +696,15 @@ async function ensureBudgetsLoadedForMonths(
 
   const relevantAccessible = accessible.filter((info) => info.month && monthSet.has(info.month));
 
-  if (monthsToFetch.length === 0) {
-    return relevantAccessible;
-  }
+  if (monthsToFetch.length > 0) {
+    const infosToFetch = monthsToFetch
+      .map((month) => relevantAccessible.find((b) => b.month === month && b.budgetId))
+      .filter((info): info is BudgetInfo => !!info && !!info.budgetId);
 
-  await Promise.all(
-    monthsToFetch.map(async (month) => {
-      const info = relevantAccessible.find((b) => b.month === month && b.budgetId);
-      if (!info?.budgetId) return;
-      try {
-        const fullBudget = await dataAccess.getBudget(info.budgetId);
-        if (fullBudget) {
-          if (!fullBudget.budgetId) fullBudget.budgetId = info.budgetId;
-          budgetStore.updateBudget(info.budgetId, fullBudget);
-        }
-      } catch (err) {
-        console.error(`Failed to load budget for month ${month}`, err);
-      }
-    }),
-  );
+    if (infosToFetch.length > 0) {
+      await fetchBudgetsForAccessibleInfos(infosToFetch);
+    }
+  }
 
   return relevantAccessible;
 }
@@ -814,10 +846,8 @@ async function loadAllData() {
 
     // Load full budget details for export
     const accessibleBudgets = await dataAccess.loadAccessibleBudgets(user.uid);
-    const fullBudgets = await Promise.all(
-      accessibleBudgets.map((b) => dataAccess.getBudget(b.budgetId))
-    );
-    budgets.value = fullBudgets.filter((b): b is Budget => b !== null);
+    const fullBudgets = await fetchBudgetsForAccessibleInfos(accessibleBudgets);
+    budgets.value = fullBudgets;
 
     transactions.value = budgets.value.flatMap((budget) => budget.transactions || []);
 
