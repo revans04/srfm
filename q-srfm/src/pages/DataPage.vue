@@ -616,6 +616,7 @@ async function ensureBudgetsLoadedForMonths(
   months: string[],
   userId?: string,
   presetAccessible?: BudgetInfo[],
+  forceReload = false,
 ): Promise<BudgetInfo[]> {
   const targetUserId = userId || auth.currentUser?.uid;
   if (!targetUserId || !selectedEntityId.value) {
@@ -632,22 +633,22 @@ async function ensureBudgetsLoadedForMonths(
     (b) => b.entityId === selectedEntityId.value && monthSet.has(b.month),
   );
 
-  const missingMonths = normalizedMonths.filter(
-    (month) => !budgetsForEntity.some((b) => b.month === month),
-  );
+  const monthsToFetch = forceReload
+    ? normalizedMonths
+    : normalizedMonths.filter((month) => !budgetsForEntity.some((b) => b.month === month));
 
   let accessible = presetAccessible || null;
-  if (!accessible || missingMonths.length > 0) {
+  if (!accessible || monthsToFetch.length > 0) {
     accessible = await dataAccess.loadAccessibleBudgets(targetUserId, selectedEntityId.value);
   }
 
   const relevantAccessible = accessible.filter((info) => info.month && monthSet.has(info.month));
 
-  if (missingMonths.length === 0) {
+  if (monthsToFetch.length === 0) {
     return relevantAccessible;
   }
 
-  for (const month of missingMonths) {
+  for (const month of monthsToFetch) {
     const info = relevantAccessible.find((b) => b.month === month && b.budgetId);
     if (!info?.budgetId) continue;
     try {
@@ -1864,6 +1865,21 @@ async function importEveryDollarTransactions() {
     }
 
     if (totalImported > 0) {
+      const earliestMonth = monthsBeingImported.slice().sort()[0];
+      if (earliestMonth) {
+        const monthsToRefresh = new Set<string>(monthsBeingImported);
+        const existingBudgets = Array.from(budgetStore.budgets.values()).filter(
+          (b) => b.entityId === selectedEntityId.value && b.month >= earliestMonth,
+        );
+        existingBudgets.forEach((b) => monthsToRefresh.add(b.month));
+        await ensureBudgetsLoadedForMonths(
+          Array.from(monthsToRefresh),
+          user.uid,
+          accessibleBudgetsForImport,
+          true,
+        );
+      }
+
       importSuccess.value = `Imported ${totalImported} transaction(s)`;
       showSnackbar(importSuccess.value, 'success');
       // Reset EveryDollar form state after successful import
