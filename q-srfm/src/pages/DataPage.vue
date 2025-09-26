@@ -1821,6 +1821,17 @@ async function importEveryDollarTransactions() {
 
     const missingMonths: string[] = [];
     let totalImported = 0;
+    const carryoverImpacts = new Map<string, { month: string; categories: Set<string> }>();
+    const parseBudgetMonth = (input: string) => {
+      const [yearStr, monthStr] = input.split('-');
+      const year = Number(yearStr);
+      const month = Number(monthStr);
+      if (Number.isFinite(year) && Number.isFinite(month)) {
+        return new Date(Date.UTC(year, month - 1, 1));
+      }
+      const parsed = new Date(input);
+      return isNaN(parsed.getTime()) ? new Date(0) : parsed;
+    };
 
     // Save transactions per month into existing budgets only
     for (const [month, rows] of byMonth) {
@@ -1869,6 +1880,26 @@ async function importEveryDollarTransactions() {
         newCats.forEach((c) => existingCatNames.add(c.name.toLowerCase()));
       }
 
+      const fundLookup = new Map<string, string>();
+      budget.categories?.forEach((cat) => {
+        const trimmed = cat.name?.trim();
+        if (trimmed && cat.isFund) {
+          fundLookup.set(trimmed.toLowerCase(), trimmed);
+        }
+      });
+      const recordFundImpact = (rawName: string) => {
+        const trimmed = (rawName || '').trim();
+        if (!trimmed) return;
+        const canonical = fundLookup.get(trimmed.toLowerCase());
+        if (!canonical || !budget.budgetId) return;
+        let entry = carryoverImpacts.get(budget.budgetId);
+        if (!entry) {
+          entry = { month, categories: new Set<string>() };
+          carryoverImpacts.set(budget.budgetId, entry);
+        }
+        entry.categories.add(canonical);
+      };
+
       // Rows are aggregated at transaction level; build transactions directly
       const findCategoryName = (name: string) => {
         const trimmed = name.trim();
@@ -1881,6 +1912,7 @@ async function importEveryDollarTransactions() {
         const splits = Array.isArray(r.splits) && r.splits.length > 0
           ? r.splits.map((s) => ({ category: findCategoryName(s.category || ''), amount: Math.abs(s.amount) }))
           : [{ category: findCategoryName(r.item || ''), amount: Math.abs(r.rawAmount) }];
+        splits.forEach((split) => recordFundImpact(split.category));
         const total = Array.isArray(r.splits) && r.splits.length > 0
           ? r.splits.reduce((sum, s) => sum + (r.rawAmount >= 0 ? s.amount : -s.amount), 0)
           : r.rawAmount;
@@ -1903,8 +1935,35 @@ async function importEveryDollarTransactions() {
         return tx;
       });
 
-      await dataAccess.batchSaveTransactions(budget.budgetId, budget, txs);
+      await dataAccess.batchSaveTransactions(budget.budgetId, budget, txs, { skipCarryoverRecalc: true });
       totalImported += txs.length;
+    }
+
+    if (carryoverImpacts.size > 0) {
+      const allCategories = new Set<string>();
+      let earliestBudgetId: string | null = null;
+      let earliestTime = Number.POSITIVE_INFINITY;
+
+      carryoverImpacts.forEach((value, budgetId) => {
+        value.categories.forEach((name) => allCategories.add(name));
+        const ts = parseBudgetMonth(value.month).getTime();
+        if (ts < earliestTime) {
+          earliestTime = ts;
+          earliestBudgetId = budgetId;
+        }
+      });
+
+      if (earliestBudgetId && allCategories.size > 0) {
+        try {
+          await dataAccess.recalculateCarryover(earliestBudgetId, Array.from(allCategories));
+        } catch (error) {
+          console.error('Failed to recalculate carryover after EveryDollar import', error);
+          showSnackbar(
+            'Transactions imported, but carryover recalculation failed. Please refresh and verify fund balances.',
+            'warning',
+          );
+        }
+      }
     }
 
     if (totalImported > 0) {

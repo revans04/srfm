@@ -149,10 +149,20 @@ export class DataAccess {
     return retValue;
   }
 
-  async batchSaveTransactions(budgetId: string, budget: Budget, transactions: Transaction[]): Promise<void> {
-    const headers = await this.getAuthHeaders();
+  async batchSaveTransactions(
+    budgetId: string,
+    budget: Budget,
+    transactions: Transaction[],
+    options?: { skipCarryoverRecalc?: boolean },
+  ): Promise<void> {
+    if (transactions.length === 0) {
+      return;
+    }
 
-    const response = await fetch(`${this.apiBaseUrl}/budget/${budgetId}/transactions/batch`, {
+    const headers = await this.getAuthHeaders();
+    const query = options?.skipCarryoverRecalc ? "?skipCarryover=true" : "";
+
+    const response = await fetch(`${this.apiBaseUrl}/budget/${budgetId}/transactions/batch${query}`, {
       method: "POST",
       headers,
       body: JSON.stringify(transactions),

@@ -282,7 +282,7 @@ export class DataAccess {
     budgetId: string,
     budget: Budget,
     transactions: Transaction[],
-    chunkSize = 50,
+    options?: { skipCarryoverRecalc?: boolean; chunkSize?: number },
   ): Promise<void> {
     if (transactions.length === 0) {
       return;
@@ -290,10 +290,12 @@ export class DataAccess {
 
     const headers = await this.getAuthHeaders();
     const budgetStore = useBudgetStore();
+    const chunkSize = options?.chunkSize ?? 50;
+    const query = options?.skipCarryoverRecalc ? '?skipCarryover=true' : '';
 
     for (let i = 0; i < transactions.length; i += chunkSize) {
       const chunk = transactions.slice(i, i + chunkSize);
-      const response = await fetch(`${this.apiBaseUrl}/budget/${budgetId}/transactions/batch`, {
+      const response = await fetch(`${this.apiBaseUrl}/budget/${budgetId}/transactions/batch${query}`, {
         method: 'POST',
         headers,
         body: JSON.stringify(chunk),
