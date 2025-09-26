@@ -5,6 +5,7 @@ using NpgsqlTypes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 namespace FamilyBudgetApi.Services;
 
@@ -17,6 +18,8 @@ public class BudgetService
 {
     private readonly SupabaseDbService _db;
     private readonly ILogger<BudgetService> _logger;
+    private bool? _hasBudgetEditHistoryTable;
+    private readonly SemaphoreSlim _editHistoryCheckLock = new(1, 1);
 
     public BudgetService(SupabaseDbService db, ILogger<BudgetService> logger)
     {
@@ -338,6 +341,31 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
     private DateTime? ParseDate(string? input) =>
         DateTime.TryParse(input, out var dt) ? dt : (DateTime?)null;
 
+    private async Task<bool> EnsureBudgetEditHistoryTableAsync(NpgsqlConnection conn, NpgsqlTransaction? transaction)
+    {
+        if (_hasBudgetEditHistoryTable.HasValue)
+            return _hasBudgetEditHistoryTable.Value;
+
+        await _editHistoryCheckLock.WaitAsync();
+        try
+        {
+            if (_hasBudgetEditHistoryTable.HasValue)
+                return _hasBudgetEditHistoryTable.Value;
+
+            const string checkSql = "SELECT to_regclass('public.budget_edit_history') IS NOT NULL";
+            await using var checkCmd = new NpgsqlCommand(checkSql, conn);
+            if (transaction != null)
+                checkCmd.Transaction = transaction;
+            var result = await checkCmd.ExecuteScalarAsync();
+            _hasBudgetEditHistoryTable = result is bool exists && exists;
+            return _hasBudgetEditHistoryTable.Value;
+        }
+        finally
+        {
+            _editHistoryCheckLock.Release();
+        }
+    }
+
     private async Task LogEdit(
         NpgsqlConnection conn,
         string budgetId,
@@ -346,6 +374,9 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
         string action,
         NpgsqlTransaction? transaction = null)
     {
+        if (!await EnsureBudgetEditHistoryTableAsync(conn, transaction))
+            return;
+
         const string sql = "INSERT INTO budget_edit_history (budget_id, user_id, user_email, timestamp, action) VALUES (@bid,@uid,@email, now(), @action)";
         await using var cmd = new NpgsqlCommand(sql, conn, transaction);
         cmd.Parameters.AddWithValue("bid", budgetId);
