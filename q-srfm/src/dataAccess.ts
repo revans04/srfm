@@ -243,7 +243,7 @@ export class DataAccess {
     return transactionId;
   }
 
-  async saveTransaction(budget: Budget, transaction: Transaction, _futureBudgetsExist = true): Promise<Transaction> {
+  async saveTransaction(budget: Budget, transaction: Transaction): Promise<Transaction> {
     const headers = await this.getAuthHeaders();
     const budgetStore = useBudgetStore();
     let retValue = null;
@@ -311,7 +311,7 @@ export class DataAccess {
     }
   }
 
-  async deleteTransaction(budget: Budget, transactionId: string, _futureBudgetsExist = true): Promise<void> {
+  async deleteTransaction(budget: Budget, transactionId: string): Promise<void> {
     const headers = await this.getAuthHeaders();
     const budgetStore = useBudgetStore();
 
@@ -332,7 +332,7 @@ export class DataAccess {
     }
   }
 
-  async restoreTransaction(budget: Budget, transactionId: string, _futureBudgetsExist = true): Promise<void> {
+  async restoreTransaction(budget: Budget, transactionId: string): Promise<void> {
     const headers = await this.getAuthHeaders();
     const budgetStore = useBudgetStore();
 
@@ -354,7 +354,7 @@ export class DataAccess {
     }
   }
 
-  async permanentlyDeleteTransaction(budget: Budget, transactionId: string, _futureBudgetsExist = true): Promise<void> {
+  async permanentlyDeleteTransaction(budget: Budget, transactionId: string): Promise<void> {
     const headers = await this.getAuthHeaders();
     const budgetStore = useBudgetStore();
 

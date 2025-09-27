@@ -389,7 +389,7 @@ async function executeDelete() {
   try {
     const targetBudget = budgetStore.getBudget(props.budgetId);
     if (targetBudget) {
-      await dataAccess.deleteTransaction(targetBudget, transactionToDelete.value.id, !isLastMonth(transactionToDelete.value));
+      await dataAccess.deleteTransaction(targetBudget, transactionToDelete.value.id);
     }
     const updatedTransactions = budgetStore.getBudget(props.budgetId)?.transactions;
     if (updatedTransactions) {

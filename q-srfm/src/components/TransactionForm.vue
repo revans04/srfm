@@ -355,7 +355,7 @@ async function resetMatch() {
     }
 
     if (targetBudget) {
-      const savedTransaction = await dataAccess.saveTransaction(targetBudget, locTrnsx, !isLastMonth.value);
+      const savedTransaction = await dataAccess.saveTransaction(targetBudget, locTrnsx);
       const index = transactions.value.findIndex((t) => t.id === savedTransaction.id);
       if (index >= 0) {
         transactions.value[index] = savedTransaction;
@@ -408,11 +408,11 @@ async function save() {
 
       if (targetBudget) {
         if (currentBudgetMonth !== targetBudgetMonth && locTrnsx.id) {
-          await dataAccess.deleteTransaction(budget.value, locTrnsx.id, !isLastMonth.value);
+          await dataAccess.deleteTransaction(budget.value, locTrnsx.id);
           moved = true;
         }
 
-        const savedTransaction = await dataAccess.saveTransaction(targetBudget, locTrnsx, !isLastMonth.value);
+        const savedTransaction = await dataAccess.saveTransaction(targetBudget, locTrnsx);
         const index = transactions.value.findIndex((t) => t.id === savedTransaction.id);
         if (moved) {
           if (index >= 0) {
@@ -456,7 +456,7 @@ async function deleteTransaction() {
     if (!budget.value) {
       throw new Error(`Budget ${props.budgetId} not found`);
     }
-    await dataAccess.deleteTransaction(budget.value, locTrnsx.id, !isLastMonth.value);
+    await dataAccess.deleteTransaction(budget.value, locTrnsx.id);
 
     transactions.value = transactions.value.filter((t) => t.id !== locTrnsx.id);
     emit('update-transactions', transactions.value);

@@ -763,7 +763,7 @@ async function matchBankTransaction(budgetTransaction: Transaction) {
       );
     }
 
-    await dataAccess.saveTransaction(budget, updatedTransaction, false);
+    await dataAccess.saveTransaction(budget, updatedTransaction);
 
     const { docId, txId } = splitImportedId(importedTx.id);
     await dataAccess.updateImportedTransaction(docId, txId, true);

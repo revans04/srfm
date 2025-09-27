@@ -1011,7 +1011,7 @@ async function executeAction() {
         taxMetadata: budgetTx.taxMetadata || [],
       } as Transaction;
 
-      await dataAccess.saveTransaction(budget, updatedBudgetTx, false);
+      await dataAccess.saveTransaction(budget, updatedBudgetTx);
 
       const budgetIndex = budgets.value.findIndex((b) => b.budgetId === budgetId);
       if (budgetIndex !== -1) {
@@ -1195,7 +1195,7 @@ async function executeBatchMatch() {
       };
 
       // Save budget transaction
-      await dataAccess.saveTransaction(targetBudget, newTransaction, false);
+      await dataAccess.saveTransaction(targetBudget, newTransaction);
 
       // Update local budgets
       const budgetIndex = budgets.value.findIndex((b) => b.budgetId === budgetId);

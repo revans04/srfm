@@ -667,7 +667,7 @@ async function matchBankTransaction(budgetTransaction: Transaction) {
       budget = await createBudgetForMonth(updatedTransaction.budgetMonth, familyStore.getFamily()?.id || "", user.uid, updatedTransaction.entityId);
     }
 
-    await dataAccess.saveTransaction(budget, updatedTransaction, false);
+    await dataAccess.saveTransaction(budget, updatedTransaction);
 
     const { docId, txId } = splitImportedId(importedTx.id);
     await dataAccess.updateImportedTransaction(docId, txId, true);

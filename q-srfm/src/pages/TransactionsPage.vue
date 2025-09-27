@@ -785,7 +785,7 @@ async function executeRegisterBatchMatch() {
         entityId: selectedEntityId.value,
         taxMetadata: imported.taxMetadata || [],
       };
-      const savedTx = await dataAccess.saveTransaction(targetBudget, tx, false);
+      const savedTx = await dataAccess.saveTransaction(targetBudget, tx);
       if (!matchesByBudget[targetBudget.budgetId]) matchesByBudget[targetBudget.budgetId] = [];
       matchesByBudget[targetBudget.budgetId].push({
         budgetTransactionId: savedTx.id,

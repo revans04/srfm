@@ -747,7 +747,7 @@ async function deleteTransaction(id: string) {
     const budget = budgetStore.getBudget(targetBudgetIdToUse);
     if (!budget) throw new Error("Selected budget not found");
 
-    await dataAccess.deleteTransaction(budget, originalId, await !isLastMonth(targetTransaction));
+    await dataAccess.deleteTransaction(budget, originalId);
     showSnackbar("Transaction deleted successfully");
     await loadTransactions();
   } catch (error: any) {
@@ -780,11 +780,7 @@ async function restoreTransaction(id: string) {
     const budget = budgetStore.getBudget(targetBudgetIdToUse);
     if (!budget) throw new Error("Selected budget not found");
 
-    await dataAccess.restoreTransaction(
-      budget,
-      originalId,
-      await !isLastMonth(targetTransaction),
-    );
+    await dataAccess.restoreTransaction(budget, originalId);
     showSnackbar("Transaction restored successfully");
     await loadTransactions();
   } catch (error: any) {
@@ -848,7 +844,7 @@ async function matchTransaction(importedTx: ImportedTransaction) {
     const budget = budgetStore.getBudget(targetBudgetIdToUse);
     if (!budget) throw new Error("Selected budget not found");
 
-    await dataAccess.saveTransaction(budget, updatedTransaction, await !isLastMonth(updatedTransaction));
+    await dataAccess.saveTransaction(budget, updatedTransaction);
 
     const { docId, txId } = splitImportedId(importedTx.id);
     await dataAccess.updateImportedTransaction(docId, { ...importedTx, id: txId, matched: true });
