@@ -289,10 +289,6 @@ const categoryTransactions = computed(() => {
   return temp;
 });
 
-function isLastMonth(transaction: Transaction) {
-  return transaction.budgetMonth == budgetStore.availableBudgetMonths[budgetStore.availableBudgetMonths.length - 1];
-}
-
 function formatDate(dateStr?: string): string {
   if (!dateStr) {
     return '--';

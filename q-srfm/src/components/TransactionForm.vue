@@ -240,10 +240,6 @@ const availableMonths = computed(() => {
   return budgetStore.availableBudgetMonths;
 });
 
-const isLastMonth = computed(() => {
-  return [...availableMonths.value].sort((a, b) => b.localeCompare(a))[0] == locTrnsx.budgetMonth;
-});
-
 const remainingCategories = computed(() => {
   const categoryNames = new Set(locTrnsx.categories.map((entry) => entry.category));
   return props.categoryOptions.filter((str) => {
