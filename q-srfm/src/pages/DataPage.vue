@@ -630,28 +630,34 @@ async function fetchBudgetsForAccessibleInfos(infos: BudgetInfo[]): Promise<Budg
     return [];
   }
 
-  const results = await Promise.allSettled(
-    Array.from(dedupedById.entries()).map(async ([budgetId]) => {
-      try {
-        const budget = await dataAccess.getBudget(budgetId);
-        if (budget) {
-          if (!budget.budgetId) budget.budgetId = budgetId;
-          budgetStore.updateBudget(budgetId, budget);
-        }
-        return budget;
-      } catch (err) {
-        console.error(`Failed to load budget ${budgetId}`, err);
-        return null;
-      }
-    }),
-  );
-
   const loadedBudgets: Budget[] = [];
-  results.forEach((result) => {
-    if (result.status === 'fulfilled' && result.value) {
-      loadedBudgets.push(result.value);
-    }
-  });
+
+  const idsToFetch = Array.from(dedupedById.keys());
+  const concurrency = 4;
+
+  for (let i = 0; i < idsToFetch.length; i += concurrency) {
+    const slice = idsToFetch.slice(i, i + concurrency);
+    const results = await Promise.allSettled(
+      slice.map(async (budgetId) => {
+        try {
+          const budget = await dataAccess.getBudget(budgetId);
+          if (budget) {
+            if (!budget.budgetId) budget.budgetId = budgetId;
+            budgetStore.updateBudget(budgetId, budget);
+            loadedBudgets.push(budget);
+          }
+        } catch (err) {
+          console.error(`Failed to load budget ${budgetId}`, err);
+        }
+      }),
+    );
+
+    results.forEach((result) => {
+      if (result.status === 'rejected') {
+        console.error('Failed to load a budget in batch', result.reason);
+      }
+    });
+  }
 
   return loadedBudgets;
 }
