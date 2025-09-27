@@ -402,7 +402,8 @@
                           </li>
                         </ul>
                       </div>
-                      Do you want to overwrite them?
+                      Confirming will delete the existing budgets for these months before importing the new data. Do you want to
+                      continue?
                     </q-card-section>
                     <q-card-actions>
                       <q-space></q-space>
@@ -449,7 +450,16 @@ import type { QTableColumn } from 'quasar';
 import { auth } from "../firebase/init";
 import { dataAccess } from "../dataAccess";
 import Papa from "papaparse";
-import type { Budget, Transaction, Account, Entity, ImportedTransaction, ImportedTransactionDoc, BudgetCategory } from "../types";
+import type {
+  Budget,
+  Transaction,
+  Account,
+  Entity,
+  ImportedTransaction,
+  ImportedTransactionDoc,
+  BudgetCategory,
+  BudgetInfo,
+} from "../types";
 import type { EntityType } from "../types";
 import { useRouter } from "vue-router";
 import { v4 as uuidv4 } from "uuid";
@@ -503,6 +513,7 @@ const pendingImportData = ref<{
   budgetIdMap: Map<string, string>;
   entitiesById?: Map<string, Entity>;
   accountsAndSnapshots?: any[];
+  existingBudgetIds?: Set<string>;
 } | null>(null);
 const previewTab = ref("categories");
 const importType = ref("bankTransactions");
@@ -601,6 +612,107 @@ const everyDollarTransactionColumns: QTableColumn[] = [
 
 function transactionRowClass(row: EveryDollarTransactionRow) {
   return row.isDuplicate ? 'bg-yellow-2 text-weight-bold' : '';
+}
+
+async function fetchBudgetsForAccessibleInfos(infos: BudgetInfo[]): Promise<Budget[]> {
+  if (infos.length === 0) {
+    return [];
+  }
+
+  const dedupedById = new Map<string, BudgetInfo>();
+  infos.forEach((info) => {
+    if (info?.budgetId) {
+      dedupedById.set(info.budgetId, info);
+    }
+  });
+
+  if (dedupedById.size === 0) {
+    return [];
+  }
+
+  const loadedBudgets: Budget[] = [];
+
+  const idsToFetch = Array.from(dedupedById.keys());
+  const concurrency = 4;
+
+  for (let i = 0; i < idsToFetch.length; i += concurrency) {
+    const slice = idsToFetch.slice(i, i + concurrency);
+    const results = await Promise.allSettled(
+      slice.map(async (budgetId) => {
+        try {
+          const budget = await dataAccess.getBudget(budgetId);
+          if (budget) {
+            if (!budget.budgetId) budget.budgetId = budgetId;
+            budgetStore.updateBudget(budgetId, budget);
+            loadedBudgets.push(budget);
+          }
+        } catch (err) {
+          console.error(`Failed to load budget ${budgetId}`, err);
+        }
+      }),
+    );
+
+    results.forEach((result) => {
+      if (result.status === 'rejected') {
+        console.error('Failed to load a budget in batch', result.reason);
+      }
+    });
+  }
+
+  return loadedBudgets;
+}
+
+async function ensureBudgetsLoadedForMonths(
+  months: string[],
+  userId?: string,
+  presetAccessible?: BudgetInfo[],
+  forceReload = false,
+): Promise<BudgetInfo[]> {
+  const targetUserId = userId || auth.currentUser?.uid;
+  if (!targetUserId || !selectedEntityId.value) {
+    return [];
+  }
+
+  const normalizedMonths = Array.from(new Set(months.filter((m): m is string => !!m)));
+  if (normalizedMonths.length === 0) {
+    return [];
+  }
+
+  const monthSet = new Set(normalizedMonths);
+  const budgetsForEntity = Array.from(budgetStore.budgets.values()).filter(
+    (b) => b.entityId === selectedEntityId.value && monthSet.has(b.month),
+  );
+
+  const monthsToFetch = forceReload
+    ? normalizedMonths
+    : normalizedMonths.filter((month) => {
+        const existing = budgetsForEntity.find((b) => b.month === month);
+        if (!existing) {
+          return true;
+        }
+        const hasCategories = Array.isArray(existing.categories) && existing.categories.length > 0;
+        const hasTransactions = Array.isArray(existing.transactions) && existing.transactions.length > 0;
+        return !(hasCategories && hasTransactions);
+      });
+
+  let accessible = presetAccessible || null;
+  if (!accessible || forceReload) {
+    accessible = await dataAccess.loadAccessibleBudgets(targetUserId, selectedEntityId.value);
+  }
+
+  const relevantAccessible = accessible.filter((info) => info.month && monthSet.has(info.month));
+
+  if (monthsToFetch.length > 0) {
+    const infosToFetch = monthsToFetch
+      .map((month) => relevantAccessible.find((b) => b.month === month && b.budgetId))
+      .filter((info): info is BudgetInfo => !!info && !!info.budgetId);
+
+    if (infosToFetch.length > 0) {
+      await fetchBudgetsForAccessibleInfos(infosToFetch);
+    }
+  }
+
+  return relevantAccessible;
 }
 
 // Bank/Card Transactions Import
@@ -740,10 +852,8 @@ async function loadAllData() {
 
     // Load full budget details for export
     const accessibleBudgets = await dataAccess.loadAccessibleBudgets(user.uid);
-    const fullBudgets = await Promise.all(
-      accessibleBudgets.map((b) => dataAccess.getBudget(b.budgetId))
-    );
-    budgets.value = fullBudgets.filter((b): b is Budget => b !== null);
+    const fullBudgets = await fetchBudgetsForAccessibleInfos(accessibleBudgets);
+    budgets.value = fullBudgets;
 
     transactions.value = budgets.value.flatMap((budget) => budget.transactions || []);
 
@@ -1585,6 +1695,9 @@ async function previewEveryDollarTransactions() {
     }
     console.log('txRows', txRows);
 
+    const monthsInData = txRows.map((row) => row.month || '').filter((m): m is string => !!m);
+    await ensureBudgetsLoadedForMonths(monthsInData, user.uid);
+
     everyDollarTransactions.value = txRows;
     if (txRows.length === 0) {
       importSuccess.value = 'No transactions found.';
@@ -1626,35 +1739,66 @@ async function importEveryDollarTransactions() {
     // Group rows by their budget month (derived from date)
     const byMonth = new Map<string, typeof rowsToImport>();
     for (const row of rowsToImport) {
-      const month = toBudgetMonth(row.date);
-      if (!byMonth.has(month)) byMonth.set(month, []);
-      byMonth.get(month)!.push(row);
+      try {
+        const month = toBudgetMonth(row.date);
+        if (!byMonth.has(month)) byMonth.set(month, []);
+        byMonth.get(month)!.push(row);
+      } catch (err) {
+        console.warn('Skipping EveryDollar transaction with invalid date', row, err);
+      }
     }
 
-    // Build a lookup for full budgets (including categories) per month
-    const budgetList = Array.from(budgetStore.budgets.values());
-    const monthToBudget = new Map<string, Budget>();
+    const monthsBeingImported = Array.from(byMonth.keys());
+    if (monthsBeingImported.length === 0) {
+      importError.value = 'Unable to determine budget months for the selected transactions';
+      showSnackbar(importError.value, 'negative');
+      return;
+    }
 
-    let accessibleBudgets: Awaited<ReturnType<typeof dataAccess.loadAccessibleBudgets>> | null = null;
+    let accessibleBudgetsForImport = await ensureBudgetsLoadedForMonths(monthsBeingImported, user.uid);
+    const monthToBudget = new Map<string, Budget>();
+    const monthsToImportSet = new Set(monthsBeingImported);
+    const accessibleLookup = new Map<string, BudgetInfo>();
+    accessibleBudgetsForImport.forEach((info) => {
+      if (info.month && monthsToImportSet.has(info.month)) {
+        accessibleLookup.set(info.month, info);
+      }
+    });
 
     const loadFullBudget = async (month: string): Promise<Budget | null> => {
+      if (!monthsToImportSet.has(month)) {
+        return null;
+      }
       if (monthToBudget.has(month)) {
         return monthToBudget.get(month)!;
       }
 
-      let budgetId: string | undefined;
-
-      const storeBudget = budgetList.find(
-        (b) => b.month === month && b.entityId === selectedEntityId.value && b.budgetId,
+      const storeBudget = Array.from(budgetStore.budgets.values()).find(
+        (b) => b.entityId === selectedEntityId.value && b.month === month && !!b.budgetId,
       );
-      if (storeBudget?.budgetId) {
-        budgetId = storeBudget.budgetId;
-      } else {
-        if (!accessibleBudgets) {
-          accessibleBudgets = await dataAccess.loadAccessibleBudgets(user.uid, selectedEntityId.value);
+
+      let budgetId = storeBudget?.budgetId;
+      if (!budgetId) {
+        const info = accessibleLookup.get(month);
+        if (info?.budgetId) {
+          budgetId = info.budgetId;
         }
-        if (accessibleBudgets) {
-          const info = accessibleBudgets.find((b) => b.month === month && b.budgetId);
+      }
+
+      if (!budgetId) {
+        const refreshed = await ensureBudgetsLoadedForMonths([month], user.uid, accessibleBudgetsForImport);
+        if (refreshed.length > 0) {
+          const merged = new Map<string, BudgetInfo>();
+          [...accessibleBudgetsForImport, ...refreshed].forEach((info) => {
+            if (info.month) merged.set(info.month, info);
+          });
+          accessibleBudgetsForImport = Array.from(merged.values());
+          merged.forEach((info, key) => {
+            if (monthsToImportSet.has(key)) {
+              accessibleLookup.set(key, info);
+            }
+          });
+          const info = accessibleLookup.get(month);
           if (info?.budgetId) {
             budgetId = info.budgetId;
           }
@@ -1665,8 +1809,14 @@ async function importEveryDollarTransactions() {
         return null;
       }
 
-      const fullBudget = await dataAccess.getBudget(budgetId);
+      const hasCategories =
+        Array.isArray(storeBudget?.categories) && ((storeBudget?.categories?.length ?? 0) > 0);
+      const hasTransactions = Array.isArray(storeBudget?.transactions);
+      const needsFetch = !storeBudget || !hasCategories || !hasTransactions;
+      const fullBudget = !needsFetch && storeBudget ? storeBudget : await dataAccess.getBudget(budgetId);
+
       if (fullBudget) {
+        if (!fullBudget.budgetId) fullBudget.budgetId = budgetId;
         monthToBudget.set(month, fullBudget);
         budgetStore.updateBudget(budgetId, fullBudget);
         return fullBudget;
@@ -1677,6 +1827,17 @@ async function importEveryDollarTransactions() {
 
     const missingMonths: string[] = [];
     let totalImported = 0;
+    const carryoverImpacts = new Map<string, { month: string; categories: Set<string> }>();
+    const parseBudgetMonth = (input: string) => {
+      const [yearStr, monthStr] = input.split('-');
+      const year = Number(yearStr);
+      const month = Number(monthStr);
+      if (Number.isFinite(year) && Number.isFinite(month)) {
+        return new Date(Date.UTC(year, month - 1, 1));
+      }
+      const parsed = new Date(input);
+      return isNaN(parsed.getTime()) ? new Date(0) : parsed;
+    };
 
     // Save transactions per month into existing budgets only
     for (const [month, rows] of byMonth) {
@@ -1725,6 +1886,26 @@ async function importEveryDollarTransactions() {
         newCats.forEach((c) => existingCatNames.add(c.name.toLowerCase()));
       }
 
+      const fundLookup = new Map<string, string>();
+      budget.categories?.forEach((cat) => {
+        const trimmed = cat.name?.trim();
+        if (trimmed && cat.isFund) {
+          fundLookup.set(trimmed.toLowerCase(), trimmed);
+        }
+      });
+      const recordFundImpact = (rawName: string) => {
+        const trimmed = (rawName || '').trim();
+        if (!trimmed) return;
+        const canonical = fundLookup.get(trimmed.toLowerCase());
+        if (!canonical || !budget.budgetId) return;
+        let entry = carryoverImpacts.get(budget.budgetId);
+        if (!entry) {
+          entry = { month, categories: new Set<string>() };
+          carryoverImpacts.set(budget.budgetId, entry);
+        }
+        entry.categories.add(canonical);
+      };
+
       // Rows are aggregated at transaction level; build transactions directly
       const findCategoryName = (name: string) => {
         const trimmed = name.trim();
@@ -1737,6 +1918,7 @@ async function importEveryDollarTransactions() {
         const splits = Array.isArray(r.splits) && r.splits.length > 0
           ? r.splits.map((s) => ({ category: findCategoryName(s.category || ''), amount: Math.abs(s.amount) }))
           : [{ category: findCategoryName(r.item || ''), amount: Math.abs(r.rawAmount) }];
+        splits.forEach((split) => recordFundImpact(split.category));
         const total = Array.isArray(r.splits) && r.splits.length > 0
           ? r.splits.reduce((sum, s) => sum + (r.rawAmount >= 0 ? s.amount : -s.amount), 0)
           : r.rawAmount;
@@ -1759,11 +1941,53 @@ async function importEveryDollarTransactions() {
         return tx;
       });
 
-      await dataAccess.batchSaveTransactions(budget.budgetId, budget, txs);
+      await dataAccess.batchSaveTransactions(budget.budgetId, budget, txs, { skipCarryoverRecalc: true });
       totalImported += txs.length;
     }
 
+    if (carryoverImpacts.size > 0) {
+      const allCategories = new Set<string>();
+      let earliestBudgetId: string | null = null;
+      let earliestTime = Number.POSITIVE_INFINITY;
+
+      carryoverImpacts.forEach((value, budgetId) => {
+        value.categories.forEach((name) => allCategories.add(name));
+        const ts = parseBudgetMonth(value.month).getTime();
+        if (ts < earliestTime) {
+          earliestTime = ts;
+          earliestBudgetId = budgetId;
+        }
+      });
+
+      if (earliestBudgetId && allCategories.size > 0) {
+        try {
+          await dataAccess.recalculateCarryover(earliestBudgetId, Array.from(allCategories));
+        } catch (error) {
+          console.error('Failed to recalculate carryover after EveryDollar import', error);
+          showSnackbar(
+            'Transactions imported, but carryover recalculation failed. Please refresh and verify fund balances.',
+            'warning',
+          );
+        }
+      }
+    }
+
     if (totalImported > 0) {
+      const earliestMonth = monthsBeingImported.slice().sort()[0];
+      if (earliestMonth) {
+        const monthsToRefresh = new Set<string>(monthsBeingImported);
+        const existingBudgets = Array.from(budgetStore.budgets.values()).filter(
+          (b) => b.entityId === selectedEntityId.value && b.month >= earliestMonth,
+        );
+        existingBudgets.forEach((b) => monthsToRefresh.add(b.month));
+        await ensureBudgetsLoadedForMonths(
+          Array.from(monthsToRefresh),
+          user.uid,
+          accessibleBudgetsForImport,
+          true,
+        );
+      }
+
       importSuccess.value = `Imported ${totalImported} transaction(s)`;
       showSnackbar(importSuccess.value, 'success');
       // Reset EveryDollar form state after successful import
@@ -1953,9 +2177,16 @@ async function confirmImport() {
     const budgetsById = new Map<string, Budget>();
     const budgetIdMap = new Map<string, string>();
     const budgetIdToIncomeTarget = new Map<string, number>();
+    const existingTargetBudgetIds = new Set<string>();
 
     try {
       importRunning.value = true;
+
+      const existingInfos = await dataAccess.loadAccessibleBudgets(user.uid, selectedEntityId.value);
+      const monthToExistingId = new Map<string, string>();
+      existingInfos.forEach((info) => {
+        if (info.month && info.budgetId) monthToExistingId.set(info.month, info.budgetId);
+      });
 
       if (previewData.value.categories.length > 0) {
         const budgetIdToMonth = new Map<string, string>();
@@ -1972,18 +2203,16 @@ async function confirmImport() {
             budgetIdToIncomeTarget.set(originalBudgetId, Number(category.incomeTarget) || 0);
           }
         });
-        // Resolve existing budgets for the target entity, keyed by month
-        const existingInfos = await dataAccess.loadAccessibleBudgets(user.uid, selectedEntityId.value);
-        const monthToExistingId = new Map<string, string>();
-        existingInfos.forEach((info) => {
-          if (info.month && info.budgetId) monthToExistingId.set(info.month, info.budgetId);
-        });
 
         // Build target budgets (use existing budgetId when present, otherwise a new id)
         for (const [originalBudgetId, month] of budgetIdToMonth) {
           const existingId = monthToExistingId.get(month);
           const targetBudgetId = existingId || uuidv4();
           budgetIdMap.set(originalBudgetId, targetBudgetId);
+
+          if (existingId) {
+            existingTargetBudgetIds.add(existingId);
+          }
 
           const budget: Budget = {
             budgetId: targetBudgetId,
@@ -2088,17 +2317,26 @@ async function confirmImport() {
       }
 
       // Determine which months will overwrite existing budgets
-      const existingForEntity = await dataAccess.loadAccessibleBudgets(user.uid, selectedEntityId.value);
-      const existingMonths = new Set(existingForEntity.map((b) => b.month));
+      const existingMonths = new Set(existingInfos.map((b) => b.month));
       const importMonths = new Set(Array.from(budgetsById.values()).map((b) => b.month));
       overwriteMonths.value = Array.from(importMonths).filter((m) => existingMonths.has(m));
 
       if (overwriteMonths.value.length > 0) {
-        pendingImportData.value = { budgetsById, budgetIdMap, entitiesById: new Map() };
+        pendingImportData.value = {
+          budgetsById,
+          budgetIdMap,
+          entitiesById: new Map(),
+          existingBudgetIds: existingTargetBudgetIds,
+        };
         showPreview.value = false; // ensure the overwrite dialog is visible
         showOverwriteDialog.value = true;
       } else {
-        pendingImportData.value = { budgetsById, budgetIdMap, entitiesById: new Map() };
+        pendingImportData.value = {
+          budgetsById,
+          budgetIdMap,
+          entitiesById: new Map(),
+          existingBudgetIds: existingTargetBudgetIds,
+        };
         await proceedWithImport();
       }
     } catch (e: any) {
@@ -2304,18 +2542,49 @@ async function proceedWithImport() {
     const user = auth.currentUser;
     if (!user) throw new Error("User not authenticated");
 
-    const budgetsById: Map<string, Budget> = pendingImportData.value?.budgetsById ?? new Map();
+    const storedPending = pendingImportData.value;
+    const budgetsById: Map<string, Budget> = storedPending?.budgetsById ?? new Map();
+    const existingBudgetIds = new Set(storedPending?.existingBudgetIds ?? []);
     pendingImportData.value = null;
 
-    for (const [budgetId, budget] of budgetsById) {
-      // Delete any existing budget to avoid merging old data
-      try {
-        const targetId = budget.budgetId || budgetId;
-        await dataAccess.deleteBudget(targetId);
-      } catch {
-        // Ignore if budget does not exist
-      }
+    const entries = Array.from(budgetsById.entries()).map(([key, budget]) => {
+      const targetId = budget.budgetId || key;
+      return { key, targetId, budget };
+    });
 
+    const shouldDeleteExisting = existingBudgetIds.size > 0 && overwriteMonths.value.length > 0;
+
+    if (shouldDeleteExisting) {
+      for (const { targetId } of entries) {
+        if (!existingBudgetIds.has(targetId)) continue;
+        try {
+          await dataAccess.deleteBudget(targetId);
+        } catch {
+          // Ignore if budget does not exist
+        }
+      }
+    }
+
+    const parseBudgetMonth = (input: string) => {
+      const [yearStr, monthStr] = input.split("-");
+      const year = Number(yearStr);
+      const month = Number(monthStr);
+      if (Number.isFinite(year) && Number.isFinite(month)) {
+        return new Date(Date.UTC(year, month - 1, 1));
+      }
+      const parsed = new Date(input);
+      return isNaN(parsed.getTime()) ? new Date(0) : parsed;
+    };
+
+    const sortedEntries = entries.sort((a, b) => {
+      const dateA = parseBudgetMonth(a.budget.month);
+      const dateB = parseBudgetMonth(b.budget.month);
+      return dateA.getTime() - dateB.getTime();
+    });
+
+    const fundCategories = new Set<string>();
+
+    for (const { targetId, budget } of sortedEntries) {
       // Recalculate merchants from imported transactions
       const merchantCounts = budget.transactions
         .filter((t) => t.merchant && t.merchant.trim() !== "")
@@ -2327,14 +2596,31 @@ async function proceedWithImport() {
         .map(([name, usageCount]) => ({ name, usageCount }))
         .sort((a, b) => b.usageCount - a.usageCount);
 
-      const targetId = budget.budgetId || budgetId;
+      budget.categories
+        ?.filter((category) => category.isFund && category.name)
+        .forEach((category) => {
+          const name = (category.name || "").trim();
+          if (name) {
+            fundCategories.add(name);
+          }
+        });
+
       const toSave = { ...budget, budgetId: targetId } as Budget;
-      await dataAccess.saveBudget(targetId, toSave);
+      await dataAccess.saveBudget(targetId, toSave, { skipCarryoverRecalc: true });
       budgetStore.updateBudget(targetId, toSave);
       showSnackbar(`Saved budget ${toSave.month} with ${toSave.transactions.length} transactions`);
     }
 
-    const budgetMonths = Array.from(budgetsById.values()).map((budget) => budget.month);
+    if (sortedEntries.length > 0 && fundCategories.size > 0) {
+      try {
+        await dataAccess.recalculateCarryover(sortedEntries[0].targetId, Array.from(fundCategories));
+      } catch (error) {
+        console.error("Failed to recalculate carryover after import", error);
+        showSnackbar("Budgets imported, but carryover recalculation failed. Please refresh and verify fund balances.", "warning");
+      }
+    }
+
+    const budgetMonths = sortedEntries.map(({ budget }) => budget.month);
     const mostRecentMonth = budgetMonths.sort((a, b) => {
       const dateA = new Date(a);
       const dateB = new Date(b);
@@ -2358,6 +2644,7 @@ async function proceedWithImport() {
     previewData.value = { entities: [], categories: [], transactions: [], accountsAndSnapshots: [] };
     previewErrors.value = [];
     selectedEntityId.value = "";
+    overwriteMonths.value = [];
   }
 }
 

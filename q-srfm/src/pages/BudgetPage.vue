@@ -289,8 +289,8 @@
           </div>
 
           <!-- Category Tables -->
-          <div v-if="!isEditing && catTransactions" id="groups-section" class="row q-mt-lg">
-            <div class="col-12" v-for="(g, gIdx) in groups" :key="gIdx">
+          <div v-if="!isEditing && catTransactions" id="groups-section" class="row q-mt-md">
+            <div class="col-12 q-py-sm" v-for="(g, gIdx) in groups" :key="gIdx">
               <q-card class="panel-card budget-group-card" :id="`group-${gIdx}`">
                 <q-card-section>
                   <div class="row text-primary">
@@ -510,7 +510,13 @@
 
               <div class="transaction-panel-scroll">
                 <q-list separator>
-                  <q-item v-for="transaction in filteredMonthTransactions" :key="transaction.id" class="transaction-panel-item">
+                  <q-item
+                    v-for="transaction in filteredMonthTransactions"
+                    :key="transaction.id"
+                    class="transaction-panel-item"
+                    clickable
+                    @click="editTransaction(transaction)"
+                  >
                     <q-item-section avatar>
                       <div class="transaction-date-pill">
                         <div class="month">{{ formatTransactionMonthShort(transaction.date) }}</div>
@@ -555,6 +561,7 @@
           <q-card-section>{{ isIncomeTransaction ? 'Add Income' : 'Add Transaction' }}</q-card-section>
           <q-card-section>
             <TransactionForm
+              :key="transactionDialogKey"
               :initial-transaction="newTransaction"
               :show-cancel="true"
               :category-options="categoryOptions"
@@ -631,6 +638,7 @@ const futureCategories = ref<BudgetCategory[]>([]);
 const saving = ref(false);
 const isEditing = ref(false);
 const showTransactionDialog = ref(false);
+const transactionDialogKey = ref(0);
 const isIncomeTransaction = ref(false);
 const loading = ref(true);
 const showLoadingMessage = ref(false);
@@ -1842,6 +1850,7 @@ function addTransaction() {
       taxMetadata: [],
     };
     isIncomeTransaction.value = false;
+    transactionDialogKey.value += 1;
     showTransactionDialog.value = true;
   }
 }
@@ -1869,8 +1878,45 @@ function addTransactionForCategory(category: string) {
       taxMetadata: [],
     };
     isIncomeTransaction.value = false;
+    transactionDialogKey.value += 1;
     showTransactionDialog.value = true;
   }
+}
+
+function editTransaction(transaction: Transaction) {
+  if (!transaction) {
+    return;
+  }
+
+  const categories = transaction.categories?.map((cat) => ({ ...cat })) ?? [];
+  if (categories.length === 0) {
+    categories.push({ category: '', amount: transaction.amount ?? 0 });
+  }
+
+  const taxMetadata = transaction.taxMetadata
+    ? transaction.taxMetadata.map((meta) => ({ ...meta, tags: meta.tags ? [...meta.tags] : [] }))
+    : [];
+
+  const dialogTransaction: Transaction = {
+    ...transaction,
+    categories,
+    taxMetadata,
+    budgetMonth: transaction.budgetMonth || currentMonth.value,
+    userId: transaction.userId || userId.value,
+  };
+
+  if (!dialogTransaction.entityId && familyStore.selectedEntityId) {
+    dialogTransaction.entityId = familyStore.selectedEntityId;
+  }
+
+  if (!dialogTransaction.budgetId && budgetId.value) {
+    dialogTransaction.budgetId = budgetId.value;
+  }
+
+  newTransaction.value = dialogTransaction;
+  isIncomeTransaction.value = !!transaction.isIncome;
+  transactionDialogKey.value += 1;
+  showTransactionDialog.value = true;
 }
 
 async function duplicateCurrentMonth(month: string) {

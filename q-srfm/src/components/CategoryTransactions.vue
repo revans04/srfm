@@ -289,10 +289,6 @@ const categoryTransactions = computed(() => {
   return temp;
 });
 
-function isLastMonth(transaction: Transaction) {
-  return transaction.budgetMonth == budgetStore.availableBudgetMonths[budgetStore.availableBudgetMonths.length - 1];
-}
-
 function formatDate(dateStr?: string): string {
   if (!dateStr) {
     return '--';
@@ -389,7 +385,7 @@ async function executeDelete() {
   try {
     const targetBudget = budgetStore.getBudget(props.budgetId);
     if (targetBudget) {
-      await dataAccess.deleteTransaction(targetBudget, transactionToDelete.value.id, !isLastMonth(transactionToDelete.value));
+      await dataAccess.deleteTransaction(targetBudget, transactionToDelete.value.id);
     }
     const updatedTransactions = budgetStore.getBudget(props.budgetId)?.transactions;
     if (updatedTransactions) {

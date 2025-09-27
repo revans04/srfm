@@ -51,14 +51,30 @@ export class DataAccess {
     return await response.json();
   }
 
-  async saveBudget(budgetId: string, budget: Budget): Promise<void> {
+  async saveBudget(budgetId: string, budget: Budget, options?: { skipCarryoverRecalc?: boolean }): Promise<void> {
     const headers = await this.getAuthHeaders();
-    const response = await fetch(`${this.apiBaseUrl}/budget/${budgetId}`, {
+    const params = options?.skipCarryoverRecalc ? "?skipCarryover=true" : "";
+    const response = await fetch(`${this.apiBaseUrl}/budget/${budgetId}${params}`, {
       method: "POST",
       headers,
       body: JSON.stringify(budget),
     });
     if (!response.ok) throw new Error(`Failed to save budget: ${response.statusText}`);
+  }
+
+  async recalculateCarryover(budgetId: string, categoryNames: string[]): Promise<void> {
+    if (categoryNames.length === 0) {
+      return;
+    }
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(`${this.apiBaseUrl}/budget/${budgetId}/carryover/recalculate`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ categoryNames }),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to recalculate carryover: ${response.statusText}`);
+    }
   }
 
   async deleteBudget(budgetId: string): Promise<void> {
@@ -100,7 +116,7 @@ export class DataAccess {
     return transactionId;
   }
 
-  async saveTransaction(budget: Budget, transaction: Transaction, futureBudgetsExist = true): Promise<Transaction> {
+  async saveTransaction(budget: Budget, transaction: Transaction): Promise<Transaction> {
     const headers = await this.getAuthHeaders();
     let retValue = null;
     if (!transaction.id) {
@@ -129,18 +145,24 @@ export class DataAccess {
       } else {
         budget.transactions.push(retValue);
       }
-      if (budget && futureBudgetsExist && (await this.hasFundCategory(transaction, budget))) {
-        const [uid, entityId, budgetMonth] = budget.budgetId.split("_"); // Updated to parse new ID format
-        await this.recalculateCarryoverForFutureBudgets(uid, entityId, budgetMonth, transaction.categories);
-      }
     }
     return retValue;
   }
 
-  async batchSaveTransactions(budgetId: string, budget: Budget, transactions: Transaction[]): Promise<void> {
-    const headers = await this.getAuthHeaders();
+  async batchSaveTransactions(
+    budgetId: string,
+    budget: Budget,
+    transactions: Transaction[],
+    options?: { skipCarryoverRecalc?: boolean },
+  ): Promise<void> {
+    if (transactions.length === 0) {
+      return;
+    }
 
-    const response = await fetch(`${this.apiBaseUrl}/budget/${budgetId}/transactions/batch`, {
+    const headers = await this.getAuthHeaders();
+    const query = options?.skipCarryoverRecalc ? "?skipCarryover=true" : "";
+
+    const response = await fetch(`${this.apiBaseUrl}/budget/${budgetId}/transactions/batch${query}`, {
       method: "POST",
       headers,
       body: JSON.stringify(transactions),
@@ -149,17 +171,10 @@ export class DataAccess {
 
     if (budget.budgetId) {
       budget.transactions = [...budget.transactions, ...transactions];
-
-      for (const transaction of transactions) {
-        if (await this.hasFundCategory(transaction, budget)) {
-          const [uid, entityId, budgetMonth] = budget.budgetId.split("_"); // Updated to parse new ID format
-          await this.recalculateCarryoverForFutureBudgets(uid, entityId, budgetMonth, transaction.categories);
-        }
-      }
     }
   }
 
-  async deleteTransaction(budget: Budget, transactionId: string, futureBudgetsExist = true): Promise<void> {
+  async deleteTransaction(budget: Budget, transactionId: string): Promise<void> {
     const headers = await this.getAuthHeaders();
 
     const transactionToDelete = budget.transactions?.find((t) => t.id === transactionId);
@@ -175,15 +190,10 @@ export class DataAccess {
 
     if (budget.budgetId) {
       budget.transactions = budget.transactions.map((t) => (t.id === transactionId ? updatedTransaction : t));
-
-      if (futureBudgetsExist && (await this.hasFundCategory(transactionToDelete, budget))) {
-        const [uid, entityId, budgetMonth] = budget.budgetId.split("_"); // Updated to parse new ID format
-        await this.recalculateCarryoverForFutureBudgets(uid, entityId, budgetMonth, transactionToDelete.categories);
-      }
     }
   }
 
-  async restoreTransaction(budget: Budget, transactionId: string, futureBudgetsExist = true): Promise<void> {
+  async restoreTransaction(budget: Budget, transactionId: string): Promise<void> {
     const headers = await this.getAuthHeaders();
 
     const transactionToRestore = budget.transactions?.find((t) => t.id === transactionId);
@@ -200,15 +210,10 @@ export class DataAccess {
 
     if (budget.budgetId) {
       budget.transactions = budget.transactions.map((t) => (t.id === transactionId ? updatedTransaction : t));
-
-      if (futureBudgetsExist && (await this.hasFundCategory(transactionToRestore, budget))) {
-        const [uid, entityId, budgetMonth] = budget.budgetId.split("_"); // Updated to parse new ID format
-        await this.recalculateCarryoverForFutureBudgets(uid, entityId, budgetMonth, transactionToRestore.categories);
-      }
     }
   }
 
-  async permanentlyDeleteTransaction(budget: Budget, transactionId: string, futureBudgetsExist = true): Promise<void> {
+  async permanentlyDeleteTransaction(budget: Budget, transactionId: string): Promise<void> {
     const headers = await this.getAuthHeaders();
 
     const transactionToDelete = budget.transactions?.find((t) => t.id === transactionId);
@@ -222,16 +227,7 @@ export class DataAccess {
 
     if (budget.budgetId) {
       budget.transactions = budget.transactions.filter((t) => t.id !== transactionId);
-
-      if (futureBudgetsExist && (await this.hasFundCategory(transactionToDelete, budget))) {
-        const [uid, entityId, budgetMonth] = budget.budgetId.split("_"); // Updated to parse new ID format
-        await this.recalculateCarryoverForFutureBudgets(uid, entityId, budgetMonth, transactionToDelete.categories);
-      }
     }
-  }
-
-  private async hasFundCategory(transaction: Transaction, budget: Budget): Promise<boolean> {
-    return transaction.categories.some((cat) => budget.categories.find((bc) => bc.name === cat.category)?.isFund || false);
   }
 
   async calculateCarryOver(budget: Budget): Promise<Record<string, number>> {

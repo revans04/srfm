@@ -1,8 +1,11 @@
 using FamilyBudgetApi.Models;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using NpgsqlTypes;
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 namespace FamilyBudgetApi.Services;
 
@@ -15,6 +18,8 @@ public class BudgetService
 {
     private readonly SupabaseDbService _db;
     private readonly ILogger<BudgetService> _logger;
+    private bool? _hasBudgetEditHistoryTable;
+    private readonly SemaphoreSlim _editHistoryCheckLock = new(1, 1);
 
     public BudgetService(SupabaseDbService db, ILogger<BudgetService> logger)
     {
@@ -137,7 +142,7 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
             await using (var txCmd = new NpgsqlCommand(sqlTx, conn))
             {
                 txCmd.Parameters.AddWithValue("id", budget.BudgetId);
-                txCmd.Parameters.AddWithValue("entity", string.IsNullOrEmpty(budget.EntityId) ? (object)DBNull.Value : Guid.Parse(budget.EntityId));
+                SetOptionalGuid(txCmd.Parameters, "entity", budget.EntityId);
                 await using var txReader = await txCmd.ExecuteReaderAsync();
                 while (await txReader.ReadAsync())
                 {
@@ -272,7 +277,7 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
     /// <summary>
     /// Upsert a budget and its transactions into Supabase.
     /// </summary>
-    public async Task SaveBudget(string budgetId, Budget budget, string userId, string userEmail)
+    public async Task SaveBudget(string budgetId, Budget budget, string userId, string userEmail, bool skipCarryoverRecalc = false)
     {
         _logger.LogInformation("Saving budget {BudgetId}", budgetId);
         await using var conn = await _db.GetOpenConnectionAsync();
@@ -283,7 +288,7 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
         await using var cmd = new NpgsqlCommand(sql, conn, dbTx);
         cmd.Parameters.AddWithValue("id", budgetId);
         cmd.Parameters.AddWithValue("family_id", Guid.Parse(budget.FamilyId));
-        cmd.Parameters.AddWithValue("entity_id", string.IsNullOrEmpty(budget.EntityId) ? (object)DBNull.Value : Guid.Parse(budget.EntityId));
+        SetOptionalGuid(cmd.Parameters, "entity_id", budget.EntityId);
         cmd.Parameters.AddWithValue("month", budget.Month);
         cmd.Parameters.AddWithValue("label", (object?)budget.Label ?? DBNull.Value);
         cmd.Parameters.AddWithValue("income_target", (decimal)budget.IncomeTarget);
@@ -321,19 +326,59 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
 
         if (budget.Transactions != null && budget.Transactions.Count > 0)
         {
-            await BatchSaveTransactions(budgetId, budget.Transactions, userId, userEmail);
+            await BatchSaveTransactions(budgetId, budget.Transactions, userId, userEmail, !skipCarryoverRecalc);
         }
         await LogEdit(conn, budgetId, userId, userEmail, "save-budget");
         _logger.LogInformation("Budget {BudgetId} saved with {CatCount} categories and {TxCount} transactions", budgetId, budget.Categories?.Count ?? 0, budget.Transactions?.Count ?? 0);
     }
 
+    public async Task RecalculateCarryover(string budgetId, IEnumerable<string> categoryNames, string userId, string userEmail)
+    {
+        await using var conn = await _db.GetOpenConnectionAsync();
+        await RecalculateCarryoverForAffectedCategories(conn, budgetId, categoryNames, userId, userEmail);
+    }
+
     private DateTime? ParseDate(string? input) =>
         DateTime.TryParse(input, out var dt) ? dt : (DateTime?)null;
 
-    private async Task LogEdit(NpgsqlConnection conn, string budgetId, string userId, string userEmail, string action)
+    private async Task<bool> EnsureBudgetEditHistoryTableAsync(NpgsqlConnection conn, NpgsqlTransaction? transaction)
     {
+        if (_hasBudgetEditHistoryTable.HasValue)
+            return _hasBudgetEditHistoryTable.Value;
+
+        await _editHistoryCheckLock.WaitAsync();
+        try
+        {
+            if (_hasBudgetEditHistoryTable.HasValue)
+                return _hasBudgetEditHistoryTable.Value;
+
+            const string checkSql = "SELECT to_regclass('public.budget_edit_history') IS NOT NULL";
+            await using var checkCmd = new NpgsqlCommand(checkSql, conn);
+            if (transaction != null)
+                checkCmd.Transaction = transaction;
+            var result = await checkCmd.ExecuteScalarAsync();
+            _hasBudgetEditHistoryTable = result is bool exists && exists;
+            return _hasBudgetEditHistoryTable.Value;
+        }
+        finally
+        {
+            _editHistoryCheckLock.Release();
+        }
+    }
+
+    private async Task LogEdit(
+        NpgsqlConnection conn,
+        string budgetId,
+        string userId,
+        string userEmail,
+        string action,
+        NpgsqlTransaction? transaction = null)
+    {
+        if (!await EnsureBudgetEditHistoryTableAsync(conn, transaction))
+            return;
+
         const string sql = "INSERT INTO budget_edit_history (budget_id, user_id, user_email, timestamp, action) VALUES (@bid,@uid,@email, now(), @action)";
-        await using var cmd = new NpgsqlCommand(sql, conn);
+        await using var cmd = new NpgsqlCommand(sql, conn, transaction);
         cmd.Parameters.AddWithValue("bid", budgetId);
         cmd.Parameters.AddWithValue("uid", (object?)userId ?? DBNull.Value);
         cmd.Parameters.AddWithValue("email", (object?)userEmail ?? DBNull.Value);
@@ -361,7 +406,24 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
         parameters.AddWithValue("status", (object?)tx.Status ?? DBNull.Value);
         parameters.AddWithValue("check_number", (object?)tx.CheckNumber ?? DBNull.Value);
         parameters.AddWithValue("deleted", tx.Deleted.HasValue ? (object)tx.Deleted.Value : DBNull.Value);
-        parameters.AddWithValue("entity_id", string.IsNullOrEmpty(tx.EntityId) ? (object)DBNull.Value : Guid.Parse(tx.EntityId));
+        SetOptionalGuid(parameters, "entity_id", tx.EntityId);
+    }
+
+    private static void SetOptionalGuid(NpgsqlParameterCollection parameters, string name, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            SetOptionalGuid(parameters, name, (Guid?)null);
+            return;
+        }
+
+        SetOptionalGuid(parameters, name, Guid.Parse(value));
+    }
+
+    private static void SetOptionalGuid(NpgsqlParameterCollection parameters, string name, Guid? value)
+    {
+        var parameter = parameters.Add(name, NpgsqlDbType.Uuid);
+        parameter.Value = value.HasValue ? value.Value : (object)DBNull.Value;
     }
 
     private void AddCategoryCommands(NpgsqlBatch batch, string txId, List<TransactionCategory>? categories)
@@ -482,20 +544,38 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
         }
         await SaveCategories(conn, transaction.Id, cats);
         await LogEdit(conn, budgetId, userId, userEmail, "save-transaction");
+        var impactedCategories = cats
+            .Where(c => !string.IsNullOrWhiteSpace(c.Category))
+            .Select(c => c.Category!);
+        await RecalculateCarryoverForAffectedCategories(conn, budgetId, impactedCategories, userId, userEmail);
     }
 
     public async Task DeleteTransaction(string budgetId, string transactionId, string userId, string userEmail)
     {
         await using var conn = await _db.GetOpenConnectionAsync();
+        var impactedCategories = new List<string>();
+        const string sqlCats = "SELECT category_name FROM transaction_categories WHERE transaction_id=@id";
+        await using (var catCmd = new NpgsqlCommand(sqlCats, conn))
+        {
+            catCmd.Parameters.AddWithValue("id", transactionId);
+            await using var reader = await catCmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                if (!reader.IsDBNull(0))
+                    impactedCategories.Add(reader.GetString(0));
+            }
+        }
+
         const string sql = "DELETE FROM transaction_categories WHERE transaction_id=@id; DELETE FROM transactions WHERE id=@id AND budget_id=@bid";
         await using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("id", transactionId);
         cmd.Parameters.AddWithValue("bid", budgetId);
         await cmd.ExecuteNonQueryAsync();
         await LogEdit(conn, budgetId, userId, userEmail, "delete-transaction");
+        await RecalculateCarryoverForAffectedCategories(conn, budgetId, impactedCategories, userId, userEmail);
     }
 
-    public async Task BatchSaveTransactions(string budgetId, List<Transaction> transactions, string userId, string userEmail)
+    public async Task BatchSaveTransactions(string budgetId, List<Transaction> transactions, string userId, string userEmail, bool recalculateCarryover = true)
     {
         await using var conn = await _db.GetOpenConnectionAsync();
         await using var dbTx = await conn.BeginTransactionAsync();
@@ -535,6 +615,221 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
 
         await batch.ExecuteNonQueryAsync();
         await dbTx.CommitAsync();
+
+        if (recalculateCarryover)
+        {
+            var impactedCategories = transactions
+                .SelectMany(t => t.Categories ?? new List<TransactionCategory>())
+                .Where(c => !string.IsNullOrWhiteSpace(c.Category))
+                .Select(c => c.Category!);
+            await RecalculateCarryoverForAffectedCategories(conn, budgetId, impactedCategories, userId, userEmail);
+        }
+    }
+
+    private async Task RecalculateCarryoverForAffectedCategories(
+        NpgsqlConnection conn,
+        string budgetId,
+        IEnumerable<string> categoryNames,
+        string userId,
+        string userEmail)
+    {
+        var normalizedCategories = new HashSet<string>(
+            categoryNames
+                .Select(name => name?.Trim())
+                .Where(name => !string.IsNullOrEmpty(name))
+                .Cast<string>(),
+            StringComparer.OrdinalIgnoreCase);
+
+        if (normalizedCategories.Count == 0)
+            return;
+
+        Guid familyId;
+        Guid? entityId;
+        string startMonth;
+
+        const string metaSql = "SELECT family_id, entity_id, month FROM budgets WHERE id=@bid";
+        await using (var metaCmd = new NpgsqlCommand(metaSql, conn))
+        {
+            metaCmd.Parameters.AddWithValue("bid", budgetId);
+            await using var reader = await metaCmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync())
+                return;
+
+            familyId = reader.GetGuid(0);
+            entityId = reader.IsDBNull(1) ? null : reader.GetGuid(1);
+            startMonth = reader.GetString(2);
+        }
+
+        const string budgetsSql = @"SELECT id, family_id, entity_id, month, label, income_target, original_budget_id
+                                FROM budgets
+                                WHERE family_id=@fid
+                                  AND entity_id IS NOT DISTINCT FROM @entity
+                                  AND month >= @month
+                                ORDER BY month";
+
+        var budgets = new List<Budget>();
+        await using (var budgetsCmd = new NpgsqlCommand(budgetsSql, conn))
+        {
+            budgetsCmd.Parameters.AddWithValue("fid", familyId);
+            SetOptionalGuid(budgetsCmd.Parameters, "entity", entityId);
+            budgetsCmd.Parameters.AddWithValue("month", startMonth);
+            await using var reader = await budgetsCmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                budgets.Add(new Budget
+                {
+                    BudgetId = reader.GetString(0),
+                    FamilyId = reader.GetGuid(1).ToString(),
+                    EntityId = reader.IsDBNull(2) ? null : reader.GetGuid(2).ToString(),
+                    Month = reader.GetString(3),
+                    Label = reader.IsDBNull(4) ? null : reader.GetString(4),
+                    IncomeTarget = reader.IsDBNull(5) ? 0 : (double)reader.GetDecimal(5),
+                    OriginalBudgetId = reader.IsDBNull(6) ? null : reader.GetString(6)
+                });
+            }
+        }
+
+        if (budgets.Count == 0)
+            return;
+
+        for (var i = 0; i < budgets.Count; i++)
+        {
+            await LoadBudgetDetails(conn, budgets[i]);
+        }
+
+        var startIndex = budgets.FindIndex(b => b.BudgetId == budgetId);
+        if (startIndex < 0 || startIndex >= budgets.Count - 1)
+            return;
+
+        var startBudget = budgets[startIndex];
+        var impactedFundCategories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (var i = startIndex; i < budgets.Count; i++)
+        {
+            foreach (var category in budgets[i].Categories)
+            {
+                var name = category.Name?.Trim();
+                if (string.IsNullOrEmpty(name))
+                    continue;
+                if (!category.IsFund)
+                    continue;
+                if (normalizedCategories.Contains(name))
+                    impactedFundCategories.Add(name);
+            }
+        }
+
+        if (impactedFundCategories.Count == 0)
+            return;
+
+        var carryForward = CalculateCarryoverForCategories(startBudget, impactedFundCategories);
+        var updates = new List<(Budget Budget, Dictionary<string, double> Categories)>();
+
+        for (var i = startIndex + 1; i < budgets.Count; i++)
+        {
+            var budget = budgets[i];
+            var categoryUpdates = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var category in budget.Categories)
+            {
+                var name = category.Name?.Trim();
+                if (string.IsNullOrEmpty(name) || !category.IsFund)
+                    continue;
+                if (!impactedFundCategories.Contains(name))
+                    continue;
+
+                var nextCarry = carryForward.TryGetValue(name, out var value) ? value : 0;
+                if (!category.Carryover.HasValue || Math.Abs(category.Carryover.Value - nextCarry) > 0.009)
+                {
+                    categoryUpdates[name] = nextCarry;
+                }
+                category.Carryover = nextCarry;
+            }
+
+            if (categoryUpdates.Count > 0)
+            {
+                updates.Add((budget, categoryUpdates));
+            }
+
+            carryForward = CalculateCarryoverForCategories(budget, impactedFundCategories);
+        }
+
+        if (updates.Count == 0)
+            return;
+
+        await using var updateTx = await conn.BeginTransactionAsync();
+        foreach (var (budget, categories) in updates)
+        {
+            foreach (var kvp in categories)
+            {
+                const string updateSql = "UPDATE budget_categories SET carryover=@carry WHERE budget_id=@bid AND name=@name";
+                await using var updateCmd = new NpgsqlCommand(updateSql, conn, updateTx);
+                updateCmd.Parameters.AddWithValue("carry", (decimal)kvp.Value);
+                updateCmd.Parameters.AddWithValue("bid", budget.BudgetId);
+                updateCmd.Parameters.AddWithValue("name", kvp.Key);
+                await updateCmd.ExecuteNonQueryAsync();
+            }
+
+            await LogEdit(conn, budget.BudgetId, userId, userEmail, "carryover-update", updateTx);
+        }
+
+        await updateTx.CommitAsync();
+        _logger.LogInformation(
+            "Updated carryover values for {BudgetCount} future budgets after changes to {BudgetId}",
+            updates.Count,
+            budgetId);
+    }
+
+    private Dictionary<string, double> CalculateCarryoverForCategories(Budget budget, HashSet<string> relevantCategories)
+    {
+        var results = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        if (relevantCategories.Count == 0)
+            return results;
+
+        var spending = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        var income = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var transaction in budget.Transactions)
+        {
+            if (transaction.Deleted.HasValue && transaction.Deleted.Value)
+                continue;
+            if (transaction.Categories == null)
+                continue;
+
+            foreach (var split in transaction.Categories)
+            {
+                var name = split.Category?.Trim();
+                if (string.IsNullOrEmpty(name))
+                    continue;
+                if (!relevantCategories.Contains(name))
+                    continue;
+
+                var amount = Math.Abs(split.Amount);
+                if (transaction.IsIncome)
+                {
+                    income[name] = income.TryGetValue(name, out var existing) ? existing + amount : amount;
+                }
+                else
+                {
+                    spending[name] = spending.TryGetValue(name, out var existing) ? existing + amount : amount;
+                }
+            }
+        }
+
+        foreach (var category in budget.Categories)
+        {
+            var name = category.Name?.Trim();
+            if (string.IsNullOrEmpty(name))
+                continue;
+            if (!category.IsFund || !relevantCategories.Contains(name))
+                continue;
+
+            spending.TryGetValue(name, out var spent);
+            income.TryGetValue(name, out var received);
+            var previousCarry = category.Carryover ?? 0;
+            var remainder = previousCarry + category.Target + received - spent;
+            results[name] = remainder > 0 ? remainder : 0;
+        }
+
+        return results;
     }
 
     public async Task<string> SaveImportedTransactions(string userId, ImportedTransactionDoc doc)

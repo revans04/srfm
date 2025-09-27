@@ -2,6 +2,7 @@ using FirebaseAdmin.Auth;
 using Microsoft.AspNetCore.Mvc;
 using FamilyBudgetApi.Services;
 using FamilyBudgetApi.Models;
+using System;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 
@@ -80,6 +81,7 @@ namespace FamilyBudgetApi.Controllers
             catch (Exception ex)
             {
                 Console.WriteLine($"Error in GetBudget: {ex.Message}");
+                Console.WriteLine(ex.StackTrace);
                 // Return a 500 so authorization issues aren't reported on
                 // generic data load failures
                 return StatusCode(500, ex.Message);
@@ -88,18 +90,40 @@ namespace FamilyBudgetApi.Controllers
 
         [HttpPost("{budgetId}")]
         [AuthorizeFirebase]
-        public async Task<IActionResult> SaveBudget(string budgetId, [FromBody] Budget budget)
+        public async Task<IActionResult> SaveBudget(string budgetId, [FromBody] Budget budget, [FromQuery] bool skipCarryover = false)
         {
             try
             {
                 var userId = HttpContext.Items["UserId"]?.ToString() ?? throw new Exception("User ID not found");
                 var userEmail = (await FirebaseAuth.DefaultInstance.GetUserAsync(userId)).Email;
-                await _budgetService.SaveBudget(budgetId, budget, userId, userEmail);
+                await _budgetService.SaveBudget(budgetId, budget, userId, userEmail, skipCarryover);
                 return Ok();
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error in SaveBudget: {ex.Message}");
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpPost("{budgetId}/carryover/recalculate")]
+        [AuthorizeFirebase]
+        public async Task<IActionResult> RecalculateCarryover(string budgetId, [FromBody] CarryoverRecalculateRequest request)
+        {
+            try
+            {
+                var userId = HttpContext.Items["UserId"]?.ToString() ?? throw new Exception("User ID not found");
+                var userEmail = (await FirebaseAuth.DefaultInstance.GetUserAsync(userId)).Email;
+                await _budgetService.RecalculateCarryover(
+                    budgetId,
+                    request.CategoryNames?.ToArray() ?? Array.Empty<string>(),
+                    userId,
+                    userEmail);
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in RecalculateCarryover: {ex.Message}");
                 return BadRequest(ex.Message);
             }
         }
@@ -196,13 +220,13 @@ namespace FamilyBudgetApi.Controllers
 
         [HttpPost("{budgetId}/transactions/batch")]
         [AuthorizeFirebase]
-        public async Task<IActionResult> BatchSaveTransactions(string budgetId, [FromBody] List<FamilyBudgetApi.Models.Transaction> transactions)
+        public async Task<IActionResult> BatchSaveTransactions(string budgetId, [FromBody] List<FamilyBudgetApi.Models.Transaction> transactions, [FromQuery] bool skipCarryover = false)
         {
             try
             {
                 var userId = HttpContext.Items["UserId"]?.ToString() ?? throw new Exception("User ID not found");
                 var userEmail = (await FirebaseAuth.DefaultInstance.GetUserAsync(userId)).Email;
-                await _budgetService.BatchSaveTransactions(budgetId, transactions, userId, userEmail);
+                await _budgetService.BatchSaveTransactions(budgetId, transactions, userId, userEmail, !skipCarryover);
                 return Ok();
             }
             catch (Exception ex)
@@ -368,6 +392,11 @@ namespace FamilyBudgetApi.Controllers
                 return BadRequest(ex.Message);
             }
         }
+    }
+
+    public class CarryoverRecalculateRequest
+    {
+        public List<string>? CategoryNames { get; set; }
     }
 
     public class UpdateImportedTransactionRequest

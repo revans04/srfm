@@ -302,7 +302,8 @@
                           </li>
                         </ul>
                       </div>
-                      Do you want to overwrite them?
+                      Confirming will delete the existing budgets for these months before importing the new data. Do you want to
+                      continue?
                     </v-card-text>
                     <v-card-actions>
                       <v-spacer></v-spacer>
@@ -398,6 +399,7 @@ const pendingImportData = ref<{
   budgetIdMap: Map<string, string>;
   entitiesById?: Map<string, Entity>;
   accountsAndSnapshots?: any[];
+  existingBudgetIds?: Set<string>;
 } | null>(null);
 const previewTab = ref("categories");
 const importType = ref("bankTransactions");
