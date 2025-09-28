@@ -19,19 +19,18 @@
       <div class="row form-row">
         <div class="col form-col-label q-pr-xl">Merchant</div>
         <div class="col form-col col-auto" style="min-width: 150px">
-          <q-select
+          <q-input
             v-model="locTrnsx.merchant"
-            :options="merchantNames"
             :rules="requiredField"
-            use-input
-            hide-selected
-            fill-input
-            clearable
             dense
             borderless
-            menu-icon=""
             class="text-right"
+            clearable
+            :input-attr="{ list: merchantOptionsId }"
           />
+          <datalist :id="merchantOptionsId">
+            <option v-for="merchant in merchantNames" :key="merchant" :value="merchant" />
+          </datalist>
         </div>
       </div>
       <div class="row form-row">
@@ -246,6 +245,7 @@ const isMobile = computed(() => $q.screen.lt.md);
 const goalList = ref<Goal[]>([]);
 const goalOptions = computed(() => goalList.value.map((g) => ({ label: g.name, value: g.id })));
 
+const merchantOptionsId = `merchant-options-${Math.random().toString(36).slice(2, 10)}`;
 const merchantNames = computed(() => merchantStore.merchantNames);
 
 const availableMonths = computed(() => {
