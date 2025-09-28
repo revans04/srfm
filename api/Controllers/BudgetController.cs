@@ -146,6 +146,30 @@ namespace FamilyBudgetApi.Controllers
             }
         }
 
+        [HttpPost("merge")]
+        [AuthorizeFirebase]
+        public async Task<IActionResult> MergeBudgets([FromBody] MergeBudgetsRequest request)
+        {
+            try
+            {
+                if (request == null)
+                    return BadRequest("Request body is required");
+
+                if (string.IsNullOrWhiteSpace(request.TargetBudgetId) || string.IsNullOrWhiteSpace(request.SourceBudgetId))
+                    return BadRequest("Both targetBudgetId and sourceBudgetId are required");
+
+                var userId = HttpContext.Items["UserId"]?.ToString() ?? throw new Exception("User ID not found");
+                var userEmail = (await FirebaseAuth.DefaultInstance.GetUserAsync(userId)).Email;
+                var mergedBudget = await _budgetService.MergeBudgets(request.TargetBudgetId, request.SourceBudgetId, userId, userEmail);
+                return Ok(mergedBudget);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in MergeBudgets: {ex.Message}");
+                return BadRequest(ex.Message);
+            }
+        }
+
         [HttpGet("{budgetId}/edit-history")]
         [AuthorizeFirebase]
         public async Task<IActionResult> GetEditHistory(string budgetId)

@@ -141,6 +141,51 @@
                   </template>
                 </v-data-table>
                 <div class="mt-4">
+                  <h3 class="text-subtitle-1 mb-2">Merge Budgets</h3>
+                  <v-row dense>
+                    <v-col cols="12" md="4">
+                      <v-select
+                        v-model="targetBudgetId"
+                        :items="budgetOptions"
+                        item-title="title"
+                        item-value="value"
+                        label="Budget to Keep"
+                        clearable
+                        :disabled="mergingBudgets"
+                      />
+                    </v-col>
+                    <v-col cols="12" md="4">
+                      <v-select
+                        v-model="sourceBudgetId"
+                        :items="budgetOptions"
+                        item-title="title"
+                        item-value="value"
+                        label="Budget to Merge"
+                        clearable
+                        :disabled="mergingBudgets"
+                      />
+                    </v-col>
+                  </v-row>
+                  <v-alert
+                    v-if="mergeValidationMessage"
+                    type="warning"
+                    variant="tonal"
+                    density="comfortable"
+                    class="mb-3"
+                  >
+                    {{ mergeValidationMessage }}
+                  </v-alert>
+                  <v-btn
+                    color="primary"
+                    class="mb-2"
+                    @click="mergeSelectedBudgets"
+                    :disabled="mergeDisabled"
+                    :loading="mergingBudgets"
+                  >
+                    Merge Selected Budgets
+                  </v-btn>
+                </div>
+                <div class="mt-6">
                   <v-btn color="secondary" @click="validateBudgetTransactions" :loading="validatingBudgets">
                     Validate Budget Transactions
                   </v-btn>
@@ -280,6 +325,9 @@ const pendingInvites = ref<PendingInvite[]>([]);
 const selectedEntity = ref<Entity | null>(null);
 const activeTab = ref("group");
 const budgets = ref<Budget[]>([]);
+const targetBudgetId = ref<string | null>(null);
+const sourceBudgetId = ref<string | null>(null);
+const mergingBudgets = ref(false);
 const importedTransactionDocs = ref<ImportedTransactionDoc[]>([]);
 const showDeleteDialog = ref(false);
 const transactionDocToDelete = ref<ImportedTransactionDoc | null>(null);
@@ -295,6 +343,54 @@ const showTransactionDocDialog = ref(false);
 const selectedTransactionDoc = ref<ImportedTransactionDoc | null>(null);
 
 const entities = computed(() => family.value?.entities || []);
+
+const budgetOptions = computed(() =>
+  budgets.value
+    .filter((budget) => budget.budgetId)
+    .map((budget) => ({
+      value: budget.budgetId!,
+      title: formatBudgetOptionLabel(budget),
+    }))
+    .sort((a, b) => b.title.localeCompare(a.title))
+);
+
+const selectedTargetBudget = computed(() =>
+  budgets.value.find((budget) => budget.budgetId === targetBudgetId.value) || null
+);
+
+const selectedSourceBudget = computed(() =>
+  budgets.value.find((budget) => budget.budgetId === sourceBudgetId.value) || null
+);
+
+const mergeValidationMessage = computed(() => {
+  if (!selectedTargetBudget.value || !selectedSourceBudget.value) {
+    return "";
+  }
+
+  if (targetBudgetId.value === sourceBudgetId.value) {
+    return "Choose two different budgets to merge.";
+  }
+
+  if (selectedTargetBudget.value.month !== selectedSourceBudget.value.month) {
+    return "Budgets must belong to the same month before merging.";
+  }
+
+  if ((selectedTargetBudget.value.entityId || "") !== (selectedSourceBudget.value.entityId || "")) {
+    return "Budgets must belong to the same entity before merging.";
+  }
+
+  return "";
+});
+
+const mergeDisabled = computed(() => {
+  if (mergingBudgets.value) {
+    return true;
+  }
+  if (!selectedTargetBudget.value || !selectedSourceBudget.value) {
+    return true;
+  }
+  return !!mergeValidationMessage.value;
+});
 
 const transactionDocHeaders = [
   { title: "Document ID", value: "id", sortable: true },
@@ -367,6 +463,15 @@ async function loadAllData() {
 
     // Load budgets and imported transaction docs
     budgets.value = await dataAccess.loadAccessibleBudgets(user.uid);
+    const availableBudgetIds = new Set(
+      budgets.value.map((budget) => budget.budgetId).filter((id): id is string => Boolean(id))
+    );
+    if (targetBudgetId.value && !availableBudgetIds.has(targetBudgetId.value)) {
+      targetBudgetId.value = null;
+    }
+    if (sourceBudgetId.value && !availableBudgetIds.has(sourceBudgetId.value)) {
+      sourceBudgetId.value = null;
+    }
     importedTransactionDocs.value = await dataAccess.getImportedTransactionDocs();
   } catch (error: any) {
     showSnackbar(`Error loading data: ${error.message}`, "error");
@@ -564,6 +669,65 @@ async function deleteTransactionDoc() {
     showDeleteDialog.value = false;
     transactionDocToDelete.value = null;
   }
+}
+
+async function mergeSelectedBudgets() {
+  if (!selectedTargetBudget.value || !selectedSourceBudget.value) {
+    showSnackbar("Select both budgets before merging", "error");
+    return;
+  }
+
+  if (mergeValidationMessage.value) {
+    showSnackbar(mergeValidationMessage.value, "error");
+    return;
+  }
+
+  const targetId = selectedTargetBudget.value.budgetId;
+  const sourceId = selectedSourceBudget.value.budgetId;
+  if (!targetId || !sourceId) {
+    showSnackbar("Unable to determine selected budgets", "error");
+    return;
+  }
+
+  mergingBudgets.value = true;
+  try {
+    await dataAccess.mergeBudgets(targetId, sourceId);
+    showSnackbar(`Budgets for ${selectedTargetBudget.value.month} merged successfully`, "success");
+    await loadAllData();
+    resetMergeSelection();
+  } catch (error: any) {
+    console.error("Error merging budgets:", error);
+    showSnackbar(`Error merging budgets: ${error.message}`, "error");
+  } finally {
+    mergingBudgets.value = false;
+  }
+}
+
+function resetMergeSelection() {
+  targetBudgetId.value = null;
+  sourceBudgetId.value = null;
+}
+
+function formatBudgetOptionLabel(budget: Budget): string {
+  const parts: string[] = [];
+  if (budget.month) {
+    parts.push(budget.month);
+  }
+
+  const entityId = budget.entityId;
+  const entityName = entityId ? getEntityName(entityId) : "Family Budget";
+  if (entityName && entityName !== "Unknown") {
+    parts.push(entityName);
+  }
+
+  if (budget.label) {
+    parts.push(budget.label);
+  }
+
+  const transactionCount = budget.transactions?.length ?? 0;
+  parts.push(`${transactionCount} ${transactionCount === 1 ? "txn" : "txns"}`);
+
+  return parts.join(" • ");
 }
 
 function getEntityName(entityId: string): string {
