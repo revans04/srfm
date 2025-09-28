@@ -36,14 +36,32 @@ export function withinDateWindow(date1: string, date2: string, windowDays: numbe
   return diff <= windowDays * 86400000;
 }
 
+function amountsMatch(a: number | undefined, b: number | undefined): boolean {
+  if (a == null || b == null) return false;
+  return Math.abs(Number(a) - Number(b)) < 0.01;
+}
+
+function accountMatches(a: BudgetTransaction, b: BudgetTransaction): boolean {
+  if (!a.accountNumber || !b.accountNumber) return false;
+  if (a.accountNumber !== b.accountNumber) return false;
+  if (a.accountSource && b.accountSource && a.accountSource !== b.accountSource) return false;
+  return true;
+}
+
 export function isDuplicate(tx: BudgetTransaction, list: BudgetTransaction[]): boolean {
-  return list.some(
-    (other) =>
-      other.id !== tx.id &&
-      other.amount === tx.amount &&
-      merchantSimilar(other.merchant, tx.merchant) &&
-      withinDateWindow(tx.date, other.date, 3),
-  );
+  return list.some((other) => {
+    if (other.id === tx.id) return false;
+    if (!amountsMatch(other.amount, tx.amount)) return false;
+    if (!withinDateWindow(tx.date, other.date, 3)) return false;
+
+    const payeeSimilar = merchantSimilar(
+      other.merchant || other.importedMerchant,
+      tx.merchant || tx.importedMerchant,
+    );
+    const sameEntity = Boolean(other.entityId && tx.entityId && other.entityId === tx.entityId);
+
+    return payeeSimilar || sameEntity || accountMatches(other, tx);
+  });
 }
 
 function merchantSimilar(a?: string | null, b?: string | null): boolean {
