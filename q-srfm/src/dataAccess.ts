@@ -13,6 +13,7 @@ import type {
   Snapshot,
   Entity,
   Statement,
+  StatementFinalizePayload,
   Goal,
   GoalContribution,
   GoalSpend,
@@ -966,6 +967,25 @@ export class DataAccess {
     const response = await fetch(`${this.apiBaseUrl}/families/${familyId}/accounts/${accountNumber}/statements`, { headers });
     if (!response.ok) throw new Error(`Failed to fetch statements: ${response.statusText}`);
     return await response.json();
+  }
+
+  async finalizeStatement(payload: StatementFinalizePayload): Promise<void> {
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(`${this.apiBaseUrl}/statements/finalize`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      let message = '';
+      try {
+        message = await response.text();
+      } catch {
+        /* ignore body read errors */
+      }
+      const suffix = message ? ` - ${message}` : '';
+      throw new Error(`Failed to finalize statement: ${response.statusText}${suffix}`);
+    }
   }
 
   // -----------------

@@ -187,7 +187,7 @@ Key props/usage:
       <q-tab-panel name="register" class="transactions-panel">
         <div class="transactions-layout">
           <div class="transactions-layout__main">
-            <statement-header class="panel-card transactions-statement q-mb-md" />
+            <account-reconcile-panel class="q-mb-xl" />
             <div class="transactions-filters panel-card">
               <div class="row q-col-gutter-sm q-col-gutter-y-sm items-center">
                 <div class="col-12 col-md-4">
@@ -352,7 +352,7 @@ import { computed, ref, watch, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { storeToRefs } from 'pinia';
 import LedgerTable from 'src/components/LedgerTable.vue';
-import StatementHeader from 'src/components/StatementHeader.vue';
+import AccountReconcilePanel from 'src/components/AccountReconcilePanel.vue';
 import MatchBankPanel from 'src/components/MatchBankPanel.vue';
 import EntitySelector from 'src/components/EntitySelector.vue';
 import TransactionForm from 'src/components/TransactionForm.vue';

@@ -282,3 +282,13 @@ export interface Statement {
   endingBalance: number;
   reconciled: boolean;
 }
+
+export interface StatementFinalizePayload {
+  familyId: string;
+  accountId: string;
+  startDate: string;
+  endDate: string;
+  beginningBalance: number;
+  endingBalance: number;
+  matchedTransactionIds: string[];
+}
