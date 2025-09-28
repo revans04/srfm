@@ -175,7 +175,22 @@ function money(n: number) {
   return (n < 0 ? '-$' : '$') + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function formatDate(iso: string) {
+  if (!iso) return '';
+
+  // Preserve calendar date for YYYY-MM-DD strings by constructing the date in local time
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+    const [year, month, day] = iso.split('-').map((part) => Number(part));
+    const localDate = new Date(year, month - 1, day);
+    return localDate.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+    });
+  }
+
   const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+
   return d.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'numeric',
