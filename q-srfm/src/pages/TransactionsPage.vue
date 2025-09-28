@@ -156,8 +156,26 @@ Key props/usage:
                 </q-chip>
               </div>
             </div>
+            <div v-if="selectedBudgetRowIds.length" class="transactions-selection panel-card">
+              <div class="transactions-selection__title">
+                {{ selectedBudgetRowIds.length }} transaction{{ selectedBudgetRowIds.length > 1 ? 's' : '' }} selected
+              </div>
+              <div class="transactions-selection__actions">
+                <q-btn color="negative" label="Mark as Deleted" @click="openBudgetDeleteDialog" />
+                <q-btn flat color="primary" label="Clear Selection" @click="clearBudgetSelection" />
+              </div>
+            </div>
             <div class="transactions-table">
-              <ledger-table :rows="transactions" :loading="loading" :row-height="52" :header-offset="0" @load-more="fetchMore" @row-click="onRowClick" />
+              <ledger-table
+                :rows="transactions"
+                :loading="loading"
+                :row-height="52"
+                :header-offset="0"
+                selection="multiple"
+                v-model:selected="selectedBudgetRowIds"
+                @load-more="fetchMore"
+                @row-click="onRowClick"
+              />
             </div>
           </div>
         </div>
@@ -180,6 +198,23 @@ Key props/usage:
                 @cancel="onTxCancel"
               />
             </q-card-section>
+          </q-card>
+        </q-dialog>
+        <q-dialog v-model="showBudgetDeleteDialog">
+          <q-card>
+            <q-card-section>
+              Are you sure you want to mark {{ selectedBudgetRowIds.length }} transaction{{ selectedBudgetRowIds.length > 1 ? 's' : '' }} as deleted?
+            </q-card-section>
+            <q-card-actions>
+              <q-btn flat label="Cancel" color="primary" v-close-popup />
+              <q-btn
+                flat
+                label="Mark as Deleted"
+                color="negative"
+                :loading="deletingBudgetTransactions"
+                @click="deleteSelectedBudgetTransactions"
+              />
+            </q-card-actions>
           </q-card>
         </q-dialog>
       </q-tab-panel>
@@ -364,7 +399,7 @@ import { useUIStore } from 'src/store/ui';
 import { useAuthStore } from 'src/store/auth';
 import { sortBudgetsByMonthDesc, createBudgetForMonth } from 'src/utils/budget';
 import { dataAccess } from 'src/dataAccess';
-import type { Transaction } from 'src/types';
+import type { Budget, Transaction } from 'src/types';
 import { splitImportedId } from 'src/utils/imported';
 
 const tab = ref<'budget' | 'register' | 'match'>('budget');
@@ -440,6 +475,15 @@ const $q = useQuasar();
 const isMobile = computed(() => $q.screen.lt.md);
 const editCategoryOptions = computed(() => (editBudgetId.value ? budgetStore.getBudget(editBudgetId.value)?.categories.map((c) => c.name) || [] : []));
 
+const selectedBudgetRowIds = ref<string[]>([]);
+const showBudgetDeleteDialog = ref(false);
+const deletingBudgetTransactions = ref(false);
+const selectedBudgetRows = computed(() =>
+  selectedBudgetRowIds.value
+    .map((id) => transactions.value.find((row) => row.id === id))
+    .filter((row): row is LedgerRow => Boolean(row)),
+);
+
 const selectedRegisterIds = ref<string[]>([]);
 const showRegisterBatchDialog = ref(false);
 const registerBatchForm = ref();
@@ -462,6 +506,15 @@ const requiredField = [(v: string) => !!v || 'This field is required'];
 
 function formatCurrency(n: number) {
   return (n < 0 ? '-$' : '$') + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function clearBudgetSelection() {
+  selectedBudgetRowIds.value = [];
+}
+
+function openBudgetDeleteDialog() {
+  if (!selectedBudgetRows.value.length) return;
+  showBudgetDeleteDialog.value = true;
 }
 
 const createDefaultFilters = (): LedgerFilters => ({
@@ -605,6 +658,23 @@ watch(
   { immediate: true },
 );
 
+watch(
+  () => transactions.value.map((row) => row.id),
+  (ids) => {
+    const available = new Set(ids);
+    const filtered = selectedBudgetRowIds.value.filter((id) => available.has(id));
+    if (filtered.length !== selectedBudgetRowIds.value.length) {
+      selectedBudgetRowIds.value = filtered;
+    }
+  },
+);
+
+watch(tab, (value) => {
+  if (value !== 'budget' && selectedBudgetRowIds.value.length) {
+    selectedBudgetRowIds.value = [];
+  }
+});
+
 function clearBudgetFilters() {
   selectedBudgetIds.value = [];
   filters.value = createDefaultFilters();
@@ -620,6 +690,59 @@ async function refreshBudget() {
   await loadBudgets();
   if (selectedBudgetIds.value.length > 0) {
     await loadInitial(selectedBudgetIds.value);
+  }
+}
+
+async function ensureBudgetLoadedWithTransactions(budgetId: string): Promise<Budget | null> {
+  let budget = budgetStore.getBudget(budgetId);
+  if (!budget || !budget.transactions || budget.transactions.length === 0) {
+    try {
+      budget = await dataAccess.getBudget(budgetId);
+      if (budget) {
+        budgetStore.updateBudget(budgetId, budget);
+      }
+    } catch (err) {
+      console.error('Failed to load budget for deletion', budgetId, err);
+      return null;
+    }
+  }
+  return budget ?? null;
+}
+
+async function deleteSelectedBudgetTransactions() {
+  if (!selectedBudgetRows.value.length) {
+    showBudgetDeleteDialog.value = false;
+    return;
+  }
+
+  deletingBudgetTransactions.value = true;
+  try {
+    const budgetsById = new Map<string, Budget>();
+    for (const row of selectedBudgetRows.value) {
+      if (!row.budgetId) continue;
+      let budget = budgetsById.get(row.budgetId);
+      if (!budget) {
+        budget = await ensureBudgetLoadedWithTransactions(row.budgetId);
+        if (!budget) {
+          throw new Error('Unable to load budget data for the selected transactions.');
+        }
+        budgetsById.set(row.budgetId, budget);
+      }
+      await dataAccess.deleteTransaction(budget, row.id);
+    }
+
+    showBudgetDeleteDialog.value = false;
+    selectedBudgetRowIds.value = [];
+    if (selectedBudgetIds.value.length > 0) {
+      await loadInitial(selectedBudgetIds.value);
+    }
+    $q.notify({ type: 'positive', message: 'Transactions marked as deleted' });
+  } catch (err) {
+    console.error('Failed to mark transactions as deleted', err);
+    const message = err instanceof Error ? err.message : 'Failed to delete transactions';
+    $q.notify({ type: 'negative', message });
+  } finally {
+    deletingBudgetTransactions.value = false;
   }
 }
 
