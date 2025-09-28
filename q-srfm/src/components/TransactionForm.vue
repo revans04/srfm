@@ -19,7 +19,19 @@
       <div class="row form-row">
         <div class="col form-col-label q-pr-xl">Merchant</div>
         <div class="col form-col col-auto" style="min-width: 150px">
-          <q-select v-model="locTrnsx.merchant" :options="merchantNames" :rules="requiredField" dense borderless menu-icon="" class="text-right" />
+          <q-select
+            v-model="locTrnsx.merchant"
+            :options="merchantNames"
+            :rules="requiredField"
+            use-input
+            hide-selected
+            fill-input
+            clearable
+            dense
+            borderless
+            menu-icon=""
+            class="text-right"
+          />
         </div>
       </div>
       <div class="row form-row">
