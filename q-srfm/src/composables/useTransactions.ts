@@ -181,9 +181,19 @@ export function useTransactions() {
           }
         }
         if (full) {
-          const mapped = (full.transactions || [])
-            .filter((t) => !t.deleted)
-            .map((t) => mapTxToRow(t, full));
+          const transactions = (full.transactions || []).filter((t) => !t.deleted);
+          const budgetTransactions = transactions as BudgetTransaction[];
+          const duplicateIds = new Set<string>();
+          for (const tx of budgetTransactions) {
+            if (isDuplicate(tx, budgetTransactions)) {
+              duplicateIds.add(tx.id);
+            }
+          }
+          const mapped = budgetTransactions.map((t) => {
+            const row = mapTxToRow(t, full);
+            row.isDuplicate = duplicateIds.has(t.id);
+            return row;
+          });
           out.push(...mapped);
         }
       } catch (err) {
