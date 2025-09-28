@@ -484,6 +484,173 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
         await LogEdit(conn, budgetId, userId, userEmail, "delete-budget");
     }
 
+    public async Task<Budget> MergeBudgets(string targetBudgetId, string sourceBudgetId, string userId, string userEmail)
+    {
+        if (string.IsNullOrWhiteSpace(targetBudgetId) || string.IsNullOrWhiteSpace(sourceBudgetId))
+            throw new ArgumentException("Both target and source budget ids are required.");
+
+        if (string.Equals(targetBudgetId, sourceBudgetId, StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("Target and source budget ids must be different.", nameof(sourceBudgetId));
+
+        _logger.LogInformation("Merging budget {SourceBudgetId} into {TargetBudgetId}", sourceBudgetId, targetBudgetId);
+
+        var targetBudget = await GetBudget(targetBudgetId)
+            ?? throw new InvalidOperationException($"Target budget {targetBudgetId} not found");
+        var sourceBudget = await GetBudget(sourceBudgetId)
+            ?? throw new InvalidOperationException($"Source budget {sourceBudgetId} not found");
+
+        if (!string.Equals(targetBudget.FamilyId, sourceBudget.FamilyId, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Budgets must belong to the same family to merge.");
+
+        var targetEntity = targetBudget.EntityId ?? string.Empty;
+        var sourceEntity = sourceBudget.EntityId ?? string.Empty;
+        if (!string.Equals(targetEntity, sourceEntity, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Budgets must belong to the same entity to merge.");
+
+        if (!string.Equals(targetBudget.Month, sourceBudget.Month, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Budgets must represent the same month to merge.");
+
+        targetBudget.IncomeTarget = Math.Max(targetBudget.IncomeTarget, sourceBudget.IncomeTarget);
+        if (string.IsNullOrWhiteSpace(targetBudget.Label) && !string.IsNullOrWhiteSpace(sourceBudget.Label))
+            targetBudget.Label = sourceBudget.Label;
+        if (string.IsNullOrWhiteSpace(targetBudget.OriginalBudgetId) && !string.IsNullOrWhiteSpace(sourceBudget.OriginalBudgetId))
+            targetBudget.OriginalBudgetId = sourceBudget.OriginalBudgetId;
+
+        targetBudget.Categories ??= new List<BudgetCategory>();
+        var comparer = StringComparer.OrdinalIgnoreCase;
+        var categoryMap = targetBudget.Categories
+            .Where(cat => !string.IsNullOrWhiteSpace(cat.Name))
+            .ToDictionary(cat => cat.Name!, comparer);
+
+        foreach (var cat in sourceBudget.Categories ?? new List<BudgetCategory>())
+        {
+            if (string.IsNullOrWhiteSpace(cat.Name))
+            {
+                targetBudget.Categories.Add(new BudgetCategory
+                {
+                    Name = cat.Name,
+                    Target = cat.Target,
+                    IsFund = cat.IsFund,
+                    Group = cat.Group,
+                    Carryover = cat.Carryover,
+                    Favorite = cat.Favorite
+                });
+                continue;
+            }
+
+            if (categoryMap.TryGetValue(cat.Name, out var existing))
+            {
+                const double tolerance = 0.01;
+                if (Math.Abs(existing.Target) < tolerance && Math.Abs(cat.Target) > tolerance)
+                {
+                    existing.Target = cat.Target;
+                }
+                else if (Math.Abs(existing.Target - cat.Target) > tolerance)
+                {
+                    existing.Target = Math.Max(existing.Target, cat.Target);
+                }
+
+                if (!existing.Carryover.HasValue && cat.Carryover.HasValue)
+                    existing.Carryover = cat.Carryover;
+
+                if (!existing.Favorite.HasValue && cat.Favorite.HasValue)
+                    existing.Favorite = cat.Favorite;
+
+                if (string.IsNullOrWhiteSpace(existing.Group) && !string.IsNullOrWhiteSpace(cat.Group))
+                    existing.Group = cat.Group;
+
+                if (!existing.IsFund && cat.IsFund)
+                    existing.IsFund = true;
+            }
+            else
+            {
+                var clone = new BudgetCategory
+                {
+                    Name = cat.Name,
+                    Target = cat.Target,
+                    IsFund = cat.IsFund,
+                    Group = cat.Group,
+                    Carryover = cat.Carryover,
+                    Favorite = cat.Favorite
+                };
+                targetBudget.Categories.Add(clone);
+                categoryMap[cat.Name] = clone;
+            }
+        }
+
+        targetBudget.Transactions ??= new List<Transaction>();
+        var targetTransactionIds = new HashSet<string>(
+            targetBudget.Transactions
+                .Where(t => !string.IsNullOrWhiteSpace(t.Id))
+                .Select(t => t.Id!),
+            comparer);
+
+        foreach (var tx in sourceBudget.Transactions ?? new List<Transaction>())
+        {
+            if (string.IsNullOrWhiteSpace(tx.Id) || targetTransactionIds.Contains(tx.Id))
+                tx.Id = Guid.NewGuid().ToString();
+
+            tx.BudgetId = targetBudget.BudgetId;
+            tx.BudgetMonth = targetBudget.Month;
+            tx.EntityId = targetBudget.EntityId;
+
+            targetBudget.Transactions.Add(tx);
+
+            if (!string.IsNullOrWhiteSpace(tx.Id))
+                targetTransactionIds.Add(tx.Id);
+        }
+
+        targetBudget.Merchants ??= new List<Merchant>();
+        var merchantMap = targetBudget.Merchants
+            .Where(m => !string.IsNullOrWhiteSpace(m.Name))
+            .ToDictionary(m => m.Name!, comparer);
+
+        foreach (var merchant in sourceBudget.Merchants ?? new List<Merchant>())
+        {
+            if (string.IsNullOrWhiteSpace(merchant.Name))
+                continue;
+
+            if (merchantMap.TryGetValue(merchant.Name, out var existing))
+            {
+                existing.UsageCount += merchant.UsageCount;
+            }
+            else
+            {
+                var clone = new Merchant
+                {
+                    Name = merchant.Name,
+                    UsageCount = merchant.UsageCount
+                };
+                targetBudget.Merchants.Add(clone);
+                merchantMap[merchant.Name] = clone;
+            }
+        }
+
+        try
+        {
+            await SaveBudget(targetBudgetId, targetBudget, userId, userEmail);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to persist merged budget {TargetBudgetId}", targetBudgetId);
+            throw;
+        }
+
+        try
+        {
+            await DeleteBudget(sourceBudgetId, userId, userEmail);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Merged budget but failed to delete source budget {SourceBudgetId}", sourceBudgetId);
+            throw;
+        }
+
+        _logger.LogInformation("Successfully merged budget {SourceBudgetId} into {TargetBudgetId}", sourceBudgetId, targetBudgetId);
+
+        return await GetBudget(targetBudgetId) ?? targetBudget;
+    }
+
     public async Task<List<EditEvent>> GetEditHistory(string budgetId, DateTime since)
     {
         _logger.LogInformation("Getting edit history for budget {BudgetId} since {Since}", budgetId, since);

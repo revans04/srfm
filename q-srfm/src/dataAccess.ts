@@ -218,6 +218,22 @@ export class DataAccess {
     budgetStore.removeBudget(budgetId);
   }
 
+  async mergeBudgets(targetBudgetId: string, sourceBudgetId: string): Promise<Budget> {
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(`${this.apiBaseUrl}/budget/merge`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ targetBudgetId, sourceBudgetId }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to merge budgets: ${response.statusText}${errorText ? ` - ${errorText}` : ''}`);
+    }
+
+    return await response.json();
+  }
+
   async getEditHistory(budgetId: string): Promise<EditEvent[]> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/budget/${budgetId}/edit-history`, { headers });

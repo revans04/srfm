@@ -180,6 +180,12 @@ namespace FamilyBudgetApi.Models
         public List<ReconcileRequest> Reconciliations { get; set; }
     }
 
+    public class MergeBudgetsRequest
+    {
+        public string TargetBudgetId { get; set; } = string.Empty;
+        public string SourceBudgetId { get; set; } = string.Empty;
+    }
+
     [FirestoreData]
     public class TemplateBudget
     {
