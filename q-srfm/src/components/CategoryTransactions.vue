@@ -107,8 +107,8 @@
       </q-card-section>
     </q-card>
 
-    <q-dialog v-model="showEditDialog" :width="!isMobile ? '550px' : undefined" :fullscreen="isMobile">
-      <q-card dense>
+    <q-dialog v-model="showEditDialog" :width="!isMobile ? '600px' : undefined" :fullscreen="isMobile">
+      <q-card dense :width="!isMobile ? '600px' : undefined">
         <q-card-section class="bg-primary row items-center q-py-md">
           <div class="text-white">Edit {{ transactionToEdit?.merchant }} Transaction</div>
           <q-btn flat dense color="white" label="X" class="q-ml-auto" @click="showEditDialog = false" />

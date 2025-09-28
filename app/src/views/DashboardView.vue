@@ -314,7 +314,7 @@
       </v-row>
 
       <!-- Transaction Dialog -->
-      <v-dialog v-model="showTransactionDialog" max-width="600px">
+      <v-dialog v-model="showTransactionDialog" width="600px">
         <v-card>
           <v-card-title>{{ isIncomeTransaction ? "Add Income" : "Add Transaction" }}</v-card-title>
           <v-card-text>

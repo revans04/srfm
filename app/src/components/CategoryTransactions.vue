@@ -90,7 +90,7 @@
     </v-fab>
 
     <!-- Edit Transaction Dialog -->
-    <v-dialog v-model="showEditDialog" :max-width="!isMobile ? '600px' : ''" :fullscreen="isMobile">
+    <v-dialog v-model="showEditDialog" :width="!isMobile ? '600px' : ''" :fullscreen="isMobile">
       <v-card density="compact">
         <v-card-title class="bg-primary py-5">
           <v-row>

@@ -12,22 +12,14 @@
     <q-form ref="form" @submit.prevent="save">
       <div class="row form-row">
         <div class="col form-col-label">Date</div>
-        <div class="col form-col col-auto">
+        <div class="col form-col col-auto q-pt-md">
           <q-input v-model="locTrnsx.date" type="date" :rules="requiredField" @input="updateBudgetMonth" dense borderless class="text-right" />
         </div>
       </div>
       <div class="row form-row">
         <div class="col form-col-label q-pr-xl">Merchant</div>
-        <div class="col form-col col-auto" style="min-width: 150px">
-          <q-input
-            v-model="locTrnsx.merchant"
-            :rules="requiredField"
-            dense
-            borderless
-            class="text-right"
-            clearable
-            :input-attr="{ list: merchantOptionsId }"
-          />
+        <div class="col form-col col-auto q-pt-md" style="min-width: 150px">
+          <q-input v-model="locTrnsx.merchant" :rules="requiredField" dense borderless class="text-right" clearable :input-attr="{ list: merchantOptionsId }" />
           <datalist :id="merchantOptionsId">
             <option v-for="merchant in merchantNames" :key="merchant" :value="merchant" />
           </datalist>
@@ -89,13 +81,14 @@
 
       <div class="row rounded-5 bg-light q-mb-sm justify-center">
         <div class="col font-weight-bold col-auto" justify="center">Budget</div>
-        <div class="col q-pa-none q-ma-none text-right">
+        <div class="col q-pa-none q-ma-none q-pt-md">
           <q-select
             v-model="locTrnsx.budgetMonth"
             :options="availableMonths"
             :rules="requiredField"
             dense
             borderless
+            class="text-right"
             :disabled="availableMonths.length === 0"
           />
         </div>
@@ -503,11 +496,8 @@ function showSnackbar(text: string, color = 'success') {
   align-items: center;
 }
 
-.text-right.v-text-field input,
-.text-right .v-input__control .v-field__input,
-.text-right .v-autocomplete .v-field__input .v-autocomplete__selection-text,
-.text-right .v-select .v-field__input .v-select__selection-text,
-.text-right .v-textarea .v-field__input {
+.text-right .q-field__native,
+.text-right .q-placeholder {
   text-align: right !important;
 }
 </style>
