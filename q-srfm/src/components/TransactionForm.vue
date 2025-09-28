@@ -84,7 +84,7 @@
       </div>
 
       <div class="v-row form-row">
-        <q-textarea v-model="locTrnsx.notes" label="Notes" borderless @focus="scrollToNoteField" />
+        <q-input type="textarea" v-model="locTrnsx.notes" label="Notes" borderless @focus="scrollToNoteField" />
       </div>
 
       <div class="row rounded-5 bg-light q-mb-sm justify-center">
@@ -178,7 +178,7 @@ import type { Budget, Transaction, Goal } from '../types';
 import { toCents, toDollars, todayISO, currentMonthISO } from '../utils/helpers';
 import CurrencyInput from './CurrencyInput.vue';
 import ToggleButton from './ToggleButton.vue';
-import { QForm, QTextarea } from 'quasar';
+import { QForm } from 'quasar';
 import { useMerchantStore } from '../store/merchants';
 import { useBudgetStore } from '../store/budget';
 import { useGoals } from '../composables/useGoals';
