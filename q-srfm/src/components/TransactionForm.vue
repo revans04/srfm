@@ -178,7 +178,7 @@ import type { Budget, Transaction, Goal } from '../types';
 import { toCents, toDollars, todayISO, currentMonthISO } from '../utils/helpers';
 import CurrencyInput from './CurrencyInput.vue';
 import ToggleButton from './ToggleButton.vue';
-import { QForm } from 'quasar';
+import { QForm, QTextarea } from 'quasar';
 import { useMerchantStore } from '../store/merchants';
 import { useBudgetStore } from '../store/budget';
 import { useGoals } from '../composables/useGoals';
