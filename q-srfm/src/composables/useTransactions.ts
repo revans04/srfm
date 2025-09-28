@@ -41,6 +41,27 @@ function amountsMatch(a: number | undefined, b: number | undefined): boolean {
   return Math.abs(Number(a) - Number(b)) < 0.01;
 }
 
+function normalizeMerchant(value?: string | null): string {
+  return (value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function merchantsMatchStrict(a?: string | null, b?: string | null): boolean {
+  const na = normalizeMerchant(a);
+  const nb = normalizeMerchant(b);
+  return Boolean(na && nb && na === nb);
+}
+
+function merchantSimilar(a?: string | null, b?: string | null): boolean {
+  const na = normalizeMerchant(a);
+  const nb = normalizeMerchant(b);
+  if (!na || !nb) return true;
+  return na.includes(nb) || nb.includes(na);
+}
+
 function accountMatches(a: BudgetTransaction, b: BudgetTransaction): boolean {
   if (!a.accountNumber || !b.accountNumber) return false;
   if (a.accountNumber !== b.accountNumber) return false;
@@ -48,29 +69,53 @@ function accountMatches(a: BudgetTransaction, b: BudgetTransaction): boolean {
   return true;
 }
 
+function datesAlign(a: BudgetTransaction, b: BudgetTransaction): boolean {
+  if (withinDateWindow(a.date, b.date, 3)) return true;
+  if (a.postedDate && b.postedDate && withinDateWindow(a.postedDate, b.postedDate, 3)) return true;
+  return false;
+}
+
+function checkNumbersMatch(a: BudgetTransaction, b: BudgetTransaction): boolean {
+  if (!a.checkNumber || !b.checkNumber) return false;
+  return a.checkNumber === b.checkNumber;
+}
+
 export function isDuplicate(tx: BudgetTransaction, list: BudgetTransaction[]): boolean {
   return list.some((other) => {
     if (other.id === tx.id) return false;
     if (!amountsMatch(other.amount, tx.amount)) return false;
-    if (!withinDateWindow(tx.date, other.date, 3)) return false;
 
-    const payeeSimilar = merchantSimilar(
+    const sameEntity = Boolean(other.entityId && tx.entityId && other.entityId === tx.entityId);
+    const accountAligned = accountMatches(other, tx);
+    const similarPayee = merchantSimilar(
       other.merchant || other.importedMerchant,
       tx.merchant || tx.importedMerchant,
     );
-    const sameEntity = Boolean(other.entityId && tx.entityId && other.entityId === tx.entityId);
+    const identicalPayee = merchantsMatchStrict(
+      other.merchant || other.importedMerchant,
+      tx.merchant || tx.importedMerchant,
+    );
+    const sameCheck = checkNumbersMatch(other, tx);
+    const closeInTime = datesAlign(other, tx);
 
-    return payeeSimilar || sameEntity || accountMatches(other, tx);
+    if (identicalPayee && (closeInTime || sameEntity || accountAligned || sameCheck)) {
+      return true;
+    }
+
+    if (closeInTime && (similarPayee || sameEntity || accountAligned || sameCheck)) {
+      return true;
+    }
+
+    if ((sameEntity || accountAligned) && identicalPayee) {
+      return true;
+    }
+
+    if (sameCheck && (similarPayee || sameEntity || accountAligned)) {
+      return true;
+    }
+
+    return false;
   });
-}
-
-function merchantSimilar(a?: string | null, b?: string | null): boolean {
-  const normalize = (s?: string | null) =>
-    (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-  const na = normalize(a);
-  const nb = normalize(b);
-  if (!na || !nb) return true;
-  return na.includes(nb) || nb.includes(na);
 }
 
 export function link(tx: BudgetTransaction, linkId: string): void {
