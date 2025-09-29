@@ -93,7 +93,7 @@
           </div>
         </div>
 
-        <div class="budget-hero__metrics">
+        <div v-if="!isMobile" class="budget-hero__metrics">
           <div class="metric-card metric-card--primary">
             <div class="metric-card__label">{{ remainingToBudget >= 0 ? 'Left to Budget' : 'Over Budget' }}</div>
             <div class="metric-card__value" :class="{ 'text-negative': remainingToBudget < 0 }">
@@ -234,7 +234,11 @@
               </div>
             </q-card-section>
           </q-card>
-          <SavingsConversionPrompt v-if="legacySavingsCategories.length" :categories="legacySavingsCategories" @convert="onConvertLegacy" />
+          <SavingsConversionPrompt
+            v-if="!isMobile && legacySavingsCategories.length"
+            :categories="legacySavingsCategories"
+            @convert="onConvertLegacy"
+          />
 
           <!-- Favorites Section -->
           <q-card v-if="!isEditing && favoriteItems.length" id="favorites-section" class="panel-card q-mt-md">
@@ -379,8 +383,9 @@
         </div>
 
         <!-- Mobile Detail Panels -->
-        <div v-if="isMobile && selectedCategory && !isEditing" class="col-12 q-mt-md">
+        <div v-if="isMobile && selectedCategory && !isEditing" class="mobile-category-overlay">
           <CategoryTransactions
+            class="mobile-category-overlay__panel"
             :category="selectedCategory"
             :transactions="budget.transactions"
             :target="selectedCategory.target || 0"
@@ -2448,5 +2453,36 @@ interface GroupCategory {
     position: static;
     max-height: none;
   }
+}
+
+.mobile-category-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: var(--color-surface-page, #fff);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.mobile-category-overlay__panel {
+  flex: 1;
+  display: flex;
+}
+
+.mobile-category-overlay :deep(.category-transactions-panel) {
+  flex: 1;
+  min-height: 0;
+}
+
+.mobile-category-overlay :deep(.category-details-card) {
+  border-radius: 0;
+  height: 100%;
+}
+
+.mobile-category-overlay :deep(.hero-close) {
+  top: 16px;
+  right: 16px;
 }
 </style>
