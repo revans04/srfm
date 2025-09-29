@@ -245,6 +245,8 @@ export function useTransactions() {
 
   async function hydrateBudgets(budgetIds: string[]) {
     const out: LedgerRow[] = [];
+    const loadedBudgets: Budget[] = [];
+
     for (const id of budgetIds) {
       try {
         let full = budgetStore.getBudget(id);
@@ -254,28 +256,39 @@ export function useTransactions() {
             budgetStore.updateBudget(id, full);
           }
         }
+
         if (full) {
-          console.log('test transactions', full.transactions.filter(t => t.merchant == 'The North Face'));
-          const transactions = (full.transactions || []).filter((t) => !t.deleted);
-          const budgetTransactions = transactions as BudgetTransaction[];
-          const duplicateIds = new Set<string>();
-          for (const tx of budgetTransactions) {
-            if (isDuplicate(tx, budgetTransactions)) {
-              duplicateIds.add(tx.id);
-            }
-          }
-          const mapped = budgetTransactions.map((t) => {
-            const row = mapTxToRow(t, full);
-            row.isDuplicate = duplicateIds.has(t.id);
-            return row;
-          });
-          out.push(...mapped);
+          loadedBudgets.push(full);
         }
       } catch (err) {
         // Skip budgets that fail to load but continue processing others
         console.error('Failed to hydrate budget', id, err);
       }
     }
+
+    const allTransactions: BudgetTransaction[] = [];
+    for (const budget of loadedBudgets) {
+      const transactions = (budget.transactions || []).filter((t) => !t.deleted) as BudgetTransaction[];
+      allTransactions.push(...transactions);
+    }
+
+    const duplicateIds = new Set<string>();
+    for (const tx of allTransactions) {
+      if (isDuplicate(tx, allTransactions)) {
+        duplicateIds.add(tx.id);
+      }
+    }
+
+    for (const budget of loadedBudgets) {
+      const transactions = (budget.transactions || []).filter((t) => !t.deleted) as BudgetTransaction[];
+      const mapped = transactions.map((t) => {
+        const row = mapTxToRow(t, budget);
+        row.isDuplicate = duplicateIds.has(t.id);
+        return row;
+      });
+      out.push(...mapped);
+    }
+
     // Sort desc by date
     out.sort((a, b) => b.date.localeCompare(a.date));
     return out;
