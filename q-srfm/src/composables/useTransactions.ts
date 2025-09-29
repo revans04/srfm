@@ -38,36 +38,36 @@ export function withinDateWindow(date1: string, date2: string, windowDays: numbe
 
 function amountsMatch(a: number | undefined, b: number | undefined): boolean {
   if (a == null || b == null) return false;
-  return Math.abs(Number(a) - Number(b)) < 0.01;
+  return Math.abs(Number(a) - Number(b)) == 0;
 }
 
-function normalizeMerchant(value?: string | null): string {
-  return (value || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]/g, '');
-}
+// function normalizeMerchant(value?: string | null): string {
+//   return (value || '')
+//     .toLowerCase()
+//     .normalize('NFD')
+//     .replace(/[\u0300-\u036f]/g, '')
+//     .replace(/[^a-z0-9]/g, '');
+// }
 
-function merchantsMatchStrict(a?: string | null, b?: string | null): boolean {
-  const na = normalizeMerchant(a);
-  const nb = normalizeMerchant(b);
-  return Boolean(na && nb && na === nb);
-}
+// function merchantsMatchStrict(a?: string | null, b?: string | null): boolean {
+//   const na = normalizeMerchant(a);
+//   const nb = normalizeMerchant(b);
+//   return Boolean(na && nb && na === nb);
+// }
 
-function merchantSimilar(a?: string | null, b?: string | null): boolean {
-  const na = normalizeMerchant(a);
-  const nb = normalizeMerchant(b);
-  if (!na || !nb) return true;
-  return na.includes(nb) || nb.includes(na);
-}
+// function merchantSimilar(a?: string | null, b?: string | null): boolean {
+//   const na = normalizeMerchant(a);
+//   const nb = normalizeMerchant(b);
+//   if (!na || !nb) return true;
+//   return na.includes(nb) || nb.includes(na);
+// }
 
-function accountMatches(a: BudgetTransaction, b: BudgetTransaction): boolean {
-  if (!a.accountNumber || !b.accountNumber) return false;
-  if (a.accountNumber !== b.accountNumber) return false;
-  if (a.accountSource && b.accountSource && a.accountSource !== b.accountSource) return false;
-  return true;
-}
+// function accountMatches(a: BudgetTransaction, b: BudgetTransaction): boolean {
+//   if (!a.accountNumber || !b.accountNumber) return false;
+//   if (a.accountNumber !== b.accountNumber) return false;
+//   if (a.accountSource && b.accountSource && a.accountSource !== b.accountSource) return false;
+//   return true;
+// }
 
 function datesAlign(a: BudgetTransaction, b: BudgetTransaction): boolean {
   if (withinDateWindow(a.date, b.date, 3)) return true;
@@ -81,40 +81,51 @@ function checkNumbersMatch(a: BudgetTransaction, b: BudgetTransaction): boolean 
 }
 
 export function isDuplicate(tx: BudgetTransaction, list: BudgetTransaction[]): boolean {
+  if (tx.amount == 649.52)  {
+      console.log('Dup check', tx);
+      console.log('Dup check list', list.filter(t => t.amount == 649.52));
+    }
   return list.some((other) => {
     if (other.id === tx.id) return false;
     if (!amountsMatch(other.amount, tx.amount)) return false;
 
     const sameEntity = Boolean(other.entityId && tx.entityId && other.entityId === tx.entityId);
-    const accountAligned = accountMatches(other, tx);
-    const similarPayee = merchantSimilar(
-      other.merchant || other.importedMerchant,
-      tx.merchant || tx.importedMerchant,
-    );
-    const identicalPayee = merchantsMatchStrict(
-      other.merchant || other.importedMerchant,
-      tx.merchant || tx.importedMerchant,
-    );
+    // const accountAligned = accountMatches(other, tx);
+    // const similarPayee = merchantSimilar(
+    //   other.merchant || other.importedMerchant,
+    //   tx.merchant || tx.importedMerchant,
+    // );
+    // const identicalPayee = merchantsMatchStrict(
+    //   other.merchant || other.importedMerchant,
+    //   tx.merchant || tx.importedMerchant,
+    // );
     const sameCheck = checkNumbersMatch(other, tx);
     const closeInTime = datesAlign(other, tx);
 
-    if (identicalPayee && (closeInTime || sameEntity || accountAligned || sameCheck)) {
-      return true;
+    if (tx.amount == 649.52)  {
+      console.log('Dup check other ' + other.merchant, other);
+      console.log({ sameEntity, sameCheck, closeInTime });
     }
 
-    if (closeInTime && (similarPayee || sameEntity || accountAligned || sameCheck)) {
-      return true;
-    }
+    return sameEntity && sameCheck && closeInTime; //&& (identicalPayee || similarPayee)
 
-    if ((sameEntity || accountAligned) && identicalPayee) {
-      return true;
-    }
+    // if (identicalPayee && (closeInTime || sameEntity || accountAligned || sameCheck)) {
+    //   return true;
+    // }
 
-    if (sameCheck && (similarPayee || sameEntity || accountAligned)) {
-      return true;
-    }
+    // if (closeInTime && sameCheck && (similarPayee || sameEntity || accountAligned || sameCheck)) {
+    //   return true;
+    // }
 
-    return false;
+    // if ((sameEntity || accountAligned) && identicalPayee) {
+    //   return true;
+    // }
+
+    // if (sameCheck && (similarPayee || sameEntity || accountAligned)) {
+    //   return true;
+    // }
+
+    // return false;
   });
 }
 
@@ -244,6 +255,7 @@ export function useTransactions() {
           }
         }
         if (full) {
+          console.log('test transactions', full.transactions.filter(t => t.merchant == 'The North Face'));
           const transactions = (full.transactions || []).filter((t) => !t.deleted);
           const budgetTransactions = transactions as BudgetTransaction[];
           const duplicateIds = new Set<string>();
