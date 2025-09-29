@@ -41,91 +41,22 @@ function amountsMatch(a: number | undefined, b: number | undefined): boolean {
   return Math.abs(Number(a) - Number(b)) == 0;
 }
 
-// function normalizeMerchant(value?: string | null): string {
-//   return (value || '')
-//     .toLowerCase()
-//     .normalize('NFD')
-//     .replace(/[\u0300-\u036f]/g, '')
-//     .replace(/[^a-z0-9]/g, '');
-// }
-
-// function merchantsMatchStrict(a?: string | null, b?: string | null): boolean {
-//   const na = normalizeMerchant(a);
-//   const nb = normalizeMerchant(b);
-//   return Boolean(na && nb && na === nb);
-// }
-
-// function merchantSimilar(a?: string | null, b?: string | null): boolean {
-//   const na = normalizeMerchant(a);
-//   const nb = normalizeMerchant(b);
-//   if (!na || !nb) return true;
-//   return na.includes(nb) || nb.includes(na);
-// }
-
-// function accountMatches(a: BudgetTransaction, b: BudgetTransaction): boolean {
-//   if (!a.accountNumber || !b.accountNumber) return false;
-//   if (a.accountNumber !== b.accountNumber) return false;
-//   if (a.accountSource && b.accountSource && a.accountSource !== b.accountSource) return false;
-//   return true;
-// }
-
 function datesAlign(a: BudgetTransaction, b: BudgetTransaction): boolean {
-  if (withinDateWindow(a.date, b.date, 3)) return true;
-  if (a.postedDate && b.postedDate && withinDateWindow(a.postedDate, b.postedDate, 3)) return true;
+  if (a.date && b.date && a.date === b.date) return true;
+  // if (withinDateWindow(a.date, b.date, 1)) return true;
+  // if (a.postedDate && b.postedDate && withinDateWindow(a.postedDate, b.postedDate, 1)) return true;
   return false;
 }
 
-function checkNumbersMatch(a: BudgetTransaction, b: BudgetTransaction): boolean {
-  if (!a.checkNumber || !b.checkNumber) return false;
-  return a.checkNumber === b.checkNumber;
-}
-
 export function isDuplicate(tx: BudgetTransaction, list: BudgetTransaction[]): boolean {
-  if (tx.amount == 649.52)  {
-      console.log('Dup check', tx);
-      console.log('Dup check list', list.filter(t => t.amount == 649.52));
-    }
   return list.some((other) => {
     if (other.id === tx.id) return false;
-    if (!amountsMatch(other.amount, tx.amount)) return false;
+    if (!amountsMatch(other.amount, tx.amount) || (other.isIncome !== tx.isIncome)) return false;
 
     const sameEntity = Boolean(other.entityId && tx.entityId && other.entityId === tx.entityId);
-    // const accountAligned = accountMatches(other, tx);
-    // const similarPayee = merchantSimilar(
-    //   other.merchant || other.importedMerchant,
-    //   tx.merchant || tx.importedMerchant,
-    // );
-    // const identicalPayee = merchantsMatchStrict(
-    //   other.merchant || other.importedMerchant,
-    //   tx.merchant || tx.importedMerchant,
-    // );
-    const sameCheck = checkNumbersMatch(other, tx);
     const closeInTime = datesAlign(other, tx);
 
-    if (tx.amount == 649.52)  {
-      console.log('Dup check other ' + other.merchant, other);
-      console.log({ sameEntity, sameCheck, closeInTime });
-    }
-
-    return sameEntity && sameCheck && closeInTime; //&& (identicalPayee || similarPayee)
-
-    // if (identicalPayee && (closeInTime || sameEntity || accountAligned || sameCheck)) {
-    //   return true;
-    // }
-
-    // if (closeInTime && sameCheck && (similarPayee || sameEntity || accountAligned || sameCheck)) {
-    //   return true;
-    // }
-
-    // if ((sameEntity || accountAligned) && identicalPayee) {
-    //   return true;
-    // }
-
-    // if (sameCheck && (similarPayee || sameEntity || accountAligned)) {
-    //   return true;
-    // }
-
-    // return false;
+    return sameEntity && closeInTime;
   });
 }
 
