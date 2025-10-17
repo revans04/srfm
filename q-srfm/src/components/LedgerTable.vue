@@ -48,9 +48,14 @@
           {{ money(b.row.amount) }}
         </q-td>
         <q-td key="status" :props="b" class="col-status">
-          <q-badge v-if="b.row.status === 'C'" color="positive" outline> C </q-badge>
-          <q-badge v-else-if="b.row.status === 'U'" color="warning" outline> U </q-badge>
-          <q-badge v-else-if="b.row.status === 'R'" color="primary" outline> R </q-badge>
+          <q-badge
+            v-if="statusMetaMap[b.row.status]"
+            :color="statusMetaMap[b.row.status].color"
+            outline
+          >
+            {{ statusMetaMap[b.row.status].label }}
+          </q-badge>
+          <span v-else>{{ b.row.status }}</span>
           <q-icon v-if="b.row.linkId" name="link" color="primary" size="16px" class="q-ml-xs" />
           <q-icon v-if="b.row.isDuplicate" name="warning" color="warning" size="16px" class="q-ml-xs" />
         </q-td>
@@ -93,7 +98,7 @@ export interface LedgerRow {
   entityName: string;
   budgetId: string;
   amount: number; // dollars
-  status: 'C' | 'U' | 'R';
+  status: 'C' | 'U' | 'R' | 'M' | 'I';
   importedMerchant?: string;
   isDuplicate?: boolean;
   linkId?: string;
@@ -120,6 +125,14 @@ const emit = defineEmits<{
   (e: 'row-click', row: LedgerRow): void;
   (e: 'update:selected', ids: string[]): void;
 }>();
+
+const statusMetaMap: Record<LedgerRow['status'], { label: string; color: string }> = {
+  C: { label: 'Cleared', color: 'positive' },
+  U: { label: 'Uncleared', color: 'warning' },
+  R: { label: 'Reconciled', color: 'primary' },
+  M: { label: 'Matched', color: 'accent' },
+  I: { label: 'Ignored', color: 'secondary' },
+};
 
 const selectedInternal = computed<LedgerRow[] | string[]>({
   get() {

@@ -222,7 +222,6 @@ Key props/usage:
       <q-tab-panel name="register" class="transactions-panel">
         <div class="transactions-layout">
           <div class="transactions-layout__main">
-            <account-reconcile-panel class="q-mb-xl" />
             <div class="transactions-filters panel-card">
               <div class="row q-col-gutter-sm q-col-gutter-y-sm items-center">
                 <div class="col-12 col-md-4">
@@ -276,11 +275,79 @@ Key props/usage:
                 <q-chip
                   clickable
                   class="filter-chip"
+                  :color="filters.cleared ? 'primary' : 'white'"
+                  :text-color="filters.cleared ? 'white' : 'primary'"
+                  @click="filters.cleared = !filters.cleared"
+                  >Cleared</q-chip
+                >
+                <q-chip
+                  clickable
+                  class="filter-chip"
+                  :color="filters.uncleared ? 'primary' : 'white'"
+                  :text-color="filters.uncleared ? 'white' : 'primary'"
+                  @click="filters.uncleared = !filters.uncleared"
+                  >Uncleared</q-chip
+                >
+                <q-chip
+                  clickable
+                  class="filter-chip"
+                  :color="filters.reconciled ? 'primary' : 'white'"
+                  :text-color="filters.reconciled ? 'white' : 'primary'"
+                  @click="filters.reconciled = !filters.reconciled"
+                  >Reconciled</q-chip
+                >
+                <q-chip
+                  clickable
+                  class="filter-chip"
                   :color="filters.unmatchedOnly ? 'primary' : 'white'"
                   :text-color="filters.unmatchedOnly ? 'white' : 'primary'"
                   @click="filters.unmatchedOnly = !filters.unmatchedOnly"
                   >Unmatched Only</q-chip
                 >
+              </div>
+            </div>
+            <div class="register-reconcile panel-card q-mt-md">
+              <div class="row q-col-gutter-sm q-col-gutter-y-sm items-end">
+                <div class="col-12 col-sm-6 col-md-3">
+                  <q-input v-model="registerBeginningBalanceInput" type="number" dense outlined label="Beginning Balance" />
+                </div>
+                <div class="col-12 col-sm-6 col-md-3">
+                  <q-input v-model="registerTargetEndingInput" type="number" dense outlined label="Target Ending Balance" />
+                </div>
+                <div class="col-12 col-sm-6 col-md-2">
+                  <div class="text-caption text-grey-7">Matched Total</div>
+                  <q-badge color="primary" outline class="text-body2 q-mt-xs">{{ formatCurrency(registerMatchedTotal) }}</q-badge>
+                </div>
+                <div class="col-12 col-sm-6 col-md-2">
+                  <div class="text-caption text-grey-7">Computed Ending</div>
+                  <q-badge color="primary" outline class="text-body2 q-mt-xs">{{ formatCurrency(registerComputedEnding) }}</q-badge>
+                </div>
+                <div class="col-12 col-sm-6 col-md-2">
+                  <div class="text-caption text-grey-7">Delta</div>
+                  <q-badge :color="registerDeltaBadgeColor" outline class="text-body2 q-mt-xs">{{ formatCurrency(registerDelta) }}</q-badge>
+                </div>
+              </div>
+              <div class="row q-col-gutter-sm q-col-gutter-y-sm items-center q-mt-md">
+                <div class="col-12 col-md-4">
+                  <q-linear-progress :value="registerProgress" color="secondary" track-color="grey-3" rounded />
+                </div>
+                <div class="col-12 col-md-4">
+                  <q-checkbox
+                    v-model="registerAllClearedSelected"
+                    label="Select Cleared In View"
+                    dense
+                    :disable="!registerClearedVisibleRows.length"
+                  />
+                </div>
+                <div class="col-12 col-md-4 flex justify-end">
+                  <q-btn
+                    color="primary"
+                    :disable="registerFinalizeDisabled"
+                    :loading="registerFinalizing"
+                    label="Finalize Reconciliation"
+                    @click="finalizeRegisterStatement"
+                  />
+                </div>
               </div>
             </div>
             <div v-if="selectedRegisterIds.length" class="transactions-selection panel-card">
@@ -291,6 +358,13 @@ Key props/usage:
                 <q-btn color="primary" label="Create Budget Transactions" @click="openRegisterBatchDialog" />
                 <q-btn color="warning" label="Ignore" @click="confirmRegisterBatchAction('Ignore')" />
                 <q-btn color="negative" label="Delete" @click="confirmRegisterBatchAction('Delete')" />
+                <q-btn
+                  color="positive"
+                  label="Finalize"
+                  :disable="registerFinalizeDisabled"
+                  :loading="registerFinalizing"
+                  @click="finalizeRegisterStatement"
+                />
               </div>
             </div>
             <div class="transactions-table">
@@ -387,19 +461,18 @@ import { computed, ref, watch, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { storeToRefs } from 'pinia';
 import LedgerTable from 'src/components/LedgerTable.vue';
-import AccountReconcilePanel from 'src/components/AccountReconcilePanel.vue';
 import MatchBankPanel from 'src/components/MatchBankPanel.vue';
 import EntitySelector from 'src/components/EntitySelector.vue';
 import TransactionForm from 'src/components/TransactionForm.vue';
 import { useTransactions } from 'src/composables/useTransactions';
-import type { LedgerFilters, LedgerRow } from 'src/composables/useTransactions';
+import type { LedgerFilters, LedgerRow, Status } from 'src/composables/useTransactions';
 import { useBudgetStore } from 'src/store/budget';
 import { useFamilyStore } from 'src/store/family';
 import { useUIStore } from 'src/store/ui';
 import { useAuthStore } from 'src/store/auth';
 import { sortBudgetsByMonthDesc, createBudgetForMonth } from 'src/utils/budget';
 import { dataAccess } from 'src/dataAccess';
-import type { Budget, Transaction } from 'src/types';
+import type { Budget, Transaction, StatementFinalizePayload } from 'src/types';
 import { splitImportedId } from 'src/utils/imported';
 
 const tab = ref<'budget' | 'register' | 'match'>('budget');
@@ -491,6 +564,82 @@ const batchEntries = ref<{ id: string; date: string; amount: number; merchant: s
 const showRegisterActionDialog = ref(false);
 const registerBatchAction = ref<'Ignore' | 'Delete' | ''>('');
 const saving = ref(false);
+const registerBeginningBalanceInput = ref('0');
+const registerTargetEndingInput = ref('0');
+const registerFinalizing = ref(false);
+
+const normalizedRegisterStatus = (status: LedgerRow['status']): Status => {
+  if (status === 'M') return 'C';
+  if (status === 'I') return 'U';
+  return status;
+};
+
+const registerClearedVisibleRows = computed(() =>
+  registerRows.value.filter((row) => normalizedRegisterStatus(row.status) === 'C'),
+);
+
+const registerSelectedRows = computed(() =>
+  selectedRegisterIds.value
+    .map((id) => registerRows.value.find((row) => row.id === id))
+    .filter((row): row is LedgerRow => Boolean(row)),
+);
+
+const registerSelectedClearedRows = computed(() =>
+  registerSelectedRows.value.filter((row) => normalizedRegisterStatus(row.status) === 'C'),
+);
+
+const parseNumericInput = (value: string): number => {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : 0;
+};
+
+const registerMatchedTotal = computed(() =>
+  registerSelectedClearedRows.value.reduce((sum, row) => sum + row.amount, 0),
+);
+const registerBeginningBalance = computed(() => parseNumericInput(registerBeginningBalanceInput.value));
+const registerTargetEndingBalance = computed(() => parseNumericInput(registerTargetEndingInput.value));
+const registerComputedEnding = computed(() => registerBeginningBalance.value + registerMatchedTotal.value);
+const registerDelta = computed(() => registerTargetEndingBalance.value - registerComputedEnding.value);
+
+const registerProgress = computed(() => {
+  const change = registerTargetEndingBalance.value - registerBeginningBalance.value;
+  if (!Number.isFinite(change) || change === 0) {
+    return Math.abs(registerDelta.value) < 0.005 ? 1 : 0;
+  }
+  const ratio = 1 - Math.min(1, Math.abs(registerDelta.value) / Math.abs(change));
+  const bounded = Number.isNaN(ratio) ? 0 : ratio;
+  return Math.max(0, Math.min(1, bounded));
+});
+
+const registerDeltaBadgeColor = computed(() => {
+  if (Math.abs(registerDelta.value) < 0.005) return 'positive';
+  return registerDelta.value > 0 ? 'warning' : 'negative';
+});
+
+const registerFinalizeDisabled = computed(() => {
+  if (!filters.value.accountId) return true;
+  if (!filters.value.start || !filters.value.end) return true;
+  if (!registerSelectedClearedRows.value.length) return true;
+  if (!Number.isFinite(registerBeginningBalance.value) || !Number.isFinite(registerTargetEndingBalance.value)) return true;
+  return Math.abs(registerDelta.value) >= 0.01;
+});
+
+const registerAllClearedSelected = computed({
+  get() {
+    if (!registerClearedVisibleRows.value.length) return false;
+    return registerClearedVisibleRows.value.every((row) => selectedRegisterIds.value.includes(row.id));
+  },
+  set(value: boolean) {
+    const clearedIds = registerClearedVisibleRows.value.map((row) => row.id);
+    if (value) {
+      const merged = new Set([...selectedRegisterIds.value, ...clearedIds]);
+      selectedRegisterIds.value = Array.from(merged);
+    } else {
+      const clearedSet = new Set(clearedIds);
+      selectedRegisterIds.value = selectedRegisterIds.value.filter((id) => !clearedSet.has(id));
+    }
+  },
+});
 
 const entityOptions = computed(() => (familyStore.family?.entities || []).map((e) => ({ id: e.id, name: e.name })));
 
@@ -515,6 +664,44 @@ function clearBudgetSelection() {
 function openBudgetDeleteDialog() {
   if (!selectedBudgetRows.value.length) return;
   showBudgetDeleteDialog.value = true;
+}
+
+async function finalizeRegisterStatement() {
+  if (registerFinalizeDisabled.value) return;
+  const familyId = familyStore.family?.id;
+  if (!familyId) {
+    $q.notify({ type: 'negative', message: 'Family context missing.' });
+    return;
+  }
+  const accountId = filters.value.accountId;
+  if (!accountId) {
+    $q.notify({ type: 'negative', message: 'Select an account before finalizing.' });
+    return;
+  }
+  registerFinalizing.value = true;
+  const payload: StatementFinalizePayload = {
+    familyId,
+    accountId,
+    startDate: filters.value.start || '',
+    endDate: filters.value.end || '',
+    beginningBalance: registerBeginningBalance.value,
+    endingBalance: registerTargetEndingBalance.value,
+    matchedTransactionIds: registerSelectedClearedRows.value.map((row) => row.id),
+  };
+  try {
+    await dataAccess.finalizeStatement(payload);
+    $q.notify({ type: 'positive', message: 'Statement finalized.' });
+    selectedRegisterIds.value = selectedRegisterIds.value.filter(
+      (id) => !payload.matchedTransactionIds.includes(id),
+    );
+    await loadImportedTransactions(true);
+  } catch (err) {
+    console.error('Failed to finalize statement', err);
+    const message = err instanceof Error ? err.message : 'Unable to finalize statement.';
+    $q.notify({ type: 'negative', message });
+  } finally {
+    registerFinalizing.value = false;
+  }
 }
 
 const createDefaultFilters = (): LedgerFilters => ({
@@ -614,6 +801,17 @@ watch(
   },
 );
 
+watch(
+  () => filters.value.accountId,
+  () => {
+    registerBeginningBalanceInput.value = '0';
+    registerTargetEndingInput.value = '0';
+    selectedRegisterIds.value = [];
+    filters.value.start = null;
+    filters.value.end = null;
+  },
+);
+
 const formatLongMonth = (month: string) => {
   const [year, monthNum] = month.split('-');
   const date = new Date(parseInt(year), parseInt(monthNum) - 1);
@@ -675,6 +873,29 @@ watch(tab, (value) => {
   }
 });
 
+watch(
+  () => registerRows.value.map((row) => row.id),
+  (ids) => {
+    const available = new Set(ids);
+    const filtered = selectedRegisterIds.value.filter((id) => available.has(id));
+    if (filtered.length !== selectedRegisterIds.value.length) {
+      selectedRegisterIds.value = filtered;
+    }
+  },
+);
+
+watch(registerRows, (rows) => {
+  if (!rows.length) return;
+  if (!filters.value.start) {
+    const last = rows[rows.length - 1]?.date?.slice(0, 10);
+    if (last) filters.value.start = last;
+  }
+  if (!filters.value.end) {
+    const first = rows[0]?.date?.slice(0, 10);
+    if (first) filters.value.end = first;
+  }
+});
+
 function clearBudgetFilters() {
   selectedBudgetIds.value = [];
   filters.value = createDefaultFilters();
@@ -684,6 +905,10 @@ function clearBudgetFilters() {
 function clearRegisterFilters() {
   filters.value = createDefaultFilters();
   syncInputsFromFilters();
+  selectedRegisterIds.value = [];
+  registerBeginningBalanceInput.value = '0';
+  registerTargetEndingInput.value = '0';
+  void loadImportedTransactions(true);
 }
 
 async function refreshBudget() {

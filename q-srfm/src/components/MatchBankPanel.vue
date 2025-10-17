@@ -60,21 +60,49 @@ async function loadData() {
   const cats = new Set<string>();
 
   const entries = Array.from(budgetStore.budgets.entries());
-  for (let i = 0; i < entries.length; i++) {
-    const [id, budget] = entries[i];
-    progressMsg.value = `Loading budget ${i + 1} of ${entries.length}`;
-    let full = budget;
-    if (!full.transactions || full.transactions.length === 0) {
-      full = await dataAccess.getBudget(id);
-      if (full) {
-        budgetStore.updateBudget(id, full);
-      } else {
-        continue;
-      }
-    }
-    (full.transactions || []).filter((t) => !t.deleted && (!t.status || t.status === 'U')).forEach((t) => txs.push(t));
-    (full.categories || []).forEach((c) => cats.add(c.name));
+  const totalBudgets = entries.length;
+  let completedBudgets = 0;
+  if (totalBudgets > 0) {
+    progressMsg.value = `Loading budgets (0 of ${totalBudgets})`;
   }
+  const updateProgress = () => {
+    completedBudgets += 1;
+    if (totalBudgets > 0) {
+      const clamped = Math.min(completedBudgets, totalBudgets);
+      progressMsg.value = `Loading budgets (${clamped} of ${totalBudgets})`;
+    }
+  };
+
+  const budgets = await Promise.all(
+    entries.map(async ([id, budget]) => {
+      if (budget.transactions && budget.transactions.length > 0) {
+        updateProgress();
+        return budget;
+      }
+
+      try {
+        const full = await dataAccess.getBudget(id);
+        if (full) {
+          budgetStore.updateBudget(id, full);
+          updateProgress();
+          return full;
+        }
+      } catch (error) {
+        console.error(`Error loading budget ${id}`, error);
+      }
+
+      updateProgress();
+      return budget;
+    }),
+  );
+
+  budgets.forEach((budget) => {
+    if (!budget) return;
+    (budget.transactions || [])
+      .filter((t) => !t.deleted && (!t.status || t.status === 'U'))
+      .forEach((t) => txs.push(t));
+    (budget.categories || []).forEach((c) => cats.add(c.name));
+  });
 
   transactions.value = txs;
   categoryOptions.value = ['Income', ...Array.from(cats).sort((a, b) => b.localeCompare(a))];

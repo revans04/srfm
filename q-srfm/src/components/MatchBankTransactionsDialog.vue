@@ -8,15 +8,9 @@
           <div class="col">
             <div class="row items-center q-gutter-sm">
               <h3 class="q-mb-none">Smart Matches ({{ smartMatchCountLabel }})</h3>
-              <q-input
-                v-model="smartMatchDateRange"
-                label="Days"
-                type="number"
-                dense
-                class="q-ml-md"
-                style="width: 90px"
-                @input="computeSmartMatchesLocal()"
-              />
+              <q-input v-model="filterStartDate" label="Start Date" type="date" dense class="q-ml-md" style="width: 150px" :max="filterEndDate || undefined" />
+              <q-input v-model="filterEndDate" label="End Date" type="date" dense class="q-ml-sm" style="width: 150px" :min="filterStartDate || undefined" />
+              <q-input v-model="smartMatchDateRange" label="Days" type="number" dense class="q-ml-md" style="width: 90px" :min="0" />
             </div>
             <p class="text-caption q-mt-xs q-mb-none">
               These imported transactions have exactly one potential match. Showing up to {{ MAX_SMART_MATCHES }} results.
@@ -58,238 +52,239 @@
           </div>
         </div>
 
-        <q-table
-          v-if="smartMatches.length > 0"
-          :columns="smartMatchColumns"
-          :rows="visibleSmartMatches"
-          :row-key="rowKey"
-          :table-row-class-fn="smartMatchRowClass"
-          selection="multiple"
-          v-model:selected="selectedSmartMatchesInternal"
-          class="q-mt-lg"
-          hide-bottom
-          :pagination="{ rowsPerPage: 0 }"
-        >
-          <template #body-cell-bankAmount="props">
-            <q-td :props="props" class="text-right" style="vertical-align: middle;">
-              ${{ toDollars(toCents(props.row.bankAmount)) }}
-            </q-td>
-          </template>
-          <template #body-cell-budgetAmount="props">
-            <q-td :props="props" class="text-right" style="vertical-align: middle;">
-              ${{ toDollars(toCents(props.row.budgetAmount)) }}
-            </q-td>
-          </template>
-          <template #body-cell-merchant="props">
-            <q-td :props="props" style="max-width: 200px; vertical-align: middle;">
-              <div class="ellipsis">{{ props.row.merchant }}</div>
-            </q-td>
-          </template>
-          <template #body-cell-actions="{ row }">
-            <q-icon
-              v-if="isBudgetTxMatchedMultiple(row.budgetTransaction.id)"
-              color="warning"
-              title="This budget transaction matches multiple bank transactions"
-              name="warning"
-            ></q-icon>
-          </template>
-        </q-table>
+        <q-banner v-if="!lookedForSmartMatches" type="info" class="q-mt-lg"> Click Find Smart Matches to look for transaction matches. </q-banner>
 
-        <q-banner v-else type="info" class="q-mt-lg"> No smart matches found. Check Remaining Transactions for potential conflicts. </q-banner>
+        <div v-else>
+          <q-table
+            v-if="smartMatches.length > 0"
+            :columns="smartMatchColumns"
+            :rows="visibleSmartMatches"
+            :row-key="rowKey"
+            :table-row-class-fn="smartMatchRowClass"
+            selection="multiple"
+            v-model:selected="selectedSmartMatchesInternal"
+            class="q-mt-lg"
+            hide-bottom
+            :pagination="{ rowsPerPage: 0 }"
+          >
+            <template #body-cell-bankAmount="props">
+              <q-td :props="props" class="text-right" style="vertical-align: middle"> ${{ toDollars(toCents(props.row.bankAmount)) }} </q-td>
+            </template>
+            <template #body-cell-budgetAmount="props">
+              <q-td :props="props" class="text-right" style="vertical-align: middle"> ${{ toDollars(toCents(props.row.budgetAmount)) }} </q-td>
+            </template>
+            <template #body-cell-merchant="props">
+              <q-td :props="props" style="max-width: 200px; vertical-align: middle">
+                <div class="ellipsis">{{ props.row.merchant }}</div>
+              </q-td>
+            </template>
+            <template #body-cell-actions="{ row }">
+              <q-icon
+                v-if="isBudgetTxMatchedMultiple(row.budgetTransaction.id)"
+                color="warning"
+                title="This budget transaction matches multiple bank transactions"
+                name="warning"
+              ></q-icon>
+            </template>
+          </q-table>
 
-        <!-- Remaining Transactions -->
-        <div class="row q-mt-lg" v-if="remainingImportedTransactions.length > 0">
-          <div class="col">
-            <h3>Remaining Transactions ({{ currentBankTransactionIndex + 1 }} of {{ remainingImportedTransactions.length }})</h3>
-            <q-markup-table>
-              <thead>
-                <tr>
-                  <th>Posted Date</th>
-                  <th>Payee</th>
-                  <th>Amount</th>
-                  <th>Type</th>
-                  <th>Account Source</th>
-                  <th>Account #</th>
-                  <th>Check Number</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>{{ selectedBankTransaction?.postedDate }}</td>
-                  <td>{{ selectedBankTransaction?.payee }}</td>
-                  <td>${{ toDollars(toCents(selectedBankTransaction?.debitAmount || selectedBankTransaction?.creditAmount || 0)) }}</td>
-                  <td>
-                    {{ selectedBankTransaction?.debitAmount ? 'Debit' : selectedBankTransaction?.creditAmount ? 'Credit' : 'N/A' }}
-                  </td>
-                  <td>{{ selectedBankTransaction?.accountSource }}</td>
-                  <td>{{ selectedBankTransaction?.accountNumber }}</td>
-                  <td>{{ selectedBankTransaction?.checkNumber || 'N/A' }}</td>
-                </tr>
-              </tbody>
-            </q-markup-table>
+          <q-banner v-else type="info" class="q-mt-lg"> No smart matches found. Check Remaining Transactions for potential conflicts. </q-banner>
 
-            <!-- Search Filters -->
-            <div class="row q-mt-lg">
-              <div class="col col-12 col-md-4">
-                <q-input v-model="searchAmount" label="Amount" type="number" variant="outlined" readonly></q-input>
+          <!-- Remaining Transactions -->
+          <div class="row q-mt-lg" v-if="filteredImportedTransactions.length > 0">
+            <div class="col">
+              <h3>Remaining Transactions ({{ currentBankTransactionIndex + 1 }} of {{ filteredImportedTransactions.length }})</h3>
+              <q-markup-table>
+                <thead>
+                  <tr>
+                    <th>Posted Date</th>
+                    <th>Payee</th>
+                    <th>Amount</th>
+                    <th>Type</th>
+                    <th>Account Source</th>
+                    <th>Account #</th>
+                    <th>Check Number</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>{{ selectedBankTransaction?.postedDate }}</td>
+                    <td>{{ selectedBankTransaction?.payee }}</td>
+                    <td>${{ toDollars(toCents(selectedBankTransaction?.debitAmount || selectedBankTransaction?.creditAmount || 0)) }}</td>
+                    <td>
+                      {{ selectedBankTransaction?.debitAmount ? 'Debit' : selectedBankTransaction?.creditAmount ? 'Credit' : 'N/A' }}
+                    </td>
+                    <td>{{ selectedBankTransaction?.accountSource }}</td>
+                    <td>{{ selectedBankTransaction?.accountNumber }}</td>
+                    <td>{{ selectedBankTransaction?.checkNumber || 'N/A' }}</td>
+                  </tr>
+                </tbody>
+              </q-markup-table>
+
+              <!-- Search Filters -->
+              <div class="row q-mt-lg">
+                <div class="col col-12 col-md-4">
+                  <q-input v-model="searchAmount" label="Amount" type="number" variant="outlined" readonly></q-input>
+                </div>
+                <div class="col col-12 col-md-4">
+                  <q-input v-model="searchMerchant" label="Merchant" variant="outlined" @input="searchBudgetTransactions"></q-input>
+                </div>
+                <div class="col col-12 col-md-4">
+                  <q-input v-model="searchDateRange" label="Date Range (days)" type="number" variant="outlined" @input="searchBudgetTransactions"></q-input>
+                </div>
               </div>
-              <div class="col col-12 col-md-4">
-                <q-input v-model="searchMerchant" label="Merchant" variant="outlined" @input="searchBudgetTransactions"></q-input>
-              </div>
-              <div class="col col-12 col-md-4">
-                <q-input v-model="searchDateRange" label="Date Range (days)" type="number" variant="outlined" @input="searchBudgetTransactions"></q-input>
-              </div>
-            </div>
 
-            <!-- Split Transaction Option -->
-            <div class="row q-mt-lg">
-              <div class="col">
-                <q-btn color="primary" @click="toggleSplitTransaction" :disabled="props.matching">
-                  {{ showSplitForm ? 'Cancel Split' : 'Split Transaction' }}
+              <!-- Split Transaction Option -->
+              <div class="row q-mt-lg">
+                <div class="col">
+                  <q-btn color="primary" @click="toggleSplitTransaction" :disabled="props.matching">
+                    {{ showSplitForm ? 'Cancel Split' : 'Split Transaction' }}
+                  </q-btn>
+                </div>
+              </div>
+
+              <!-- Split Transaction Form -->
+              <q-form v-if="showSplitForm" ref="splitForm" @submit.prevent="saveSplitTransaction" class="q-mt-lg">
+                <div class="row align-center" v-for="(split, index) in transactionSplits" :key="index">
+                  <div class="col col-12 col-md-3">
+                    <q-select
+                      v-model="split.entityId"
+                      :options="entityOptions"
+                      option-label="name"
+                      option-value="id"
+                      emit-value
+                      map-options
+                      label="Entity"
+                      variant="outlined"
+                      density="compact"
+                      :rules="[(v: string) => !!v || 'Entity is required']"
+                    ></q-select>
+                  </div>
+                  <div class="col col-12 col-md-3">
+                    <q-select
+                      v-model="split.category"
+                      :options="props.categoryOptions"
+                      label="Category"
+                      variant="outlined"
+                      density="compact"
+                      :rules="[(v: string) => !!v || 'Category is required']"
+                    ></q-select>
+                  </div>
+
+                  <q-table
+                    v-if="potentialMatches.length > 0 && !showSplitForm"
+                    :columns="budgetTransactionColumns"
+                    :rows="sortedPotentialMatches"
+                    :pagination="{ rowsPerPage: 5 }"
+                    row-key="id"
+                    :table-row-class-fn="potentialRowClass"
+                    selection="single"
+                    v-model:selected="selectedBudgetTransactionForMatch"
+                  >
+                    <template #body-cell-amount="slotProps">
+                      <q-td :props="slotProps" class="text-right"> ${{ toDollars(toCents(slotProps.row.amount)) }} </q-td>
+                    </template>
+                    <template #body-cell-type="slotProps">
+                      <q-td :props="slotProps">
+                        {{ slotProps.row.isIncome ? 'Income' : 'Expense' }}
+                      </q-td>
+                    </template>
+                    <template #body-cell-actions="slotProps">
+                      <q-td :props="slotProps">
+                        <q-btn
+                          color="primary"
+                          small
+                          @click="matchBankTransaction(slotProps.row)"
+                          :disabled="!selectedBudgetTransactionForMatch.length || props.matching"
+                          :loading="props.matching"
+                        >
+                          Match
+                        </q-btn>
+                      </q-td>
+                    </template>
+                  </q-table>
+                  <div v-else-if="!showSplitForm" class="q-mt-lg">
+                    <q-banner type="info" class="q-mb-lg"> No potential matches found. Adjust the search criteria or add a new transaction. </q-banner>
+                    <q-btn color="primary" @click="addNewTransaction" :disabled="props.matching"> Add New Transaction </q-btn>
+                  </div>
+                </div>
+                <q-banner v-if="remainingSplitAmount !== 0" :type="remainingSplitAmount < 0 ? 'error' : 'warning'" class="q-mb-lg">
+                  <div v-if="remainingSplitAmount > 0">Remaining ${{ toDollars(toCents(remainingSplitAmount)) }}</div>
+                  <div v-else>Over allocated ${{ toDollars(toCents(Math.abs(remainingSplitAmount))) }}</div>
+                </q-banner>
+                <q-btn color="primary" @click="addSplitTransaction">Add Split</q-btn>
+                <q-btn color="positive" type="submit" :disabled="remainingSplitAmount !== 0 || props.matching" :loading="props.matching" class="q-ml-sm">
+                  Save Splits
                 </q-btn>
-              </div>
-            </div>
+              </q-form>
 
-            <!-- Split Transaction Form -->
-            <q-form v-if="showSplitForm" ref="splitForm" @submit.prevent="saveSplitTransaction" class="q-mt-lg">
-              <div class="row align-center" v-for="(split, index) in transactionSplits" :key="index">
-                <div class="col col-12 col-md-3">
+              <!-- Potential Matches -->
+              <div class="row q-mb-lg" v-if="!showSplitForm">
+                <div class="col col-12 col-md-4">
                   <q-select
-                    v-model="split.entityId"
-                    :options="entityOptions"
-                    option-label="name"
-                    option-value="id"
+                    v-model="potentialMatchesSortField"
+                    :options="potentialMatchesSortFields"
+                    option-label="text"
+                    option-value="value"
                     emit-value
                     map-options
-                    label="Entity"
+                    label="Sort By"
                     variant="outlined"
                     density="compact"
-                    :rules="[(v: string) => !!v || 'Entity is required']"
+                    @update:model-value="sortPotentialMatches"
                   ></q-select>
                 </div>
-                <div class="col col-12 col-md-3">
-                  <q-select
-                    v-model="split.category"
-                    :options="props.categoryOptions"
-                    label="Category"
-                    variant="outlined"
-                    density="compact"
-                    :rules="[(v: string) => !!v || 'Category is required']"
-                  ></q-select>
-                </div>
-
-                <q-table
-                  v-if="potentialMatches.length > 0 && !showSplitForm"
-                  :columns="budgetTransactionColumns"
-                  :rows="sortedPotentialMatches"
-                  :pagination="{ rowsPerPage: 5 }"
-                  row-key="id"
-                  :table-row-class-fn="potentialRowClass"
-                  selection="single"
-                  v-model:selected="selectedBudgetTransactionForMatch"
-                >
-                  <template #body-cell-amount="slotProps">
-                    <q-td :props="slotProps" class="text-right"> ${{ toDollars(toCents(slotProps.row.amount)) }} </q-td>
-                  </template>
-                  <template #body-cell-type="slotProps">
-                    <q-td :props="slotProps">
-                      {{ slotProps.row.isIncome ? 'Income' : 'Expense' }}
-                    </q-td>
-                  </template>
-                  <template #body-cell-actions="slotProps">
-                    <q-td :props="slotProps">
-                      <q-btn
-                        color="primary"
-                        small
-                        @click="matchBankTransaction(slotProps.row)"
-                        :disabled="!selectedBudgetTransactionForMatch.length || props.matching"
-                        :loading="props.matching"
-                      >
-                        Match
-                      </q-btn>
-                    </q-td>
-                  </template>
-                </q-table>
-                <div v-else-if="!showSplitForm" class="q-mt-lg">
-                  <q-banner type="info" class="q-mb-lg"> No potential matches found. Adjust the search criteria or add a new transaction. </q-banner>
-                  <q-btn color="primary" @click="addNewTransaction" :disabled="props.matching"> Add New Transaction </q-btn>
+                <div class="col col-12 col-md-4">
+                  <q-btn :color="potentialMatchesSortDirection === 'asc' ? 'primary' : 'secondary'" @click="togglePotentialMatchesSortDirection">
+                    {{ potentialMatchesSortDirection === 'asc' ? 'Ascending' : 'Descending' }}
+                  </q-btn>
                 </div>
               </div>
-              <q-banner v-if="remainingSplitAmount !== 0" :type="remainingSplitAmount < 0 ? 'error' : 'warning'" class="q-mb-lg">
-                <div v-if="remainingSplitAmount > 0">Remaining ${{ toDollars(toCents(remainingSplitAmount)) }}</div>
-                <div v-else>Over allocated ${{ toDollars(toCents(Math.abs(remainingSplitAmount))) }}</div>
-              </q-banner>
-              <q-btn color="primary" @click="addSplitTransaction">Add Split</q-btn>
-              <q-btn color="positive" type="submit" :disabled="remainingSplitAmount !== 0 || props.matching" :loading="props.matching" class="q-ml-sm">
-                Save Splits
-              </q-btn>
-            </q-form>
 
-            <!-- Potential Matches -->
-            <div class="row q-mb-lg" v-if="!showSplitForm">
-              <div class="col col-12 col-md-4">
-                <q-select
-                  v-model="potentialMatchesSortField"
-                  :options="potentialMatchesSortFields"
-                  option-label="text"
-                  option-value="value"
-                  emit-value
-                  map-options
-                  label="Sort By"
-                  variant="outlined"
-                  density="compact"
-                  @update:model-value="sortPotentialMatches"
-                ></q-select>
+              <q-table
+                v-if="potentialMatches.length > 0 && !showSplitForm"
+                :columns="budgetTransactionColumns"
+                :rows="sortedPotentialMatches"
+                :pagination="{ rowsPerPage: 5 }"
+                row-key="id"
+                :table-row-class-fn="potentialRowClass"
+                selection="single"
+                v-model:selected="selectedBudgetTransactionForMatch"
+              >
+                <template #body-cell-amount="{ row }"> ${{ toDollars(toCents(row.amount)) }} </template>
+                <template #body-cell-type="{ row }">
+                  {{ row.isIncome ? 'Income' : 'Expense' }}
+                </template>
+                <template #body-cell-actions="{ row }">
+                  <q-btn
+                    color="primary"
+                    small
+                    @click="matchBankTransaction(row)"
+                    :disabled="!selectedBudgetTransactionForMatch.length || props.matching"
+                    :loading="props.matching"
+                  >
+                    Match
+                  </q-btn>
+                </template>
+              </q-table>
+              <div v-else-if="!showSplitForm" class="q-mt-lg">
+                <q-banner type="info" class="q-mb-lg"> No potential matches found. Adjust the search criteria or add a new transaction. </q-banner>
+                <q-btn color="primary" @click="addNewTransaction" :disabled="props.matching"> Add New Transaction </q-btn>
               </div>
-              <div class="col col-12 col-md-4">
-                <q-btn :color="potentialMatchesSortDirection === 'asc' ? 'primary' : 'secondary'" @click="togglePotentialMatchesSortDirection">
-                  {{ potentialMatchesSortDirection === 'asc' ? 'Ascending' : 'Descending' }}
-                </q-btn>
-              </div>
-            </div>
-
-            <q-table
-              v-if="potentialMatches.length > 0 && !showSplitForm"
-              :columns="budgetTransactionColumns"
-              :rows="sortedPotentialMatches"
-              :pagination="{ rowsPerPage: 5 }"
-              row-key="id"
-              :table-row-class-fn="potentialRowClass"
-              selection="single"
-              v-model:selected="selectedBudgetTransactionForMatch"
-            >
-              <template #body-cell-amount="{ row }"> ${{ toDollars(toCents(row.amount)) }} </template>
-              <template #body-cell-type="{ row }">
-                {{ row.isIncome ? 'Income' : 'Expense' }}
-              </template>
-              <template #body-cell-actions="{ row }">
-                <q-btn
-                  color="primary"
-                  small
-                  @click="matchBankTransaction(row)"
-                  :disabled="!selectedBudgetTransactionForMatch.length || props.matching"
-                  :loading="props.matching"
-                >
-                  Match
-                </q-btn>
-              </template>
-            </q-table>
-            <div v-else-if="!showSplitForm" class="q-mt-lg">
-              <q-banner type="info" class="q-mb-lg"> No potential matches found. Adjust the search criteria or add a new transaction. </q-banner>
-              <q-btn color="primary" @click="addNewTransaction" :disabled="props.matching"> Add New Transaction </q-btn>
             </div>
           </div>
-        </div>
-        <div class="row q-mt-sm" v-else>
-          <div class="col">
-            <q-banner type="positive"> All bank transactions have been matched or ignored. </q-banner>
+          <div class="row q-mt-sm" v-else>
+            <div class="col">
+              <q-banner type="positive"> All bank transactions have been matched or ignored. </q-banner>
+            </div>
+          </div>
+
+          <div class="q-py-md row">
+            <div class="col-auto q-pr-sm"><q-btn v-if="filteredImportedTransactions.length > 0" color="warning" @click="ignoreBankTransaction" :disabled="props.matching">Ignore</q-btn></div>
+            <div class="col-auto q-px-sm"><q-btn v-if="filteredImportedTransactions.length > 0" color="secondary" @click="skipBankTransaction" :disabled="props.matching">Skip</q-btn></div>
           </div>
         </div>
       </q-card-section>
-      <q-card-actions>
-        <q-btn v-if="remainingImportedTransactions.length > 0" color="warning" @click="ignoreBankTransaction" :disabled="props.matching"> Ignore </q-btn>
-        <q-btn v-if="remainingImportedTransactions.length > 0" color="secondary" @click="skipBankTransaction" :disabled="props.matching"> Skip </q-btn>
-      </q-card-actions>
     </q-card>
 
     <!-- Add TransactionDialog -->
@@ -364,7 +359,10 @@ type SmartMatchRow = {
 };
 
 const smartMatches = ref<SmartMatchRow[]>([]);
-const remainingImportedTransactions = ref<ImportedTransaction[]>(props.remainingImportedTransactions || []);
+const allRemainingImportedTransactions = ref<ImportedTransaction[]>(
+  Array.isArray(props.remainingImportedTransactions) ? [...props.remainingImportedTransactions] : [],
+);
+const filteredImportedTransactions = ref<ImportedTransaction[]>([]);
 const selectedBankTransaction = ref<ImportedTransaction | null>(props.selectedBankTransaction || null);
 
 // Snackbar timeout state for notifications
@@ -381,7 +379,12 @@ const smartMatchesSortFields = [
   { text: 'Amount', value: 'bankAmount' },
 ];
 const smartMatchDateRange = ref<string>('3');
+const filterEndDate = ref<string>(todayISO());
+const filterStartDate = ref<string>(computeDefaultStartDate());
+const parsedFilterStartDate = computed(() => (filterStartDate.value ? new Date(`${filterStartDate.value}T00:00:00`) : null));
+const parsedFilterEndDate = computed(() => (filterEndDate.value ? new Date(`${filterEndDate.value}T23:59:59.999`) : null));
 const MAX_SMART_MATCHES = 250;
+const lookedForSmartMatches = ref(false);
 const totalSmartMatches = ref(0);
 const sortedSmartMatches = computed(() => {
   const items = [...smartMatches.value];
@@ -410,9 +413,7 @@ const sortedSmartMatches = computed(() => {
 });
 const visibleSmartMatches = computed(() => sortedSmartMatches.value.slice(0, MAX_SMART_MATCHES));
 const smartMatchCountLabel = computed(() =>
-  totalSmartMatches.value > MAX_SMART_MATCHES
-    ? `${visibleSmartMatches.value.length} of ${totalSmartMatches.value}`
-    : `${totalSmartMatches.value}`,
+  totalSmartMatches.value > MAX_SMART_MATCHES ? `${visibleSmartMatches.value.length} of ${totalSmartMatches.value}` : `${totalSmartMatches.value}`,
 );
 
 // Local state for Remaining Transactions
@@ -499,10 +500,7 @@ const smartMatchRowClass = (row: SmartMatchRow) => {
 };
 
 const potentialRowClass = (row: Transaction) => {
-  const bankAmount =
-    selectedBankTransaction.value?.debitAmount ||
-    selectedBankTransaction.value?.creditAmount ||
-    0;
+  const bankAmount = selectedBankTransaction.value?.debitAmount || selectedBankTransaction.value?.creditAmount || 0;
   return toCents(row.amount) !== toCents(bankAmount) ? 'amount-mismatch' : '';
 };
 
@@ -524,9 +522,7 @@ const selectedSmartMatchesInternal = computed({
   set(rows: Array<SmartMatchRow | string>) {
     const allowedIds = new Set(visibleSmartMatches.value.map((m) => m.importedTransaction.id));
     selectedSmartMatchIds.value = Array.isArray(rows)
-      ? rows
-          .map((r) => (typeof r === 'string' ? r : r.importedTransaction?.id))
-          .filter((id): id is string => Boolean(id) && allowedIds.has(id))
+      ? rows.map((r) => (typeof r === 'string' ? r : r.importedTransaction?.id)).filter((id): id is string => Boolean(id) && allowedIds.has(id))
       : [];
   },
 });
@@ -557,37 +553,135 @@ const sortedPotentialMatches = computed(() => {
   });
 });
 
+function computeDefaultStartDate(): string {
+  const start = new Date();
+  start.setDate(start.getDate() - 30);
+  return formatDateOnly(start);
+}
+
+function formatDateOnly(date: Date): string {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function areSelectedDatesValid(showNotification = false): boolean {
+  if (!filterStartDate.value || !filterEndDate.value) return true;
+  const start = parsedFilterStartDate.value;
+  const end = parsedFilterEndDate.value;
+  if (start && end && start > end) {
+    if (showNotification) {
+      showSnackbar('Start date must be on or before the end date', 'negative');
+    }
+    return false;
+  }
+  return true;
+}
+
+function isWithinSelectedRange(dateValue?: string | null): boolean {
+  if (!dateValue) return false;
+  const candidate = new Date(dateValue);
+  if (Number.isNaN(candidate.getTime())) return false;
+  const start = parsedFilterStartDate.value;
+  if (start && candidate < start) return false;
+  const end = parsedFilterEndDate.value;
+  if (end && candidate > end) return false;
+  return true;
+}
+
+function isSmartMatchWithinRange(match: SmartMatchRow): boolean {
+  return isWithinSelectedRange(match.bankDate) && isWithinSelectedRange(match.budgetDate);
+}
+
+function applyDateFilters(options: { preserveSelection?: boolean; resetIndex?: boolean } = {}) {
+  if (!areSelectedDatesValid()) return;
+
+  const { preserveSelection = true, resetIndex = false } = options;
+  const previousSelectedId = selectedBankTransaction.value?.id || null;
+
+  const filtered = allRemainingImportedTransactions.value.filter((tx) => isWithinSelectedRange(tx.postedDate));
+  filteredImportedTransactions.value = filtered;
+
+  if (filtered.length === 0) {
+    currentBankTransactionIndex.value = -1;
+    selectedBankTransaction.value = null;
+    potentialMatches.value = [];
+    selectedBudgetTransactionForMatch.value = [];
+    return;
+  }
+
+  if (resetIndex) {
+    currentBankTransactionIndex.value = 0;
+    selectedBankTransaction.value = filtered[0];
+  } else if (preserveSelection && previousSelectedId) {
+    const existingIndex = filtered.findIndex((tx) => tx.id === previousSelectedId);
+    if (existingIndex !== -1) {
+      currentBankTransactionIndex.value = existingIndex;
+      selectedBankTransaction.value = filtered[existingIndex];
+    } else {
+      currentBankTransactionIndex.value = Math.min(Math.max(currentBankTransactionIndex.value, 0), filtered.length - 1);
+      selectedBankTransaction.value = filtered[currentBankTransactionIndex.value];
+    }
+  } else {
+    currentBankTransactionIndex.value = Math.min(Math.max(currentBankTransactionIndex.value, 0), filtered.length - 1);
+    selectedBankTransaction.value = filtered[currentBankTransactionIndex.value];
+  }
+
+  selectedBudgetTransactionForMatch.value = [];
+}
+
+function removeImportedTransaction(importedTransactionId: string, options: { preserveSelection?: boolean } = {}) {
+  allRemainingImportedTransactions.value = allRemainingImportedTransactions.value.filter((tx) => tx.id !== importedTransactionId);
+  applyDateFilters({ preserveSelection: options.preserveSelection ?? false });
+  if (selectedBankTransaction.value) {
+    searchBudgetTransactions();
+  } else {
+    potentialMatches.value = [];
+  }
+}
+
 // Watchers and Initialization
 onMounted(async () => {
   await initializeState();
 });
 
 watch(
-  () => smartMatchDateRange.value,
-  () => {
-    computeSmartMatchesLocal();
-  },
-);
-
-watch(
   () => props.remainingImportedTransactions,
   (newVal) => {
-    remainingImportedTransactions.value = Array.isArray(newVal) ? [...newVal] : [];
+    allRemainingImportedTransactions.value = Array.isArray(newVal) ? [...newVal] : [];
+    if (!areSelectedDatesValid()) return;
+    applyDateFilters({ preserveSelection: true });
+    if (selectedBankTransaction.value) searchBudgetTransactions();
   },
   { deep: true },
 );
 
-async function initializeState() {
-  remainingImportedTransactions.value = Array.isArray(props.remainingImportedTransactions) ? [...props.remainingImportedTransactions] : [];
-  selectedBankTransaction.value = props.selectedBankTransaction || remainingImportedTransactions.value[0] || null;
+watch([filterStartDate, filterEndDate], () => {
+  if (!areSelectedDatesValid()) return;
+  applyDateFilters({ preserveSelection: true });
+  smartMatches.value = smartMatches.value.filter(isSmartMatchWithinRange);
+  totalSmartMatches.value = smartMatches.value.length;
+  selectedSmartMatchIds.value = selectedSmartMatchIds.value.filter((id) => smartMatches.value.some((match) => match.importedTransaction.id === id));
+  if (selectedBankTransaction.value) searchBudgetTransactions();
+});
 
+async function initializeState() {
+  allRemainingImportedTransactions.value = Array.isArray(props.remainingImportedTransactions) ? [...props.remainingImportedTransactions] : [];
   smartMatches.value = [];
   totalSmartMatches.value = 0;
-  smartMatchDateRange.value = '3';
-  computeSmartMatchesLocal();
 
   resetState(false);
-  if (selectedBankTransaction.value) searchBudgetTransactions();
+  const hasInitialSelection = !!props.selectedBankTransaction;
+  selectedBankTransaction.value = props.selectedBankTransaction || null;
+  applyDateFilters({ resetIndex: !hasInitialSelection, preserveSelection: hasInitialSelection });
+  if (selectedBankTransaction.value) {
+    const initial = selectedBankTransaction.value;
+    searchAmount.value = initial.debitAmount ? initial.debitAmount.toString() : initial.creditAmount?.toString() || '0';
+    searchMerchant.value = '';
+    searchDateRange.value = '3';
+    searchBudgetTransactions();
+  }
   await nextTick();
   isReady.value = true;
 }
@@ -597,6 +691,10 @@ watch(
   (newVal) => {
     if (newVal) {
       selectedBankTransaction.value = newVal;
+      if (!allRemainingImportedTransactions.value.some((tx) => tx.id === newVal.id)) {
+        allRemainingImportedTransactions.value = [newVal, ...allRemainingImportedTransactions.value];
+      }
+      applyDateFilters({ preserveSelection: true });
       searchAmount.value = newVal.debitAmount ? newVal.debitAmount.toString() : newVal.creditAmount?.toString() || '0';
       searchMerchant.value = '';
       searchDateRange.value = '3';
@@ -607,38 +705,19 @@ watch(
   },
 );
 
-watch(
-  () => remainingImportedTransactions.value,
-  (newVal) => {
-    if (newVal && newVal.length > 0) {
-      currentBankTransactionIndex.value = Math.min(currentBankTransactionIndex.value, newVal.length - 1);
-      if (!selectedBankTransaction.value || !newVal.some((tx) => tx.id === selectedBankTransaction.value?.id)) {
-        currentBankTransactionIndex.value = 0;
-        selectedBankTransaction.value = newVal[0] ?? null;
-        searchBudgetTransactions();
-      }
-    } else {
-      currentBankTransactionIndex.value = -1;
-      selectedBankTransaction.value = null;
-    }
-  },
-  { deep: true },
-);
-
 // Methods
 function findSmartMatches() {
+  if (!areSelectedDatesValid(true)) return;
+
+  lookedForSmartMatches.value = true;
   findingSmartMatches.value = true;
   try {
     smartMatches.value = [];
     totalSmartMatches.value = 0;
-    remainingImportedTransactions.value = Array.isArray(props.remainingImportedTransactions)
-      ? [...props.remainingImportedTransactions]
-      : [];
+    allRemainingImportedTransactions.value = Array.isArray(props.remainingImportedTransactions) ? [...props.remainingImportedTransactions] : [];
+    applyDateFilters({ resetIndex: true, preserveSelection: false });
     computeSmartMatchesLocal();
-    showSnackbar(
-      `Found ${totalSmartMatches.value} smart match${totalSmartMatches.value !== 1 ? 'es' : ''}`,
-      'info',
-    );
+    showSnackbar(`Found ${totalSmartMatches.value} smart match${totalSmartMatches.value !== 1 ? 'es' : ''}`, 'info');
   } catch (error: unknown) {
     const err = error as Error;
     console.error('Error finding smart matches:', err);
@@ -659,9 +738,7 @@ async function confirmSmartMatches() {
     const user = auth.currentUser;
     if (!user) throw new Error('User not authenticated');
 
-    const matchesToConfirm = smartMatches.value.filter((match) =>
-      selectedSmartMatchIds.value.includes(match.importedTransaction.id),
-    );
+    const matchesToConfirm = smartMatches.value.filter((match) => selectedSmartMatchIds.value.includes(match.importedTransaction.id));
 
     const matchesByBudget: { [budgetId: string]: Array<{ budgetTransactionId: string; importedTransactionId: string; match: boolean; ignore: boolean }> } = {};
     matchesToConfirm.forEach((match) => {
@@ -755,12 +832,7 @@ async function matchBankTransaction(budgetTransaction: Transaction) {
     }
     if (!budget) {
       const fam = await familyStore.getFamily();
-      budget = await createBudgetForMonth(
-        updatedTransaction.budgetMonth,
-        fam?.id ?? '',
-        user.uid,
-        updatedTransaction.entityId || '',
-      );
+      budget = await createBudgetForMonth(updatedTransaction.budgetMonth, fam?.id ?? '', user.uid, updatedTransaction.entityId || '');
     }
 
     await dataAccess.saveTransaction(budget, updatedTransaction);
@@ -770,7 +842,7 @@ async function matchBankTransaction(budgetTransaction: Transaction) {
 
     showSnackbar('Transaction matched successfully');
     emit('transactions-updated');
-    updateRemainingTransactions();
+    removeImportedTransaction(importedTx.id, { preserveSelection: false });
     skipBankTransaction();
   } catch (error: unknown) {
     const err = error as Error;
@@ -797,7 +869,7 @@ async function ignoreBankTransaction() {
     await dataAccess.updateImportedTransaction(docId, txId, undefined, true);
 
     showSnackbar('Bank transaction ignored');
-    updateRemainingTransactions();
+    removeImportedTransaction(importedTx.id, { preserveSelection: false });
     skipBankTransaction();
   } catch (error: unknown) {
     const err = error as Error;
@@ -808,9 +880,9 @@ async function ignoreBankTransaction() {
 }
 
 function skipBankTransaction() {
-  if (currentBankTransactionIndex.value + 1 < remainingImportedTransactions.value.length) {
+  if (currentBankTransactionIndex.value + 1 < filteredImportedTransactions.value.length) {
     currentBankTransactionIndex.value++;
-    selectedBankTransaction.value = remainingImportedTransactions.value[currentBankTransactionIndex.value] ?? null;
+    selectedBankTransaction.value = filteredImportedTransactions.value[currentBankTransactionIndex.value] ?? null;
     searchBudgetTransactions();
   } else {
     if (smartMatches.value.length === 0) {
@@ -853,12 +925,7 @@ async function saveSplitTransaction() {
       const budgetMonth = toBudgetMonth(importedTx.postedDate || todayISO());
       const key = `${split.entityId}_${budgetMonth}`;
       if (!budgetCache[key]) {
-        budgetCache[key] = await createBudgetForMonth(
-          budgetMonth,
-          family.id,
-          user.uid,
-          split.entityId,
-        );
+        budgetCache[key] = await createBudgetForMonth(budgetMonth, family.id, user.uid, split.entityId);
       }
       const budget = budgetCache[key];
       const baseTx = {
@@ -903,15 +970,7 @@ async function saveSplitTransaction() {
     const { docId, txId } = splitImportedId(importedTx.id);
     await dataAccess.updateImportedTransaction(docId, txId, true);
 
-    remainingImportedTransactions.value = remainingImportedTransactions.value.filter((tx) => tx.id !== importedTx.id);
-    if (remainingImportedTransactions.value.length > 0) {
-      currentBankTransactionIndex.value = Math.min(currentBankTransactionIndex.value, remainingImportedTransactions.value.length - 1);
-      selectedBankTransaction.value = remainingImportedTransactions.value[currentBankTransactionIndex.value] ?? null;
-      searchBudgetTransactions();
-    } else {
-      currentBankTransactionIndex.value = -1;
-      selectedBankTransaction.value = null;
-    }
+    removeImportedTransaction(importedTx.id, { preserveSelection: false });
 
     showSnackbar('Split transaction saved successfully');
     emit('transactions-updated');
@@ -937,16 +996,9 @@ async function handleTransactionAdded(savedTransaction: Transaction) {
     if (!family) throw new Error('No family found');
 
     let budget =
-      (savedTransaction.budgetId &&
-        (budgetStore.getBudget(savedTransaction.budgetId) || (await dataAccess.getBudget(savedTransaction.budgetId)))) ||
-      null;
+      (savedTransaction.budgetId && (budgetStore.getBudget(savedTransaction.budgetId) || (await dataAccess.getBudget(savedTransaction.budgetId)))) || null;
     if (!budget) {
-      budget = await createBudgetForMonth(
-        savedTransaction.budgetMonth,
-        family.id,
-        user.uid,
-        savedTransaction.entityId || '',
-      );
+      budget = await createBudgetForMonth(savedTransaction.budgetMonth, family.id, user.uid, savedTransaction.entityId || '');
     }
 
     budgetStore.updateBudget(budget.budgetId, {
@@ -957,15 +1009,7 @@ async function handleTransactionAdded(savedTransaction: Transaction) {
     const { docId, txId } = splitImportedId(importedTx.id);
     await dataAccess.updateImportedTransaction(docId, txId, true);
 
-    remainingImportedTransactions.value = remainingImportedTransactions.value.filter((tx) => tx.id !== importedTx.id);
-    if (remainingImportedTransactions.value.length > 0) {
-      currentBankTransactionIndex.value = Math.min(currentBankTransactionIndex.value, remainingImportedTransactions.value.length - 1);
-      selectedBankTransaction.value = remainingImportedTransactions.value[currentBankTransactionIndex.value] ?? null;
-      searchBudgetTransactions();
-    } else {
-      currentBankTransactionIndex.value = -1;
-      selectedBankTransaction.value = null;
-    }
+    removeImportedTransaction(importedTx.id, { preserveSelection: false });
 
     showSnackbar('Transaction added and matched successfully');
     emit('transactions-updated');
@@ -1027,12 +1071,7 @@ async function addNewTransaction() {
     ...(selectedBankTransaction.value.checkNumber ? { checkNumber: selectedBankTransaction.value.checkNumber } : {}),
   } as Transaction;
   if (familyStore.family) {
-    const budget = await createBudgetForMonth(
-      budgetMonth,
-      familyStore.family.id,
-      props.userId,
-      familyStore.selectedEntityId || '',
-    );
+    const budget = await createBudgetForMonth(budgetMonth, familyStore.family.id, props.userId, familyStore.selectedEntityId || '');
     newTransactionBudgetId.value = budget.budgetId;
   }
   showTransactionDialog.value = true;
@@ -1099,11 +1138,20 @@ function searchBudgetTransactions() {
   if (!selectedBankTransaction.value) return;
 
   const bankTx = selectedBankTransaction.value;
+  if (!isWithinSelectedRange(bankTx.postedDate)) {
+    potentialMatches.value = [];
+    return;
+  }
+
   const amount = parseFloat(searchAmount.value) || bankTx.debitAmount || bankTx.creditAmount || 0;
   const merchant = searchMerchant.value.toLowerCase();
   const dateRangeDays = parseInt(searchDateRange.value) || 3;
 
   const bankDate = new Date(bankTx.postedDate);
+  if (Number.isNaN(bankDate.getTime())) {
+    potentialMatches.value = [];
+    return;
+  }
   const startDate = new Date(bankDate);
   startDate.setDate(bankDate.getDate() - dateRangeDays);
   const endDate = new Date(bankDate);
@@ -1113,6 +1161,7 @@ function searchBudgetTransactions() {
     const txDate = new Date(tx.date);
     const txAmount = tx.amount;
     const txMerchant = tx.merchant.toLowerCase();
+    if (!isWithinSelectedRange(tx.date)) return false;
 
     const dateMatch = txDate >= startDate && txDate <= endDate;
     const amountMatch = Math.abs(txAmount - amount) <= 0.05;
@@ -1124,12 +1173,14 @@ function searchBudgetTransactions() {
 
 function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = []) {
   const confirmedIds = new Set(confirmedMatches.map((m) => m.importedTransaction.id));
-  const newSmartMatches = smartMatches.value.filter((match) => !confirmedIds.has(match.importedTransaction.id));
+  const dateRangeDays = Math.max(parseInt(smartMatchDateRange.value, 10) || 0, 0);
+  const retainedSmartMatches = smartMatches.value.filter((match) => !confirmedIds.has(match.importedTransaction.id)).filter(isSmartMatchWithinRange);
 
-  const dateRangeDays = parseInt(smartMatchDateRange.value) || 3;
-  const unmatchedImported = remainingImportedTransactions.value.filter(
-    (tx) => !confirmedIds.has(tx.id) && !newSmartMatches.some((m) => m.importedTransaction.id === tx.id),
+  const unmatchedImported = allRemainingImportedTransactions.value.filter(
+    (tx) => !confirmedIds.has(tx.id) && !retainedSmartMatches.some((m) => m.importedTransaction.id === tx.id) && isWithinSelectedRange(tx.postedDate),
   );
+
+  const budgetCandidates = props.transactions.filter((tx) => !tx.deleted && (!tx.status || tx.status === 'U') && isWithinSelectedRange(tx.date));
 
   const potentialMatches: Array<{
     importedTx: ImportedTransaction;
@@ -1144,7 +1195,8 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
 
   unmatchedImported.forEach((importedTx) => {
     const bankAmount = importedTx.debitAmount || importedTx.creditAmount || 0;
-    const bankDate = new Date(importedTx.postedDate);
+    const bankDate = new Date(importedTx.postedDate || '');
+    if (Number.isNaN(bankDate.getTime())) return;
     const bankDateStr = bankDate.toISOString().split('T')[0];
     const normalizedBankDate = new Date(bankDateStr);
 
@@ -1153,29 +1205,20 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
     const endDate = new Date(normalizedBankDate);
     endDate.setDate(normalizedBankDate.getDate() + dateRangeDays);
 
-    props.transactions.forEach((tx) => {
-      const txDate = new Date(tx.date);
+    budgetCandidates.forEach((tx) => {
+      const txDate = new Date(tx.date || '');
+      if (Number.isNaN(txDate.getTime())) return;
       const txDateStr = txDate.toISOString().split('T')[0];
       const normalizedTxDate = new Date(txDateStr);
       const txAmount = tx.amount;
       const typeMatch = tx.isIncome === !!importedTx.creditAmount;
-      if (
-        normalizedTxDate >= startDate &&
-        normalizedTxDate <= endDate &&
-        Math.abs(txAmount - bankAmount) <= 0.05 &&
-        (!tx.status || tx.status === 'U') &&
-        !tx.deleted &&
-        typeMatch
-      ) {
+      if (normalizedTxDate >= startDate && normalizedTxDate <= endDate && Math.abs(txAmount - bankAmount) <= 0.05 && typeMatch) {
         const diffCents = Math.abs(toCents(txAmount) - toCents(bankAmount));
         const score = merchantSimilarity(importedTx.payee || '', tx.merchant);
         potentialMatches.push({
           importedTx,
           budgetTx: tx,
-          budgetId:
-            'budgetId' in tx && typeof (tx as { budgetId?: unknown }).budgetId === 'string'
-              ? (tx as { budgetId: string }).budgetId
-              : '',
+          budgetId: 'budgetId' in tx && typeof (tx as { budgetId?: unknown }).budgetId === 'string' ? (tx as { budgetId: string }).budgetId : '',
           bankAmount,
           bankType: importedTx.debitAmount ? 'Debit' : 'Credit',
           merchantScore: score,
@@ -1205,8 +1248,10 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
     }
   });
 
+  const combinedSmartMatches: SmartMatchRow[] = [...retainedSmartMatches];
+
   smartMatchesToAdd.forEach((match) => {
-    newSmartMatches.push({
+    combinedSmartMatches.push({
       importedTransaction: match.importedTx,
       budgetTransaction: { ...match.budgetTx, id: match.budgetTx.id },
       budgetId: match.budgetId,
@@ -1222,38 +1267,39 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
     });
   });
 
-  totalSmartMatches.value = newSmartMatches.length;
-  smartMatches.value = newSmartMatches;
+  totalSmartMatches.value = combinedSmartMatches.length;
+  smartMatches.value = combinedSmartMatches;
   selectedSmartMatchIds.value = [];
 
-  const smartMatchImportedIds = new Set(smartMatches.value.map((m) => m.importedTransaction.id));
-  remainingImportedTransactions.value = unmatchedImported.filter((tx) => !smartMatchImportedIds.has(tx.id));
+  const smartMatchImportedIds = new Set(combinedSmartMatches.map((m) => m.importedTransaction.id));
+  allRemainingImportedTransactions.value = allRemainingImportedTransactions.value.filter((tx) => !smartMatchImportedIds.has(tx.id));
+  applyDateFilters({ resetIndex: true, preserveSelection: false });
+  if (selectedBankTransaction.value) {
+    searchBudgetTransactions();
+  }
 }
 
 function updateRemainingTransactions(matchedIds?: Set<string>) {
   const ids =
     matchedIds ||
     new Set(
-      smartMatches.value
-        .filter((match) => selectedSmartMatchIds.value.includes(match.importedTransaction.id))
-        .map((match) => match.importedTransaction.id),
+      smartMatches.value.filter((match) => selectedSmartMatchIds.value.includes(match.importedTransaction.id)).map((match) => match.importedTransaction.id),
     );
-  remainingImportedTransactions.value = remainingImportedTransactions.value.filter((importedTx) => !ids.has(importedTx.id));
+  if (ids.size === 0) return;
 
-  if (remainingImportedTransactions.value.length > 0) {
-    currentBankTransactionIndex.value = Math.min(currentBankTransactionIndex.value, remainingImportedTransactions.value.length - 1);
-    selectedBankTransaction.value = remainingImportedTransactions.value[currentBankTransactionIndex.value] ?? null;
-    selectedBudgetTransactionForMatch.value = [];
+  selectedSmartMatchIds.value = [];
+  allRemainingImportedTransactions.value = allRemainingImportedTransactions.value.filter((importedTx) => !ids.has(importedTx.id));
+  applyDateFilters({ preserveSelection: false });
+  if (selectedBankTransaction.value) {
     searchBudgetTransactions();
   } else {
-    currentBankTransactionIndex.value = -1;
-    selectedBankTransaction.value = null;
+    potentialMatches.value = [];
   }
 }
 
 function resetState(computeMatches = true) {
   selectedSmartMatchIds.value = [];
-  currentBankTransactionIndex.value = remainingImportedTransactions.value.length > 0 ? 0 : -1;
+  currentBankTransactionIndex.value = filteredImportedTransactions.value.length > 0 ? 0 : -1;
   potentialMatches.value = [];
   selectedBudgetTransactionForMatch.value = [];
   smartMatchesSortField.value = 'merchant';
