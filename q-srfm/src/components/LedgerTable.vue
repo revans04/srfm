@@ -7,14 +7,11 @@
     bordered
     dense
     :style="{ '--header-offset': `${headerOffset}px` }"
-    :virtual-scroll="true"
-    :virtual-scroll-item-size="rowHeight"
     :rows-per-page-options="[0]"
     :loading="loading"
     :selection="selection"
     v-model:selected="selectedInternal"
     :row-class="rowClassFn"
-    @virtual-scroll="onVirtualScroll"
     @row-click="handleRowClick"
   >
     <template #body-cell-date="slotProps">
@@ -118,7 +115,6 @@ const props = defineProps<{
   loading?: boolean;
   canLoadMore?: boolean;
   loadingMore?: boolean;
-  rowHeight?: number;
   headerOffset?: number;
   entityLabel?: string;
   selection?: 'single' | 'multiple';
@@ -156,7 +152,6 @@ const selectedInternal = computed<LedgerRow[] | string[]>({
   },
 });
 
-const rowHeight = computed(() => props.rowHeight ?? 44);
 const headerOffset = computed(() => props.headerOffset ?? 0);
 
 const baseColumns = computed<Column<LedgerRow>[]>(() => [
@@ -235,12 +230,6 @@ function formatDate(iso: string) {
     month: 'numeric',
     day: 'numeric',
   });
-}
-
-function onVirtualScroll({ to }: { to: number }) {
-  if (props.canLoadMore && !props.loadingMore && to >= props.rows.length - 1) {
-    onLoadMore();
-  }
 }
 
 function onLoadMore() {

@@ -2,12 +2,13 @@
 README
 ======
 TransactionsPage.vue demonstrates the new Pro Mode ledger UI. It uses
-LedgerTable for virtualized infinite scrolling. Filters are reactive but
-for demo purposes only filter the locally seeded mock data.
+LedgerTable without virtual scrolling to keep the implementation simple.
+Filters are reactive but for demo purposes only filter the locally seeded
+mock data.
 
 Key props/usage:
 - uses `useTransactions` composable which seeds ~1000 rows on first load
-- `fetchMore` loads the next page (50 rows) when the table scrolls to end
+- `fetchMore` loads the next page (50 rows) when "Load more" is clicked
 - `scrollToDate` (via Jump to Date control) scrolls to first row >= date
 -->
 <template>
@@ -169,7 +170,6 @@ Key props/usage:
               <ledger-table
                 :rows="transactions"
                 :loading="loading"
-                :row-height="52"
                 :header-offset="0"
                 selection="multiple"
                 v-model:selected="selectedBudgetRowIds"
@@ -372,7 +372,6 @@ Key props/usage:
                 :rows="registerRows"
                 :loading="loadingRegister"
                 entity-label="Account"
-                :row-height="52"
                 :header-offset="0"
                 :can-load-more="canLoadMoreRegister"
                 :loading-more="loadingMoreRegister"
@@ -1412,12 +1411,8 @@ async function performRegisterBatchAction() {
 
 .transactions-table :deep(.q-table__middle) {
   flex: 1;
-  display: flex;
   min-height: 0;
-}
-
-.transactions-table :deep(.q-virtual-scroll) {
-  flex: 1;
+  overflow: auto;
 }
 
 .transactions-hero__tabs :deep(.q-tab) {
