@@ -6,7 +6,6 @@
     flat
     bordered
     dense
-    class="ledger-table"
     :style="{ '--header-offset': `${headerOffset}px` }"
     :virtual-scroll="true"
     :virtual-scroll-item-size="rowHeight"
@@ -127,11 +126,11 @@ const emit = defineEmits<{
 }>();
 
 const statusMetaMap: Record<LedgerRow['status'], { label: string; color: string }> = {
-  C: { label: 'Cleared', color: 'positive' },
-  U: { label: 'Uncleared', color: 'warning' },
-  R: { label: 'Reconciled', color: 'primary' },
-  M: { label: 'Matched', color: 'accent' },
-  I: { label: 'Ignored', color: 'secondary' },
+  C: { label: 'C', color: 'positive' },
+  U: { label: 'U', color: 'warning' },
+  R: { label: 'R', color: 'primary' },
+  M: { label: 'M', color: 'accent' },
+  I: { label: 'I', color: 'secondary' },
 };
 
 const selectedInternal = computed<LedgerRow[] | string[]>({
@@ -227,57 +226,6 @@ function onRowClick(row: LedgerRow) {
 </script>
 
 <style scoped>
-.ledger-table thead tr {
-  position: sticky;
-  top: var(--header-offset);
-  z-index: 2;
-  background: var(--color-surface-card);
-  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.08);
-}
-.ledger-table :deep(table) {
-  table-layout: fixed;
-  width: 100%;
-}
-.ledger-table :deep(th),
-.ledger-table :deep(td) {
-  vertical-align: middle;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.ledger-table :deep(.col-date) {
-  width: 96px;
-  max-width: 80px;
-}
-.ledger-table :deep(.col-payee) {
-  width: 18%;
-  max-width: 160px;
-}
-.ledger-table :deep(.col-category) {
-  width: 14%;
-  max-width: 140px;
-}
-.ledger-table :deep(.col-entity) {
-  width: 14%;
-  max-width: 140px;
-}
-.ledger-table :deep(.col-amount) {
-  width: 120px;
-  max-width: 120px;
-}
-.ledger-table :deep(.col-status) {
-  width: 96px;
-  max-width: 96px;
-  text-align: center;
-}
-.ledger-table :deep(.col-notes) {
-  width: 18%;
-  max-width: 180px;
-}
-.ledger-table :deep(.col-actions) {
-  width: 64px;
-  max-width: 64px;
-}
 .row-striped:nth-child(even) {
   background: rgba(37, 99, 235, 0.04);
 }
