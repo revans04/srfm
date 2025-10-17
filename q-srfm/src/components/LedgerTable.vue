@@ -13,59 +13,62 @@
     :loading="loading"
     :selection="selection"
     v-model:selected="selectedInternal"
+    :row-class="rowClassFn"
     @virtual-scroll="onVirtualScroll"
+    @row-click="handleRowClick"
   >
-    <template #top>
-      <slot name="header"></slot>
+    <template #body-cell-date="slotProps">
+      <q-td :props="slotProps" class="ellipsis">
+        {{ formatDate(slotProps.row.date) }}
+      </q-td>
     </template>
 
-    <template #header="h">
-      <q-tr :props="h">
-        <q-th v-if="props.selection" auto-width>
-          <q-checkbox
-            v-model="h.selected"
-            :indeterminate="selectedInternal.length > 0 && selectedInternal.length < rows.length"
-            @click.stop
-          />
-        </q-th>
-        <q-th v-for="col in h.cols" :key="col.name" :props="h" :class="[`col-${col.name}`]">
-          {{ col.label }}
-        </q-th>
-      </q-tr>
+    <template #body-cell-payee="slotProps">
+      <q-td :props="slotProps" class="ellipsis">
+        {{ slotProps.row.payee }}
+      </q-td>
     </template>
 
-    <template #body="b">
-      <q-tr :props="b" :class="[{ 'dup-row': b.row.isDuplicate }, 'row-striped', 'cursor-pointer']" @click="onRowClick(b.row)">
-        <q-td v-if="props.selection" auto-width>
-          <q-checkbox v-model="b.selected" @click.stop />
-        </q-td>
-        <q-td key="date" :props="b" class="col-date ellipsis">{{ formatDate(b.row.date) }}</q-td>
-        <q-td key="payee" :props="b" class="col-payee ellipsis">{{ b.row.payee }}</q-td>
-        <q-td key="category" :props="b" class="col-category ellipsis">{{ b.row.category }}</q-td>
-        <q-td key="entity" :props="b" class="col-entity ellipsis">{{ b.row.entityName }}</q-td>
-        <q-td key="amount" :props="b" class="text-right col-amount" :class="{ 'text-negative': b.row.amount < 0 }">
-          {{ money(b.row.amount) }}
-        </q-td>
-        <q-td key="status" :props="b" class="col-status">
-          <q-badge
-            v-if="statusMetaMap[b.row.status]"
-            :color="statusMetaMap[b.row.status].color"
-            outline
-          >
-            {{ statusMetaMap[b.row.status].label }}
-          </q-badge>
-          <span v-else>{{ b.row.status }}</span>
-          <q-icon v-if="b.row.linkId" name="link" color="primary" size="16px" class="q-ml-xs" />
-          <q-icon v-if="b.row.isDuplicate" name="warning" color="warning" size="16px" class="q-ml-xs" />
-        </q-td>
-        <q-td key="notes" :props="b" class="col-notes ellipsis">
-          <q-tooltip v-if="b.row.notes">{{ b.row.notes }}</q-tooltip>
-          <span class="truncate">{{ b.row.notes }}</span>
-        </q-td>
-        <q-td key="actions" :props="b" class="col-actions text-right">
-          <slot name="actions" :row="b.row"></slot>
-        </q-td>
-      </q-tr>
+    <template #body-cell-category="slotProps">
+      <q-td :props="slotProps" class="ellipsis">
+        {{ slotProps.row.category }}
+      </q-td>
+    </template>
+
+    <template #body-cell-entity="slotProps">
+      <q-td :props="slotProps" class="ellipsis">
+        {{ slotProps.row.entityName }}
+      </q-td>
+    </template>
+
+    <template #body-cell-amount="slotProps">
+      <q-td :props="slotProps" class="text-right" :class="{ 'text-negative': slotProps.row.amount < 0 }">
+        {{ money(slotProps.row.amount) }}
+      </q-td>
+    </template>
+
+    <template #body-cell-status="slotProps">
+      <q-td :props="slotProps">
+        <q-badge v-if="statusMetaMap[slotProps.row.status]" :color="statusMetaMap[slotProps.row.status].color" outline>
+          {{ statusMetaMap[slotProps.row.status].label }}
+        </q-badge>
+        <span v-else>{{ slotProps.row.status }}</span>
+        <q-icon v-if="slotProps.row.linkId" name="link" color="primary" size="16px" class="q-ml-xs" />
+        <q-icon v-if="slotProps.row.isDuplicate" name="warning" color="warning" size="16px" class="q-ml-xs" />
+      </q-td>
+    </template>
+
+    <template #body-cell-notes="slotProps">
+      <q-td :props="slotProps" class="col-notes ellipsis">
+        <q-tooltip v-if="slotProps.row.notes">{{ slotProps.row.notes }}</q-tooltip>
+        <span class="truncate">{{ slotProps.row.notes }}</span>
+      </q-td>
+    </template>
+
+    <template #body-cell-actions="slotProps">
+      <q-td :props="slotProps" class="text-right">
+        <slot name="actions" :row="slotProps.row"></slot>
+      </q-td>
     </template>
 
     <template #bottom>
@@ -77,16 +80,19 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { Transaction } from '../types';
+
 type Align = 'left' | 'right' | 'center';
-// Generic column typing to avoid any
+
 export type Column<Row = Record<string, unknown>> = {
   name: string;
   label: string;
   field: keyof Row | ((row: Row) => unknown);
   align: Align;
   sortable?: boolean;
+  classes?: string;
+  headerClasses?: string;
 };
 
 export interface LedgerRow {
@@ -154,42 +160,63 @@ const rowHeight = computed(() => props.rowHeight ?? 44);
 const headerOffset = computed(() => props.headerOffset ?? 0);
 
 const baseColumns = computed<Column<LedgerRow>[]>(() => [
-  { name: 'date', label: 'Date', field: 'date', align: 'left', sortable: true },
-  { name: 'payee', label: 'Payee', field: 'payee', align: 'left', sortable: true },
-  { name: 'category', label: 'Category', field: 'category', align: 'left' },
-  { name: 'entity', label: props.entityLabel ?? 'Entity/Budget', field: 'entityName', align: 'left' },
-  { name: 'amount', label: 'Amount', field: 'amount', align: 'right', sortable: true },
-  { name: 'status', label: 'Status', field: 'status', align: 'center' },
-  { name: 'notes', label: 'Notes', field: 'notes', align: 'left' },
-  { name: 'actions', label: '', field: 'id', align: 'right' },
+  { name: 'date', label: 'Date', field: 'date', align: 'left', sortable: true, classes: 'ellipsis' },
+  { name: 'payee', label: 'Payee', field: 'payee', align: 'left', sortable: true, classes: 'ellipsis' },
+  { name: 'category', label: 'Category', field: 'category', align: 'left', classes: 'ellipsis' },
+  {
+    name: 'entity',
+    label: props.entityLabel ?? 'Entity/Budget',
+    field: 'entityName',
+    align: 'left',
+    classes: 'ellipsis',
+  },
+  {
+    name: 'amount',
+    label: 'Amount',
+    field: 'amount',
+    align: 'right',
+    sortable: true,
+    classes: 'text-right',
+  },
+  { name: 'status', label: 'Status', field: 'status', align: 'center', classes: 'text-center', headerClasses: 'text-center' },
+  { name: 'notes', label: 'Notes', field: 'notes', align: 'left', classes: 'ellipsis', headerClasses: 'col-notes' },
+  { name: 'actions', label: '', field: 'id', align: 'right', classes: 'text-right', headerClasses: 'text-right' },
 ]);
 
 const visibleColumns = ref<Column<LedgerRow>[]>([]);
+const mqQuery = '(max-width: 768px)';
+let mq: MediaQueryList | undefined;
 
-function updateCols(mq: MediaQueryList) {
+function applyColumnVisibility(matches: boolean) {
   const cols = baseColumns.value;
-  visibleColumns.value = mq.matches ? cols.filter((c) => !['category', 'notes'].includes(c.name)) : cols;
+  visibleColumns.value = matches ? cols.filter((c) => !['category', 'notes'].includes(c.name)) : cols;
 }
 
+const onMediaChange = (event: MediaQueryListEvent) => {
+  applyColumnVisibility(event.matches);
+};
+
 onMounted(() => {
-  const mq = window.matchMedia('(max-width: 768px)');
-  const handler = () => updateCols(mq);
-  handler();
-  mq.addEventListener?.('change', handler);
+  mq = window.matchMedia(mqQuery);
+  applyColumnVisibility(mq.matches);
+  mq.addEventListener?.('change', onMediaChange);
+});
+
+onBeforeUnmount(() => {
+  mq?.removeEventListener?.('change', onMediaChange);
 });
 
 watch(baseColumns, () => {
-  const mq = window.matchMedia('(max-width: 768px)');
-  updateCols(mq);
+  applyColumnVisibility(mq?.matches ?? false);
 });
 
 function money(n: number) {
   return (n < 0 ? '-$' : '$') + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+
 function formatDate(iso: string) {
   if (!iso) return '';
 
-  // Preserve calendar date for YYYY-MM-DD strings by constructing the date in local time
   if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
     const [year, month, day] = iso.split('-').map((part) => Number(part));
     const localDate = new Date(year, month - 1, day);
@@ -220,13 +247,24 @@ function onLoadMore() {
   emit('load-more');
 }
 
-function onRowClick(row: LedgerRow) {
+function handleRowClick(_: Event, row: LedgerRow) {
   emit('row-click', row);
+}
+
+function rowClassFn(row: LedgerRow, index: number) {
+  const classes = ['row-striped', 'cursor-pointer'];
+  if (index % 2 === 1) {
+    classes.push('row-even');
+  }
+  if (row.isDuplicate) {
+    classes.push('dup-row');
+  }
+  return classes.join(' ');
 }
 </script>
 
 <style scoped>
-.row-striped:nth-child(even) {
+.row-striped.row-even {
   background: rgba(37, 99, 235, 0.04);
 }
 .dup-row {
