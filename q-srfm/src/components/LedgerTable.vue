@@ -6,7 +6,6 @@
     flat
     bordered
     dense
-    :style="{ '--header-offset': `${headerOffset}px` }"
     :rows-per-page-options="[0]"
     :loading="loading"
     :selection="selection"
@@ -115,7 +114,6 @@ const props = defineProps<{
   loading?: boolean;
   canLoadMore?: boolean;
   loadingMore?: boolean;
-  headerOffset?: number;
   entityLabel?: string;
   selection?: 'single' | 'multiple';
   selected?: string[];
@@ -151,8 +149,6 @@ const selectedInternal = computed<LedgerRow[] | string[]>({
     }
   },
 });
-
-const headerOffset = computed(() => props.headerOffset ?? 0);
 
 const baseColumns = computed<Column<LedgerRow>[]>(() => [
   { name: 'date', label: 'Date', field: 'date', align: 'left', sortable: true, classes: 'ellipsis' },
