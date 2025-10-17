@@ -67,11 +67,6 @@
       </q-td>
     </template>
 
-    <template #bottom>
-      <div class="row justify-center q-pa-sm">
-        <q-btn v-if="canLoadMore" flat :loading="loadingMore" label="Load more" @click="onLoadMore" />
-      </div>
-    </template>
   </q-table>
 </template>
 
@@ -112,15 +107,12 @@ export interface LedgerRow {
 const props = defineProps<{
   rows: LedgerRow[];
   loading?: boolean;
-  canLoadMore?: boolean;
-  loadingMore?: boolean;
   entityLabel?: string;
   selection?: 'single' | 'multiple';
   selected?: string[];
 }>();
 
 const emit = defineEmits<{
-  (e: 'load-more'): void;
   (e: 'row-click', row: LedgerRow): void;
   (e: 'update:selected', ids: string[]): void;
 }>();
@@ -226,10 +218,6 @@ function formatDate(iso: string) {
     month: 'numeric',
     day: 'numeric',
   });
-}
-
-function onLoadMore() {
-  emit('load-more');
 }
 
 function handleRowClick(_: Event, row: LedgerRow) {

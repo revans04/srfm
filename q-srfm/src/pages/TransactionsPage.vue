@@ -8,7 +8,6 @@ mock data.
 
 Key props/usage:
 - uses `useTransactions` composable which seeds ~1000 rows on first load
-- `fetchMore` loads the next page (50 rows) when "Load more" is clicked
 - `scrollToDate` (via Jump to Date control) scrolls to first row >= date
 -->
 <template>
@@ -170,10 +169,8 @@ Key props/usage:
               <ledger-table
                 :rows="transactions"
                 :loading="loading"
-                :header-offset="0"
                 selection="multiple"
                 v-model:selected="selectedBudgetRowIds"
-                @load-more="fetchMore"
                 @row-click="onRowClick"
               />
             </div>
@@ -372,13 +369,9 @@ Key props/usage:
                 :rows="registerRows"
                 :loading="loadingRegister"
                 entity-label="Account"
-                :header-offset="0"
-                :can-load-more="canLoadMoreRegister"
-                :loading-more="loadingMoreRegister"
                 selection="multiple"
                 v-model:selected="selectedRegisterIds"
                 @row-click="onRegisterRowClick"
-                @load-more="fetchMoreRegister"
               />
             </div>
           </div>
@@ -500,12 +493,8 @@ const {
   transactions,
   filters,
   registerRows,
-  fetchMore,
-  fetchMoreRegister,
   loading,
   loadingRegister,
-  canLoadMoreRegister,
-  loadingMoreRegister,
   loadImportedTransactions,
   loadInitial,
   getImportedTx,

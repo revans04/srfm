@@ -385,11 +385,6 @@ export function useTransactions() {
     }
   }
 
-  async function fetchMore() { /* pagination placeholder for API cursors */ }
-  async function fetchMoreRegister() {
-    await loadImportedTransactions();
-  }
-
   function scrollToDate(iso: string) {
     // The page can use this to scroll via QTable / VirtualScroll API later.
     console.log('scrollToDate', iso);
@@ -464,15 +459,11 @@ export function useTransactions() {
     // budget tab
     transactions: filtered,
     filters,
-    fetchMore,
     loading,
 
     // register tab
     registerRows: filteredRegister,
-    fetchMoreRegister,
     loadingRegister,
-    canLoadMoreRegister: computed(() => hasMoreImported.value),
-    loadingMoreRegister,
 
     // utilities
     scrollToDate,
