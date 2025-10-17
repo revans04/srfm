@@ -2,7 +2,8 @@
 README
 ======
 TransactionsPage.vue demonstrates the new Pro Mode ledger UI. It uses
-LedgerTable without virtual scrolling to keep the implementation simple.
+LedgerTable with Quasar virtual scrolling and a sticky header to keep
+large datasets responsive while retaining simple markup.
 Filters are reactive but for demo purposes only filter the locally seeded
 mock data.
 

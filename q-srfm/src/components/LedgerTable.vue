@@ -6,6 +6,8 @@
     flat
     bordered
     dense
+    virtual-scroll
+    v-model:pagination="pagination"
     :rows-per-page-options="[0]"
     :loading="loading"
     :selection="selection"
@@ -72,6 +74,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import type { QTableProps } from 'quasar';
 import type { Transaction } from '../types';
 
 type Align = 'left' | 'right' | 'center';
@@ -170,6 +173,10 @@ const visibleColumns = ref<Column<LedgerRow>[]>([]);
 const mqQuery = '(max-width: 768px)';
 let mq: MediaQueryList | undefined;
 
+const pagination = ref<QTableProps['pagination']>({
+  rowsPerPage: 0,
+});
+
 function applyColumnVisibility(matches: boolean) {
   const cols = baseColumns.value;
   visibleColumns.value = matches ? cols.filter((c) => !['category', 'notes'].includes(c.name)) : cols;
@@ -249,5 +256,11 @@ function rowClassFn(row: LedgerRow, index: number) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+:deep(.q-table__middle thead tr th) {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--q-color-white, #ffffff);
 }
 </style>
