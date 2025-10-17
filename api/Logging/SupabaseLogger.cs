@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Npgsql;
@@ -16,6 +17,7 @@ public class SupabaseLogger : ILogger
     private readonly SupabaseDbService _dbService;
     private bool _loggingDisabled;
     private static bool _globalLoggingDisabled;
+    private static readonly SemaphoreSlim LogWriteLock = new(1, 1);
 
     public SupabaseLogger(string categoryName, SupabaseDbService dbService)
     {
@@ -45,17 +47,32 @@ public class SupabaseLogger : ILogger
             return;
         }
 
+        // Only persist warnings and above to keep connection usage low.
+        if (level < LogLevel.Warning)
+        {
+            WriteToConsole(level, message, exception);
+            return;
+        }
+
         try
         {
-            await using var conn = await _dbService.GetOpenConnectionAsync();
-            const string sql = "INSERT INTO logs (timestamp, level, category, message, exception) VALUES (@timestamp, @level, @category, @message, @exception);";
-            await using var cmd = new NpgsqlCommand(sql, conn);
-            cmd.Parameters.AddWithValue("@timestamp", DateTime.UtcNow);
-            cmd.Parameters.AddWithValue("@level", level.ToString());
-            cmd.Parameters.AddWithValue("@category", _categoryName);
-            cmd.Parameters.AddWithValue("@message", message);
-            cmd.Parameters.Add("@exception", NpgsqlDbType.Text).Value = (object?)exception?.ToString() ?? DBNull.Value;
-            await cmd.ExecuteNonQueryAsync();
+            await LogWriteLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                await using var conn = await _dbService.GetOpenConnectionAsync().ConfigureAwait(false);
+                const string sql = "INSERT INTO logs (timestamp, level, category, message, exception) VALUES (@timestamp, @level, @category, @message, @exception);";
+                await using var cmd = new NpgsqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@timestamp", DateTime.UtcNow);
+                cmd.Parameters.AddWithValue("@level", level.ToString());
+                cmd.Parameters.AddWithValue("@category", _categoryName);
+                cmd.Parameters.AddWithValue("@message", message);
+                cmd.Parameters.Add("@exception", NpgsqlDbType.Text).Value = (object?)exception?.ToString() ?? DBNull.Value;
+                await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                LogWriteLock.Release();
+            }
         }
         catch (PostgresException ex) when (ex.SqlState == "42P01")
         {

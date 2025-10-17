@@ -255,15 +255,28 @@ public class AccountService
         if (snapshot.Accounts != null)
         {
             const string insSql = @"INSERT INTO snapshot_accounts (snapshot_id, account_id, account_name, value, account_type)
-                                     VALUES (@sid,@aid,@name,@value,@type)";
+                                     VALUES (@sid,@aid,@name,@value,@type::account_type)";
             foreach (var acc in snapshot.Accounts)
             {
+                if (!Guid.TryParse(acc.AccountId, out var accountGuid))
+                {
+                    _logger.LogWarning("Skipping snapshot account with invalid id {AccountId}", acc.AccountId);
+                    continue;
+                }
+
+                var accountType = acc.Type;
+                if (string.IsNullOrWhiteSpace(accountType))
+                {
+                    _logger.LogWarning("Skipping snapshot account {AccountId} due to missing account type", acc.AccountId);
+                    continue;
+                }
+
                 await using var insCmd = new NpgsqlCommand(insSql, conn);
                 insCmd.Parameters.AddWithValue("sid", sid);
-                insCmd.Parameters.AddWithValue("aid", Guid.Parse(acc.AccountId));
+                insCmd.Parameters.AddWithValue("aid", accountGuid);
                 insCmd.Parameters.AddWithValue("name", acc.AccountName ?? string.Empty);
                 insCmd.Parameters.AddWithValue("value", (decimal)acc.Value);
-                insCmd.Parameters.AddWithValue("type", acc.Type ?? string.Empty);
+                insCmd.Parameters.AddWithValue("type", accountType);
                 await insCmd.ExecuteNonQueryAsync();
             }
         }
@@ -367,4 +380,3 @@ public class AccountService
         return account;
     }
 }
-

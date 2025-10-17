@@ -8,6 +8,7 @@ import { auth } from '../firebase/init';
 import type { Budget, Transaction, ImportedTransaction } from '../types';
 
 export type Status = 'C' | 'U' | 'R';
+export type LedgerStatus = Status | 'M' | 'I';
 
 export interface LedgerRow {
   id: string;
@@ -17,7 +18,7 @@ export interface LedgerRow {
   entityName: string;
   budgetId: string;
   amount: number;
-  status: Status;
+  status: LedgerStatus;
   importedMerchant?: string;
   isDuplicate?: boolean;
   linkId?: string;
@@ -101,11 +102,6 @@ export function isDuplicate(tx: BudgetTransaction, list: BudgetTransaction[]): b
     // );
     const sameCheck = checkNumbersMatch(other, tx);
     const closeInTime = datesAlign(other, tx);
-
-    if (tx.amount == 649.52)  {
-      console.log('Dup check other ' + other.merchant, other);
-      console.log({ sameEntity, sameCheck, closeInTime });
-    }
 
     return sameEntity && sameCheck && closeInTime; //&& (identicalPayee || similarPayee)
 
@@ -210,6 +206,35 @@ export function useTransactions() {
     };
   }
 
+  const normalizeImportedStatus = (status: string | undefined | null): Status => {
+    if (!status) return 'U';
+    const value = status.trim().toUpperCase();
+    switch (value) {
+      case 'M':
+      case 'MATCHED':
+        return 'C';
+      case 'C':
+      case 'CLEARED':
+        return 'C';
+      case 'R':
+      case 'RECONCILED':
+        return 'R';
+      case 'I':
+      case 'IGNORED':
+        return 'U';
+      case 'U':
+      case 'UNCLEARED':
+      case 'UNMATCHED':
+      case 'P':
+      case 'PENDING':
+      case 'N':
+      case 'NEW':
+        return 'U';
+      default:
+        return 'U';
+    }
+  };
+
   function mapImportedToRow(tx: ImportedTransaction): LedgerRow {
     const normalizeNum = (n?: string | null) => (n || '').replace(/\D/g, '');
     const account = familyStore.family?.accounts?.find((a) => {
@@ -227,6 +252,12 @@ export function useTransactions() {
     const entityName = tx.accountNumber
       ? `${accountName} (${tx.accountNumber})`
       : accountName;
+    const derivedStatus: LedgerStatus = tx.ignored
+      ? 'I'
+      : tx.matched
+        ? 'M'
+        : normalizeImportedStatus(tx.status);
+
     return {
       id: tx.id,
       date: tx.postedDate,
@@ -235,7 +266,7 @@ export function useTransactions() {
       entityName,
       budgetId: '',
       amount: (tx.creditAmount ?? 0) - (tx.debitAmount ?? 0),
-      status: tx.status,
+      status: derivedStatus,
       linkId: tx.accountNumber ? `${tx.accountSource || ''}:${tx.accountNumber}` : undefined,
       notes: '',
       accountId: account?.id ? String(account.id) : tx.accountId ? String(tx.accountId) : undefined,
@@ -245,38 +276,44 @@ export function useTransactions() {
 
   async function hydrateBudgets(budgetIds: string[]) {
     const out: LedgerRow[] = [];
-    for (const id of budgetIds) {
-      try {
-        let full = budgetStore.getBudget(id);
-        if (!full || !full.transactions || full.transactions.length === 0) {
-          full = await dataAccess.getBudget(id);
-          if (full) {
-            budgetStore.updateBudget(id, full);
-          }
-        }
-        if (full) {
-          console.log('test transactions', full.transactions.filter(t => t.merchant == 'The North Face'));
-          const transactions = (full.transactions || []).filter((t) => !t.deleted);
-          const budgetTransactions = transactions as BudgetTransaction[];
-          const duplicateIds = new Set<string>();
-          for (const tx of budgetTransactions) {
-            if (isDuplicate(tx, budgetTransactions)) {
-              duplicateIds.add(tx.id);
+
+    const budgets = await Promise.all(
+      budgetIds.map(async (id) => {
+        try {
+          let full = budgetStore.getBudget(id);
+          if (!full || !full.transactions || full.transactions.length === 0) {
+            const fetched = await dataAccess.getBudget(id);
+            if (fetched) {
+              budgetStore.updateBudget(id, fetched);
+              full = fetched;
             }
           }
-          const mapped = budgetTransactions.map((t) => {
-            const row = mapTxToRow(t, full);
-            row.isDuplicate = duplicateIds.has(t.id);
-            return row;
-          });
-          out.push(...mapped);
+          return full ?? null;
+        } catch (err) {
+          console.error('Failed to hydrate budget', id, err);
+          return null;
         }
-      } catch (err) {
-        // Skip budgets that fail to load but continue processing others
-        console.error('Failed to hydrate budget', id, err);
+      }),
+    );
+
+    budgets.forEach((full) => {
+      if (!full) return;
+      const transactions = (full.transactions || []).filter((t) => !t.deleted);
+      const budgetTransactions = transactions as BudgetTransaction[];
+      const duplicateIds = new Set<string>();
+      for (const tx of budgetTransactions) {
+        if (isDuplicate(tx, budgetTransactions)) {
+          duplicateIds.add(tx.id);
+        }
       }
-    }
-    // Sort desc by date
+      const mapped = budgetTransactions.map((t) => {
+        const row = mapTxToRow(t, full);
+        row.isDuplicate = duplicateIds.has(t.id);
+        return row;
+      });
+      out.push(...mapped);
+    });
+
     out.sort((a, b) => b.date.localeCompare(a.date));
     return out;
   }
@@ -381,7 +418,7 @@ export function useTransactions() {
       if (f.cleared) statusFilters.push('C');
       if (f.uncleared) statusFilters.push('U');
       if (f.reconciled) statusFilters.push('R');
-      if (statusFilters.length && !statusFilters.includes(r.status)) return false;
+      if (statusFilters.length && !statusFilters.includes(normalizeImportedStatus(r.status))) return false;
       if (f.duplicatesOnly && !r.isDuplicate) return false;
       if (f.minAmt != null && r.amount < f.minAmt) return false;
       if (f.maxAmt != null && r.amount > f.maxAmt) return false;
@@ -402,6 +439,11 @@ export function useTransactions() {
       if (f.accountId && r.accountId !== f.accountId) return false;
       if (f.start && r.date < f.start) return false;
       if (f.end && r.date > f.end) return false;
+      const statusFilters: Status[] = [];
+      if (f.cleared) statusFilters.push('C');
+      if (f.uncleared) statusFilters.push('U');
+      if (f.reconciled) statusFilters.push('R');
+      if (statusFilters.length && !statusFilters.includes(normalizeImportedStatus(r.status))) return false;
       if (f.unmatchedOnly && r.matched) return false;
       return true;
     });

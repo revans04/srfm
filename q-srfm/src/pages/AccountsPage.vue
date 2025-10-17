@@ -9,117 +9,119 @@
     <q-banner v-if="!familyId" type="warning" class="q-mb-lg"> Please create or join a family to manage accounts. </q-banner>
 
     <!-- Tabs -->
-    <q-tabs v-model="tab" color="primary" :disabled="!familyId">
-      <q-tab name="bank" label="Bank Accounts" />
-      <q-tab name="credit" label="Credit Cards" />
-      <q-tab name="investment" label="Investments" />
-      <q-tab name="property" label="Properties" />
-      <q-tab name="loan" label="Loans" />
-      <q-tab name="net-worth" label="Snapshots" />
-    </q-tabs>
+    <div v-else>
+      <q-tabs v-model="tab" color="primary">
+        <q-tab name="bank" label="Bank Accounts" />
+        <q-tab name="credit" label="Credit Cards" />
+        <q-tab name="investment" label="Investments" />
+        <q-tab name="property" label="Properties" />
+        <q-tab name="loan" label="Loans" />
+        <q-tab name="net-worth" label="Snapshots" />
+      </q-tabs>
 
-    <q-tab-panels v-model="tab">
-      <q-tab-panel name="bank">
-        <AccountList
-          :accounts="bankAccounts"
-          :imported-transactions="importedTransactions"
-          type="Bank"
-          @add="openAccountDialog(AccountType.Bank)"
-          @edit="editAccount"
-          @delete="confirmDeleteAccount"
-        />
-      </q-tab-panel>
-      <q-tab-panel name="credit">
-        <AccountList
-          :accounts="creditCardAccounts"
-          :imported-transactions="importedTransactions"
-          type="CreditCard"
-          @add="openAccountDialog(AccountType.CreditCard)"
-          @edit="editAccount"
-          @delete="confirmDeleteAccount"
-        />
-      </q-tab-panel>
-      <q-tab-panel name="investment">
-        <AccountList
-          :accounts="investmentAccounts"
-          type="Investment"
-          @add="openAccountDialog(AccountType.Investment)"
-          @edit="editAccount"
-          @delete="confirmDeleteAccount"
-        />
-      </q-tab-panel>
-      <q-tab-panel name="property">
-        <AccountList
-          :accounts="propertyAccounts"
-          type="Property"
-          @add="openAccountDialog(AccountType.Property)"
-          @edit="editAccount"
-          @delete="confirmDeleteAccount"
-        />
-      </q-tab-panel>
-      <q-tab-panel name="loan">
-        <AccountList :accounts="loanAccounts" type="Loan" @add="openAccountDialog(AccountType.Loan)" @edit="editAccount" @delete="confirmDeleteAccount" />
-      </q-tab-panel>
-      <q-tab-panel name="net-worth">
-        <q-card>
-          <q-card-section>Net Worth Over Time</q-card-section>
-          <q-card-section>
-            <q-btn color="primary" flat dense class="q-mb-md q-mr-sm" icon="photo_camera" @click="openSnapshotDialog" :disabled="accounts.length === 0">
-              Capture Snapshot
-            </q-btn>
-            <q-btn
-              color="negative"
-              flat
-              dense
-              class="q-mb-md"
-              icon="delete"
-              @click="confirmBatchDeleteSnapshots"
-              :disabled="selectedSnapshots.length === 0"
-              :loading="deleting"
-            >
-              Delete Selected
-            </q-btn>
-            <q-table
-              :columns="snapshotColumns"
-              :rows="snapshotsWithSelection"
-              class="elevation-1"
-              :pagination="{ rowsPerPage: 10 }"
-              row-key="id"
-              @row-click="viewSnapshotDetails"
-            >
-              <template #header-cell-select="props">
-                <q-th :props="props">
-                  <q-checkbox v-model="selectAll" @update:modelValue="toggleSelectAll" dense @click.stop />
-                </q-th>
-              </template>
-              <template #body-cell-select="props">
-                <q-td :props="props">
-                  <q-checkbox v-model="selectedSnapshots" :value="props.row.id" dense @update:modelValue="updateSelectAll" @click.stop />
-                </q-td>
-              </template>
-              <template #body-cell-date="props">
-                <q-td :props="props">
-                  {{ formatTimestamp(props.row.date) }}
-                </q-td>
-              </template>
-              <template #body-cell-netWorth="props">
-                <q-td :props="props">
-                  {{ formatCurrency(props.row.netWorth) }}
-                </q-td>
-              </template>
-              <template #body-cell-actions="props">
-                <q-td :props="props">
-                  <q-btn flat dense color="negative" icon="delete" @click.stop="confirmDeleteSnapshot(props.row.id)" />
-                </q-td>
-              </template>
-            </q-table>
-            <div class="q-mt-lg">
-              <p>Net worth trend chart coming soon!</p>
-            </div>
-          </q-card-section>
-        </q-card>
-      </q-tab-panel>
-    </q-tab-panels>
+      <q-tab-panels v-model="tab">
+        <q-tab-panel name="bank">
+          <AccountList
+            :accounts="bankAccounts"
+            :imported-transactions="importedTransactions"
+            type="Bank"
+            @add="openAccountDialog(AccountType.Bank)"
+            @edit="editAccount"
+            @delete="confirmDeleteAccount"
+          />
+        </q-tab-panel>
+        <q-tab-panel name="credit">
+          <AccountList
+            :accounts="creditCardAccounts"
+            :imported-transactions="importedTransactions"
+            type="CreditCard"
+            @add="openAccountDialog(AccountType.CreditCard)"
+            @edit="editAccount"
+            @delete="confirmDeleteAccount"
+          />
+        </q-tab-panel>
+        <q-tab-panel name="investment">
+          <AccountList
+            :accounts="investmentAccounts"
+            type="Investment"
+            @add="openAccountDialog(AccountType.Investment)"
+            @edit="editAccount"
+            @delete="confirmDeleteAccount"
+          />
+        </q-tab-panel>
+        <q-tab-panel name="property">
+          <AccountList
+            :accounts="propertyAccounts"
+            type="Property"
+            @add="openAccountDialog(AccountType.Property)"
+            @edit="editAccount"
+            @delete="confirmDeleteAccount"
+          />
+        </q-tab-panel>
+        <q-tab-panel name="loan">
+          <AccountList :accounts="loanAccounts" type="Loan" @add="openAccountDialog(AccountType.Loan)" @edit="editAccount" @delete="confirmDeleteAccount" />
+        </q-tab-panel>
+        <q-tab-panel name="net-worth">
+          <q-card>
+            <q-card-section>Net Worth Over Time</q-card-section>
+            <q-card-section>
+              <q-btn color="primary" flat dense class="q-mb-md q-mr-sm" icon="photo_camera" @click="openSnapshotDialog" :disabled="accounts.length === 0">
+                Capture Snapshot
+              </q-btn>
+              <q-btn
+                color="negative"
+                flat
+                dense
+                class="q-mb-md"
+                icon="delete"
+                @click="confirmBatchDeleteSnapshots"
+                :disabled="selectedSnapshots.length === 0"
+                :loading="deleting"
+              >
+                Delete Selected
+              </q-btn>
+              <q-table
+                :columns="snapshotColumns"
+                :rows="snapshotsWithSelection"
+                class="elevation-1"
+                v-model:pagination="snapshotPagination"
+                row-key="id"
+                @row-click="viewSnapshotDetails"
+              >
+                <template #header-cell-select="props">
+                  <q-th :props="props">
+                    <q-checkbox v-model="selectAll" @update:modelValue="toggleSelectAll" dense @click.stop />
+                  </q-th>
+                </template>
+                <template #body-cell-select="props">
+                  <q-td :props="props">
+                    <q-checkbox v-model="selectedSnapshots" :val="props.row.id" dense @update:modelValue="updateSelectAll" @click.stop />
+                  </q-td>
+                </template>
+                <template #body-cell-date="props">
+                  <q-td :props="props">
+                    {{ formatTimestamp(props.row.date) }}
+                  </q-td>
+                </template>
+                <template #body-cell-netWorth="props">
+                  <q-td :props="props">
+                    {{ formatCurrency(props.row.netWorth) }}
+                  </q-td>
+                </template>
+                <template #body-cell-actions="props">
+                  <q-td :props="props">
+                    <q-btn flat dense color="negative" icon="delete" @click.stop="confirmDeleteSnapshot(props.row.id)" />
+                  </q-td>
+                </template>
+              </q-table>
+              <div class="q-mt-lg">
+                <p>Net worth trend chart coming soon!</p>
+              </div>
+            </q-card-section>
+          </q-card>
+        </q-tab-panel>
+      </q-tab-panels>
+    </div>
 
     <!-- Account Dialog -->
     <q-dialog v-model="showAccountDialog" max-width="600px">
@@ -263,7 +265,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { auth } from '../firebase/init';
 import { dataAccess } from '../dataAccess';
 import { useFamilyStore } from '../store/family';
@@ -298,6 +300,11 @@ const editMode = ref(false);
 const isPersonalAccount = ref(false);
 const selectAll = ref(false);
 const selectedSnapshots = ref<string[]>([]);
+const snapshotPagination = ref({
+  sortBy: 'date',
+  descending: true,
+  rowsPerPage: 10,
+});
 const originalAccountNumber = ref<string | undefined>('');
 const originalAccountName = ref<string>('');
 const affectedImportedTransactionCount = ref(0);
@@ -337,8 +344,8 @@ const propertyAccounts = computed(() => accounts.value.filter((acc) => acc.type 
 const loanAccounts = computed(() => accounts.value.filter((acc) => acc.type === 'Loan').sort((a, b) => a.name.localeCompare(b.name)));
 
 const snapshotColumns = [
-  { name: 'select', label: '', field: 'select', sortable: false },
-  { name: 'date', label: 'Date', field: 'date' },
+  { name: 'select', label: '', field: 'id', sortable: false },
+  { name: 'date', label: 'Date', field: 'date', sortable: true },
   { name: 'netWorth', label: 'Net Worth', field: 'netWorth' },
   { name: 'actions', label: 'Actions', field: 'actions' },
 ];
@@ -362,6 +369,12 @@ const snapshotsWithSelection = computed(() => {
   }));
 });
 
+watch(
+  () => snapshots.value.length,
+  () => {
+    updateSelectAll();
+  },
+);
 function updateSelectAll() {
   selectAll.value = snapshots.value.length > 0 && selectedSnapshots.value.length === snapshots.value.length;
 }
@@ -416,7 +429,9 @@ async function loadData() {
   try {
     accounts.value = await dataAccess.getAccounts(familyId.value);
     importedTransactions.value = await dataAccess.getImportedTransactions();
-    snapshots.value = await dataAccess.getSnapshots(familyId.value);
+    const fetchedSnapshots = await dataAccess.getSnapshots(familyId.value);
+    fetchedSnapshots.sort((a, b) => timestampToMillis(b.date) - timestampToMillis(a.date));
+    snapshots.value = fetchedSnapshots;
   } catch (error: unknown) {
     console.error('Error loading data:', error);
     const msg = error instanceof Error ? error.message : JSON.stringify(error);

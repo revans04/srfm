@@ -4,7 +4,7 @@ import { useBudgetStore } from '../store/budget';
 import { useFamilyStore } from '../store/family';
 import { DEFAULT_BUDGET_TEMPLATES } from '../constants/budgetTemplates';
 import { adjustTransactionDate } from './helpers';
-import type { Budget, BudgetCategory, Transaction } from '../types';
+import type { Budget, BudgetCategory, Transaction, BudgetInfo } from '../types';
 
 /**
  * Creates a budget for the specified month and entity. If a budget already
@@ -21,6 +21,20 @@ export async function createBudgetForMonth(
   const budgetStore = useBudgetStore();
   const familyStore = useFamilyStore();
 
+  let accessibleBudgetInfos: BudgetInfo[] | null = null;
+  const ensureAccessibleBudgetInfos = async (): Promise<BudgetInfo[]> => {
+    if (accessibleBudgetInfos !== null) {
+      return accessibleBudgetInfos;
+    }
+    try {
+      accessibleBudgetInfos = await dataAccess.loadAccessibleBudgets(ownerUid, entityId);
+    } catch (error) {
+      console.warn('createBudgetForMonth: failed to load accessible budgets', error);
+      accessibleBudgetInfos = [];
+    }
+    return accessibleBudgetInfos;
+  };
+
   // Check if a budget already exists for this entity/month combination in the
   // local store before creating a new one.
   let existingBudget = Array.from(budgetStore.budgets.values()).find(
@@ -28,18 +42,11 @@ export async function createBudgetForMonth(
   );
 
   if (!existingBudget) {
-    // Fetch accessible budgets from the API in case the budget hasn't been
-    // loaded yet. We only pull budgets for the specific entity to minimize
-    // network usage.
-    try {
-      const infos = await dataAccess.loadAccessibleBudgets(ownerUid, entityId);
-      const match = infos.find((b) => b.month === month && b.budgetId);
-      if (match?.budgetId) {
-        existingBudget = await dataAccess.getBudget(match.budgetId);
-        if (existingBudget) budgetStore.updateBudget(match.budgetId, existingBudget);
-      }
-    } catch {
-      /* ignore and fall through to create */
+    const infos = await ensureAccessibleBudgetInfos();
+    const match = infos.find((b) => b.month === month && b.budgetId);
+    if (match?.budgetId) {
+      existingBudget = await dataAccess.getBudget(match.budgetId);
+      if (existingBudget) budgetStore.updateBudget(match.budgetId, existingBudget);
     }
   }
 
@@ -52,52 +59,43 @@ export async function createBudgetForMonth(
 
   const entity = familyStore.family?.entities?.find((e) => e.id === entityId);
   const templateBudget = entity?.templateBudget;
+  const predefinedTemplate = entity ? DEFAULT_BUDGET_TEMPLATES[entity.type] : undefined;
 
-  if (templateBudget && templateBudget.categories.length > 0) {
-    const newBudget: Budget = {
-      familyId,
-      entityId,
-      month,
-      incomeTarget: 0,
-      categories: templateBudget.categories.map((cat: BudgetCategory) => ({
-        ...cat,
-        carryover: cat.isFund ? 0 : 0,
-      })),
-      transactions: [],
-      label: `Template Budget for ${month}`,
-      merchants: [],
-      budgetId,
-    };
-    await dataAccess.saveBudget(budgetId, newBudget);
-    budgetStore.updateBudget(budgetId, newBudget);
-    return newBudget;
-  }
-
-  if (entity && DEFAULT_BUDGET_TEMPLATES[entity.type]) {
-    const predefinedTemplate = DEFAULT_BUDGET_TEMPLATES[entity.type];
-    const newBudget: Budget = {
-      familyId,
-      entityId,
-      month,
-      incomeTarget: 0,
-      categories: (predefinedTemplate?.categories ?? []).map((cat: BudgetCategory) => ({
-        ...cat,
-        carryover: cat.isFund ? 0 : 0,
-      })),
-      transactions: [],
-      label: `Default ${entity.type} Budget for ${month}`,
-      merchants: [],
-      budgetId,
-    };
-    await dataAccess.saveBudget(budgetId, newBudget);
-    budgetStore.updateBudget(budgetId, newBudget);
-    return newBudget;
-  }
-
-  const availableBudgets = Array.from(budgetStore.budgets.values()).sort((a, b) => a.month.localeCompare(b.month));
-  let sourceBudget = availableBudgets.filter((b) => b.month < month && b.entityId === entityId).pop();
+  const availableBudgets = Array.from(budgetStore.budgets.values())
+    .filter((b) => b.entityId === entityId)
+    .sort((a, b) => a.month.localeCompare(b.month));
+  let sourceBudget = availableBudgets.filter((b) => b.month < month).pop();
   if (!sourceBudget) {
-    sourceBudget = availableBudgets.find((b) => b.month > month && b.entityId === entityId);
+    sourceBudget = availableBudgets.find((b) => b.month > month);
+  }
+
+  if (!sourceBudget || !sourceBudget.budgetId) {
+    const infos = await ensureAccessibleBudgetInfos();
+    const relevantInfos = infos.filter((b) => b.entityId === entityId);
+    let sourceInfo = relevantInfos
+      .filter((b) => b.month < month)
+      .sort((a, b) => a.month.localeCompare(b.month))
+      .pop();
+    if (!sourceInfo) {
+      sourceInfo = relevantInfos
+        .filter((b) => b.month > month)
+        .sort((a, b) => a.month.localeCompare(b.month))
+        .shift();
+    }
+
+    if (sourceInfo?.budgetId) {
+      const fetched = await dataAccess.getBudget(sourceInfo.budgetId);
+      if (fetched) {
+        sourceBudget = fetched;
+        budgetStore.updateBudget(sourceInfo.budgetId, fetched);
+      }
+    }
+  } else if (sourceBudget.budgetId && (!sourceBudget.categories?.length || !sourceBudget.transactions?.length)) {
+    const fetched = await dataAccess.getBudget(sourceBudget.budgetId);
+    if (fetched) {
+      sourceBudget = fetched;
+      budgetStore.updateBudget(fetched.budgetId, fetched);
+    }
   }
 
   if (sourceBudget) {
@@ -154,6 +152,46 @@ export async function createBudgetForMonth(
     }
 
     newBudget.transactions = recurringTransactions;
+    await dataAccess.saveBudget(budgetId, newBudget);
+    budgetStore.updateBudget(budgetId, newBudget);
+    return newBudget;
+  }
+
+  if (templateBudget && templateBudget.categories.length > 0) {
+    const newBudget: Budget = {
+      familyId,
+      entityId,
+      month,
+      incomeTarget: 0,
+      categories: templateBudget.categories.map((cat: BudgetCategory) => ({
+        ...cat,
+        carryover: cat.isFund ? 0 : 0,
+      })),
+      transactions: [],
+      label: `Template Budget for ${month}`,
+      merchants: [],
+      budgetId,
+    };
+    await dataAccess.saveBudget(budgetId, newBudget);
+    budgetStore.updateBudget(budgetId, newBudget);
+    return newBudget;
+  }
+
+  if (predefinedTemplate) {
+    const newBudget: Budget = {
+      familyId,
+      entityId,
+      month,
+      incomeTarget: 0,
+      categories: (predefinedTemplate?.categories ?? []).map((cat: BudgetCategory) => ({
+        ...cat,
+        carryover: cat.isFund ? 0 : 0,
+      })),
+      transactions: [],
+      label: `Default ${entity?.type ?? 'Family'} Budget for ${month}`,
+      merchants: [],
+      budgetId,
+    };
     await dataAccess.saveBudget(budgetId, newBudget);
     budgetStore.updateBudget(budgetId, newBudget);
     return newBudget;

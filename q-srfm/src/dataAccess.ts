@@ -67,6 +67,18 @@ export class DataAccess {
     return undefined;
   }
 
+  private toIsoString(input: unknown): string | undefined {
+    const ts = this.toTimestamp(input);
+    if (ts) {
+      return ts.toDate().toISOString();
+    }
+    if (typeof input === 'string') {
+      const parsed = new Date(input);
+      return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString();
+    }
+    return undefined;
+  }
+
   private mapTransaction(apiTx: unknown, budgetId?: string): Transaction {
     const tx = (apiTx ?? {}) as Record<string, unknown>;
     const categories = Array.isArray(tx.categories)
@@ -950,10 +962,22 @@ export class DataAccess {
 
   async saveSnapshot(familyId: string, snapshot: Snapshot): Promise<void> {
     const headers = await this.getAuthHeaders();
+    const payload = {
+      ...snapshot,
+      date: this.toIsoString(snapshot.date) ?? new Date().toISOString(),
+      createdAt: this.toIsoString(snapshot.createdAt) ?? new Date().toISOString(),
+      accounts: snapshot.accounts?.map((acc) => ({
+        accountId: acc.accountId,
+        accountName: acc.accountName,
+        type: acc.type,
+        value: Number(acc.value ?? 0),
+      })),
+      netWorth: Number(snapshot.netWorth ?? 0),
+    };
     const response = await fetch(`${this.apiBaseUrl}/families/${familyId}/snapshots/${snapshot.id}`, {
       method: 'PUT',
       headers,
-      body: JSON.stringify(snapshot),
+      body: JSON.stringify(payload),
     });
     if (!response.ok) throw new Error(`Failed to save snapshot: ${response.statusText}`);
   }

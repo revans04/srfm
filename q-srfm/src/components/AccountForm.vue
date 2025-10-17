@@ -1,6 +1,6 @@
 <!-- src/components/AccountForm.vue -->
 <template>
-  <q-form v-model="validForm" @submit.prevent="save">
+  <q-form ref="formRef" @submit.prevent="save">
     <q-input
       v-model="localAccount.name"
       label="Account Name"
@@ -61,7 +61,7 @@
       :rules="[(v: number | null) => v !== null || 'Balance is required']"
     ></q-input>
     <div class="q-mt-lg">
-      <q-btn type="submit" color="primary" :loading="saving" :disabled="!validForm"> Save </q-btn>
+      <q-btn type="submit" color="primary" :loading="saving" :disable="saving"> Save </q-btn>
       <q-btn color="grey" variant="text" @click="cancel" class="q-ml-sm"> Cancel </q-btn>
     </div>
   </q-form>
@@ -69,6 +69,7 @@
 
 <script setup lang="ts">
 import { ref, watch, defineProps, defineEmits } from 'vue';
+import type { QForm } from 'quasar';
 import type { Account, AccountType } from '../types';
 import { Timestamp } from 'firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';
@@ -88,9 +89,9 @@ const emit = defineEmits<{
   (e: 'cancel'): void;
 }>();
 
-const validForm = ref(false);
 const saving = ref(false);
 const isPersonalAccount = ref(false);
+const formRef = ref<QForm | null>(null);
 
 type AccountWithDetails = Account & { details: NonNullable<Account['details']> };
 
@@ -141,11 +142,23 @@ watch(
   },
 );
 
-function save() {
+async function save() {
+  if (saving.value) return;
+  const form = formRef.value;
+  if (form) {
+    const valid = await form.validate();
+    if (!valid) {
+      return;
+    }
+  }
+
   saving.value = true;
   localAccount.value.updatedAt = Timestamp.now();
-  emit('save', localAccount.value, isPersonalAccount.value);
-  saving.value = false;
+  try {
+    emit('save', localAccount.value, isPersonalAccount.value);
+  } finally {
+    saving.value = false;
+  }
 }
 
 function cancel() {
