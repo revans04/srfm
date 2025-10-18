@@ -126,7 +126,7 @@ public class BudgetService
         if (includeTransactions)
         {
             var sqlTx = hasGoalTable
-                ? @"SELECT t.id, t.date, t.budget_month, t.merchant, t.amount, t.notes, t.recurring, t.recurring_interval, t.user_id, t.is_income, t.account_number, t.account_source, t.posted_date, t.imported_merchant, t.status, t.check_number, t.deleted, t.entity_id
+                ? @"SELECT t.id, t.date, t.budget_month, t.merchant, t.amount, t.notes, t.recurring, t.recurring_interval, t.user_id, t.is_income, t.account_number, t.account_source, t.transaction_date, t.posted_date, t.imported_merchant, t.status, t.check_number, t.deleted, t.entity_id
 FROM transactions t
 WHERE t.budget_id=@id AND t.entity_id=@entity
 AND NOT EXISTS (
@@ -135,7 +135,7 @@ AND NOT EXISTS (
     JOIN goals_budget_categories gbc ON gbc.budget_cat_id = bc.id
     WHERE tc.transaction_id = t.id
 );" :
-                @"SELECT t.id, t.date, t.budget_month, t.merchant, t.amount, t.notes, t.recurring, t.recurring_interval, t.user_id, t.is_income, t.account_number, t.account_source, t.posted_date, t.imported_merchant, t.status, t.check_number, t.deleted, t.entity_id
+                @"SELECT t.id, t.date, t.budget_month, t.merchant, t.amount, t.notes, t.recurring, t.recurring_interval, t.user_id, t.is_income, t.account_number, t.account_source, t.transaction_date, t.posted_date, t.imported_merchant, t.status, t.check_number, t.deleted, t.entity_id
 FROM transactions t
 WHERE t.budget_id=@id AND t.entity_id=@entity";
 
@@ -161,12 +161,13 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
                         IsIncome = txReader.GetBoolean(9),
                         AccountNumber = txReader.IsDBNull(10) ? null : txReader.GetString(10),
                         AccountSource = txReader.IsDBNull(11) ? null : txReader.GetString(11),
-                        PostedDate = txReader.IsDBNull(12) ? null : txReader.GetDateTime(12).ToString("yyyy-MM-dd"),
-                        ImportedMerchant = txReader.IsDBNull(13) ? null : txReader.GetString(13),
-                        Status = txReader.IsDBNull(14) ? null : txReader.GetString(14),
-                        CheckNumber = txReader.IsDBNull(15) ? null : txReader.GetString(15),
-                        Deleted = txReader.IsDBNull(16) ? (bool?)null : txReader.GetBoolean(16),
-                        EntityId = txReader.IsDBNull(17) ? null : txReader.GetGuid(17).ToString()
+                        TransactionDate = txReader.IsDBNull(12) ? null : txReader.GetDateTime(12).ToString("yyyy-MM-dd"),
+                        PostedDate = txReader.IsDBNull(13) ? null : txReader.GetDateTime(13).ToString("yyyy-MM-dd"),
+                        ImportedMerchant = txReader.IsDBNull(14) ? null : txReader.GetString(14),
+                        Status = txReader.IsDBNull(15) ? null : txReader.GetString(15),
+                        CheckNumber = txReader.IsDBNull(16) ? null : txReader.GetString(16),
+                        Deleted = txReader.IsDBNull(17) ? (bool?)null : txReader.GetBoolean(17),
+                        EntityId = txReader.IsDBNull(18) ? null : txReader.GetGuid(18).ToString()
                     };
                     budget.Transactions.Add(tx);
                 }
@@ -401,6 +402,7 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
         parameters.AddWithValue("is_income", tx.IsIncome);
         parameters.AddWithValue("account_number", (object?)tx.AccountNumber ?? DBNull.Value);
         parameters.AddWithValue("account_source", (object?)tx.AccountSource ?? DBNull.Value);
+        parameters.AddWithValue("transaction_date", (object?)ParseDate(tx.TransactionDate) ?? DBNull.Value);
         parameters.AddWithValue("posted_date", (object?)ParseDate(tx.PostedDate) ?? DBNull.Value);
         parameters.AddWithValue("imported_merchant", (object?)tx.ImportedMerchant ?? DBNull.Value);
         parameters.AddWithValue("status", (object?)tx.Status ?? DBNull.Value);
@@ -689,9 +691,9 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
         if (string.IsNullOrEmpty(transaction.Id))
             transaction.Id = Guid.NewGuid().ToString();
         await using var conn = await _db.GetOpenConnectionAsync();
-        const string sql = @"INSERT INTO transactions (id, budget_id, date, budget_month, merchant, amount, notes, recurring, recurring_interval, user_id, is_income, account_number, account_source, posted_date, imported_merchant, status, check_number, deleted, entity_id, created_at, updated_at)
-VALUES (@id,@budget_id,@date,@budget_month,@merchant,@amount,@notes,@recurring,@recurring_interval,@user_id,@is_income,@account_number,@account_source,@posted_date,@imported_merchant,@status,@check_number,@deleted,@entity_id, now(), now())
-ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date, budget_month=EXCLUDED.budget_month, merchant=EXCLUDED.merchant, amount=EXCLUDED.amount, notes=EXCLUDED.notes, recurring=EXCLUDED.recurring, recurring_interval=EXCLUDED.recurring_interval, user_id=EXCLUDED.user_id, is_income=EXCLUDED.is_income, account_number=EXCLUDED.account_number, account_source=EXCLUDED.account_source, posted_date=EXCLUDED.posted_date, imported_merchant=EXCLUDED.imported_merchant, status=EXCLUDED.status, check_number=EXCLUDED.check_number, deleted=EXCLUDED.deleted, entity_id=EXCLUDED.entity_id, updated_at=now();";
+        const string sql = @"INSERT INTO transactions (id, budget_id, date, budget_month, merchant, amount, notes, recurring, recurring_interval, user_id, is_income, account_number, account_source, transaction_date, posted_date, imported_merchant, status, check_number, deleted, entity_id, created_at, updated_at)
+VALUES (@id,@budget_id,@date,@budget_month,@merchant,@amount,@notes,@recurring,@recurring_interval,@user_id,@is_income,@account_number,@account_source,@transaction_date,@posted_date,@imported_merchant,@status,@check_number,@deleted,@entity_id, now(), now())
+ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date, budget_month=EXCLUDED.budget_month, merchant=EXCLUDED.merchant, amount=EXCLUDED.amount, notes=EXCLUDED.notes, recurring=EXCLUDED.recurring, recurring_interval=EXCLUDED.recurring_interval, user_id=EXCLUDED.user_id, is_income=EXCLUDED.is_income, account_number=EXCLUDED.account_number, account_source=EXCLUDED.account_source, transaction_date=EXCLUDED.transaction_date, posted_date=EXCLUDED.posted_date, imported_merchant=EXCLUDED.imported_merchant, status=EXCLUDED.status, check_number=EXCLUDED.check_number, deleted=EXCLUDED.deleted, entity_id=EXCLUDED.entity_id, updated_at=now();";
         await using var cmd = new NpgsqlCommand(sql, conn);
         BindTransactionParameters(cmd.Parameters, budgetId, transaction);
         await cmd.ExecuteNonQueryAsync();
@@ -747,9 +749,9 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
         await using var conn = await _db.GetOpenConnectionAsync();
         await using var dbTx = await conn.BeginTransactionAsync();
 
-        const string sql = @"INSERT INTO transactions (id, budget_id, date, budget_month, merchant, amount, notes, recurring, recurring_interval, user_id, is_income, account_number, account_source, posted_date, imported_merchant, status, check_number, deleted, entity_id, created_at, updated_at)
-VALUES (@id,@budget_id,@date,@budget_month,@merchant,@amount,@notes,@recurring,@recurring_interval,@user_id,@is_income,@account_number,@account_source,@posted_date,@imported_merchant,@status,@check_number,@deleted,@entity_id, now(), now())
-ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date, budget_month=EXCLUDED.budget_month, merchant=EXCLUDED.merchant, amount=EXCLUDED.amount, notes=EXCLUDED.notes, recurring=EXCLUDED.recurring, recurring_interval=EXCLUDED.recurring_interval, user_id=EXCLUDED.user_id, is_income=EXCLUDED.is_income, account_number=EXCLUDED.account_number, account_source=EXCLUDED.account_source, posted_date=EXCLUDED.posted_date, imported_merchant=EXCLUDED.imported_merchant, status=EXCLUDED.status, check_number=EXCLUDED.check_number, deleted=EXCLUDED.deleted, entity_id=EXCLUDED.entity_id, updated_at=now();";
+        const string sql = @"INSERT INTO transactions (id, budget_id, date, budget_month, merchant, amount, notes, recurring, recurring_interval, user_id, is_income, account_number, account_source, transaction_date, posted_date, imported_merchant, status, check_number, deleted, entity_id, created_at, updated_at)
+VALUES (@id,@budget_id,@date,@budget_month,@merchant,@amount,@notes,@recurring,@recurring_interval,@user_id,@is_income,@account_number,@account_source,@transaction_date,@posted_date,@imported_merchant,@status,@check_number,@deleted,@entity_id, now(), now())
+ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date, budget_month=EXCLUDED.budget_month, merchant=EXCLUDED.merchant, amount=EXCLUDED.amount, notes=EXCLUDED.notes, recurring=EXCLUDED.recurring, recurring_interval=EXCLUDED.recurring_interval, user_id=EXCLUDED.user_id, is_income=EXCLUDED.is_income, account_number=EXCLUDED.account_number, account_source=EXCLUDED.account_source, transaction_date=EXCLUDED.transaction_date, posted_date=EXCLUDED.posted_date, imported_merchant=EXCLUDED.imported_merchant, status=EXCLUDED.status, check_number=EXCLUDED.check_number, deleted=EXCLUDED.deleted, entity_id=EXCLUDED.entity_id, updated_at=now();";
 
         var batch = new NpgsqlBatch(conn) { Transaction = dbTx };
 
@@ -1015,8 +1017,8 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
         docCmd.Parameters.AddWithValue("uid", userId);
         await docCmd.ExecuteNonQueryAsync();
 
-        const string sqlTx = @"INSERT INTO imported_transactions (id, document_id, account_id, account_number, account_source, payee, posted_date, amount, status, debit_amount, credit_amount, check_number, deleted, matched, ignored)
-                                 VALUES (@id,@doc,@account_id,@acct_num,@acct_src,@payee,@posted,@amount,@status,@debit,@credit,@check,@deleted,@matched,@ignored)";
+        const string sqlTx = @"INSERT INTO imported_transactions (id, document_id, account_id, account_number, account_source, payee, transaction_date, posted_date, amount, status, debit_amount, credit_amount, check_number, deleted, matched, ignored)
+                                 VALUES (@id,@doc,@account_id,@acct_num,@acct_src,@payee,@transaction_date,@posted,@amount,@status,@debit,@credit,@check,@deleted,@matched,@ignored)";
 
         var batch = new NpgsqlBatch(conn) { Transaction = dbTx };
 
@@ -1032,6 +1034,7 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
             txCmd.Parameters.AddWithValue("acct_num", (object?)tx.AccountNumber ?? DBNull.Value);
             txCmd.Parameters.AddWithValue("acct_src", (object?)tx.AccountSource ?? DBNull.Value);
             txCmd.Parameters.AddWithValue("payee", (object?)tx.Payee ?? DBNull.Value);
+            txCmd.Parameters.AddWithValue("transaction_date", (object?)ParseDate(tx.TransactionDate) ?? DBNull.Value);
             txCmd.Parameters.AddWithValue("posted", (object?)ParseDate(tx.PostedDate) ?? DBNull.Value);
             txCmd.Parameters.AddWithValue("amount", (object?)tx.Amount ?? DBNull.Value);
             txCmd.Parameters.AddWithValue("status", (object?)tx.Status ?? DBNull.Value);
@@ -1070,11 +1073,11 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
     public async Task<List<ImportedTransactionDoc>> GetImportedTransactions(string userId)
     {
         await using var conn = await _db.GetOpenConnectionAsync();
-        const string sql = @"SELECT d.id, d.family_id, d.user_id, t.id, t.account_id, t.account_number, t.account_source, t.payee, t.posted_date, t.amount, t.status, t.debit_amount, t.credit_amount, t.check_number, t.deleted, t.matched, t.ignored
+        const string sql = @"SELECT d.id, d.family_id, d.user_id, t.id, t.account_id, t.account_number, t.account_source, t.payee, t.transaction_date, t.posted_date, t.amount, t.status, t.debit_amount, t.credit_amount, t.check_number, t.deleted, t.matched, t.ignored
                               FROM imported_transaction_docs d
                               LEFT JOIN imported_transactions t ON d.id = t.document_id
                               WHERE d.user_id=@uid
-                              ORDER BY t.posted_date DESC";
+                              ORDER BY COALESCE(t.transaction_date, t.posted_date) DESC";
         await using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("uid", userId);
         await using var reader = await cmd.ExecuteReaderAsync();
@@ -1104,15 +1107,16 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
                     AccountNumber = reader.IsDBNull(5) ? null : reader.GetString(5),
                     AccountSource = reader.IsDBNull(6) ? null : reader.GetString(6),
                     Payee = reader.IsDBNull(7) ? null : reader.GetString(7),
-                    PostedDate = reader.IsDBNull(8) ? null : reader.GetDateTime(8).ToString("yyyy-MM-dd"),
-                    Amount = reader.IsDBNull(9) ? null : (double?)reader.GetDecimal(9),
-                    Status = reader.IsDBNull(10) ? null : reader.GetString(10),
-                    DebitAmount = reader.IsDBNull(11) ? null : (double?)reader.GetDecimal(11),
-                    CreditAmount = reader.IsDBNull(12) ? null : (double?)reader.GetDecimal(12),
-                    CheckNumber = reader.IsDBNull(13) ? null : reader.GetString(13),
-                    Deleted = reader.IsDBNull(14) ? (bool?)null : reader.GetBoolean(14),
-                    Matched = reader.IsDBNull(15) ? false : reader.GetBoolean(15),
-                    Ignored = reader.IsDBNull(16) ? false : reader.GetBoolean(16)
+                    TransactionDate = reader.IsDBNull(8) ? null : reader.GetDateTime(8).ToString("yyyy-MM-dd"),
+                    PostedDate = reader.IsDBNull(9) ? null : reader.GetDateTime(9).ToString("yyyy-MM-dd"),
+                    Amount = reader.IsDBNull(10) ? null : (double?)reader.GetDecimal(10),
+                    Status = reader.IsDBNull(11) ? null : reader.GetString(11),
+                    DebitAmount = reader.IsDBNull(12) ? null : (double?)reader.GetDecimal(12),
+                    CreditAmount = reader.IsDBNull(13) ? null : (double?)reader.GetDecimal(13),
+                    CheckNumber = reader.IsDBNull(14) ? null : reader.GetString(14),
+                    Deleted = reader.IsDBNull(15) ? (bool?)null : reader.GetBoolean(15),
+                    Matched = reader.IsDBNull(16) ? false : reader.GetBoolean(16),
+                    Ignored = reader.IsDBNull(17) ? false : reader.GetBoolean(17)
                 });
                 doc.importedTransactions = list.ToArray();
             }
@@ -1132,7 +1136,7 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
     public async Task<List<ImportedTransaction>> GetImportedTransactionsByAccountId(string accountId, int offset = 0, int limit = 100)
     {
         await using var conn = await _db.GetOpenConnectionAsync();
-        const string sql = "SELECT id, account_id, account_number, account_source, payee, posted_date, amount, status, debit_amount, credit_amount, check_number, deleted, matched, ignored FROM imported_transactions WHERE account_id=@aid ORDER BY posted_date DESC LIMIT @limit OFFSET @offset";
+        const string sql = "SELECT id, account_id, account_number, account_source, payee, transaction_date, posted_date, amount, status, debit_amount, credit_amount, check_number, deleted, matched, ignored FROM imported_transactions WHERE account_id=@aid ORDER BY COALESCE(transaction_date, posted_date) DESC LIMIT @limit OFFSET @offset";
         await using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("aid", Guid.Parse(accountId));
         cmd.Parameters.AddWithValue("limit", limit);
@@ -1148,15 +1152,16 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
                 AccountNumber = reader.IsDBNull(2) ? null : reader.GetString(2),
                 AccountSource = reader.IsDBNull(3) ? null : reader.GetString(3),
                 Payee = reader.IsDBNull(4) ? null : reader.GetString(4),
-                PostedDate = reader.IsDBNull(5) ? null : reader.GetDateTime(5).ToString("yyyy-MM-dd"),
-                Amount = reader.IsDBNull(6) ? null : (double?)reader.GetDecimal(6),
-                Status = reader.IsDBNull(7) ? null : reader.GetString(7),
-                DebitAmount = reader.IsDBNull(8) ? null : (double?)reader.GetDecimal(8),
-                CreditAmount = reader.IsDBNull(9) ? null : (double?)reader.GetDecimal(9),
-                CheckNumber = reader.IsDBNull(10) ? null : reader.GetString(10),
-                Deleted = reader.IsDBNull(11) ? (bool?)null : reader.GetBoolean(11),
-                Matched = reader.IsDBNull(12) ? false : reader.GetBoolean(12),
-                Ignored = reader.IsDBNull(13) ? false : reader.GetBoolean(13)
+                TransactionDate = reader.IsDBNull(5) ? null : reader.GetDateTime(5).ToString("yyyy-MM-dd"),
+                PostedDate = reader.IsDBNull(6) ? null : reader.GetDateTime(6).ToString("yyyy-MM-dd"),
+                Amount = reader.IsDBNull(7) ? null : (double?)reader.GetDecimal(7),
+                Status = reader.IsDBNull(8) ? null : reader.GetString(8),
+                DebitAmount = reader.IsDBNull(9) ? null : (double?)reader.GetDecimal(9),
+                CreditAmount = reader.IsDBNull(10) ? null : (double?)reader.GetDecimal(10),
+                CheckNumber = reader.IsDBNull(11) ? null : reader.GetString(11),
+                Deleted = reader.IsDBNull(12) ? (bool?)null : reader.GetBoolean(12),
+                Matched = reader.IsDBNull(13) ? false : reader.GetBoolean(13),
+                Ignored = reader.IsDBNull(14) ? false : reader.GetBoolean(14)
             });
         }
         return list;
@@ -1186,7 +1191,7 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
         if (acctNumObj is not string acctNum)
             return new List<TransactionWithBudgetId>();
 
-        const string sql = @"SELECT budget_id, id, date, budget_month, merchant, amount, notes, recurring, recurring_interval, user_id, is_income, account_number, account_source, posted_date, imported_merchant, status, check_number, deleted, entity_id
+        const string sql = @"SELECT budget_id, id, date, budget_month, merchant, amount, notes, recurring, recurring_interval, user_id, is_income, account_number, account_source, transaction_date, posted_date, imported_merchant, status, check_number, deleted, entity_id
                              FROM transactions WHERE account_number=@acct";
         await using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("acct", acctNum);
@@ -1209,12 +1214,13 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
                 IsIncome = reader.GetBoolean(10),
                 AccountNumber = reader.IsDBNull(11) ? null : reader.GetString(11),
                 AccountSource = reader.IsDBNull(12) ? null : reader.GetString(12),
-                PostedDate = reader.IsDBNull(13) ? null : reader.GetDateTime(13).ToString("yyyy-MM-dd"),
-                ImportedMerchant = reader.IsDBNull(14) ? null : reader.GetString(14),
-                Status = reader.IsDBNull(15) ? null : reader.GetString(15),
-                CheckNumber = reader.IsDBNull(16) ? null : reader.GetString(16),
-                Deleted = reader.IsDBNull(17) ? (bool?)null : reader.GetBoolean(17),
-                EntityId = reader.IsDBNull(18) ? null : reader.GetGuid(18).ToString()
+                TransactionDate = reader.IsDBNull(13) ? null : reader.GetDateTime(13).ToString("yyyy-MM-dd"),
+                PostedDate = reader.IsDBNull(14) ? null : reader.GetDateTime(14).ToString("yyyy-MM-dd"),
+                ImportedMerchant = reader.IsDBNull(15) ? null : reader.GetString(15),
+                Status = reader.IsDBNull(16) ? null : reader.GetString(16),
+                CheckNumber = reader.IsDBNull(17) ? null : reader.GetString(17),
+                Deleted = reader.IsDBNull(18) ? (bool?)null : reader.GetBoolean(18),
+                EntityId = reader.IsDBNull(19) ? null : reader.GetGuid(19).ToString()
             };
             list.Add(new TransactionWithBudgetId { BudgetId = reader.GetString(0), Transaction = tx });
         }
@@ -1267,9 +1273,10 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
             var budgetIds = matched.Select(r => r.BudgetTransactionId!).ToArray();
             var importedIds = matched.Select(r => r.ImportedTransactionId).ToArray();
 
-            const string sqlBudget = @"UPDATE transactions t
+        const string sqlBudget = @"UPDATE transactions t
                 SET account_number = it.account_number,
                     account_source = it.account_source,
+                    transaction_date = it.transaction_date,
                     posted_date = it.posted_date,
                     imported_merchant = it.payee,
                     status = 'C',

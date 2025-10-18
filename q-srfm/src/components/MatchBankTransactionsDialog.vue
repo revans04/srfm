@@ -108,7 +108,7 @@
                 </thead>
                 <tbody>
                   <tr>
-                    <td>{{ selectedBankTransaction?.postedDate }}</td>
+                    <td>{{ getImportedTransactionDate(selectedBankTransaction) }}</td>
                     <td>{{ selectedBankTransaction?.payee }}</td>
                     <td>${{ toDollars(toCents(selectedBankTransaction?.debitAmount || selectedBankTransaction?.creditAmount || 0)) }}</td>
                     <td>
@@ -310,7 +310,7 @@
 import { ref, watch, computed, onMounted, nextTick } from 'vue';
 import type { Transaction, ImportedTransaction, Budget } from '../types';
 import { useQuasar } from 'quasar';
-import { toDollars, toCents, toBudgetMonth, todayISO } from '../utils/helpers';
+import { toDollars, toCents, toBudgetMonth, todayISO, getImportedTransactionDate } from '../utils/helpers';
 import { dataAccess } from '../dataAccess';
 import { useBudgetStore } from '../store/budget';
 import { useFamilyStore } from '../store/family';
@@ -600,7 +600,9 @@ function applyDateFilters(options: { preserveSelection?: boolean; resetIndex?: b
   const { preserveSelection = true, resetIndex = false } = options;
   const previousSelectedId = selectedBankTransaction.value?.id || null;
 
-  const filtered = allRemainingImportedTransactions.value.filter((tx) => isWithinSelectedRange(tx.postedDate));
+  const filtered = allRemainingImportedTransactions.value.filter((tx) =>
+    isWithinSelectedRange(getImportedTransactionDate(tx)),
+  );
   filteredImportedTransactions.value = filtered;
 
   if (filtered.length === 0) {
@@ -800,17 +802,21 @@ async function matchBankTransaction(budgetTransaction: Transaction) {
     const user = auth.currentUser;
     if (!user) throw new Error('User not authenticated');
 
+    const importedDate = getImportedTransactionDate(importedTx) || todayISO();
+    const transactionDate = importedTx.transactionDate || (importedTx.postedDate || '');
+
     const updatedTransaction: Transaction = {
       ...budgetTransaction,
       accountSource: importedTx.accountSource || '',
       accountNumber: importedTx.accountNumber || '',
+      transactionDate: transactionDate || importedDate,
       postedDate: importedTx.postedDate || '',
       importedMerchant: importedTx.payee || '',
       status: 'C',
       id: budgetTransaction.id,
       userId: budgetTransaction.userId || user.uid,
-      budgetMonth: budgetTransaction.budgetMonth || toBudgetMonth(importedTx.postedDate || todayISO()),
-      date: budgetTransaction.date || importedTx.postedDate || todayISO(),
+      budgetMonth: budgetTransaction.budgetMonth || toBudgetMonth(importedDate),
+      date: budgetTransaction.date || importedDate,
       merchant: budgetTransaction.merchant || importedTx.payee || '',
       categories: budgetTransaction.categories || [{ category: '', amount: 0 }],
       amount: budgetTransaction.amount || importedTx.debitAmount || importedTx.creditAmount || 0,
@@ -921,8 +927,11 @@ async function saveSplitTransaction() {
     // Group splits by budget (based on entityId and budgetMonth)
     const transactionsByBudget: { [budgetId: string]: Transaction[] } = {};
     const budgetCache: Record<string, Budget> = {};
+    const importedDate = getImportedTransactionDate(importedTx) || todayISO();
+    const transactionDate = importedTx.transactionDate || (importedTx.postedDate || '');
+
     for (const split of transactionSplits.value) {
-      const budgetMonth = toBudgetMonth(importedTx.postedDate || todayISO());
+      const budgetMonth = toBudgetMonth(importedDate);
       const key = `${split.entityId}_${budgetMonth}`;
       if (!budgetCache[key]) {
         budgetCache[key] = await createBudgetForMonth(budgetMonth, family.id, user.uid, split.entityId);
@@ -931,7 +940,7 @@ async function saveSplitTransaction() {
       const baseTx = {
         id: uuidv4(),
         budgetMonth,
-        date: importedTx.postedDate || todayISO(),
+        date: importedDate,
         merchant: importedTx.payee || '',
         categories: [{ category: split.category, amount: split.amount }],
         amount: split.amount,
@@ -946,6 +955,7 @@ async function saveSplitTransaction() {
       };
       const transaction: Transaction = {
         ...baseTx,
+        ...(transactionDate ? { transactionDate } : {}),
         ...(importedTx.postedDate ? { postedDate: importedTx.postedDate } : {}),
         ...(importedTx.payee ? { importedMerchant: importedTx.payee } : {}),
         ...(importedTx.accountSource ? { accountSource: importedTx.accountSource } : {}),
@@ -1033,18 +1043,20 @@ async function addNewTransaction() {
     return;
   }
 
-  const postedDate = selectedBankTransaction.value.postedDate || todayISO();
-  let budgetMonth = toBudgetMonth(postedDate);
+  const importedDate = getImportedTransactionDate(selectedBankTransaction.value) || todayISO();
+  const transactionDate = selectedBankTransaction.value?.transactionDate || (selectedBankTransaction.value?.postedDate || '');
+  const postedDate = selectedBankTransaction.value?.postedDate || '';
+  let budgetMonth = toBudgetMonth(importedDate);
 
   if (!budgetStore.availableBudgetMonths.includes(budgetMonth)) {
     budgetMonth = budgetStore.availableBudgetMonths[budgetStore.availableBudgetMonths.length - 1] || budgetMonth;
-    console.log(`Budget month ${toBudgetMonth(postedDate)} not found, falling back to ${budgetMonth}`);
+    console.log(`Budget month ${toBudgetMonth(importedDate)} not found, falling back to ${budgetMonth}`);
   }
 
   const baseTx = {
     id: '',
     budgetMonth,
-    date: selectedBankTransaction.value.postedDate || todayISO(),
+    date: importedDate,
     merchant: selectedBankTransaction.value.payee || '',
     categories: [
       {
@@ -1064,7 +1076,8 @@ async function addNewTransaction() {
   };
   newTransaction.value = {
     ...baseTx,
-    ...(selectedBankTransaction.value.postedDate ? { postedDate: selectedBankTransaction.value.postedDate } : {}),
+    ...(transactionDate ? { transactionDate } : {}),
+    ...(postedDate ? { postedDate } : {}),
     ...(selectedBankTransaction.value.payee ? { importedMerchant: selectedBankTransaction.value.payee } : {}),
     ...(selectedBankTransaction.value.accountSource ? { accountSource: selectedBankTransaction.value.accountSource } : {}),
     ...(selectedBankTransaction.value.accountNumber ? { accountNumber: selectedBankTransaction.value.accountNumber } : {}),
@@ -1138,7 +1151,8 @@ function searchBudgetTransactions() {
   if (!selectedBankTransaction.value) return;
 
   const bankTx = selectedBankTransaction.value;
-  if (!isWithinSelectedRange(bankTx.postedDate)) {
+  const bankDateStr = getImportedTransactionDate(bankTx);
+  if (!isWithinSelectedRange(bankDateStr)) {
     potentialMatches.value = [];
     return;
   }
@@ -1147,7 +1161,7 @@ function searchBudgetTransactions() {
   const merchant = searchMerchant.value.toLowerCase();
   const dateRangeDays = parseInt(searchDateRange.value) || 3;
 
-  const bankDate = new Date(bankTx.postedDate);
+  const bankDate = new Date(bankDateStr);
   if (Number.isNaN(bankDate.getTime())) {
     potentialMatches.value = [];
     return;
@@ -1177,7 +1191,10 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
   const retainedSmartMatches = smartMatches.value.filter((match) => !confirmedIds.has(match.importedTransaction.id)).filter(isSmartMatchWithinRange);
 
   const unmatchedImported = allRemainingImportedTransactions.value.filter(
-    (tx) => !confirmedIds.has(tx.id) && !retainedSmartMatches.some((m) => m.importedTransaction.id === tx.id) && isWithinSelectedRange(tx.postedDate),
+    (tx) =>
+      !confirmedIds.has(tx.id) &&
+      !retainedSmartMatches.some((m) => m.importedTransaction.id === tx.id) &&
+      isWithinSelectedRange(getImportedTransactionDate(tx)),
   );
 
   const budgetCandidates = props.transactions.filter((tx) => !tx.deleted && (!tx.status || tx.status === 'U') && isWithinSelectedRange(tx.date));
@@ -1195,10 +1212,10 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
 
   unmatchedImported.forEach((importedTx) => {
     const bankAmount = importedTx.debitAmount || importedTx.creditAmount || 0;
-    const bankDate = new Date(importedTx.postedDate || '');
+    const bankDateStr = getImportedTransactionDate(importedTx);
+    const bankDate = new Date(bankDateStr || '');
     if (Number.isNaN(bankDate.getTime())) return;
-    const bankDateStr = bankDate.toISOString().split('T')[0];
-    const normalizedBankDate = new Date(bankDateStr);
+    const normalizedBankDate = new Date(bankDate.toISOString().split('T')[0]);
 
     const startDate = new Date(normalizedBankDate);
     startDate.setDate(normalizedBankDate.getDate() - dateRangeDays);
@@ -1257,7 +1274,7 @@ function computeSmartMatchesLocal(confirmedMatches: typeof smartMatches.value = 
       budgetId: match.budgetId,
       bankAmount: match.bankAmount,
       bankType: match.bankType,
-      bankDate: match.importedTx.postedDate,
+      bankDate: getImportedTransactionDate(match.importedTx),
       payee: match.importedTx.payee,
       merchant: match.budgetTx.merchant,
       budgetDate: match.budgetTx.date,

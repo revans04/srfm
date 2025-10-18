@@ -107,6 +107,7 @@ export class DataAccess {
       isIncome: Boolean(tx.isIncome ?? false),
       accountNumber: typeof tx.accountNumber === 'string' ? tx.accountNumber : undefined,
       accountSource: typeof tx.accountSource === 'string' ? tx.accountSource : undefined,
+      transactionDate: typeof tx.transactionDate === 'string' ? tx.transactionDate : undefined,
       postedDate: typeof tx.postedDate === 'string' ? tx.postedDate : undefined,
       importedMerchant: typeof tx.importedMerchant === 'string' ? tx.importedMerchant : undefined,
       status: typeof tx.status === 'string' ? (tx.status as Transaction['status']) : undefined,
@@ -611,7 +612,12 @@ export class DataAccess {
 
   async getImportedTransactions(): Promise<ImportedTransaction[]> {
     const importedDocs = await this.getImportedTransactionDocs();
-    return importedDocs.flatMap((doc) => doc.importedTransactions).sort((a, b) => b.postedDate.localeCompare(a.postedDate));
+    const allTransactions = importedDocs.flatMap((doc) => doc.importedTransactions);
+    return allTransactions.sort((a, b) => {
+      const aDate = (a.transactionDate || a.postedDate || '').toString();
+      const bDate = (b.transactionDate || b.postedDate || '').toString();
+      return bDate.localeCompare(aDate);
+    });
   }
 
   async updateImportedTransaction(docId: string, transaction: ImportedTransaction): Promise<void>;
@@ -651,7 +657,8 @@ export class DataAccess {
     existingDocs: ImportedTransactionDoc[],
     key: {
       accountNumber: string;
-      postedDate: string;
+      transactionDate?: string;
+      postedDate?: string;
       payee: string;
       debitAmount: number;
       creditAmount: number;
@@ -661,7 +668,7 @@ export class DataAccess {
       doc.importedTransactions.some(
         (tx) =>
           tx.accountNumber === key.accountNumber &&
-          tx.postedDate === key.postedDate &&
+          (tx.transactionDate || tx.postedDate || '') === (key.transactionDate || key.postedDate || '') &&
           tx.payee === key.payee &&
           (tx.debitAmount ?? 0) === key.debitAmount &&
           (tx.creditAmount ?? 0) === key.creditAmount,
@@ -679,7 +686,11 @@ export class DataAccess {
       throw new Error(`Failed to fetch imported transactions: ${response.statusText}`);
     }
     const importedTxs = await response.json();
-    return importedTxs.sort((a: ImportedTransaction, b: ImportedTransaction) => b.postedDate.localeCompare(a.postedDate));
+    return importedTxs.sort((a: ImportedTransaction, b: ImportedTransaction) => {
+      const aDate = (a.transactionDate || a.postedDate || '').toString();
+      const bDate = (b.transactionDate || b.postedDate || '').toString();
+      return bDate.localeCompare(aDate);
+    });
   }
 
   async updateImportedTransactions(transactions: ImportedTransaction[]): Promise<void> {

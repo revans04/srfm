@@ -1102,7 +1102,7 @@ async function executeRegisterBatchMatch() {
         isIncome: entry.amount > 0,
         accountSource: imported.accountSource || '',
         accountNumber: imported.accountNumber || '',
-        postedDate: imported.postedDate,
+        postedDate: imported.transactionDate || imported.postedDate || '',
         checkNumber: imported.checkNumber,
         importedMerchant: imported.payee,
         status: 'C',

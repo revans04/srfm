@@ -174,6 +174,13 @@ export function formatCurrency(amount: number | string): string {
   }).format(safeAmount);
 }
 
+export function getImportedTransactionDate(
+  tx: { transactionDate?: string | null; postedDate?: string | null } | null | undefined,
+): string {
+  if (!tx) return '';
+  return (tx.transactionDate || tx.postedDate || '').toString();
+}
+
 /**
  * Checks if a value is a valid number.
  * @param value - Value to check
