@@ -184,6 +184,7 @@ const pagination = ref<QTableProps['pagination']>({
 const INITIAL_BATCH = 100;
 const BATCH_SIZE = 50;
 const LOAD_AHEAD_THRESHOLD = 10;
+const RESET_COMPARE_COUNT = 20;
 
 const loadedCount = ref(0);
 const requestingMore = ref(false);
@@ -194,6 +195,21 @@ const displayedRows = computed(() =>
 function resetDisplayedRows(allRows: LedgerRow[]) {
   loadedCount.value = Math.min(allRows.length, INITIAL_BATCH);
   requestingMore.value = false;
+}
+
+function shouldResetRows(newRows: LedgerRow[], oldRows?: LedgerRow[]) {
+  if (!oldRows || oldRows.length === 0) return true;
+  if (newRows.length === 0) return true;
+  if (newRows.length < oldRows.length) return true;
+
+  const compareCount = Math.min(RESET_COMPARE_COUNT, newRows.length, oldRows.length);
+  for (let i = 0; i < compareCount; i += 1) {
+    if (newRows[i]?.id !== oldRows[i]?.id) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function maybeTopUpRows(targetIndex: number) {
@@ -224,34 +240,35 @@ function onVirtualScroll(details: { to?: number } | undefined) {
 
 watch(
   () => props.rows,
-  (newRows) => {
-    resetDisplayedRows(newRows);
-  },
-  { immediate: true },
-);
+  (newRows, oldRows) => {
+    const newLength = newRows.length;
 
-watch(
-  () => props.rows.length,
-  (newLength, oldLength) => {
+    if (shouldResetRows(newRows, oldRows)) {
+      resetDisplayedRows(newRows);
+      return;
+    }
+
     if (newLength <= INITIAL_BATCH) {
+      loadedCount.value = newLength;
+      return;
+    }
+
+    if (loadedCount.value === 0) {
+      loadedCount.value = Math.min(newLength, INITIAL_BATCH);
+      return;
+    }
+
+    if (loadedCount.value > newLength) {
       loadedCount.value = newLength;
       requestingMore.value = false;
       return;
     }
 
-    if (newLength < oldLength && loadedCount.value > newLength) {
-      loadedCount.value = Math.min(
-        newLength,
-        Math.max(INITIAL_BATCH, Math.min(loadedCount.value, newLength)),
-      );
-      requestingMore.value = false;
-    } else if (newLength > oldLength && loadedCount.value < INITIAL_BATCH) {
-      loadedCount.value = Math.min(newLength, INITIAL_BATCH);
-      requestingMore.value = false;
-    } else if (newLength > oldLength) {
-      requestingMore.value = false;
+    if (loadedCount.value < INITIAL_BATCH) {
+      loadedCount.value = INITIAL_BATCH;
     }
   },
+  { immediate: true },
 );
 
 watch(
