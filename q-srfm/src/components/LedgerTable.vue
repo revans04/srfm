@@ -114,11 +114,14 @@ const props = defineProps<{
   entityLabel?: string;
   selection?: 'single' | 'multiple';
   selected?: string[];
+  hasMore?: boolean;
+  loadingMore?: boolean;
 }>();
 
 const emit = defineEmits<{
   (e: 'row-click', row: LedgerRow): void;
   (e: 'update:selected', ids: string[]): void;
+  (e: 'load-more'): void;
 }>();
 
 const statusMetaMap: Record<LedgerRow['status'], { label: string; color: string }> = {
@@ -183,21 +186,34 @@ const BATCH_SIZE = 50;
 const LOAD_AHEAD_THRESHOLD = 10;
 
 const loadedCount = ref(0);
+const requestingMore = ref(false);
 const displayedRows = computed(() =>
   props.rows.slice(0, Math.min(props.rows.length, loadedCount.value)),
 );
 
 function resetDisplayedRows(allRows: LedgerRow[]) {
   loadedCount.value = Math.min(allRows.length, INITIAL_BATCH);
+  requestingMore.value = false;
 }
 
 function maybeTopUpRows(targetIndex: number) {
-  if (loadedCount.value >= props.rows.length) return;
-  if (targetIndex + LOAD_AHEAD_THRESHOLD < displayedRows.value.length) return;
+  if (targetIndex + LOAD_AHEAD_THRESHOLD >= loadedCount.value) {
+    const nextCount = Math.min(loadedCount.value + BATCH_SIZE, props.rows.length);
+    if (nextCount > loadedCount.value) {
+      loadedCount.value = nextCount;
+    }
+  }
 
-  const nextCount = Math.min(loadedCount.value + BATCH_SIZE, props.rows.length);
-  if (nextCount > loadedCount.value) {
-    loadedCount.value = nextCount;
+  const availableCount = props.rows.length;
+  const nearingEnd = targetIndex + LOAD_AHEAD_THRESHOLD >= availableCount;
+  if (
+    nearingEnd &&
+    props.hasMore &&
+    !props.loadingMore &&
+    !requestingMore.value
+  ) {
+    requestingMore.value = true;
+    emit('load-more');
   }
 }
 
@@ -219,6 +235,7 @@ watch(
   (newLength, oldLength) => {
     if (newLength <= INITIAL_BATCH) {
       loadedCount.value = newLength;
+      requestingMore.value = false;
       return;
     }
 
@@ -227,8 +244,21 @@ watch(
         newLength,
         Math.max(INITIAL_BATCH, Math.min(loadedCount.value, newLength)),
       );
+      requestingMore.value = false;
     } else if (newLength > oldLength && loadedCount.value < INITIAL_BATCH) {
       loadedCount.value = Math.min(newLength, INITIAL_BATCH);
+      requestingMore.value = false;
+    } else if (newLength > oldLength) {
+      requestingMore.value = false;
+    }
+  },
+);
+
+watch(
+  () => props.loadingMore,
+  (loading) => {
+    if (!loading) {
+      requestingMore.value = false;
     }
   },
 );

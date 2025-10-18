@@ -359,7 +359,10 @@
                 entity-label="Account"
                 selection="multiple"
                 v-model:selected="selectedRegisterIds"
+                :has-more="registerHasMore"
+                :loading-more="loadingMoreRegister"
                 @row-click="onRegisterRowClick"
+                @load-more="loadMoreRegisterRows"
               />
             </div>
           </div>
@@ -483,6 +486,8 @@ const {
   registerRows,
   loading,
   loadingRegister,
+  registerHasMore,
+  loadingMoreRegister,
   loadImportedTransactions,
   loadInitial,
   getImportedTx,
@@ -678,6 +683,11 @@ async function finalizeRegisterStatement() {
   } finally {
     registerFinalizing.value = false;
   }
+}
+
+async function loadMoreRegisterRows() {
+  if (!registerHasMore.value || loadingMoreRegister.value) return;
+  await loadImportedTransactions();
 }
 
 const createDefaultFilters = (): LedgerFilters => ({

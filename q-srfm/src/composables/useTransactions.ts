@@ -464,6 +464,8 @@ export function useTransactions() {
     // register tab
     registerRows: filteredRegister,
     loadingRegister,
+    registerHasMore: hasMoreImported,
+    loadingMoreRegister,
 
     // utilities
     scrollToDate,
