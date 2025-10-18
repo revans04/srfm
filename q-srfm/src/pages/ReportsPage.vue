@@ -223,14 +223,35 @@ import { auth } from "../firebase/init";
 import { dataAccess } from "../dataAccess";
 import type { Account, Budget, Snapshot } from "../types";
 import { Doughnut, Line } from "vue-chartjs";
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, LineElement, PointElement, LinearScale, TimeScale, Filler } from "chart.js";
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip,
+  Legend,
+  LineElement,
+  PointElement,
+  LinearScale,
+  TimeScale,
+  TimeSeriesScale,
+  Filler,
+} from "chart.js";
 import type { TooltipItem } from "chart.js";
 import { useBudgetStore } from "../store/budget";
 import "chartjs-adapter-date-fns";
 import { timestampToDate, currentMonthISO } from "../utils/helpers";
 
 // Register Chart.js components
-ChartJS.register(ArcElement, Tooltip, Legend, LineElement, PointElement, LinearScale, TimeScale, Filler);
+ChartJS.register(
+  ArcElement,
+  Tooltip,
+  Legend,
+  LineElement,
+  PointElement,
+  LinearScale,
+  TimeScale,
+  TimeSeriesScale,
+  Filler,
+);
 
 // Alias for charts
 const DoughnutChart = Doughnut;
