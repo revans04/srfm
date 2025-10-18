@@ -72,7 +72,9 @@ function amountsMatch(a: number | undefined, b: number | undefined): boolean {
 
 function datesAlign(a: BudgetTransaction, b: BudgetTransaction): boolean {
   if (withinDateWindow(a.date, b.date, 3)) return true;
-  if (a.postedDate && b.postedDate && withinDateWindow(a.postedDate, b.postedDate, 3)) return true;
+  const aImported = a.transactionDate || a.postedDate;
+  const bImported = b.transactionDate || b.postedDate;
+  if (aImported && bImported && withinDateWindow(aImported, bImported, 3)) return true;
   return false;
 }
 
@@ -255,7 +257,7 @@ export function useTransactions() {
 
     return {
       id: tx.id,
-      date: tx.postedDate,
+      date: tx.transactionDate || tx.postedDate || '',
       payee: tx.payee,
       category: '',
       entityName,

@@ -78,7 +78,7 @@
 import { ref, watch, computed } from 'vue';
 import { useQuasar } from 'quasar';
 import type { Transaction, ImportedTransaction, Account } from '../types';
-import { toDollars, toCents } from '../utils/helpers';
+import { toDollars, toCents, getImportedTransactionDate } from '../utils/helpers';
 
 const props = defineProps<{
   showDialog: boolean;
@@ -114,7 +114,7 @@ const filteredImportedTransactions = computed(() => {
     endDate.setDate(budgetDate.getDate() + range);
 
     results = results.filter((tx) => {
-      const txDate = new Date(tx.postedDate);
+      const txDate = new Date(getImportedTransactionDate(tx));
       return txDate >= startDate && txDate <= endDate;
     });
   }

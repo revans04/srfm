@@ -107,6 +107,9 @@ namespace FamilyBudgetApi.Models
         [FirestoreProperty("accountSource")]
         public string? AccountSource { get; set; }
 
+        [FirestoreProperty("transactionDate", ConverterType = typeof(FirestoreDateStringConverter))]
+        public string? TransactionDate { get; set; }
+
         [FirestoreProperty("postedDate", ConverterType = typeof(FirestoreDateStringConverter))]
         public string? PostedDate { get; set; }
 

@@ -51,6 +51,7 @@ export interface Transaction {
   isIncome: boolean;
   accountNumber?: string;
   accountSource?: string;
+  transactionDate?: string;
   postedDate?: string;
   importedMerchant?: string;
   status?: 'U' | 'C' | 'R';
@@ -71,7 +72,8 @@ export interface ImportedTransaction {
   accountNumber?: string;
   accountSource?: string;
   payee: string;
-  postedDate: string;
+  transactionDate?: string;
+  postedDate?: string;
   debitAmount?: number;
   creditAmount?: number;
   checkNumber?: string;

@@ -404,6 +404,7 @@ import { useFamilyStore } from "../store/family";
 import EntityForm from "../components/EntityForm.vue";
 import { useQuasar, QSpinner } from 'quasar';
 import { v4 as uuidv4 } from "uuid";
+import { getImportedTransactionDate } from '../utils/helpers';
 
 const familyStore = useFamilyStore();
 const $q = useQuasar();
@@ -624,13 +625,16 @@ function getDateRange(item: ImportedTransactionDoc): string {
     return "No transactions available";
   }
 
-  const validTransactions = item.importedTransactions.filter((tx) => tx.postedDate && !isNaN(new Date(tx.postedDate).getTime()));
+  const validTransactions = item.importedTransactions.filter((tx) => {
+    const dateStr = getImportedTransactionDate(tx);
+    return Boolean(dateStr) && !isNaN(new Date(dateStr).getTime());
+  });
 
   if (validTransactions.length === 0) {
     return "No valid dates available";
   }
 
-  const dates = validTransactions.map((tx) => new Date(tx.postedDate));
+  const dates = validTransactions.map((tx) => new Date(getImportedTransactionDate(tx)));
   const beginDate = new Date(Math.min(...dates.map((d) => d.getTime())));
   const endDate = new Date(Math.max(...dates.map((d) => d.getTime())));
 

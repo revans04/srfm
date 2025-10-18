@@ -489,7 +489,7 @@ import { useStatementStore } from '../store/statements';
 import { createBudgetForMonth } from '../utils/budget';
 import { useUIStore } from '../store/ui';
 import type { Transaction, ImportedTransaction, Budget, Account, ImportedTransactionDoc, Statement } from '../types';
-import { formatCurrency, todayISO } from '../utils/helpers';
+import { formatCurrency, todayISO, getImportedTransactionDate } from '../utils/helpers';
 import { splitImportedId } from '../utils/imported';
 import { QForm } from 'quasar';
 import { v4 as uuidv4 } from 'uuid';
@@ -666,16 +666,16 @@ const displayTransactions = computed((): DisplayTransaction[] => {
     }));
 
   const baseUnmatchedTxs: (DisplayTransaction & { ignored?: boolean })[] = importedTransactions.value
-    .filter(
-      (tx) =>
-        tx.accountNumber === selectedAccount.value &&
-        !tx.matched &&
-        !tx.deleted &&
-        (!selectedStatement.value || (tx.postedDate >= selectedStatement.value.startDate && tx.postedDate <= selectedStatement.value.endDate)),
-    )
+    .filter((tx) => {
+      if (tx.accountNumber !== selectedAccount.value) return false;
+      if (tx.matched || tx.deleted) return false;
+      if (!selectedStatement.value) return true;
+      const dateStr = getImportedTransactionDate(tx);
+      return dateStr >= selectedStatement.value.startDate && dateStr <= selectedStatement.value.endDate;
+    })
     .map((tx) => ({
       id: tx.id,
-      date: tx.postedDate,
+      date: getImportedTransactionDate(tx),
       merchant: tx.payee || 'N/A',
       category: '',
       entityId: '',
@@ -800,10 +800,14 @@ const statementTransactions = computed((): DisplayTransaction[] => {
     }));
 
   const importedTxs: DisplayTransaction[] = importedTransactions.value
-    .filter((itx) => itx.accountNumber === selectedAccount.value && itx.postedDate >= start && itx.postedDate <= end && !itx.deleted)
+    .filter((itx) => {
+      if (itx.accountNumber !== selectedAccount.value || itx.deleted) return false;
+      const dateStr = getImportedTransactionDate(itx);
+      return dateStr >= start && dateStr <= end;
+    })
     .map((itx) => ({
       id: itx.id,
-      date: itx.postedDate,
+      date: getImportedTransactionDate(itx),
       merchant: itx.payee || 'N/A',
       amount: itx.debitAmount && itx.debitAmount > 0 ? -itx.debitAmount : (itx.creditAmount ?? 0),
       status: itx.status || 'U',
@@ -990,18 +994,19 @@ async function executeAction() {
         return;
       }
 
-      const importedTxIndex = importedTransactions.value.findIndex(
-        (tx) =>
-          tx.accountNumber === selectedAccount.value &&
-          tx.matched &&
-          tx.payee == budgetTx.importedMerchant &&
-          tx.postedDate == budgetTx.postedDate &&
-          (tx.debitAmount == budgetTx.amount || tx.creditAmount == budgetTx.amount),
-      );
+      const importedTxIndex = importedTransactions.value.findIndex((tx) => {
+        if (tx.accountNumber !== selectedAccount.value || !tx.matched) return false;
+        if (tx.payee !== budgetTx.importedMerchant) return false;
+        const importedDate = getImportedTransactionDate(tx);
+        const budgetEffectiveDate = budgetTx.transactionDate || budgetTx.postedDate || budgetTx.date;
+        if (importedDate !== (budgetEffectiveDate || '')) return false;
+        return tx.debitAmount == budgetTx.amount || tx.creditAmount == budgetTx.amount;
+      });
 
       const rest: Partial<Transaction> = { ...budgetTx };
       delete rest.accountNumber;
       delete rest.accountSource;
+      delete rest.transactionDate;
       delete rest.postedDate;
       delete rest.importedMerchant;
       delete rest.checkNumber;
@@ -1186,6 +1191,7 @@ async function executeBatchMatch() {
         isIncome: !!isIncome,
         accountSource: importedTx.accountSource || '',
         accountNumber: importedTx.accountNumber || '',
+        transactionDate: importedTx.transactionDate || (importedTx.postedDate || ''),
         postedDate: importedTx.postedDate || '',
         checkNumber: importedTx.checkNumber || '',
         importedMerchant: importedTx.payee || '',
@@ -1528,10 +1534,11 @@ async function unreconcileStatement() {
     }
 
     for (const itx of importedTransactions.value) {
+      const dateStr = getImportedTransactionDate(itx);
       if (
         itx.accountNumber === selectedAccount.value &&
-        itx.postedDate >= selectedStatement.value.startDate &&
-        itx.postedDate <= selectedStatement.value.endDate &&
+        dateStr >= selectedStatement.value.startDate &&
+        dateStr <= selectedStatement.value.endDate &&
         itx.status === 'R'
       ) {
         const { docId, txId } = splitImportedId(itx.id);
@@ -1580,10 +1587,11 @@ async function deleteStatement() {
     }
 
     for (const itx of importedTransactions.value) {
+      const dateStr = getImportedTransactionDate(itx);
       if (
         itx.accountNumber === selectedAccount.value &&
-        itx.postedDate >= selectedStatement.value.startDate &&
-        itx.postedDate <= selectedStatement.value.endDate &&
+        dateStr >= selectedStatement.value.startDate &&
+        dateStr <= selectedStatement.value.endDate &&
         itx.status === 'R'
       ) {
         const { docId, txId } = splitImportedId(itx.id);

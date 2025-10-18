@@ -128,7 +128,7 @@ import { useQuasar } from 'quasar';
 import { dataAccess } from 'src/dataAccess';
 import { useFamilyStore } from 'src/store/family';
 import type { ImportedTransaction, StatementFinalizePayload } from 'src/types';
-import { formatCurrency } from 'src/utils/helpers';
+import { formatCurrency, getImportedTransactionDate } from 'src/utils/helpers';
 
 interface RegisterRow {
   id: string;
@@ -303,7 +303,7 @@ function seedDates() {
 
 function mapImportedToRow(tx: ImportedTransaction): RegisterRow {
   const amount = (tx.creditAmount ?? 0) - (tx.debitAmount ?? 0);
-  const isoDate = tx.postedDate?.slice(0, 10) || '';
+  const isoDate = (getImportedTransactionDate(tx) || '').slice(0, 10);
   return {
     id: tx.id,
     date: isoDate,
