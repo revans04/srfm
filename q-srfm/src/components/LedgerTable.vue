@@ -1,19 +1,17 @@
 <template>
   <q-table
-    :rows="displayedRows"
+    :rows="props.rows"
     :columns="visibleColumns"
     row-key="id"
     flat
     bordered
     dense
-    virtual-scroll
     v-model:pagination="pagination"
     :rows-per-page-options="[0]"
     :loading="loading"
     :selection="selection"
     v-model:selected="selectedInternal"
     :row-class="rowClassFn"
-    @virtual-scroll="onVirtualScroll"
     @row-click="handleRowClick"
   >
     <template #body-cell-date="slotProps">
@@ -114,14 +112,11 @@ const props = defineProps<{
   entityLabel?: string;
   selection?: 'single' | 'multiple';
   selected?: string[];
-  hasMore?: boolean;
-  loadingMore?: boolean;
 }>();
 
 const emit = defineEmits<{
   (e: 'row-click', row: LedgerRow): void;
   (e: 'update:selected', ids: string[]): void;
-  (e: 'load-more'): void;
 }>();
 
 const statusMetaMap: Record<LedgerRow['status'], { label: string; color: string }> = {
@@ -180,105 +175,6 @@ let mq: MediaQueryList | undefined;
 const pagination = ref<QTableProps['pagination']>({
   rowsPerPage: 0,
 });
-
-const INITIAL_BATCH = 100;
-const BATCH_SIZE = 50;
-const LOAD_AHEAD_THRESHOLD = 10;
-const RESET_COMPARE_COUNT = 20;
-
-const loadedCount = ref(0);
-const requestingMore = ref(false);
-const displayedRows = computed(() =>
-  props.rows.slice(0, Math.min(props.rows.length, loadedCount.value)),
-);
-
-function resetDisplayedRows(allRows: LedgerRow[]) {
-  loadedCount.value = Math.min(allRows.length, INITIAL_BATCH);
-  requestingMore.value = false;
-}
-
-function shouldResetRows(newRows: LedgerRow[], oldRows?: LedgerRow[]) {
-  if (!oldRows || oldRows.length === 0) return true;
-  if (newRows.length === 0) return true;
-  if (newRows.length < oldRows.length) return true;
-
-  const compareCount = Math.min(RESET_COMPARE_COUNT, newRows.length, oldRows.length);
-  for (let i = 0; i < compareCount; i += 1) {
-    if (newRows[i]?.id !== oldRows[i]?.id) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-function maybeTopUpRows(targetIndex: number) {
-  if (targetIndex + LOAD_AHEAD_THRESHOLD >= loadedCount.value) {
-    const nextCount = Math.min(loadedCount.value + BATCH_SIZE, props.rows.length);
-    if (nextCount > loadedCount.value) {
-      loadedCount.value = nextCount;
-    }
-  }
-
-  const availableCount = props.rows.length;
-  const nearingEnd = targetIndex + LOAD_AHEAD_THRESHOLD >= availableCount;
-  if (
-    nearingEnd &&
-    props.hasMore &&
-    !props.loadingMore &&
-    !requestingMore.value
-  ) {
-    requestingMore.value = true;
-    emit('load-more');
-  }
-}
-
-function onVirtualScroll(details: { to?: number } | undefined) {
-  if (!details || typeof details.to !== 'number') return;
-  maybeTopUpRows(details.to);
-}
-
-watch(
-  () => props.rows,
-  (newRows, oldRows) => {
-    const newLength = newRows.length;
-
-    if (shouldResetRows(newRows, oldRows)) {
-      resetDisplayedRows(newRows);
-      return;
-    }
-
-    if (newLength <= INITIAL_BATCH) {
-      loadedCount.value = newLength;
-      return;
-    }
-
-    if (loadedCount.value === 0) {
-      loadedCount.value = Math.min(newLength, INITIAL_BATCH);
-      return;
-    }
-
-    if (loadedCount.value > newLength) {
-      loadedCount.value = newLength;
-      requestingMore.value = false;
-      return;
-    }
-
-    if (loadedCount.value < INITIAL_BATCH) {
-      loadedCount.value = INITIAL_BATCH;
-    }
-  },
-  { immediate: true },
-);
-
-watch(
-  () => props.loadingMore,
-  (loading) => {
-    if (!loading) {
-      requestingMore.value = false;
-    }
-  },
-);
 
 function applyColumnVisibility(matches: boolean) {
   const cols = baseColumns.value;
