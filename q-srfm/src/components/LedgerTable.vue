@@ -1,6 +1,6 @@
 <template>
   <q-table
-    :rows="rows"
+    :rows="displayedRows"
     :columns="visibleColumns"
     row-key="id"
     flat
@@ -13,6 +13,7 @@
     :selection="selection"
     v-model:selected="selectedInternal"
     :row-class="rowClassFn"
+    @virtual-scroll="onVirtualScroll"
     @row-click="handleRowClick"
   >
     <template #body-cell-date="slotProps">
@@ -176,6 +177,61 @@ let mq: MediaQueryList | undefined;
 const pagination = ref<QTableProps['pagination']>({
   rowsPerPage: 0,
 });
+
+const INITIAL_BATCH = 100;
+const BATCH_SIZE = 50;
+const LOAD_AHEAD_THRESHOLD = 10;
+
+const loadedCount = ref(0);
+const displayedRows = computed(() =>
+  props.rows.slice(0, Math.min(props.rows.length, loadedCount.value)),
+);
+
+function resetDisplayedRows(allRows: LedgerRow[]) {
+  loadedCount.value = Math.min(allRows.length, INITIAL_BATCH);
+}
+
+function maybeTopUpRows(targetIndex: number) {
+  if (loadedCount.value >= props.rows.length) return;
+  if (targetIndex + LOAD_AHEAD_THRESHOLD < displayedRows.value.length) return;
+
+  const nextCount = Math.min(loadedCount.value + BATCH_SIZE, props.rows.length);
+  if (nextCount > loadedCount.value) {
+    loadedCount.value = nextCount;
+  }
+}
+
+function onVirtualScroll(details: { to?: number } | undefined) {
+  if (!details || typeof details.to !== 'number') return;
+  maybeTopUpRows(details.to);
+}
+
+watch(
+  () => props.rows,
+  (newRows) => {
+    resetDisplayedRows(newRows);
+  },
+  { immediate: true },
+);
+
+watch(
+  () => props.rows.length,
+  (newLength, oldLength) => {
+    if (newLength <= INITIAL_BATCH) {
+      loadedCount.value = newLength;
+      return;
+    }
+
+    if (newLength < oldLength && loadedCount.value > newLength) {
+      loadedCount.value = Math.min(
+        newLength,
+        Math.max(INITIAL_BATCH, Math.min(loadedCount.value, newLength)),
+      );
+    } else if (newLength > oldLength && loadedCount.value < INITIAL_BATCH) {
+      loadedCount.value = Math.min(newLength, INITIAL_BATCH);
+    }
+  },
+);
 
 function applyColumnVisibility(matches: boolean) {
   const cols = baseColumns.value;

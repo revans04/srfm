@@ -3,7 +3,8 @@ README
 ======
 TransactionsPage.vue demonstrates the new Pro Mode ledger UI. It uses
 LedgerTable with Quasar virtual scrolling and a sticky header to keep
-large datasets responsive while retaining simple markup.
+large datasets responsive while loading 100 rows initially and then 50
+more at a time as the user scrolls.
 Filters are reactive but for demo purposes only filter the locally seeded
 mock data.
 
