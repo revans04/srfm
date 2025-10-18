@@ -157,11 +157,6 @@ export function useTransactions() {
   const registerRows = ref<LedgerRow[]>([]);
   const loading = ref(false);
   const loadingRegister = ref(false);
-  const importedLoaded = ref(false);
-  const importedOffset = ref(0);
-  const pageSize = 100;
-  const hasMoreImported = ref(true);
-  const loadingMoreRegister = ref(false);
   const importedMap = ref<Record<string, ImportedTransaction>>({});
 
   const filters = ref<LedgerFilters>({
@@ -328,20 +323,28 @@ export function useTransactions() {
     }
   }
 
+  async function fetchImportedByAccount(accountId: string) {
+    const pageSize = 200;
+    const collected: ImportedTransaction[] = [];
+    let offset = 0;
+    while (true) {
+      const batch = await dataAccess.getImportedTransactionsByAccountId(accountId, offset, pageSize);
+      collected.push(...batch);
+      if (batch.length < pageSize) {
+        break;
+      }
+      offset += batch.length;
+    }
+    return collected;
+  }
+
   async function loadImportedTransactions(reset = false) {
-    if (loadingMoreRegister.value) return;
+    if (loadingRegister.value && !reset) return;
     if (reset) {
-      importedOffset.value = 0;
       registerRows.value = [];
-      hasMoreImported.value = true;
-      loadingRegister.value = true;
       importedMap.value = {};
     }
-    if (!hasMoreImported.value) {
-      loadingRegister.value = false;
-      return;
-    }
-    loadingMoreRegister.value = true;
+    loadingRegister.value = true;
     try {
       if (!familyStore.family?.accounts || familyStore.family.accounts.length === 0) {
         const fid = familyStore.family?.id;
@@ -356,14 +359,9 @@ export function useTransactions() {
       }
       let imported: ImportedTransaction[];
       if (filters.value.accountId) {
-        imported = await dataAccess.getImportedTransactionsByAccountId(
-          filters.value.accountId,
-          importedOffset.value,
-          pageSize,
-        );
+        imported = await fetchImportedByAccount(filters.value.accountId);
       } else {
         imported = await dataAccess.getImportedTransactions();
-        imported = imported.slice(importedOffset.value, importedOffset.value + pageSize);
       }
       imported.forEach((t) => {
         if (!t.deleted) importedMap.value[t.id] = t;
@@ -371,22 +369,16 @@ export function useTransactions() {
       const mapped = imported
         .filter((t) => !t.deleted)
         .map((t) => mapImportedToRow(t));
-      registerRows.value = [...registerRows.value, ...mapped].sort((a, b) =>
+      registerRows.value = mapped.sort((a, b) =>
         b.date.localeCompare(a.date),
       );
-      importedOffset.value += imported.length;
-      if (imported.length < pageSize) {
-        hasMoreImported.value = false;
-      }
-      importedLoaded.value = true;
     } finally {
-      loadingMoreRegister.value = false;
       loadingRegister.value = false;
     }
   }
 
   function scrollToDate(iso: string) {
-    // The page can use this to scroll via QTable / VirtualScroll API later.
+    // Placeholder hook should the UI add programmatic scrolling in the future.
     console.log('scrollToDate', iso);
   }
 
@@ -447,10 +439,7 @@ export function useTransactions() {
   watch(
     () => filters.value.accountId,
     async () => {
-      importedOffset.value = 0;
       registerRows.value = [];
-      hasMoreImported.value = true;
-      importedLoaded.value = false;
       await loadImportedTransactions(true);
     },
   );
@@ -464,7 +453,6 @@ export function useTransactions() {
     // register tab
     registerRows: filteredRegister,
     loadingRegister,
-
     // utilities
     scrollToDate,
     // also expose init for callers that want explicit control

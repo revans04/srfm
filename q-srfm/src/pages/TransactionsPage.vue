@@ -561,7 +561,7 @@ const registerSelectedRows = computed(() =>
 );
 
 const registerSelectedClearedRows = computed(() =>
-  registerSelectedRows.value.filter((row) => normalizedRegisterStatus(row.status) === 'C'),
+  registerSelectedRows.value.filter((row) => normalizedRegisterStatus(row.status) === 'C' || normalizedRegisterStatus(row.status) === 'U'),
 );
 
 const parseNumericInput = (value: string): number => {
