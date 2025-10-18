@@ -3,10 +3,9 @@ using FirebaseAdmin.Auth;
 using Google.Apis.Auth;
 using Google.Cloud.Firestore;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
-using sib_api_v3_sdk.Api;
-using sib_api_v3_sdk.Client;
+using Microsoft.Extensions.Configuration;
 using FamilyBudgetApi.Models;
+using FamilyBudgetApi.Services;
 
 namespace FamilyBudgetApi.Controllers
 {
@@ -16,12 +15,14 @@ namespace FamilyBudgetApi.Controllers
   public class AuthController : ControllerBase
   {
     private readonly FirestoreDb _firestoreDb;
-    private readonly BrevoSettings _brevoSettings;
+    private readonly BrevoService _brevoService;
+    private readonly string _baseUrl;
 
-    public AuthController(FirestoreDb firestoreDb, IOptions<BrevoSettings> brevoSettings)
+    public AuthController(FirestoreDb firestoreDb, BrevoService brevoService, IConfiguration configuration)
     {
       _firestoreDb = firestoreDb;
-      _brevoSettings = brevoSettings.Value;
+      _brevoService = brevoService;
+      _baseUrl = configuration["BaseUrl"] ?? "http://family-budget.local:8080";
     }
 
     [HttpPost("google-login")]
@@ -208,29 +209,11 @@ namespace FamilyBudgetApi.Controllers
       }
     }
 
-    private async Task SendVerificationEmail(string email, string token)
+    private Task SendVerificationEmail(string email, string token)
     {
-      Configuration.Default.ApiKey["api-key"] = _brevoSettings.ApiKey;
-      var apiInstance = new TransactionalEmailsApi();
-
-      var sendSmtpEmail = new sib_api_v3_sdk.Model.SendSmtpEmail(
-        sender: new sib_api_v3_sdk.Model.SendSmtpEmailSender(_brevoSettings.SenderName, _brevoSettings.SenderEmail),
-        to: new List<sib_api_v3_sdk.Model.SendSmtpEmailTo> { new sib_api_v3_sdk.Model.SendSmtpEmailTo(email) },
-        subject: "Verify Your Family Budget Email",
-        htmlContent: $"<p>Please verify your email by clicking the link below:</p>" +
-                     $"<a href='http://family-budget.local:8080/verify-email?token={token}'>Verify Email</a>"
-      );
-
-      try
-      {
-        await apiInstance.SendTransacEmailAsync(sendSmtpEmail);
-        Console.WriteLine($"Verification email sent to {email}");
-      }
-      catch (Exception ex)
-      {
-        Console.WriteLine($"Failed to send verification email: {ex.Message}");
-        throw;
-      }
+      var baseUrl = string.IsNullOrWhiteSpace(_baseUrl) ? "http://family-budget.local:8080" : _baseUrl;
+      var verificationLink = $"{baseUrl.TrimEnd('/')}/verify-email?token={token}";
+      return _brevoService.SendVerificationEmail(email, verificationLink);
     }
   }
 
