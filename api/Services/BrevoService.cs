@@ -2,7 +2,7 @@ using System.Threading.Tasks;
 using FamilyBudgetApi.Models;
 using Microsoft.Extensions.Options;
 using sib_api_v3_sdk.Api; // Brevo (Sendinblue) SDK
-using sib_api_v3_sdk.Model;
+using BrevoModel = sib_api_v3_sdk.Model;
 using sib_api_v3_sdk.Client;
 
 namespace FamilyBudgetApi.Services
@@ -47,9 +47,9 @@ namespace FamilyBudgetApi.Services
       Configuration.Default.ApiKey["api-key"] = _brevoSettings.ApiKey;
       var apiInstance = new TransactionalEmailsApi();
 
-      var sendSmtpEmail = new SendSmtpEmail(
-        sender: new SendSmtpEmailSender(_brevoSettings.SenderName, _brevoSettings.SenderEmail),
-        to: new List<SendSmtpEmailTo> { new SendSmtpEmailTo(email) },
+      var sendSmtpEmail = new BrevoModel.SendSmtpEmail(
+        sender: new BrevoModel.SendSmtpEmailSender(_brevoSettings.SenderName, _brevoSettings.SenderEmail),
+        to: new List<BrevoModel.SendSmtpEmailTo> { new BrevoModel.SendSmtpEmailTo(email) },
         subject: subject,
         htmlContent: htmlContent
       );
