@@ -20,7 +20,7 @@
             <q-select
               v-model="selectedBudgets"
               :options="budgetOptions"
-              option-label="month"
+              option-label="displayMonth"
               option-value="budgetId"
               emit-value
               map-options
@@ -239,7 +239,7 @@ const LineChart = Line;
 const budgetStore = useBudgetStore();
 
 const tab = ref("monthly");
-const budgetOptions = ref<Budget[]>([]);
+const budgetOptions = ref<Array<Budget & { displayMonth: string }>>([]);
 const selectedBudgets = ref<string[]>([]);
 const excludedGroups = ref<string[]>([]);
 const excludedCategories = ref<string[]>([]);
@@ -646,6 +646,32 @@ const monthlyBudgetChartOptions = ref({
 
 const accounts = ref<Account[]>([]); // To store account details for mapping in assetDebtData
 
+function budgetHasDetails(budget: Budget | undefined | null): budget is Budget {
+  return (
+    !!budget &&
+    Array.isArray(budget.categories) &&
+    Array.isArray(budget.transactions) &&
+    Array.isArray(budget.merchants)
+  );
+}
+
+function formatBudgetMonth(month: string): string {
+  const [year, monthPart] = month.split('-').map(Number);
+  const date = new Date(year, (monthPart || 1) - 1, 1);
+  if (Number.isNaN(date.getTime())) {
+    return month;
+  }
+  return date.toLocaleString('en-US', { month: 'short', year: 'numeric' });
+}
+
+function budgetMonthToTimestamp(month: string): number {
+  if (!month) {
+    return 0;
+  }
+  const timestamp = new Date(`${month}-01`).getTime();
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
 onMounted(async () => {
   const user = auth.currentUser;
   if (!user) {
@@ -657,7 +683,12 @@ onMounted(async () => {
   try {
     // Load budgets into the store
     await budgetStore.loadBudgets(user.uid);
-    budgetOptions.value = Array.from(budgetStore.budgets.values());
+    budgetOptions.value = Array.from(budgetStore.budgets.values())
+      .sort((a, b) => budgetMonthToTimestamp(b.month) - budgetMonthToTimestamp(a.month))
+      .map((budget) => ({
+        ...budget,
+        displayMonth: formatBudgetMonth(budget.month),
+      }));
 
     // Default to current month
     const currentMonth = currentMonthISO();
@@ -705,18 +736,29 @@ async function updateReportData() {
   groupTransactions.value = {};
 
   try {
-    const budgets: Budget[] = await Promise.all(
-      selectedBudgets.value.map(async (budgetId) => {
-        let budget = budgetStore.getBudget(budgetId);
-        if (!budget) {
-          budget = await dataAccess.getBudget(budgetId);
-          if (budget) {
-            budgetStore.updateBudget(budgetId, budget);
+    const budgetsToLoad = selectedBudgets.value.filter((budgetId) => {
+      const budget = budgetStore.getBudget(budgetId);
+      return !budgetHasDetails(budget);
+    });
+
+    if (budgetsToLoad.length > 0) {
+      await Promise.all(
+        budgetsToLoad.map(async (budgetId) => {
+          try {
+            const budget = await dataAccess.getBudget(budgetId);
+            if (budget) {
+              budgetStore.updateBudget(budgetId, budget);
+            }
+          } catch (error) {
+            console.error(`Error loading budget ${budgetId}:`, error);
           }
-        }
-        return budget;
-      })
-    ).then((results) => results.filter((b): b is Budget => b !== null));
+        })
+      );
+    }
+
+    const budgets: Budget[] = selectedBudgets.value
+      .map((budgetId) => budgetStore.getBudget(budgetId))
+      .filter((budget): budget is Budget => budgetHasDetails(budget));
 
     const categoryToGroup = new Map<string, string>();
     const groupSet = new Set<string>();
