@@ -1,17 +1,3 @@
-<!--
-README
-======
-TransactionsPage.vue demonstrates the new Pro Mode ledger UI. It uses
-LedgerTable with Quasar virtual scrolling and a sticky header to keep
-large datasets responsive while loading 100 rows initially and then 50
-more at a time as the user scrolls.
-Filters are reactive but for demo purposes only filter the locally seeded
-mock data.
-
-Key props/usage:
-- uses `useTransactions` composable which seeds ~1000 rows on first load
-- `scrollToDate` (via Jump to Date control) scrolls to first row >= date
--->
 <template>
   <q-page class="transactions-page">
     <section class="transactions-hero panel-card no-round-bottom">
@@ -338,7 +324,7 @@ Key props/usage:
                     :disable="!registerClearedVisibleRows.length"
                   />
                 </div>
-                <div class="col-12 col-md-4 flex justify-end">
+                <div class="col-12 col-md-4 justify-end">
                   <q-btn
                     color="primary"
                     :disable="registerFinalizeDisabled"
@@ -1190,27 +1176,17 @@ async function performRegisterBatchAction() {
 }
 
 .transactions-panel {
-  display: flex;
-  flex-direction: column;
   min-height: 0;
 }
 
 .transactions-hero {
-  display: flex;
-  flex-direction: column;
   gap: 20px;
 }
 
 .transactions-hero__header {
-  display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-}
-
-.transactions-hero__tabs {
-  flex: 1 1 auto;
 }
 
 .transactions-hero__title {
@@ -1258,24 +1234,17 @@ async function performRegisterBatchAction() {
 }
 
 .transactions-layout {
-  display: flex;
-  flex-direction: column;
   gap: 20px;
-  flex: 1;
   min-height: 0;
 }
 
 @media (min-width: 1200px) {
   .transactions-layout {
-    flex-direction: row;
     align-items: stretch;
   }
 }
 
 .transactions-layout__main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
   gap: 20px;
   min-width: 0;
   min-height: 0;
@@ -1283,8 +1252,6 @@ async function performRegisterBatchAction() {
 
 .transactions-layout__aside {
   width: 320px;
-  display: flex;
-  flex-direction: column;
   gap: 16px;
 }
 
@@ -1296,14 +1263,10 @@ async function performRegisterBatchAction() {
 }
 
 .transactions-filters {
-  display: flex;
-  flex-direction: column;
   gap: 16px;
 }
 
 .transactions-filters__toggles {
-  display: flex;
-  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
 }
@@ -1328,8 +1291,6 @@ async function performRegisterBatchAction() {
 }
 
 .transactions-filters__chips {
-  display: flex;
-  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -1348,7 +1309,6 @@ async function performRegisterBatchAction() {
 }
 
 .summary-row {
-  display: flex;
   justify-content: space-between;
   align-items: center;
   margin-top: 12px;
@@ -1367,8 +1327,6 @@ async function performRegisterBatchAction() {
 
 .transactions-selection {
   padding: 18px 20px;
-  display: flex;
-  flex-direction: column;
   gap: 12px;
 }
 
@@ -1378,8 +1336,6 @@ async function performRegisterBatchAction() {
 }
 
 .transactions-selection__actions {
-  display: flex;
-  flex-wrap: wrap;
   gap: 12px;
 }
 
@@ -1388,20 +1344,11 @@ async function performRegisterBatchAction() {
 }
 
 .transactions-table {
-  flex: 1;
   min-height: 360px;
-  display: flex;
   min-width: 0;
 }
 
-.transactions-table :deep(.q-table) {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
 .transactions-table :deep(.q-table__middle) {
-  flex: 1;
   min-height: 0;
   overflow: auto;
 }
