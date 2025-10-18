@@ -18,7 +18,7 @@ namespace FamilyBudgetApi.Services
             throw new InvalidOperationException("Brevo API key is not configured.");
     }
 
-    public async System.Threading.Tasks.Task SendInviteEmail(string toEmail, string familyName, string inviteLink)
+    public async Task SendInviteEmail(string toEmail, string familyName, string inviteLink)
     {
       var subject = $"You’re Invited to Join {familyName} on Steady Rise";
       var htmlContent = $@"
@@ -30,7 +30,19 @@ namespace FamilyBudgetApi.Services
       await SendEmail(toEmail, subject, htmlContent);
     }
 
-    public async System.Threading.Tasks.Task SendEmail(string email, string subject, string htmlContent)
+    public async Task SendVerificationEmail(string toEmail, string verificationLink)
+    {
+      var subject = "Verify Your Steady Rise Email";
+      var htmlContent = $@"
+                    <h1>Verify your email</h1>
+                    <p>Thanks for signing up for Steady Rise. Please confirm your email address by clicking the button below:</p>
+                    <a href='{verificationLink}'>Verify Email</a>
+                    <p>If you did not create an account, you can safely ignore this email.</p>";
+
+      await SendEmail(toEmail, subject, htmlContent);
+    }
+
+    public async Task SendEmail(string email, string subject, string htmlContent)
     {
       Configuration.Default.ApiKey["api-key"] = _brevoSettings.ApiKey;
       var apiInstance = new TransactionalEmailsApi();
@@ -45,11 +57,11 @@ namespace FamilyBudgetApi.Services
       try
       {
         await apiInstance.SendTransacEmailAsync(sendSmtpEmail);
-        Console.WriteLine($"Verification email sent to {email}");
+        Console.WriteLine($"Email '{subject}' sent to {email}");
       }
       catch (Exception ex)
       {
-        Console.WriteLine($"Failed to send verification email: {ex.Message}");
+        Console.WriteLine($"Failed to send email '{subject}' to {email}: {ex.Message}");
         throw;
       }
     }
