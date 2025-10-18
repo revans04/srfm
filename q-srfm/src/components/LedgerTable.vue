@@ -1,14 +1,13 @@
 <template>
   <q-table
-    :rows="rows"
+    :rows="displayedRows"
     :columns="visibleColumns"
     row-key="id"
     flat
     bordered
     dense
-    :style="{ '--header-offset': `${headerOffset}px` }"
-    :virtual-scroll="true"
-    :virtual-scroll-item-size="rowHeight"
+    virtual-scroll
+    v-model:pagination="pagination"
     :rows-per-page-options="[0]"
     :loading="loading"
     :selection="selection"
@@ -71,16 +70,12 @@
       </q-td>
     </template>
 
-    <template #bottom>
-      <div class="row justify-center q-pa-sm">
-        <q-btn v-if="canLoadMore" flat :loading="loadingMore" label="Load more" @click="onLoadMore" />
-      </div>
-    </template>
   </q-table>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import type { QTableProps } from 'quasar';
 import type { Transaction } from '../types';
 
 type Align = 'left' | 'right' | 'center';
@@ -116,17 +111,12 @@ export interface LedgerRow {
 const props = defineProps<{
   rows: LedgerRow[];
   loading?: boolean;
-  canLoadMore?: boolean;
-  loadingMore?: boolean;
-  rowHeight?: number;
-  headerOffset?: number;
   entityLabel?: string;
   selection?: 'single' | 'multiple';
   selected?: string[];
 }>();
 
 const emit = defineEmits<{
-  (e: 'load-more'): void;
   (e: 'row-click', row: LedgerRow): void;
   (e: 'update:selected', ids: string[]): void;
 }>();
@@ -156,9 +146,6 @@ const selectedInternal = computed<LedgerRow[] | string[]>({
   },
 });
 
-const rowHeight = computed(() => props.rowHeight ?? 44);
-const headerOffset = computed(() => props.headerOffset ?? 0);
-
 const baseColumns = computed<Column<LedgerRow>[]>(() => [
   { name: 'date', label: 'Date', field: 'date', align: 'left', sortable: true, classes: 'ellipsis' },
   { name: 'payee', label: 'Payee', field: 'payee', align: 'left', sortable: true, classes: 'ellipsis' },
@@ -186,6 +173,65 @@ const baseColumns = computed<Column<LedgerRow>[]>(() => [
 const visibleColumns = ref<Column<LedgerRow>[]>([]);
 const mqQuery = '(max-width: 768px)';
 let mq: MediaQueryList | undefined;
+
+const pagination = ref<QTableProps['pagination']>({
+  rowsPerPage: 0,
+});
+
+const INITIAL_BATCH = 100;
+const BATCH_SIZE = 50;
+const LOAD_AHEAD_THRESHOLD = 10;
+
+const loadedCount = ref(0);
+const displayedRows = computed(() =>
+  props.rows.slice(0, Math.min(props.rows.length, loadedCount.value)),
+);
+
+function resetDisplayedRows(allRows: LedgerRow[]) {
+  loadedCount.value = Math.min(allRows.length, INITIAL_BATCH);
+}
+
+function maybeTopUpRows(targetIndex: number) {
+  if (loadedCount.value >= props.rows.length) return;
+  if (targetIndex + LOAD_AHEAD_THRESHOLD < displayedRows.value.length) return;
+
+  const nextCount = Math.min(loadedCount.value + BATCH_SIZE, props.rows.length);
+  if (nextCount > loadedCount.value) {
+    loadedCount.value = nextCount;
+  }
+}
+
+function onVirtualScroll(details: { to?: number } | undefined) {
+  if (!details || typeof details.to !== 'number') return;
+  maybeTopUpRows(details.to);
+}
+
+watch(
+  () => props.rows,
+  (newRows) => {
+    resetDisplayedRows(newRows);
+  },
+  { immediate: true },
+);
+
+watch(
+  () => props.rows.length,
+  (newLength, oldLength) => {
+    if (newLength <= INITIAL_BATCH) {
+      loadedCount.value = newLength;
+      return;
+    }
+
+    if (newLength < oldLength && loadedCount.value > newLength) {
+      loadedCount.value = Math.min(
+        newLength,
+        Math.max(INITIAL_BATCH, Math.min(loadedCount.value, newLength)),
+      );
+    } else if (newLength > oldLength && loadedCount.value < INITIAL_BATCH) {
+      loadedCount.value = Math.min(newLength, INITIAL_BATCH);
+    }
+  },
+);
 
 function applyColumnVisibility(matches: boolean) {
   const cols = baseColumns.value;
@@ -237,16 +283,6 @@ function formatDate(iso: string) {
   });
 }
 
-function onVirtualScroll({ to }: { to: number }) {
-  if (props.canLoadMore && !props.loadingMore && to >= props.rows.length - 1) {
-    onLoadMore();
-  }
-}
-
-function onLoadMore() {
-  emit('load-more');
-}
-
 function handleRowClick(_: Event, row: LedgerRow) {
   emit('row-click', row);
 }
@@ -276,5 +312,11 @@ function rowClassFn(row: LedgerRow, index: number) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+:deep(.q-table__middle thead tr th) {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--q-color-white, #ffffff);
 }
 </style>

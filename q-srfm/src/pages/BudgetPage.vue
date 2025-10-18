@@ -2304,10 +2304,7 @@ interface GroupCategory {
 
 .desktop-transactions-shell :deep(.q-table__middle) {
   flex: 1;
-}
-
-.desktop-transactions-shell :deep(.q-virtual-scroll) {
-  flex: 1;
+  overflow: auto;
 }
 
 .desktop-transactions-shell :deep(.q-list) {
