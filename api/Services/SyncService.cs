@@ -930,6 +930,7 @@ DELETE FROM budgets;";
         public bool IsIncome { get; set; }
         public string? AccountNumber { get; set; }
         public string? AccountSource { get; set; }
+        public DateTime? TransactionDate { get; set; }
         public DateTime? PostedDate { get; set; }
         public string? ImportedMerchant { get; set; }
         public string? Status { get; set; }
