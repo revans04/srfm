@@ -279,6 +279,7 @@ const selectedGroupTransactions = computed(() => {
   const txs = groupTransactions.value[selectedGroup.value] || [];
   return [...txs].sort((a, b) => b.date.localeCompare(a.date));
 });
+const loadedBudgetIds = new Set<string>();
 
 // Colors for each group
 const groupColors = ref([
@@ -667,12 +668,25 @@ const monthlyBudgetChartOptions = ref({
 
 const accounts = ref<Account[]>([]); // To store account details for mapping in assetDebtData
 
-function budgetHasDetails(budget: Budget | undefined | null): budget is Budget {
+function markBudgetLoaded(budgetId?: string) {
+  if (budgetId) {
+    loadedBudgetIds.add(budgetId);
+  }
+}
+
+function budgetHasArrayShape(budget: Budget | undefined | null): budget is Budget {
   return (
     !!budget &&
     Array.isArray(budget.categories) &&
     Array.isArray(budget.transactions) &&
     Array.isArray(budget.merchants)
+  );
+}
+
+function budgetHasDetails(budget: Budget | undefined | null): budget is Budget {
+  return !!(
+    budgetHasArrayShape(budget) &&
+    (budget.categories.length > 0 || budget.transactions.length > 0 || budget.merchants.length > 0)
   );
 }
 
@@ -758,8 +772,13 @@ async function updateReportData() {
 
   try {
     const budgetsToLoad = selectedBudgets.value.filter((budgetId) => {
+      if (loadedBudgetIds.has(budgetId)) return false;
       const budget = budgetStore.getBudget(budgetId);
-      return !budgetHasDetails(budget);
+      if (budgetHasDetails(budget)) {
+        markBudgetLoaded(budgetId);
+        return false;
+      }
+      return true;
     });
 
     if (budgetsToLoad.length > 0) {
@@ -769,6 +788,7 @@ async function updateReportData() {
             const budget = await dataAccess.getBudget(budgetId);
             if (budget) {
               budgetStore.updateBudget(budgetId, budget);
+              markBudgetLoaded(budgetId);
             }
           } catch (error) {
             console.error(`Error loading budget ${budgetId}:`, error);
@@ -778,8 +798,20 @@ async function updateReportData() {
     }
 
     const budgets: Budget[] = selectedBudgets.value
-      .map((budgetId) => budgetStore.getBudget(budgetId))
-      .filter((budget): budget is Budget => budgetHasDetails(budget));
+      .map((budgetId) => {
+        const budget = budgetStore.getBudget(budgetId);
+        if (!budget) return null;
+        if (budgetHasDetails(budget)) {
+          markBudgetLoaded(budgetId);
+          return budget;
+        }
+        if (loadedBudgetIds.has(budgetId)) {
+          markBudgetLoaded(budgetId);
+          return budget;
+        }
+        return null;
+      })
+      .filter((budget): budget is Budget => budget !== null);
 
     const categoryToGroup = new Map<string, string>();
     const groupSet = new Set<string>();

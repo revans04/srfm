@@ -10,6 +10,8 @@ IMAGE="us-central1-docker.pkg.dev/${PROJECT_ID}/${REPO}/${SERVICE_NAME}:latest"
 SUPABASE_SECRET_NAME="supabase-db-connection"
 # Secret Manager secret name containing Firebase service account JSON
 FIREBASE_CREDENTIALS_SECRET_NAME="firebase-credentials-json"
+# Secret Manager secret name containing Brevo API key
+BREVO_API_KEY_SECRET_NAME="brevo-api-key"
 
 # Resolve the Cloud Run runtime service account (defaults to project default compute SA)
 PROJECT_NUMBER=$(gcloud projects describe "${PROJECT_ID}" --format="value(projectNumber)")
@@ -37,7 +39,7 @@ gcloud run deploy "${SERVICE_NAME}" \
   --allow-unauthenticated \
   --ingress all \
   --service-account "${RUN_SERVICE_ACCOUNT}" \
-  --remove-env-vars=SUPABASE_DB_CONNECTION,GOOGLE_APPLICATION_CREDENTIALS_JSON \
-  --set-secrets "SUPABASE_DB_CONNECTION=${SUPABASE_SECRET_NAME}:latest,GOOGLE_APPLICATION_CREDENTIALS_JSON=${FIREBASE_CREDENTIALS_SECRET_NAME}:latest"
+  --remove-env-vars=SUPABASE_DB_CONNECTION,GOOGLE_APPLICATION_CREDENTIALS_JSON,BREVO_KEY \
+  --set-secrets "SUPABASE_DB_CONNECTION=${SUPABASE_SECRET_NAME}:latest,GOOGLE_APPLICATION_CREDENTIALS_JSON=${FIREBASE_CREDENTIALS_SECRET_NAME}:latest,BREVO_KEY=${BREVO_API_KEY_SECRET_NAME}:latest" \
 
 echo "Deployment complete!"
