@@ -2057,8 +2057,8 @@ function previewBankTransactionsData() {
 
         const parts = raw.split('/');
         if (parts.length === 3) {
-          let [month, day, year] = parts;
-          year = year.length === 2 ? `20${year}` : year;
+          const [month, day, yearPart] = parts;
+          const year = yearPart.length === 2 ? `20${yearPart}` : yearPart;
           const iso = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
           const parsed = new Date(iso);
           if (isNaN(parsed.getTime())) {
