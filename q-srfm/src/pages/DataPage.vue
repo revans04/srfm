@@ -721,7 +721,8 @@ const csvHeaders = ref<string[]>([]);
 const rawCsvData = ref<any[]>([]);
 const commonBankTransactionFields = ref([
   { key: "payee", label: "Payee", required: true },
-  { key: "postedDate", label: "Posted Date", required: true },
+  { key: "transactionDate", label: "Transaction Date", required: false },
+  { key: "postedDate", label: "Posted Date", required: false },
   { key: "status", label: "Status (U, C, R)", required: false },
   { key: "checkNumber", label: "Check Number", required: false },
 ]);
@@ -736,6 +737,7 @@ const creditTypeValue = ref("Credit");
 const debitTypeValue = ref("Debit");
 const bankTransactionPreviewColumns = [
   { name: 'payee', label: 'Payee', field: 'payee' },
+  { name: 'transactionDate', label: 'Transaction Date', field: 'transactionDate' },
   { name: 'postedDate', label: 'Posted Date', field: 'postedDate' },
   { name: 'status', label: 'Status', field: 'status' },
   { name: 'creditAmount', label: 'Credit Amount', field: 'creditAmount' },
@@ -812,6 +814,10 @@ const formattedAccounts = computed(() => {
 
 const isFieldMappingValid = computed(() => {
   const requiredCommonFields = commonBankTransactionFields.value.every((field) => !field.required || !!fieldMapping.value[field.key]);
+  const hasDateMapping = Boolean(fieldMapping.value.postedDate || fieldMapping.value.transactionDate);
+  if (!hasDateMapping) {
+    return false;
+  }
   if (amountFormat.value === "separate") {
     return requiredCommonFields && !!fieldMapping.value.creditAmount && !!fieldMapping.value.debitAmount;
   } else if (amountFormat.value === "type") {
@@ -2031,30 +2037,49 @@ function previewBankTransactionsData() {
         mappedRow[field.key] = csvHeaders.value.includes(mappedField) ? row[mappedField] || "" : mappedField || "";
       });
 
-      if (mappedRow.postedDate) {
-        const yyyymmddRegex = /^\d{4}-\d{2}-\d{2}$/;
-        if (yyyymmddRegex.test(mappedRow.postedDate)) {
-          const date = new Date(mappedRow.postedDate);
-          if (isNaN(date.getTime())) {
-            previewErrors.value.push(`Row ${index + 1}: Invalid posted date format, expected YYYY-MM-DD (e.g., 2023-12-31)`);
+      const normalizeDate = (value: string, label: string, required: boolean): string => {
+        const raw = (value || '').trim();
+        if (!raw) {
+          if (required) {
+            previewErrors.value.push(`Row ${index + 1}: ${label} is required`);
           }
-        } else {
-          const parts = mappedRow.postedDate.split("/");
-          if (parts.length === 3) {
-            // eslint-disable-next-line prefer-const
-            let [month, day, year] = parts;
-            year = year.length === 2 ? `20${year}` : year;
-            mappedRow.postedDate = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-            const date = new Date(mappedRow.postedDate);
-            if (isNaN(date.getTime())) {
-              previewErrors.value.push(`Row ${index + 1}: Invalid posted date format, expected MM/DD/YYYY (e.g., 12/31/2023) or YYYY-MM-DD (e.g., 2023-12-31)`);
-            }
-          } else {
-            previewErrors.value.push(`Row ${index + 1}: Invalid posted date format, expected MM/DD/YYYY (e.g., 12/31/2023) or YYYY-MM-DD (e.g., 2023-12-31)`);
-          }
+          return '';
         }
-      } else {
-        previewErrors.value.push(`Row ${index + 1}: Posted Date is required`);
+        const yyyymmddRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (yyyymmddRegex.test(raw)) {
+          const parsed = new Date(raw);
+          if (isNaN(parsed.getTime())) {
+            previewErrors.value.push(`Row ${index + 1}: Invalid ${label.toLowerCase()} format, expected YYYY-MM-DD (e.g., 2023-12-31)`);
+            return '';
+          }
+          return raw;
+        }
+
+        const parts = raw.split('/');
+        if (parts.length === 3) {
+          const [month, day, yearPart] = parts;
+          const year = yearPart.length === 2 ? `20${yearPart}` : yearPart;
+          const iso = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+          const parsed = new Date(iso);
+          if (isNaN(parsed.getTime())) {
+            previewErrors.value.push(`Row ${index + 1}: Invalid ${label.toLowerCase()} format, expected MM/DD/YYYY (e.g., 12/31/2023) or YYYY-MM-DD (e.g., 2023-12-31)`);
+            return '';
+          }
+          return iso;
+        }
+
+        previewErrors.value.push(`Row ${index + 1}: Invalid ${label.toLowerCase()} format, expected MM/DD/YYYY (e.g., 12/31/2023) or YYYY-MM-DD (e.g., 2023-12-31)`);
+        return '';
+      };
+
+      const normalizedTransactionDate = normalizeDate(mappedRow.transactionDate || '', 'Transaction Date', false);
+      const normalizedPostedDate = normalizeDate(mappedRow.postedDate || '', 'Posted Date', false);
+
+      mappedRow.transactionDate = normalizedTransactionDate;
+      mappedRow.postedDate = normalizedPostedDate;
+
+      if (!mappedRow.transactionDate && !mappedRow.postedDate) {
+        previewErrors.value.push(`Row ${index + 1}: Either Transaction Date or Posted Date is required`);
       }
 
       let creditAmount = 0;
@@ -2092,9 +2117,6 @@ function previewBankTransactionsData() {
         }
       }
 
-      if (!mappedRow.postedDate) {
-        previewErrors.value.push(`Row ${index + 1}: Posted Date is required`);
-      }
       if (!mappedRow.payee) {
         previewErrors.value.push(`Row ${index + 1}: Payee is required`);
       }
@@ -2110,6 +2132,7 @@ function previewBankTransactionsData() {
         accountId: selectedAccountId.value,
         accountSource: selectedAccount.institution || "",
         payee: mappedRow.payee || "",
+        transactionDate: mappedRow.transactionDate || "",
         postedDate: mappedRow.postedDate || "",
         status: mappedRow.status || "U",
         creditAmount: isNaN(creditAmount) ? 0 : creditAmount,
@@ -2374,6 +2397,7 @@ async function confirmImport() {
       previewBankTransactions.value.forEach((tx, index) => {
         const key = {
           accountNumber: selectedAccount.accountNumber || "",
+          transactionDate: tx.transactionDate || tx.postedDate,
           postedDate: tx.postedDate,
           payee: tx.payee,
           debitAmount: parseFloat(tx.debitAmount) || 0,
@@ -2387,6 +2411,7 @@ async function confirmImport() {
           accountNumber: selectedAccount.accountNumber || "",
           accountSource: selectedAccount.institution || "",
           payee: tx.payee,
+          transactionDate: tx.transactionDate || "",
           postedDate: tx.postedDate,
           status: tx.status,
           creditAmount: parseFloat(tx.creditAmount) || 0,

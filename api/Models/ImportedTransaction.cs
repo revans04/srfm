@@ -21,6 +21,9 @@ namespace FamilyBudgetApi.Models
         [FirestoreProperty("payee")]
         public string? Payee { get; set; }
 
+        [FirestoreProperty("transactionDate")]
+        public string? TransactionDate { get; set; }
+
         [FirestoreProperty("postedDate")]
         public string? PostedDate { get; set; }
 

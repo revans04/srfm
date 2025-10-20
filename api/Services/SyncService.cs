@@ -505,6 +505,7 @@ namespace FamilyBudgetApi.Services
                         IsIncome = tx.IsIncome,
                         AccountNumber = tx.AccountNumber,
                         AccountSource = tx.AccountSource,
+                        TransactionDate = TryParseDate(tx.TransactionDate),
                         PostedDate = TryParseDate(tx.PostedDate),
                         ImportedMerchant = tx.ImportedMerchant,
                         Status = tx.Status,
@@ -811,9 +812,9 @@ DELETE FROM budgets;";
             await conn.OpenAsync();
 
             const string sql = @"INSERT INTO imported_transactions
-                (id, document_id, account_id, account_number, account_source, payee, posted_date, amount, status, matched,
+                (id, document_id, account_id, account_number, account_source, payee, transaction_date, posted_date, amount, status, matched,
                  ignored, debit_amount, credit_amount, check_number, deleted, family_id, user_id, created_at, updated_at)
-                VALUES (@id, @document_id, @account_id, @account_number, @account_source, @payee, @posted_date, @amount, @status, @matched,
+                VALUES (@id, @document_id, @account_id, @account_number, @account_source, @payee, @transaction_date, @posted_date, @amount, @status, @matched,
                         @ignored, @debit_amount, @credit_amount, @check_number, @deleted, @family_id, @user_id, @created_at, @updated_at)
                 ON CONFLICT (id) DO UPDATE SET
                     document_id = COALESCE(EXCLUDED.document_id, imported_transactions.document_id),
@@ -821,6 +822,7 @@ DELETE FROM budgets;";
                     account_number = COALESCE(EXCLUDED.account_number, imported_transactions.account_number),
                     account_source = COALESCE(EXCLUDED.account_source, imported_transactions.account_source),
                     payee = COALESCE(EXCLUDED.payee, imported_transactions.payee),
+                    transaction_date = COALESCE(EXCLUDED.transaction_date, imported_transactions.transaction_date),
                     posted_date = COALESCE(EXCLUDED.posted_date, imported_transactions.posted_date),
                     amount = COALESCE(EXCLUDED.amount, imported_transactions.amount),
                     status = COALESCE(EXCLUDED.status, imported_transactions.status),
@@ -845,6 +847,7 @@ DELETE FROM budgets;";
                 cmd.Parameters.AddWithValue("account_number", (object?)t.AccountNumber ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("account_source", (object?)t.AccountSource ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("payee", (object?)t.Payee ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("transaction_date", (object?)t.TransactionDate ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("posted_date", (object?)t.PostedDate ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("amount", t.Amount);
                 cmd.Parameters.AddWithValue("status", (object?)t.Status ?? DBNull.Value);
@@ -927,6 +930,7 @@ DELETE FROM budgets;";
         public bool IsIncome { get; set; }
         public string? AccountNumber { get; set; }
         public string? AccountSource { get; set; }
+        public DateTime? TransactionDate { get; set; }
         public DateTime? PostedDate { get; set; }
         public string? ImportedMerchant { get; set; }
         public string? Status { get; set; }
@@ -981,6 +985,7 @@ DELETE FROM budgets;";
         public string? AccountNumber { get; set; }
         public string? AccountSource { get; set; }
         public string? Payee { get; set; }
+        public DateTime? TransactionDate { get; set; }
         public DateTime? PostedDate { get; set; }
         public decimal Amount { get; set; }
         public string? Status { get; set; }
