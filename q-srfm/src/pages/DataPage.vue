@@ -1822,6 +1822,7 @@ async function importEveryDollarCsv() {
         userId: user.uid,
         familyId: familyId.value!,
         budgetMonth: month,
+        date,
         merchant: cleanCsvString(base.merchant),
         categories: Array.from(categoriesMap.entries()).map(([category, amount]) => ({
           category,
@@ -1834,6 +1835,7 @@ async function importEveryDollarCsv() {
         isIncome: totalAmount >= 0,
         accountNumber: '',
         accountSource: '',
+        transactionDate: date,
         postedDate: '',
         status: 'U',
         entityId: selectedEntityId.value,
