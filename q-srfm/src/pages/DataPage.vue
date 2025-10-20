@@ -227,6 +227,41 @@
                     </div>
                   </div>
                 </div>
+                <div v-else-if="importType === 'everyDollarCsv'">
+                  <div class="row q-col-gutter-md">
+                    <div class="col-12 col-md-6">
+                      <q-file
+                        v-model="everyDollarBudgetCsvFile"
+                        label="Upload EveryDollar Budgets CSV"
+                        accept=".csv"
+                        :disabled="importing"
+                      ></q-file>
+                    </div>
+                    <div class="col-12 col-md-6">
+                      <q-file
+                        v-model="everyDollarTransactionsCsvFile"
+                        label="Upload EveryDollar Transactions CSV"
+                        accept=".csv"
+                        :disabled="importing"
+                      ></q-file>
+                    </div>
+                  </div>
+                  <div class="row q-mt-md">
+                    <div class="col">
+                      <q-btn
+                        color="primary"
+                        label="Import EveryDollar CSVs"
+                        @click="importEveryDollarCsv"
+                        :disabled="
+                          importing ||
+                          !everyDollarBudgetCsvFile ||
+                          !everyDollarTransactionsCsvFile ||
+                          !selectedEntityId
+                        "
+                      />
+                    </div>
+                  </div>
+                </div>
                 <div v-else-if="importType === 'everyDollarBudget'">
                   <q-input
                     v-model="everyDollarJson"
@@ -520,6 +555,7 @@ const importType = ref("bankTransactions");
 const importTypes = [
   { label: "Entities", value: "entities" },
   { label: "Budget/Transactions", value: "budgetTransactions" },
+  { label: "EveryDollar Budgets/Transactions CSV", value: "everyDollarCsv" },
   { label: "EveryDollar Budget JSON", value: "everyDollarBudget" },
   { label: "Bank/Card Transactions", value: "bankTransactions" },
   { label: "Accounts/Snapshots", value: "accountsAndSnapshots" },
@@ -544,7 +580,16 @@ const selectedFiles = ref<File[]>([]);
 const bankTransactionsFile = ref<File | null>(null);
 const entitiesFile = ref<File | null>(null);
 const accountsSnapshotsFile = ref<File | null>(null);
+const everyDollarBudgetCsvFile = ref<File | null>(null);
+const everyDollarTransactionsCsvFile = ref<File | null>(null);
 const everyDollarJson = ref('');
+
+watch(importType, (val) => {
+  if (val !== 'everyDollarCsv') {
+    everyDollarBudgetCsvFile.value = null;
+    everyDollarTransactionsCsvFile.value = null;
+  }
+});
 
 const recommendedMonth = ref('');
 
@@ -560,6 +605,12 @@ interface EveryDollarTransactionRow {
   isDuplicate: boolean;
   txKey?: string; // logical transaction key for grouping splits
   splits?: Array<{ category: string; group: string; amount: number }>; // optional split detail for preview/import
+}
+
+interface EveryDollarMonthData {
+  categories: Map<string, BudgetCategory>;
+  transactions: Transaction[];
+  incomeTarget: number;
 }
 
 const everyDollarTransactions = ref<EveryDollarTransactionRow[]>([]);
@@ -1509,6 +1560,363 @@ async function handleBankTransactionsFileUpload(files: File | File[] | FileList 
     importError.value = `Failed to parse data: ${error.message}`;
   } finally {
     $q.loading.hide();
+  }
+}
+
+function cleanCsvString(value: any, trim = true): string {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  const normalized = String(value).replace(/\r/g, '');
+  return trim ? normalized.trim() : normalized;
+}
+
+function parseEveryDollarCurrency(rawCents: any, rawDollars: any): number {
+  const centsString = cleanCsvString(rawCents);
+  if (centsString !== '') {
+    const centsValue = Number(centsString.replace(/[^0-9.-]/g, ''));
+    if (!Number.isNaN(centsValue)) {
+      return centsValue / 100;
+    }
+  }
+  const dollarsString = cleanCsvString(rawDollars);
+  if (dollarsString !== '') {
+    const dollarsValue = Number(dollarsString.replace(/[^0-9.-]/g, ''));
+    if (!Number.isNaN(dollarsValue)) {
+      return dollarsValue;
+    }
+  }
+  return 0;
+}
+
+function parseBooleanish(value: any): boolean {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'number') {
+    return value === 1;
+  }
+  if (typeof value === 'string') {
+    const normalized = cleanCsvString(value).toLowerCase();
+    return ['true', '1', 'yes', 'y'].includes(normalized);
+  }
+  return false;
+}
+
+async function importEveryDollarCsv() {
+  importError.value = null;
+  importSuccess.value = null;
+
+  if (!everyDollarBudgetCsvFile.value || !everyDollarTransactionsCsvFile.value) {
+    importError.value = 'Please upload both EveryDollar budgets and transactions CSV files.';
+    return;
+  }
+
+  const user = auth.currentUser;
+  if (!user) {
+    importError.value = 'User not authenticated';
+    return;
+  }
+  if (!familyId.value) {
+    showSnackbar('Cannot import without a Family/Org', 'negative');
+    return;
+  }
+  if (!selectedEntityId.value) {
+    importError.value = 'Entity selection is required';
+    return;
+  }
+
+  importing.value = true;
+  overwriteMonths.value = [];
+  showOverwriteDialog.value = false;
+  pendingImportData.value = null;
+
+  try {
+    const [budgetText, transactionText] = await Promise.all([
+      everyDollarBudgetCsvFile.value.text(),
+      everyDollarTransactionsCsvFile.value.text(),
+    ]);
+
+    const parseOptions = {
+      header: true,
+      skipEmptyLines: 'greedy' as const,
+      transformHeader: (header: string) =>
+        header
+          .toLowerCase()
+          .replace(/\r/g, '')
+          .replace(/\s+/g, '_')
+          .replace(/[^a-z0-9_]/g, '_')
+          .replace(/__+/g, '_')
+          .replace(/^_|_$/g, ''),
+    };
+
+    const parseCsv = (text: string) => {
+      const result = Papa.parse(text, parseOptions);
+      if (result.errors?.length) {
+        throw new Error(result.errors.map((e) => e.message).join('; '));
+      }
+      const rows = (result.data as any[]).map((row) => {
+        const normalized: Record<string, any> = {};
+        Object.keys(row || {}).forEach((key) => {
+          const value = row[key];
+          normalized[key] = typeof value === 'string' ? value.replace(/\r/g, '') : value;
+        });
+        return normalized;
+      });
+      return rows.filter((row) =>
+        Object.values(row).some((value) => cleanCsvString(value) !== '')
+      );
+    };
+
+    const budgetRows = parseCsv(budgetText);
+    const transactionRows = parseCsv(transactionText);
+
+    if (budgetRows.length === 0) {
+      throw new Error('The budgets CSV did not contain any rows.');
+    }
+    if (transactionRows.length === 0) {
+      throw new Error('The transactions CSV did not contain any rows.');
+    }
+
+    const monthData = new Map<string, EveryDollarMonthData>();
+    const ensureMonth = (month: string) => {
+      let entry = monthData.get(month);
+      if (!entry) {
+        entry = { categories: new Map(), transactions: [], incomeTarget: 0 };
+        monthData.set(month, entry);
+      }
+      return entry;
+    };
+
+    budgetRows.forEach((row) => {
+      const monthDate = cleanCsvString(row.budget_month_date || row.budgetmonth || row.month);
+      const month = monthDate ? monthDate.slice(0, 7) : '';
+      if (!month) {
+        return;
+      }
+
+      const itemLabel = cleanCsvString(row.item_label || row.itemlabel || row.category);
+      if (!itemLabel) {
+        return;
+      }
+
+      const entry = ensureMonth(month);
+      const groupLabel = cleanCsvString(row.group_label || row.grouplabel || row.group);
+      const itemKeyBase = cleanCsvString(row.item_id);
+      const itemKey = itemKeyBase || `${groupLabel}::${itemLabel}`;
+
+      const targetAmount = parseEveryDollarCurrency(
+        row.amount_budgeted_cents,
+        row.amount_budgeted_dollars,
+      );
+      const carryoverAmount = parseEveryDollarCurrency(
+        row.carry_over_cents,
+        row.carry_over_dollars,
+      );
+
+      const type = cleanCsvString(row.item_type).toLowerCase();
+      const subType = cleanCsvString(row.item_sub_type).toLowerCase();
+      const isFund = type === 'sinking_fund' || subType === 'sinking_fund';
+
+      const category: BudgetCategory = {
+        name: itemLabel,
+        group: groupLabel,
+        isFund,
+        target: targetAmount,
+      };
+      if (carryoverAmount !== 0) {
+        category.carryover = carryoverAmount;
+      }
+      if (parseBooleanish(row.is_favorite)) {
+        category.favorite = true;
+      }
+
+      entry.categories.set(itemKey, category);
+
+      if (cleanCsvString(row.group_type).toLowerCase() === 'income') {
+        entry.incomeTarget += targetAmount;
+      }
+    });
+
+    const groupedTransactions = new Map<
+      string,
+      { base: Record<string, any>; allocations: Array<{ label: string; amount: number }> }
+    >();
+
+    transactionRows.forEach((row) => {
+      const txId = cleanCsvString(row.transaction_id) || uuidv4();
+      let grouped = groupedTransactions.get(txId);
+      if (!grouped) {
+        grouped = { base: row, allocations: [] };
+        groupedTransactions.set(txId, grouped);
+      }
+      if (!grouped.base) {
+        grouped.base = row;
+      }
+      const allocationLabel = cleanCsvString(row.allocation_label);
+      const allocationAmount = parseEveryDollarCurrency(
+        row.allocation_amount_cents,
+        row.allocation_amount_dollars,
+      );
+      if (allocationLabel || allocationAmount !== 0) {
+        grouped.allocations.push({ label: allocationLabel || '', amount: allocationAmount });
+      }
+    });
+
+    groupedTransactions.forEach((grouped, txId) => {
+      const base = grouped.base || {};
+      const deletedAt = cleanCsvString(base.deleted_at);
+      if (deletedAt) {
+        return;
+      }
+
+      const date = cleanCsvString(base.transaction_date);
+      if (!date) {
+        return;
+      }
+
+      let month = '';
+      try {
+        month = toBudgetMonth(date);
+      } catch {
+        console.warn('Skipping EveryDollar CSV transaction with invalid date', txId, date);
+        return;
+      }
+
+      const entry = ensureMonth(month);
+      let totalAmount = grouped.allocations.reduce((sum, alloc) => sum + alloc.amount, 0);
+      if (totalAmount === 0) {
+        totalAmount = parseEveryDollarCurrency(
+          base.transaction_amount_cents,
+          base.transaction_amount_dollars,
+        );
+      }
+
+      const categoriesMap = new Map<string, number>();
+      grouped.allocations.forEach((alloc) => {
+        const label = alloc.label || cleanCsvString(base.allocation_label) || 'Uncategorized';
+        const amount = Math.abs(alloc.amount);
+        if (amount === 0) {
+          return;
+        }
+        categoriesMap.set(label, (categoriesMap.get(label) || 0) + amount);
+      });
+
+      if (categoriesMap.size === 0 && Math.abs(totalAmount) > 0) {
+        const fallbackLabel = cleanCsvString(base.allocation_label) || 'Uncategorized';
+        categoriesMap.set(fallbackLabel, Math.abs(totalAmount));
+      }
+
+      if (categoriesMap.size === 0) {
+        return;
+      }
+
+      const transaction: Transaction = {
+        id: txId,
+        userId: user.uid,
+        familyId: familyId.value!,
+        budgetMonth: month,
+        merchant: cleanCsvString(base.merchant),
+        categories: Array.from(categoriesMap.entries()).map(([category, amount]) => ({
+          category,
+          amount,
+        })),
+        amount: Math.abs(totalAmount),
+        notes: typeof base.note === 'string' ? base.note.replace(/\r/g, '') : '',
+        recurring: false,
+        recurringInterval: 'Monthly',
+        isIncome: totalAmount >= 0,
+        accountNumber: '',
+        accountSource: '',
+        postedDate: '',
+        status: 'U',
+        entityId: selectedEntityId.value,
+        taxMetadata: [],
+      };
+
+      entry.transactions.push(transaction);
+    });
+
+    if (monthData.size === 0) {
+      throw new Error('No budget months could be determined from the provided CSV files.');
+    }
+
+    const existingInfos = await dataAccess.loadAccessibleBudgets(user.uid, selectedEntityId.value);
+    const monthToExistingId = new Map<string, string>();
+    existingInfos.forEach((info) => {
+      if (info.month && info.budgetId) {
+        monthToExistingId.set(info.month, info.budgetId);
+      }
+    });
+
+    const budgetsById = new Map<string, Budget>();
+    const existingBudgetIds = new Set<string>();
+    const importMonths = new Set<string>();
+
+    monthData.forEach((data, month) => {
+      const existingId = monthToExistingId.get(month);
+      const targetId = existingId || uuidv4();
+
+      data.transactions.forEach((tx) => {
+        tx.budgetId = targetId;
+        tx.budgetMonth = month;
+      });
+
+      const categories = Array.from(data.categories.values()).sort((a, b) => {
+        const groupCompare = (a.group || '').localeCompare(b.group || '', undefined, {
+          sensitivity: 'base',
+        });
+        if (groupCompare !== 0) {
+          return groupCompare;
+        }
+        return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+      });
+
+      const budget: Budget = {
+        budgetId: targetId,
+        familyId: familyId.value!,
+        entityId: selectedEntityId.value,
+        label: `Imported EveryDollar ${month}`,
+        month,
+        budgetMonth: month,
+        incomeTarget: data.incomeTarget,
+        categories,
+        transactions: data.transactions.slice(),
+        merchants: [],
+      };
+
+      budgetsById.set(targetId, budget);
+      importMonths.add(month);
+      if (existingId) {
+        existingBudgetIds.add(existingId);
+      }
+    });
+
+    if (budgetsById.size === 0) {
+      throw new Error('No budgets were generated from the provided CSV files.');
+    }
+
+    pendingImportData.value = {
+      budgetsById,
+      budgetIdMap: new Map(),
+      entitiesById: new Map(),
+      existingBudgetIds,
+    };
+
+    const existingMonths = new Set(monthToExistingId.keys());
+    overwriteMonths.value = Array.from(importMonths).filter((m) => existingMonths.has(m));
+
+    if (overwriteMonths.value.length > 0) {
+      showOverwriteDialog.value = true;
+    } else {
+      await proceedWithImport();
+    }
+  } catch (error: any) {
+    console.error('Error importing EveryDollar CSV files:', error);
+    importError.value = `Failed to import EveryDollar CSVs: ${error.message}`;
+    pendingImportData.value = null;
+  } finally {
+    importing.value = false;
   }
 }
 
