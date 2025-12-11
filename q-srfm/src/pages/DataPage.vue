@@ -261,6 +261,60 @@
                       />
                     </div>
                   </div>
+                  <div
+                    v-if="everyDollarBudgetEntries.length > 0"
+                    class="row q-mt-md"
+                  >
+                    <div class="col col-12">
+                      <q-card flat bordered class="bg-white q-pa-md" rounded>
+                        <q-card-section>
+                          <div class="text-h6">Budgets ready for import</div>
+                          <div class="text-caption q-mb-sm">
+                            Uncheck budgets to skip importing (or overwriting) them. {{ everyDollarSelectedBudgetIds.size }} of {{ everyDollarBudgetEntries.length }} selected.
+                          </div>
+                          <q-banner
+                            v-if="everyDollarSelectedOverwriteMonths.length > 0"
+                            type="warning"
+                            class="q-mb-sm"
+                          >
+                            Budgets already exist for months: {{ everyDollarSelectedOverwriteMonths.join(", ") }}. If you continue, they'll be overwritten.
+                          </q-banner>
+                        </q-card-section>
+                        <q-card-section class="q-pt-none">
+                          <div
+                            class="row q-col-gutter-sm q-mb-md"
+                            v-for="entry in everyDollarBudgetEntries"
+                            :key="entry.budgetId"
+                          >
+                            <div class="col-auto">
+                              <q-checkbox
+                                dense
+                                v-model="everyDollarBudgetSelection[entry.budgetId]"
+                              ></q-checkbox>
+                            </div>
+                            <div class="col">
+                              <div class="text-subtitle2 q-mb-xs">
+                                {{ entry.label }}
+                              </div>
+                              <div class="text-caption">
+                                {{ entry.month || 'Unknown month' }} ·
+                                {{ entry.transactionCount }} transaction
+                                {{ entry.transactionCount === 1 ? '' : 's' }}
+                              </div>
+                            </div>
+                          </div>
+                        </q-card-section>
+                        <q-card-actions align="right">
+                          <q-btn
+                            color="primary"
+                            label="Import Selected Budgets"
+                            @click="confirmEveryDollarCsvImport"
+                            :disabled="importing || everyDollarSelectedBudgetIds.size === 0"
+                          />
+                        </q-card-actions>
+                      </q-card>
+                    </div>
+                  </div>
                 </div>
                 <div v-else-if="importType === 'everyDollarBudget'">
                   <q-input
@@ -479,7 +533,7 @@
 
 <script setup lang="ts">
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unnecessary-type-assertion */
-import { ref, onMounted, computed, watch } from "vue";
+import { ref, onMounted, computed, watch, reactive } from "vue";
 import { useQuasar, QSpinner } from 'quasar';
 import type { QTableColumn } from 'quasar';
 import { auth } from "../firebase/init";
@@ -549,6 +603,8 @@ const pendingImportData = ref<{
   entitiesById?: Map<string, Entity>;
   accountsAndSnapshots?: any[];
   existingBudgetIds?: Set<string>;
+  selectedBudgetIds?: Set<string>;
+  everyDollarMonthToExistingId?: Map<string, string>;
 } | null>(null);
 const previewTab = ref("categories");
 const importType = ref("bankTransactions");
@@ -583,15 +639,77 @@ const accountsSnapshotsFile = ref<File | null>(null);
 const everyDollarBudgetCsvFile = ref<File | null>(null);
 const everyDollarTransactionsCsvFile = ref<File | null>(null);
 const everyDollarJson = ref('');
+const everyDollarBudgetSelection = reactive<Record<string, boolean>>({});
 
 watch(importType, (val) => {
   if (val !== 'everyDollarCsv') {
     everyDollarBudgetCsvFile.value = null;
     everyDollarTransactionsCsvFile.value = null;
+    pendingImportData.value = null;
+    overwriteMonths.value = [];
+    showOverwriteDialog.value = false;
+    clearEveryDollarBudgetSelection();
   }
 });
 
 const recommendedMonth = ref('');
+
+const everyDollarBudgetEntries = computed(() => {
+  const budgets = pendingImportData.value?.budgetsById;
+  if (!budgets || budgets.size === 0) {
+    return [];
+  }
+  return Array.from(budgets.entries()).map(([budgetId, budget]) => ({
+    budgetId,
+    label: budget.label || `Imported EveryDollar ${budget.month}`,
+    month: budget.month,
+    transactionCount: budget.transactions?.length || 0,
+    selected: everyDollarBudgetSelection[budgetId] ?? true,
+  }));
+});
+
+const everyDollarSelectedBudgetIds = computed(() => {
+  const ids = new Set<string>();
+  everyDollarBudgetEntries.value.forEach((entry) => {
+    if (entry.selected) {
+      ids.add(entry.budgetId);
+    }
+  });
+  return ids;
+});
+
+const everyDollarSelectedMonths = computed(() => {
+  const months = new Set<string>();
+  const budgetsById = pendingImportData.value?.budgetsById;
+  if (!budgetsById) {
+    return [];
+  }
+  everyDollarSelectedBudgetIds.value.forEach((budgetId) => {
+    const budget = budgetsById.get(budgetId);
+    if (budget?.month) {
+      months.add(budget.month);
+    }
+  });
+  return Array.from(months.values());
+});
+
+const everyDollarSelectedOverwriteMonths = computed(() => {
+  const monthMap = pendingImportData.value?.everyDollarMonthToExistingId ?? new Map();
+  return everyDollarSelectedMonths.value.filter((month) => monthMap.has(month));
+});
+
+function resetEveryDollarBudgetSelection(budgetIds: string[]) {
+  clearEveryDollarBudgetSelection();
+  budgetIds.forEach((id) => {
+    everyDollarBudgetSelection[id] = true;
+  });
+}
+
+function clearEveryDollarBudgetSelection() {
+  Object.keys(everyDollarBudgetSelection).forEach((key) => {
+    delete everyDollarBudgetSelection[key];
+  });
+}
 
 interface EveryDollarTransactionRow {
   rowId: string;
@@ -611,6 +729,7 @@ interface EveryDollarMonthData {
   categories: Map<string, BudgetCategory>;
   transactions: Transaction[];
   incomeTarget: number;
+  month: string;
 }
 
 const everyDollarTransactions = ref<EveryDollarTransactionRow[]>([]);
@@ -1684,12 +1803,34 @@ async function importEveryDollarCsv() {
       throw new Error('The transactions CSV did not contain any rows.');
     }
 
-    const monthData = new Map<string, EveryDollarMonthData>();
-    const ensureMonth = (month: string) => {
-      let entry = monthData.get(month);
+    const deriveBudgetKey = (row: Record<string, any>, month: string) => {
+      const budgetKeyCandidates = [
+        'budgetid',
+        'budget_id',
+        'budget',
+        'budgetidentifier',
+        'budget_reference_id',
+        'budgetreferenceid',
+      ];
+      for (const key of budgetKeyCandidates) {
+        if (Object.prototype.hasOwnProperty.call(row, key)) {
+          const value = cleanCsvString(row[key]);
+          if (value) {
+            return value;
+          }
+        }
+      }
+      return month;
+    };
+    const budgetData = new Map<string, EveryDollarMonthData>();
+    const budgetKeysWithBudgetCsvRows = new Set<string>();
+    const ensureBudgetEntry = (budgetKey: string, month: string) => {
+      let entry = budgetData.get(budgetKey);
       if (!entry) {
-        entry = { categories: new Map(), transactions: [], incomeTarget: 0 };
-        monthData.set(month, entry);
+        entry = { categories: new Map(), transactions: [], incomeTarget: 0, month };
+        budgetData.set(budgetKey, entry);
+      } else if (!entry.month && month) {
+        entry.month = month;
       }
       return entry;
     };
@@ -1706,7 +1847,9 @@ async function importEveryDollarCsv() {
         return;
       }
 
-      const entry = ensureMonth(month);
+      const budgetKey = deriveBudgetKey(row, month);
+      const entry = ensureBudgetEntry(budgetKey, month);
+      budgetKeysWithBudgetCsvRows.add(budgetKey);
       const groupLabel = cleanCsvString(row.group_label || row.grouplabel || row.group);
       const itemKeyBase = cleanCsvString(row.item_id);
       const itemKey = itemKeyBase || `${groupLabel}::${itemLabel}`;
@@ -1789,7 +1932,14 @@ async function importEveryDollarCsv() {
         return;
       }
 
-      const entry = ensureMonth(month);
+      const budgetKey = deriveBudgetKey(base, month);
+      if (!budgetKeysWithBudgetCsvRows.has(budgetKey)) {
+        return;
+      }
+      const entry = budgetData.get(budgetKey);
+      if (!entry) {
+        return;
+      }
       let totalAmount = grouped.allocations.reduce((sum, alloc) => sum + alloc.amount, 0);
       if (totalAmount === 0) {
         totalAmount = parseEveryDollarCurrency(
@@ -1845,7 +1995,7 @@ async function importEveryDollarCsv() {
       entry.transactions.push(transaction);
     });
 
-    if (monthData.size === 0) {
+    if (budgetData.size === 0) {
       throw new Error('No budget months could be determined from the provided CSV files.');
     }
 
@@ -1861,7 +2011,17 @@ async function importEveryDollarCsv() {
     const existingBudgetIds = new Set<string>();
     const importMonths = new Set<string>();
 
-    monthData.forEach((data, month) => {
+    budgetKeysWithBudgetCsvRows.forEach((key) => {
+      const data = budgetData.get(key);
+      if (!data) {
+        return;
+      }
+      const month = data.month;
+      if (!month) {
+        console.warn('Skipping EveryDollar budget entry without a month for key', key);
+        return;
+      }
+
       const existingId = monthToExistingId.get(month);
       const targetId = existingId || uuidv4();
 
@@ -1909,23 +2069,60 @@ async function importEveryDollarCsv() {
       budgetIdMap: new Map(),
       entitiesById: new Map(),
       existingBudgetIds,
+      everyDollarMonthToExistingId: monthToExistingId,
     };
 
-    const existingMonths = new Set(monthToExistingId.keys());
-    overwriteMonths.value = Array.from(importMonths).filter((m) => existingMonths.has(m));
-
-    if (overwriteMonths.value.length > 0) {
-      showOverwriteDialog.value = true;
-    } else {
-      await proceedWithImport();
-    }
+    resetEveryDollarBudgetSelection(Array.from(budgetsById.keys()));
+    overwriteMonths.value = [];
+    showOverwriteDialog.value = false;
   } catch (error: any) {
     console.error('Error importing EveryDollar CSV files:', error);
     importError.value = `Failed to import EveryDollar CSVs: ${error.message}`;
     pendingImportData.value = null;
+    clearEveryDollarBudgetSelection();
   } finally {
     importing.value = false;
   }
+
+}
+
+async function confirmEveryDollarCsvImport() {
+  importError.value = null;
+  importSuccess.value = null;
+  const pending = pendingImportData.value;
+  if (!pending?.budgetsById || pending.budgetsById.size === 0) {
+    importError.value = 'No EveryDollar budget data is ready for import.';
+    return;
+  }
+
+  const selectedIds = everyDollarSelectedBudgetIds.value;
+  if (selectedIds.size === 0) {
+    importError.value = 'Please select at least one budget to import.';
+    return;
+  }
+
+  pending.selectedBudgetIds = new Set(selectedIds);
+
+  const selectedMonths = new Set<string>();
+  selectedIds.forEach((budgetId) => {
+    const budget = pending.budgetsById.get(budgetId);
+    if (budget?.month) {
+      selectedMonths.add(budget.month);
+    }
+  });
+
+  const existingMonthMap = pending.everyDollarMonthToExistingId ?? new Map();
+  const overlappingMonths = Array.from(selectedMonths).filter((month) =>
+    existingMonthMap.has(month),
+  );
+  overwriteMonths.value = overlappingMonths;
+
+  if (overwriteMonths.value.length > 0) {
+    showOverwriteDialog.value = true;
+    return;
+  }
+
+  await proceedWithImport();
 }
 
 async function previewEveryDollarTransactions() {
@@ -2982,10 +3179,13 @@ async function proceedWithImport() {
     const existingBudgetIds = new Set(storedPending?.existingBudgetIds ?? []);
     pendingImportData.value = null;
 
-    const entries = Array.from(budgetsById.entries()).map(([key, budget]) => {
-      const targetId = budget.budgetId || key;
-      return { key, targetId, budget };
-    });
+    const selectedBudgetIds = storedPending?.selectedBudgetIds;
+    const entries = Array.from(budgetsById.entries())
+      .filter(([key]) => !selectedBudgetIds || selectedBudgetIds.has(key))
+      .map(([key, budget]) => {
+        const targetId = budget.budgetId || key;
+        return { key, targetId, budget };
+      });
 
     const shouldDeleteExisting = existingBudgetIds.size > 0 && overwriteMonths.value.length > 0;
 
@@ -3076,6 +3276,7 @@ async function proceedWithImport() {
   } finally {
     $q.loading.hide();
     importRunning.value = false;
+    clearEveryDollarBudgetSelection();
     previewData.value = { entities: [], categories: [], transactions: [], accountsAndSnapshots: [] };
     previewErrors.value = [];
     selectedEntityId.value = "";
