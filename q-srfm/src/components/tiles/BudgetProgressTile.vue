@@ -1,35 +1,34 @@
 <template>
-  <q-card flat bordered class="tile tile--primary text-white">
-    <q-card-section class="row items-center justify-between">
-      <div class="col text-subtitle2">Budget Progress</div>
-      <q-btn dense flat round icon="refresh" color="white" :loading="loading" @click="loadBudget" />
+  <q-card flat bordered class="dashboard-tile">
+    <q-card-section class="row items-center justify-between q-px-md q-py-sm">
+      <div class="text-subtitle2 q-mb-none">Budget Progress</div>
+      <q-btn dense flat icon="refresh" color="primary" :loading="loading" @click="loadBudget" />
     </q-card-section>
-    <q-separator class="sep--dark" />
-    <q-card-section>
+    <q-card-section class="q-pt-xs q-px-md q-pb-md">
       <div v-if="loading" class="row items-center justify-center q-pa-md">
         <q-spinner size="24px" color="primary" />
       </div>
       <div v-else>
         <div class="row items-center">
           <div class="col">
-            <div class="text-caption">Planned Expenses</div>
-            <div class="text-h5">{{ money(plannedExpenses) }}</div>
+            <div class="text-caption text-grey-6">Planned Expenses</div>
+            <div class="text-h5 q-mt-xs">{{ money(plannedExpenses) }}</div>
           </div>
           <div class="col">
-            <div class="text-caption">Actual Income</div>
-            <div class="text-h5">{{ money(actualIncome) }}</div>
+            <div class="text-caption text-grey-6">Actual Income</div>
+            <div class="text-h5 q-mt-xs">{{ money(actualIncome) }}</div>
           </div>
         </div>
         <div class="row items-center q-mt-sm">
           <div class="col">
-            <q-linear-progress :value="progress" color="white" track-color="teal-6" rounded />
+            <q-linear-progress :value="progress" color="primary" track-color="grey-3" rounded />
           </div>
-          <div class="col-auto text-caption q-ml-sm">
+          <div class="col-auto text-caption text-grey-7 q-ml-sm">
             {{ (progress * 100).toFixed(0) }}%
           </div>
         </div>
         <div class="row q-mt-sm">
-          <div class="col text-weight-medium">
+          <div class="col text-body2 text-weight-medium text-grey-8">
             {{ remainingLabel }}
           </div>
         </div>
@@ -123,8 +122,13 @@ watch(
 </script>
 
 <style scoped>
-.tile { min-height: 150px; border-radius: 12px; }
-.tile--primary { background: var(--q-primary); }
-.sep--dark { opacity: 0.2; }
-.text-subtitle2 { font-weight: 600; letter-spacing: .3px; }
+.dashboard-tile {
+  min-height: 150px;
+  border-radius: 12px;
+  background-color: #ffffff;
+}
+.text-subtitle2 {
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
 </style>

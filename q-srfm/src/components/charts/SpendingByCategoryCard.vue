@@ -1,11 +1,10 @@
 <template>
   <q-card flat bordered class="section-card">
-    <q-card-section class="row items-center justify-between">
-      <div class="col text-subtitle2">Spending by Category</div>
-      <q-btn dense flat icon="refresh" :loading="loading" @click="loadBudget" />
+    <q-card-section class="row items-center justify-between q-px-md q-py-sm">
+      <div class="text-subtitle2">Spending by Category</div>
+      <q-btn dense flat icon="refresh" :loading="loading" @click="loadBudget" color="primary" />
     </q-card-section>
-    <q-separator />
-    <q-card-section>
+    <q-card-section class="q-pt-xs q-px-md q-pb-md">
       <div v-if="loading" class="row items-center justify-center q-pa-md">
         <q-spinner size="24px" color="primary" />
       </div>
@@ -13,14 +12,14 @@
         <div v-if="groups.length" style="height: 260px">
           <DoughnutChart :data="chartData" :options="chartOptions" />
         </div>
-        <div v-else class="text-body2">No expense data available for this month.</div>
+        <div v-else class="text-body2 text-grey-7">No expense data available for this month.</div>
         <div class="q-mt-md compact-list">
           <div v-for="(g, idx) in groups" :key="g.name" class="row items-center q-py-xs">
             <div class="col-auto">
               <span class="legend-dot" :style="{ backgroundColor: colors[idx % colors.length] }" />
             </div>
-            <div class="col">{{ g.name }}</div>
-            <div class="col-auto text-weight-medium">{{ money(g.actual) }}</div>
+            <div class="col text-body1 text-grey-9">{{ g.name }}</div>
+            <div class="col-auto text-weight-medium text-grey-8">{{ money(g.actual) }}</div>
           </div>
         </div>
       </div>
@@ -45,16 +44,28 @@ const budgetStore = useBudgetStore();
 const budget = ref<Budget | null>(null);
 const loading = ref(false);
 
+type ColorToken = { token: string; fallback: string };
+
+function resolveTokenColor(token: string, fallback: string) {
+  if (typeof window === 'undefined') return fallback;
+  const value = getComputedStyle(document.documentElement).getPropertyValue(`--q-${token}`);
+  return value ? value.trim() : fallback;
+}
+
+const colorTokens: ColorToken[] = [
+  { token: 'primary', fallback: '#2563EB' },
+  { token: 'secondary', fallback: '#0F766E' },
+  { token: 'positive', fallback: '#16A34A' },
+  { token: 'warning', fallback: '#F59E0B' },
+  { token: 'negative', fallback: '#DC2626' },
+  { token: 'info', fallback: '#0284C7' },
+];
+
 const colors = [
-  '#1E88E5', // primary
-  '#43A047', // secondary
-  '#FDD835', // accent
-  '#29B6F6', // info
-  '#4CAF50', // positive
-  '#E53935', // negative
-  '#8E24AA', // purple (extra)
-  '#FB8C00', // orange (extra)
-  '#3949AB', // indigo (extra)
+  ...colorTokens.map((entry) => resolveTokenColor(entry.token, entry.fallback)),
+  '#475569',
+  '#64748B',
+  '#0F172A',
 ];
 
 function money(n: number) {
@@ -149,12 +160,18 @@ watch(
 </script>
 
 <style scoped>
-.section-card { border-radius: 12px; }
+.section-card {
+  border-radius: 12px;
+  background-color: #ffffff;
+  min-height: 360px;
+}
 .legend-dot {
   display: inline-block;
   width: 10px;
   height: 10px;
   border-radius: 50%;
 }
-.compact-list .row { margin-bottom: 2px; }
+.compact-list .row {
+  margin-bottom: 2px;
+}
 </style>

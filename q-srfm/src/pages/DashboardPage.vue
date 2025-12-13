@@ -1,36 +1,53 @@
 <template>
-  <q-page padding>
-    <div class="row">
-      <div class="col-12">
-        <EntitySelector class="q-mb-sm" />
-        <div class="text-subtitle2 text-primary q-mb-md">
-          {{ budgetLabel }}
-        </div>
-        <q-banner v-for="nudge in nudges" :key="nudge" class="q-mb-sm" color="warning" text-color="white" icon="savings">
-          {{ nudge }}
-        </q-banner>
-        <DashboardTiles
-          :budget-id="budgetId"
-          :family-id="familyId"
-          :entity-id="entityId"
-          @open-bills="onOpenBills"
-          @create-goal="onCreateGoal"
-        />
+  <q-page class="bg-grey-1 q-pa-lg">
+    <div class="row items-center justify-between q-col-gutter-sm q-mb-md">
+      <div>
+        <div class="text-h4 q-mb-xs">Dashboard</div>
+        <div class="text-subtitle2 text-grey-7">{{ budgetLabel }}</div>
       </div>
-      <div class="col-12 q-mt-sm">
-        <q-btn color="primary" class="full-width q-py-sm" rounded unelevated size="lg" label="View Transactions" to="/transactions" />
+      <q-btn
+        color="primary"
+        unelevated
+        rounded
+        size="lg"
+        class="q-px-lg"
+        label="View Transactions"
+        to="/transactions"
+      />
+    </div>
+
+    <div class="row items-start q-col-gutter-md q-mb-lg">
+      <div class="col-auto">
+        <EntitySelector />
       </div>
-      <div class="col-12 q-mt-md">
-        <div class="row q-col-gutter-md">
-          <div class="col-12 col-md-6">
-            <SpendingByCategoryCard :budget-id="budgetId" />
-          </div>
-          <div class="col-12 col-md-6">
-            <IncomeVsExpensesCard :entity-id="entityId" />
-          </div>
+      <div class="col q-gutter-md">
+        <div v-for="nudge in nudges" :key="nudge" class="q-mb-sm">
+          <q-banner dense class="dashboard-nudge" color="warning" text-color="white" icon="savings">
+            {{ nudge }}
+          </q-banner>
         </div>
       </div>
     </div>
+
+    <section class="dashboard-summary q-mb-lg">
+      <DashboardTiles
+        :budget-id="budgetId"
+        :family-id="familyId"
+        :entity-id="entityId"
+        @open-bills="onOpenBills"
+        @create-goal="onCreateGoal"
+      />
+    </section>
+
+    <section class="row q-col-gutter-md">
+      <div class="col-12 col-lg-6">
+        <SpendingByCategoryCard :budget-id="budgetId" />
+      </div>
+      <div class="col-12 col-lg-6">
+        <IncomeVsExpensesCard :entity-id="entityId" />
+      </div>
+    </section>
+
     <GoalDialog v-model="goalDialog" @save="saveGoal" />
   </q-page>
 </template>
@@ -107,3 +124,9 @@ async function saveGoal(data: Partial<Goal>) {
   }
 }
 </script>
+
+<style scoped>
+.dashboard-nudge {
+  border-radius: 10px;
+}
+</style>

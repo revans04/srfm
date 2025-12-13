@@ -1,17 +1,16 @@
 <template>
-  <q-card flat bordered class="tile tile--info text-white">
-    <q-card-section class="row items-center justify-between">
-      <div class="col text-subtitle2">Net Worth</div>
-      <q-btn dense flat round icon="refresh" color="white" :loading="loading" @click="loadNetWorth" />
+  <q-card flat bordered class="dashboard-tile">
+    <q-card-section class="row items-center justify-between q-px-md q-py-sm">
+      <div class="text-subtitle2 q-mb-none">Net Worth</div>
+      <q-btn dense flat icon="refresh" color="primary" :loading="loading" @click="loadNetWorth" />
     </q-card-section>
-    <q-separator class="sep--dark" />
-    <q-card-section>
+    <q-card-section class="q-pt-xs q-px-md q-pb-md">
       <div v-if="loading" class="row items-center justify-center q-pa-md">
         <q-spinner size="24px" color="primary" />
       </div>
       <div v-else>
         <div v-if="value !== null" class="text-h5">{{ money(value) }}</div>
-        <div v-else class="text-body2">
+        <div v-else class="text-body2 text-grey-7">
           No snapshots yet. Import accounts or capture a snapshot to see net worth.
         </div>
       </div>
@@ -82,8 +81,13 @@ watch(
 </script>
 
 <style scoped>
-.tile { min-height: 150px; border-radius: 12px; }
-.tile--info { background: var(--q-info); }
-.sep--dark { opacity: 0.2; }
-.text-subtitle2 { font-weight: 600; letter-spacing: .3px; }
+.dashboard-tile {
+  min-height: 150px;
+  border-radius: 12px;
+  background-color: #ffffff;
+}
+.text-subtitle2 {
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
 </style>

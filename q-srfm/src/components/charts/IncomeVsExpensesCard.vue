@@ -1,11 +1,10 @@
 <template>
   <q-card flat bordered class="section-card">
-    <q-card-section class="row items-center justify-between">
-      <div class="col text-subtitle2">Income vs. Expenses</div>
-      <q-btn dense flat icon="refresh" :loading="loading" @click="loadSeries" />
+    <q-card-section class="row items-center justify-between q-px-md q-py-sm">
+      <div class="text-subtitle2">Income vs. Expenses</div>
+      <q-btn dense flat icon="refresh" :loading="loading" @click="loadSeries" color="primary" />
     </q-card-section>
-    <q-separator />
-    <q-card-section>
+    <q-card-section class="q-pt-xs q-px-md q-pb-md">
       <div v-if="loading" class="row items-center justify-center q-pa-md">
         <q-spinner size="24px" color="primary" />
       </div>
@@ -13,7 +12,7 @@
         <div v-if="series.labels.length" style="height: 260px">
           <LineChart :data="chartData" :options="options" />
         </div>
-        <div v-else class="text-body2">No monthly data available yet.</div>
+        <div v-else class="text-body2 text-grey-7">No monthly data available yet.</div>
       </div>
     </q-card-section>
   </q-card>
@@ -29,6 +28,35 @@ import 'chartjs-adapter-date-fns';
 
 ChartJS.register(LineElement, PointElement, LinearScale, TimeScale, TimeSeriesScale, Tooltip, Legend, Filler);
 const LineChart = Line;
+
+function resolveTokenColor(token: string, fallback: string) {
+  if (typeof window === 'undefined') return fallback;
+  const value = getComputedStyle(document.documentElement).getPropertyValue(`--q-${token}`);
+  return value ? value.trim() : fallback;
+}
+
+function hexToRgba(value: string, alpha: number) {
+  const normalized = value.trim().replace('#', '');
+  const hex = normalized.length === 3 ? normalized.split('').map((char) => char + char).join('') : normalized;
+  if (!/^[0-9a-f]{6}$/i.test(hex)) {
+    return value;
+  }
+  const numeric = parseInt(hex, 16);
+  const r = (numeric >> 16) & 255;
+  const g = (numeric >> 8) & 255;
+  const b = numeric & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function withAlpha(color: string, alpha: number) {
+  if (color.startsWith('#')) {
+    return hexToRgba(color, alpha);
+  }
+  return color;
+}
+
+const incomeColor = resolveTokenColor('primary', '#2563EB');
+const expenseColor = resolveTokenColor('negative', '#DC2626');
 
 const props = defineProps<{ entityId?: string }>();
 const budgetStore = useBudgetStore();
@@ -83,8 +111,8 @@ const chartData = computed(() => ({
     {
       label: 'Income',
       data: series.value.income,
-      borderColor: '#1E88E5',
-      backgroundColor: 'rgba(30, 136, 229, 0.15)',
+      borderColor: incomeColor,
+      backgroundColor: withAlpha(incomeColor, 0.15),
       fill: true,
       pointRadius: 2,
       tension: 0.3,
@@ -92,8 +120,8 @@ const chartData = computed(() => ({
     {
       label: 'Expenses',
       data: series.value.expenses,
-      borderColor: '#E53935',
-      backgroundColor: 'rgba(229, 57, 53, 0.12)',
+      borderColor: expenseColor,
+      backgroundColor: withAlpha(expenseColor, 0.12),
       fill: true,
       pointRadius: 2,
       tension: 0.3,
@@ -129,5 +157,9 @@ watch(
 </script>
 
 <style scoped>
-.section-card { border-radius: 12px; }
+.section-card {
+  border-radius: 12px;
+  background-color: #ffffff;
+  min-height: 360px;
+}
 </style>

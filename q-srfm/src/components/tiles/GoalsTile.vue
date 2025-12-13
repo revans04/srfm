@@ -1,25 +1,24 @@
 <template>
-  <q-card flat bordered class="tile tile--secondary text-white">
-    <q-card-section class="row items-center justify-between">
-      <div class="col text-subtitle2">Goals</div>
-      <q-btn dense flat round icon="add" color="white" @click="$emit('create')" title="Create Goal" />
+  <q-card flat bordered class="dashboard-tile">
+    <q-card-section class="row items-center justify-between q-px-md q-py-sm">
+      <div class="text-subtitle2 q-mb-none">Goals</div>
+      <q-btn dense flat icon="add" color="primary" @click="$emit('create')" title="Create Goal" />
     </q-card-section>
-    <q-separator class="sep--dark" />
-    <q-card-section>
+    <q-card-section class="q-pt-xs q-px-md q-pb-md">
       <div v-if="goals.length">
         <div
           v-for="g in goals.slice(0, 3)"
           :key="g.id"
-          class="row items-center justify-between q-mb-xs"
+          class="row items-center justify-between q-py-xs"
         >
-          <div>{{ g.name }}</div>
-          <div>{{ formatCurrency(g.savedToDate || 0) }} / {{ formatCurrency(g.totalTarget) }}</div>
+          <div class="text-body1 text-grey-9">{{ g.name }}</div>
+          <div class="text-body2">{{ formatCurrency(g.savedToDate || 0) }} / {{ formatCurrency(g.totalTarget) }}</div>
         </div>
-        <div v-if="goals.length > 3" class="text-caption q-mt-xs">
+        <div v-if="goals.length > 3" class="text-caption text-grey-6 q-mt-xs">
           +{{ goals.length - 3 }} more
         </div>
       </div>
-      <div v-else class="text-body2">No active goals</div>
+      <div v-else class="text-body2 text-grey-7">No active goals</div>
     </q-card-section>
   </q-card>
 </template>
@@ -51,8 +50,13 @@ function formatCurrency(amount: number): string {
 </script>
 
 <style scoped>
-.tile { min-height: 150px; border-radius: 12px; }
-.tile--secondary { background: var(--q-secondary); }
-.sep--dark { opacity: 0.2; }
-.text-subtitle2 { font-weight: 600; letter-spacing: .3px; }
+.dashboard-tile {
+  min-height: 150px;
+  border-radius: 12px;
+  background-color: #ffffff;
+}
+.text-subtitle2 {
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
 </style>

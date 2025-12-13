@@ -1374,26 +1374,136 @@ async function handleBudgetTransactionImport() {
     });
   }
 
+  const parseCurrencyField = (value: any): number | null => {
+    const normalized = cleanCsvString(value);
+    if (normalized === "") {
+      return null;
+    }
+    const numeric = Number(normalized.replace(/[^0-9.-]/g, ""));
+    if (Number.isNaN(numeric)) {
+      return null;
+    }
+    return numeric;
+  };
+
+  const parseCurrencyFromRow = (row: Record<string, any>, fields: string[]): number | null => {
+    for (const field of fields) {
+      if (!Object.prototype.hasOwnProperty.call(row, field)) {
+        continue;
+      }
+      const parsed = parseCurrencyField(row[field]);
+      if (parsed === null) {
+        continue;
+      }
+      if (field.toLowerCase().includes("cents")) {
+        return parsed / 100;
+      }
+      return parsed;
+    }
+    return null;
+  };
+
+  const buildTransactionGroupKey = (row: Record<string, any>, index: number) => {
+    const baseId = cleanCsvString(row.transactionid || row.transaction_id || row.id);
+    if (baseId) {
+      return baseId;
+    }
+    const datePart = cleanCsvString(row.transactiondate || row.transaction_date || row.date);
+    const merchantPart = cleanCsvString(row.merchant || row.payee || "");
+    const amountPart = parseCurrencyFromRow(row, [
+      "transaction_amount_dollars",
+      "transaction_amount_cents",
+      "amount",
+      "amount_cents",
+    ]);
+    return `${datePart}_${merchantPart}_${amountPart ?? index}`;
+  };
+
+  const extractRowSplits = (row: Record<string, any>) => {
+    const splits: { category: string; amount: number }[] = [];
+    if (row.categories && typeof row.categories === "string") {
+      try {
+        const parsed = JSON.parse(row.categories);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((entry) => {
+            if (entry && typeof entry.category === "string" && typeof entry.amount === "number") {
+              splits.push({ category: entry.category, amount: Math.abs(entry.amount) });
+            }
+          });
+          if (splits.length > 0) {
+            return splits;
+          }
+        }
+      } catch {
+        // fall back to legacy parsing below
+      }
+    }
+
+    const label = cleanCsvString(
+      row.allocation_label ||
+        row.category ||
+        row.item ||
+        row.group_label ||
+        row.group ||
+        row.name ||
+        ""
+    );
+    if (!label) {
+      return splits;
+    }
+
+    const amount = parseCurrencyFromRow(row, [
+      "allocation_amount_dollars",
+      "allocation_amount_cents",
+      "amount",
+      "amount_cents",
+      "transaction_amount_dollars",
+      "transaction_amount_cents",
+    ]);
+    if (amount === null) {
+      return splits;
+    }
+    splits.push({ category: label, amount: Math.abs(amount) });
+    return splits;
+  };
+
   if (transactionCSVData) {
-    console.log(`transactions found`, transactionCSVData);
+    const groupedTransactions = new Map<
+      string,
+      { base: Record<string, any>; rows: Record<string, any>[] }
+    >();
     transactionCSVData.forEach((row, index) => {
-      let month = row.budgetmonth;
-      if (!month && row.budgetid) {
-        const match = row.budgetid.match(/_(\d{4}-\d{2})$/);
+      const key = buildTransactionGroupKey(row, index);
+      let group = groupedTransactions.get(key);
+      if (!group) {
+        group = { base: row, rows: [] };
+        groupedTransactions.set(key, group);
+      }
+      group.rows.push(row);
+    });
+
+    groupedTransactions.forEach((group, layerIndex) => {
+      const base = group.base;
+      let month = base.budgetmonth;
+      if (!month && base.budgetid) {
+        const match = base.budgetid.match(/_(\d{4}-\d{2})$/);
         if (match) {
           month = match[1];
         }
       }
       if (!month) {
         try {
-          month = toBudgetMonth(row.transactiondate);
+          month = toBudgetMonth(base.transactiondate);
         } catch {
-          previewErrors.value.push(`File ${transactionCSVFile}, Row ${index + 1}: Invalid transaction date: ${row.transactiondate}`);
-          return;
+          previewErrors.value.push(
+            `File ${transactionCSVFile}, Group ${layerIndex + 1}: Invalid transaction date: ${base.transactiondate}`
+          );
         }
       }
       if (!month) {
-        previewErrors.value.push(`File ${transactionCSVFile}, Row ${index + 1}: budgetMonth is required and could not be derived`);
+        previewErrors.value.push(
+          `File ${transactionCSVFile}, Group ${layerIndex + 1}: budgetMonth is required and could not be derived`
+        );
         return;
       }
 
@@ -1402,88 +1512,81 @@ async function handleBudgetTransactionImport() {
         budgetId = uuidv4();
         monthToId.set(month, budgetId);
         budgetsById.set(budgetId, {
-          budgetId: budgetId,
+          budgetId,
           budgetMonth: month,
-          month: month,
+          month,
           incomeTarget: 0,
           categories: [],
           transactions: [],
           merchants: [],
-          familyId: familyStore.family?.id || '',
+          familyId: familyStore.family?.id || "",
           label: `Imported Budget ${month}`,
           entityId: selectedEntityId.value,
         });
       }
-      const amount = parseFloat(row.amount);
-      if (isNaN(amount)) {
-        previewErrors.value.push(`File ${transactionCSVFile}, Row ${index + 1}: Amount must be a number`);
-        return;
-      }
 
-      if (!budgetsById.has(budgetId)) {
-        console.log('no budget');
-        budgetsById.set(budgetId, {
-          budgetId: budgetId,
-          budgetMonth: month,
-          month: month,
-          incomeTarget: 0,
-          categories: [],
-          transactions: [],
-          familyId: familyId.value || "",
-          label: `Imported Budget ${month}`,
-          entityId: selectedEntityId.value,
-          merchants: [],
-        });
-      }
-
-      const transactionId = row.transactionid || uuidv4();
-      let categories: { category: string; amount: number }[] = [];
-
-      try {
-        if (row.categories && typeof row.categories === "string") {
-          if (row.categories.startsWith("[")) {
-            categories = JSON.parse(row.categories);
-            if (!Array.isArray(categories) || !categories.every((c) => c.category && typeof c.amount === "number")) {
-              throw new Error("Invalid categories format");
-            }
-          } else if (row.issplit === "true" || row.issplit === "1") {
-            categories = row.categories.split(";").map((catStr: string) => {
-              const match = catStr.trim().match(/([^:]+):\s*(\d+\.?\d*)\s*(?:\(([^)]+)\))?/);
-              if (!match) throw new Error(`Invalid category format: ${catStr}`);
-              return {
-                category: match[1].trim(),
-                amount: parseFloat(match[2]),
-              };
-            });
-          } else {
-            categories = [{ category: row.categories || row.category || "", amount: amount }];
+      const categoryTotals = new Map<string, number>();
+      group.rows.forEach((row) => {
+        const splits = extractRowSplits(row);
+        splits.forEach((split) => {
+          const name = split.category.trim();
+          if (!name) {
+            return;
           }
-        } else {
-          categories = [{ category: row.category || "", amount: amount }];
-        }
-      } catch (e: any) {
-        console.log(e);
-        previewErrors.value.push(`File ${transactionCSVFile}, Row ${index + 1}: Invalid categories format - ${e.message}`);
+          categoryTotals.set(name, (categoryTotals.get(name) || 0) + split.amount);
+        });
+      });
+
+      const categories = Array.from(categoryTotals.entries()).map(([category, amount]) => ({
+        category,
+        amount,
+      }));
+
+      let totalAmount = parseCurrencyFromRow(base, [
+        "transaction_amount_dollars",
+        "transaction_amount_cents",
+        "amount",
+        "amount_cents",
+      ]);
+      if (totalAmount === null) {
+        totalAmount = categories.reduce((sum, cat) => sum + cat.amount, 0);
+      }
+
+      if (categories.length === 0 && totalAmount !== null && totalAmount !== 0) {
+        const fallbackCategory = cleanCsvString(
+          base.category || base.categories || base.categoryid || base.item || "Uncategorized"
+        );
+        categories.push({
+          category: fallbackCategory || "Uncategorized",
+          amount: Math.abs(totalAmount),
+        });
+      }
+      if (categories.length === 0) {
+        previewErrors.value.push(
+          `File ${transactionCSVFile}, Group ${layerIndex + 1}: Unable to determine categories`
+        );
         return;
       }
 
+      const transactionId = cleanCsvString(base.transactionid || base.transaction_id) || uuidv4();
       const transactionData: Transaction = {
         id: transactionId,
         userId: user.uid,
         budgetMonth: month,
-        budgetId: budgetId,
-        date: row.transactiondate,
-        merchant: row.merchant || "",
-        categories: categories,
-        amount: amount,
-        notes: row.notes || "",
-        recurring: row.recurring === "true" || row.recurring === "1",
-        recurringInterval: row.recurringinterval || "Monthly",
-        isIncome: row.isincome === "true" || row.isincome === "1" || row.income_expense?.toLowerCase() === "income",
-        accountNumber: row.accountNumber || "",
-        accountSource: row.accountSource || "",
-        postedDate: row.postedDate || "",
-        status: row.status || "U",
+        budgetId,
+        date: base.transactiondate,
+        merchant: base.merchant || base.payee || "",
+        categories,
+        amount: Math.abs(totalAmount ?? categories.reduce((sum, cat) => sum + cat.amount, 0)),
+        notes: base.notes || "",
+        recurring: base.recurring === "true" || base.recurring === "1",
+        recurringInterval: base.recurringinterval || "Monthly",
+        isIncome:
+          (totalAmount ?? categories.reduce((sum, cat) => sum + cat.amount, 0)) > 0,
+        accountNumber: base.accountNumber || "",
+        accountSource: base.accountSource || "",
+        postedDate: base.postedDate || "",
+        status: base.status || "U",
         entityId: selectedEntityId.value,
         taxMetadata: [],
       };
@@ -2009,7 +2112,6 @@ async function importEveryDollarCsv() {
 
     const budgetsById = new Map<string, Budget>();
     const existingBudgetIds = new Set<string>();
-    const importMonths = new Set<string>();
 
     budgetKeysWithBudgetCsvRows.forEach((key) => {
       const data = budgetData.get(key);
@@ -2054,7 +2156,6 @@ async function importEveryDollarCsv() {
       };
 
       budgetsById.set(targetId, budget);
-      importMonths.add(month);
       if (existingId) {
         existingBudgetIds.add(existingId);
       }
@@ -3177,6 +3278,32 @@ async function proceedWithImport() {
     const storedPending = pendingImportData.value;
     const budgetsById: Map<string, Budget> = storedPending?.budgetsById ?? new Map();
     const existingBudgetIds = new Set(storedPending?.existingBudgetIds ?? []);
+
+    const preservedTransactionStatuses = new Map<string, 'U' | 'C' | 'R'>();
+    const collectStatusesForBudget = async (budgetId: string) => {
+      if (!budgetId) return;
+      let budget = budgetStore.budgets.get(budgetId);
+      if (!budget) {
+        try {
+          budget = await dataAccess.getBudget(budgetId);
+        } catch (err) {
+          console.error(`Failed to load budget ${budgetId} for status preservation`, err);
+          return;
+        }
+      }
+      budget.transactions?.forEach((tx) => {
+        if (!tx || !tx.id) return;
+        const status = tx.status || 'U';
+        if (status !== 'U') {
+          preservedTransactionStatuses.set(tx.id, status);
+        }
+      });
+    };
+
+    if (existingBudgetIds.size > 0) {
+      await Promise.all(Array.from(existingBudgetIds).map((budgetId) => collectStatusesForBudget(budgetId)));
+    }
+
     pendingImportData.value = null;
 
     const selectedBudgetIds = storedPending?.selectedBudgetIds;
@@ -3186,6 +3313,25 @@ async function proceedWithImport() {
         const targetId = budget.budgetId || key;
         return { key, targetId, budget };
       });
+
+    entries.forEach(({ budget }) => {
+      budget.transactions = (budget.transactions || []).map((tx) => {
+        if (!tx) return tx;
+        const savedStatus = preservedTransactionStatuses.get(tx.id);
+        if (savedStatus) {
+          tx.status = savedStatus;
+        } else if (!tx.status) {
+          tx.status = 'U';
+        }
+        if (!tx.userId) {
+          tx.userId = user.uid;
+        }
+        if (!tx.familyId) {
+          tx.familyId = familyId.value || '';
+        }
+        return tx;
+      });
+    });
 
     const shouldDeleteExisting = existingBudgetIds.size > 0 && overwriteMonths.value.length > 0;
 
