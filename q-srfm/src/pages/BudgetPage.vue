@@ -34,44 +34,14 @@
           <EntitySelector class="budget-hero__entity" @change="loadBudgets" />
 
           <div class="budget-hero__month">
-            <div class="budget-hero__month-label">{{ formatLongMonth(currentMonth) }}</div>
-            <q-btn flat dense round icon="expand_more" size="sm" class="budget-hero__month-trigger">
-              <q-menu
-                v-model="menuOpen"
-                anchor="bottom left"
-                self="top left"
-                :offset="[0, 4]"
-                :close-on-content-click="false"
-                @show="onMonthMenuShow"
-                @hide="onMonthMenuHide"
-              >
-                <q-card class="month-menu">
-                  <div class="row no-wrap items-center q-px-sm q-py-xs border-bottom">
-                    <div class="col-auto">
-                      <q-btn flat dense icon="chevron_left" @click.stop="shiftMonths(-6)" />
-                    </div>
-                    <div class="col text-center">
-                      <span>{{ displayYear }}</span>
-                    </div>
-                    <div class="col-auto">
-                      <q-btn flat dense icon="chevron_right" @click.stop="shiftMonths(6)" />
-                    </div>
-                  </div>
-                  <div class="row">
-                    <div v-for="month in displayedMonths" :key="month.value" class="col-4">
-                      <div
-                        class="q-pa-xs q-ma-xs text-center cursor-pointer border rounded"
-                        :class="month.value === currentMonth ? 'bg-primary text-white' : 'text-primary'"
-                        :style="monthExists(month.value) ? 'border-style: solid' : 'border-style: dashed'"
-                        @click="selectMonth(month.value)"
-                      >
-                        {{ month.label }}
-                      </div>
-                    </div>
-                  </div>
-                </q-card>
-              </q-menu>
-            </q-btn>
+            <div class="budget-hero__month-value">{{ formatLongMonth(currentMonth) }}</div>
+            <q-icon name="expand_more" class="budget-hero__month-icon" />
+            <MonthSelector
+              v-model="currentMonth"
+              :entity-id="familyStore.selectedEntityId"
+              :existing-months="selectedEntityMonthSet"
+              @select="selectMonth"
+            />
           </div>
 
           <div v-if="!isMobile" class="budget-hero__actions">
@@ -598,6 +568,7 @@ import GoalDialog from '../components/goals/GoalDialog.vue';
 import ContributeDialog from '../components/goals/ContributeDialog.vue';
 import SavingsConversionPrompt from '../components/goals/SavingsConversionPrompt.vue';
 import GoalDetailsPanel from '../components/goals/GoalDetailsPanel.vue';
+import MonthSelector from '../components/MonthSelector.vue';
 import type { Transaction, Budget, IncomeTarget, BudgetCategoryTrx, BudgetCategory, Goal } from '../types';
 import { EntityType } from '../types';
 import version from '../version';
@@ -629,6 +600,9 @@ const appVersion = version;
 const currentMonth = ref(currentMonthISO());
 const isInitialLoad = ref(true);
 const availableBudgets = ref<Budget[]>([]);
+const selectedEntityMonthSet = computed(() =>
+  new Set(availableBudgets.value.filter(matchesSelectedEntity).map((b) => b.month)),
+);
 const budget = ref<Budget>({
   familyId: '',
   month: currentMonthISO(),
@@ -697,8 +671,6 @@ const transactionSearch = ref('');
 type TransactionFilterKey = 'matched' | 'unmatched' | 'deleted';
 
 const transactionFilter = ref<TransactionFilterKey>('unmatched');
-const monthOffset = ref(0);
-const menuOpen = ref(false);
 
 watch(
   [() => familyStore.selectedEntityId, currentMonth],
@@ -902,31 +874,6 @@ const formatLongMonth = (month: string) => {
   const date = new Date(parseInt(year), parseInt(monthNum) - 1);
   return date.toLocaleString('en-US', { month: 'long', year: 'numeric' });
 };
-
-const displayedMonths = computed(() => {
-  const months = [];
-  const today = new Date();
-  const startDate = new Date(today.getFullYear(), today.getMonth() + monthOffset.value, 1);
-
-  for (let i = -4; i <= 7; i++) {
-    const date = new Date(startDate.getFullYear(), startDate.getMonth() + i, 1);
-    const year = date.getFullYear();
-    const monthNum = date.getMonth();
-    const label = date.toLocaleString('en-US', {
-      month: 'short',
-      year: 'numeric',
-    });
-    const value = `${year}-${(monthNum + 1).toString().padStart(2, '0')}`;
-    months.push({ label, value });
-  }
-  return months;
-});
-
-const displayYear = computed(() => {
-  const today = new Date();
-  const startDate = new Date(today.getFullYear(), today.getMonth() + monthOffset.value, 1);
-  return startDate.getFullYear();
-});
 
 const catTransactions = computed(() => {
   const catTransactions: BudgetCategoryTrx[] = [];
@@ -1191,7 +1138,7 @@ const transactionEmptyLabel = computed(() => {
 });
 
 function monthExists(month: string) {
-  return availableBudgets.value.some((b) => b.month === month && matchesSelectedEntity(b));
+  return selectedEntityMonthSet.value.has(month);
 }
 
 function onIncomeRowClick(item: IncomeTarget) {
@@ -1631,10 +1578,6 @@ function updateTransactions(newTransactions: Transaction[]) {
   }
 }
 
-function shiftMonths(offset: number) {
-  monthOffset.value = offset;
-}
-
 async function selectMonth(month: string) {
   // If no entity is selected, but a budget exists for this month for some entity,
   // temporarily switch to that entity so the user can view it.
@@ -1653,8 +1596,6 @@ async function selectMonth(month: string) {
   }
   selectedCategory.value = null;
   currentMonth.value = month;
-  monthOffset.value = 0;
-  menuOpen.value = false;
 
   loading.value = true;
   try {
@@ -1691,13 +1632,6 @@ async function selectMonth(month: string) {
   } finally {
     loading.value = false;
   }
-}
-
-function onMonthMenuShow() {
-  log('Month menu shown');
-}
-function onMonthMenuHide() {
-  log('Month menu hidden');
 }
 
 async function saveBudget() {
@@ -2137,6 +2071,17 @@ interface GroupCategory {
 
 .budget-hero__month-label {
   white-space: nowrap;
+}
+
+.budget-hero__month-value {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  font-size: 1.25rem;
+}
+
+.budget-hero__month-icon {
+  margin-left: 4px;
+  color: var(--color-text-primary);
 }
 
 .budget-hero__month-trigger {

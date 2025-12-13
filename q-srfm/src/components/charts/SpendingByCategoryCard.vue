@@ -14,16 +14,50 @@
         </div>
         <div v-else class="text-body2 text-grey-7">No expense data available for this month.</div>
         <div class="q-mt-md compact-list">
-          <div v-for="(g, idx) in groups" :key="g.name" class="row items-center q-py-xs">
+          <div
+            v-for="(g, idx) in groups"
+            :key="g.name"
+            class="row items-center q-py-xs row-clickable"
+            @click="openCategoryDialog(g.name)"
+          >
             <div class="col-auto">
               <span class="legend-dot" :style="{ backgroundColor: colors[idx % colors.length] }" />
             </div>
-            <div class="col text-body1 text-grey-9">{{ g.name }}</div>
+            <div class="col text-body1 text-grey-9">{{ formatGroupName(g.name) }}</div>
             <div class="col-auto text-weight-medium text-grey-8">{{ money(g.actual) }}</div>
           </div>
         </div>
       </div>
     </q-card-section>
+    <q-dialog v-model="showMerchantDialog" max-width="520px">
+      <q-card>
+        <q-card-section>
+          <div class="text-h6 q-mb-xs">Merchants for {{ selectedCategory }}</div>
+          <div class="text-caption text-grey-6">Aggregated from this category's transactions.</div>
+        </q-card-section>
+        <q-separator />
+        <q-card-section class="q-pa-none">
+          <q-list dense bordered separator>
+            <q-item v-for="merchant in merchantAggregates" :key="merchant.name">
+              <q-item-section>
+                <div class="text-body1">{{ merchant.name }}</div>
+                <div class="text-caption text-grey-6">{{ merchant.count }} txn{{ merchant.count === 1 ? '' : 's' }}</div>
+              </q-item-section>
+              <q-item-section side class="text-right text-body2">{{ money(merchant.total) }}</q-item-section>
+            </q-item>
+            <q-item v-if="merchantAggregates.length === 0">
+              <q-item-section>
+                <div class="text-body2 text-grey-6">No transactions found for this category.</div>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-card-section>
+        <q-separator />
+        <q-card-actions align="right">
+          <q-btn flat label="Close" color="primary" @click="showMerchantDialog = false" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-card>
 </template>
 
@@ -43,6 +77,9 @@ const props = defineProps<{ budgetId: string }>();
 const budgetStore = useBudgetStore();
 const budget = ref<Budget | null>(null);
 const loading = ref(false);
+const showMerchantDialog = ref(false);
+const selectedCategory = ref('');
+const merchantAggregates = ref<{ name: string; total: number; count: number }[]>([]);
 
 type ColorToken = { token: string; fallback: string };
 
@@ -96,30 +133,77 @@ async function loadBudget() {
   }
 }
 
+function openCategoryDialog(categoryName: string) {
+  if (!budget.value) return;
+  const categoryToGroup = categoryGrouping.value;
+  const aggregates = new Map<string, { total: number; count: number }>();
+  (budget.value.transactions || []).forEach((tx) => {
+    if (tx.deleted) return;
+    (tx.categories || []).forEach((cat) => {
+      const groupName = categoryToGroup.get(cat.category);
+      if (groupName !== categoryName) return;
+      const merchant = tx.merchant?.trim() || 'Unknown merchant';
+      const total = aggregates.get(merchant) ?? { total: 0, count: 0 };
+      const amount = tx.isIncome ? -1 * (cat.amount || 0) : cat.amount || 0;
+      total.total += Math.abs(amount);
+      total.count += 1;
+      aggregates.set(merchant, total);
+    });
+  });
+
+  merchantAggregates.value = Array.from(aggregates.entries())
+    .map(([name, data]) => ({ name, total: data.total, count: data.count }))
+    .sort((a, b) => b.total - a.total);
+  selectedCategory.value = categoryName;
+  showMerchantDialog.value = true;
+}
+
+const categoryGrouping = computed(() => {
+  const map = new Map<string, string>();
+  const b = budget.value;
+  if (!b) return map;
+  (b.categories || []).forEach((c) => {
+    if (c.name.toLowerCase() !== 'income' && (c.group || '').toLowerCase() !== 'income') {
+      map.set(c.name, c.group || 'Other');
+    }
+  });
+  return map;
+});
+
 const groups = computed(() => {
   const b = budget.value;
   if (!b) return [] as { name: string; actual: number }[];
-  const categoryToGroup = new Map<string, string>();
+  const categoryToGroup = categoryGrouping.value;
+  const groupTotals = new Map<string, number>();
+
   (b.categories || []).forEach((c) => {
-    if (c.name.toLowerCase() !== 'income' && (c.group || '').toLowerCase() !== 'income') {
-      categoryToGroup.set(c.name, c.group || 'Other');
+    const name = c.name || 'Other';
+    const group = categoryToGroup.get(name) || 'Other';
+    if (!groupTotals.has(group)) {
+      groupTotals.set(group, 0);
     }
   });
-  const map = new Map<string, number>();
+
   (b.transactions || []).forEach((t) => {
     if (t.deleted) return;
     (t.categories || []).forEach((split) => {
-      const g = categoryToGroup.get(split.category);
-      if (!g) return; // skip income
-      const sign = t.isIncome ? -1 : 1; // income reduces expenses
-      map.set(g, (map.get(g) || 0) + sign * (split.amount || 0));
+      const group = categoryToGroup.get(split.category) || 'Other';
+      const sign = t.isIncome ? -1 : 1;
+      const amount = sign * (split.amount || 0);
+      groupTotals.set(group, (groupTotals.get(group) || 0) + amount);
     });
   });
-  return Array.from(map.entries())
+
+  return Array.from(groupTotals.entries())
     .map(([name, actual]) => ({ name, actual }))
-    .sort((a, b) => b.actual - a.actual)
-    .slice(0, 6);
+    .sort((a, b) => b.actual - a.actual);
 });
+
+function formatGroupName(input: string) {
+  if (!input) return '';
+  const normalized = input.trim().toLowerCase();
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
 
 const chartData = computed(() => ({
   labels: groups.value.map((g) => g.name),
@@ -170,8 +254,16 @@ watch(
   width: 10px;
   height: 10px;
   border-radius: 50%;
+  margin-right: 10px;
 }
 .compact-list .row {
   margin-bottom: 2px;
+}
+.row-clickable {
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.row-clickable:hover {
+  background: rgba(37, 99, 235, 0.05);
 }
 </style>
