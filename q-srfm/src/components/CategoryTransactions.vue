@@ -71,53 +71,22 @@
       <q-separator class="q-mx-md" />
 
       <q-card-section class="category-transactions-scroll q-pt-none q-px-md q-pb-md">
-        <q-scroll-area class="category-transactions-scroll__area">
-          <q-list separator>
-            <q-item
+          <q-list separator class="q-pa-none">
+            <BudgetTransactionItem
               v-for="transaction in categoryTransactions"
               :key="transaction.id"
-              clickable
               class="transaction-row"
-              @click="editTransaction(transaction)"
-            >
-              <q-item-section avatar>
-                <div class="date-pill">
-                  <div class="date-month text-primary">{{ formatDateMonth(transaction.date) }}</div>
-                  <div class="date-day">{{ formatDateDay(transaction.date) }}</div>
-                </div>
-              </q-item-section>
-              <q-item-section>
-                <div class="transaction-merchant">{{ transaction.merchant || 'Unnamed transaction' }}</div>
-                <div class="transaction-meta">
-                  <span>{{ formatTransactionCategories(transaction) }}</span>
-                  <GoalFundingPill
-                    v-if="transaction.fundedByGoalId"
-                    :goal="goalMap[transaction.fundedByGoalId]"
-                    class="q-ml-xs"
-                  />
-                </div>
-              </q-item-section>
-              <q-item-section side class="text-right">
-                <div class="transaction-amount" :class="transaction.isIncome ? 'text-positive' : 'text-negative'">
-                  {{ transaction.isIncome ? '+' : '-' }}{{ formatTransactionAmount(transaction) }}
-                </div>
-                <q-btn
-                  flat
-                  dense
-                  round
-                  icon="delete"
-                  color="negative"
-                  @click.stop="confirmDelete(transaction)"
-                >
-                  <q-tooltip>Delete transaction</q-tooltip>
-                </q-btn>
-              </q-item-section>
-            </q-item>
+              :transaction="transaction"
+              :category-name="category.name"
+              :goal="goalMap[transaction.fundedByGoalId]"
+              removable
+              @select="editTransaction"
+              @delete="confirmDelete"
+            />
           </q-list>
           <div v-if="!categoryTransactions.length" class="q-pa-lg text-center text-grey-6">
             No transactions for this category.
           </div>
-        </q-scroll-area>
       </q-card-section>
     </q-card>
 
@@ -167,7 +136,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useQuasar, QSpinner } from 'quasar';
 import { dataAccess } from '../dataAccess';
 import TransactionForm from './TransactionForm.vue';
-import GoalFundingPill from './transactions/GoalFundingPill.vue';
+import BudgetTransactionItem from './BudgetTransactionItem.vue';
 import type { BudgetCategory, Transaction, Goal } from '../types';
 import { toDollars, toCents, formatCurrency } from '../utils/helpers';
 import { useBudgetStore } from '../store/budget';
@@ -321,55 +290,6 @@ function formatDate(dateStr?: string): string {
     ${date.toLocaleDateString('en-US', { month: 'short' })}
     ${date.toLocaleDateString('en-US', { day: 'numeric' })}
   `;
-}
-
-function formatDateMonth(dateStr?: string): string {
-  if (!dateStr) {
-    return '--';
-  }
-
-  const [yearStr, monthStr, dayStr] = dateStr.split('-');
-  const year = Number(yearStr);
-  const month = Number(monthStr);
-  const day = Number(dayStr);
-  const date = new Date(year, month - 1, day);
-  if (Number.isNaN(date.getTime())) {
-    return '--';
-  }
-  return date.toLocaleDateString('en-US', { month: 'short' });
-}
-
-function formatDateDay(dateStr?: string): string {
-  if (!dateStr) {
-    return '--';
-  }
-
-  const [yearStr, monthStr, dayStr] = dateStr.split('-');
-  const year = Number(yearStr);
-  const month = Number(monthStr);
-  const day = Number(dayStr);
-  const date = new Date(year, month - 1, day);
-  if (Number.isNaN(date.getTime())) {
-    return '--';
-  }
-  return date.toLocaleDateString('en-US', { day: '2-digit' });
-}
-
-function formatTransactionCategories(transaction: Transaction): string {
-  if (!transaction.categories || transaction.categories.length === 0) {
-    return 'Uncategorized';
-  }
-  return transaction.categories.map((c) => c.category).join(', ');
-}
-
-function getCategoryAmount(transaction: Transaction): number {
-  const split = transaction.categories?.find((s) => s.category === props.category.name);
-  return split ? split.amount : 0;
-}
-
-function formatTransactionAmount(transaction: Transaction): string {
-  const amount = Math.abs(Number(getCategoryAmount(transaction)) || 0);
-  return formatCurrency(toDollars(toCents(amount)));
 }
 
 function editTransaction(transaction: Transaction) {
@@ -560,28 +480,6 @@ onMounted(() => {
 
 .transaction-row:hover {
   background: rgba(15, 23, 42, 0.04);
-}
-
-.date-pill {
-  width: 48px;
-  height: 56px;
-  border-radius: 12px;
-  background: var(--color-surface-muted);
-  color: var(--color-text-primary);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-}
-
-.date-month {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-}
-
-.date-day {
-  font-size: 1.1rem;
 }
 
 .transaction-merchant {

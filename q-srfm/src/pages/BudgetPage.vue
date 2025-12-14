@@ -31,28 +31,20 @@
     <div v-else>
       <section class="budget-header q-pa-lg q-mb-md bg-white border border-grey-3 rounded-lg">
         <div class="row items-start justify-between q-mb-sm">
-          <div>
-            <div class="text-h4">Budget</div>
+          <div class="text-h4 col-auto q-pr-xl">Budget</div>
+          <div class="col-auto items-center"><EntitySelector @change="loadBudgets" /></div>
+          <div class="col-auto items-center text-h6 text-primary q-pt-xs">
+            {{ budgetLabel }}
+            <MonthSelector v-model="currentMonth" :entity-id="familyStore.selectedEntityId" :existing-months="selectedEntityMonthSet" @select="selectMonth" />
           </div>
-          <div class="row items-center q-col-gutter-sm">
-            <div class="row items-center q-gutter-sm">
-              <q-btn v-if="!isEditing" flat dense icon="edit" label="Edit" @click="isEditing = true" />
-              <q-btn v-else flat dense icon="close" label="Close" @click="isEditing = false" />
-              <q-btn v-if="!isEditing" flat dense icon="delete" color="negative" label="Delete" @click="confirmDeleteBudget" />
-            </div>
-            <q-btn round dense icon="add" color="primary" class="q-ml-sm" @click="addTransaction">
-              <q-tooltip>New transaction</q-tooltip>
-            </q-btn>
+          <div class="col text-right items-center q-gutter-sm">
+            <q-btn v-if="!isEditing" flat dense icon="edit" label="Edit" @click="isEditing = true" />
+            <q-btn v-else flat dense icon="close" label="Close" @click="isEditing = false" />
+            <q-btn v-if="!isEditing" flat dense icon="delete" color="negative" label="Delete" @click="confirmDeleteBudget" />
           </div>
         </div>
 
         <div class="row items-center q-col-gutter-sm q-mb-md">
-          <div class="col-12 col-md-4">
-            <EntitySelector @change="loadBudgets" />
-          </div>
-          <div class="col-12 col-md-3">
-            <MonthSelector v-model="currentMonth" :entity-id="familyStore.selectedEntityId" :existing-months="selectedEntityMonthSet" @select="selectMonth" />
-          </div>
           <div class="col">
             <q-input
               v-model="search"
@@ -89,7 +81,7 @@
         </div>
       </section>
 
-      <q-page-sticky v-if="!isMobile" position="bottom-right" :offset="[24, 24]">
+      <q-page-sticky v-if="!isMobile" position="bottom-right" :offset="[24, 24]" style="z-index: 1000">
         <q-btn round color="primary" icon="add" @click="addTransaction" />
       </q-page-sticky>
 
@@ -367,51 +359,7 @@
           />
           <GoalDetailsPanel v-else-if="selectedGoal && !isEditing" :goal="selectedGoal" @close="selectedGoal = null" />
           <template v-else>
-            <div class="column q-gutter-md">
-              <q-card class="q-pa-md" flat bordered>
-                <div class="row items-center justify-between q-mb-md">
-                  <div>
-                    <div class="text-subtitle1 q-mb-xs">Summary</div>
-                    <div class="text-caption text-muted">Income allocation</div>
-                  </div>
-                  <q-circular-progress :value="allocationPercent" size="90px" :thickness="0.24" color="primary" track-color="grey-3">
-                    <div class="text-subtitle2">{{ allocationPercent }}%</div>
-                  </q-circular-progress>
-                </div>
-                <div class="column q-gutter-sm">
-                  <div class="row items-center justify-between">
-                    <div class="row items-center q-gutter-sm">
-                      <q-icon name="lens" size="12px" color="primary" />
-                      <span>Allocated</span>
-                    </div>
-                    <span class="text-body1">{{ formatCurrency(allocationBreakdown.allocated) }}</span>
-                  </div>
-                  <div class="row items-center justify-between">
-                    <div class="row items-center q-gutter-sm">
-                      <q-icon name="lens" size="12px" color="grey-5" />
-                      <span>Unallocated</span>
-                    </div>
-                    <span class="text-body1" :class="{ 'text-negative': allocationBreakdown.unallocated < 0 }">
-                      {{ formatCurrency(allocationBreakdown.unallocated) }}
-                    </span>
-                  </div>
-                </div>
-              </q-card>
-
-              <q-card class="q-pa-md" flat bordered>
-                <div class="text-subtitle1 q-mb-xs">Group Totals</div>
-                <div class="text-caption text-muted q-mb-sm">Top groups by plan</div>
-                <div v-if="groupSummaries.length">
-                  <div v-for="group in groupSummaries" :key="group.name" class="row items-center justify-between q-py-xs">
-                    <span class="text-body2">{{ group.name }}</span>
-                    <span class="text-body1">{{ formatCurrency(group.planned) }}</span>
-                  </div>
-                </div>
-                <div v-else class="text-caption text-muted">No groups available</div>
-              </q-card>
-            </div>
-
-            <q-card class="column q-pa-none" flat bordered>
+            <q-card class="column q-pa-none budget-transactions-card full-height" flat bordered>
               <div class="row items-center justify-between q-pt-md q-px-md q-pb-sm border-bottom">
                 <div class="row items-center q-gutter-sm">
                   <q-avatar size="44px" color="primary" text-color="white">
@@ -456,39 +404,18 @@
 
               <q-separator />
 
-              <q-card-section class="q-pt-none q-px-md q-pb-md" style="min-height: 0">
-                <q-scroll-area style="min-height: 0">
-                  <q-list separator class="q-pa-none">
-                    <q-item
+              <q-card-section class="q-pt-none q-px-md q-pb-md transactions-panel">
+                <q-scroll-area class="transactions-scroll">
+                    <q-list separator class="q-pa-none">
+                    <BudgetTransactionItem
                       v-for="transaction in filteredMonthTransactions"
                       :key="transaction.id"
-                      clickable
-                      class="rounded-lg q-my-sm"
-                      @click="editTransaction(transaction)"
-                    >
-                      <div class="row items-center q-col-gutter-md q-py-sm q-px-sm">
-                        <div
-                          class="flex flex-column items-center justify-center text-caption text-uppercase"
-                          style="width: 54px; height: 64px; border-radius: 10px; background: rgba(15, 23, 42, 0.12); font-weight: 600"
-                        >
-                          <div class="text-caption text-primary">{{ formatTransactionMonthShort(transaction.date) }}</div>
-                          <div class="text-body2">{{ formatTransactionDay(transaction.date) }}</div>
-                        </div>
-                        <div class="col">
-                          <div class="text-body1">{{ transaction.merchant || 'Unnamed transaction' }}</div>
-                          <div class="row items-center q-gutter-sm text-caption text-muted">
-                            <span>{{ formatTransactionCategories(transaction) }}</span>
-                            <span>•</span>
-                            <span>{{ formatTransactionDateLong(transaction.date) }}</span>
-                          </div>
-                        </div>
-                        <div class="col-auto text-right">
-                          <div class="text-body1" :class="transaction.isIncome ? 'text-positive' : 'text-negative'">
-                            {{ transaction.isIncome ? '+' : '-' }}{{ formatTransactionAmount(transaction) }}
-                          </div>
-                        </div>
-                      </div>
-                    </q-item>
+                      :transaction="transaction"
+                      :goal="goalMap[transaction.fundedByGoalId]"
+                      removable
+                      @select="editTransaction"
+                      @delete="confirmDeleteTransaction"
+                    />
                   </q-list>
                 </q-scroll-area>
                 <div v-if="!filteredMonthTransactions.length" class="text-center text-grey-6 q-pt-md">
@@ -526,6 +453,20 @@
           </q-card-section>
         </q-card>
       </q-dialog>
+      <q-dialog v-model="showDeleteTransactionDialog" max-width="400">
+        <q-card>
+          <q-card-section class="text-h6">Delete transaction</q-card-section>
+          <q-card-section>
+            Are you sure you want to delete the transaction for
+            <strong>{{ transactionToDelete?.merchant || 'this merchant' }}</strong>?
+          </q-card-section>
+          <q-card-actions align="right">
+            <q-space />
+            <q-btn color="grey" flat label="Cancel" @click="showDeleteTransactionDialog = false" />
+            <q-btn color="negative" flat label="Move to Trash" @click="executeTransactionDelete" />
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
       <GoalDialog v-model="goalDialog" :goal="selectedGoal || undefined" @save="saveGoal" />
       <ContributeDialog v-model="contributeDialog" :goal="selectedGoal || undefined" @save="saveContribution" />
     </div>
@@ -546,10 +487,11 @@ import ContributeDialog from '../components/goals/ContributeDialog.vue';
 import SavingsConversionPrompt from '../components/goals/SavingsConversionPrompt.vue';
 import GoalDetailsPanel from '../components/goals/GoalDetailsPanel.vue';
 import MonthSelector from '../components/MonthSelector.vue';
+import BudgetTransactionItem from '../components/BudgetTransactionItem.vue';
 import type { Transaction, Budget, IncomeTarget, BudgetCategoryTrx, BudgetCategory, Goal } from '../types';
 import { EntityType } from '../types';
 import version from '../version';
-import { toDollars, toCents, formatCurrency, formatDateLong, todayISO, currentMonthISO } from '../utils/helpers';
+import { toDollars, toCents, formatCurrency, todayISO, currentMonthISO } from '../utils/helpers';
 import { useAuthStore } from '../store/auth';
 import { useBudgetStore } from '../store/budget';
 import { useMerchantStore } from '../store/merchants';
@@ -614,6 +556,7 @@ const newTransaction = ref<Transaction>({
 const { monthlySavingsTotal, createGoal, listGoals, loadGoals, addContribution, addGoalSpend, loadGoalDetails } = useGoals();
 const savingsTotal = ref(0);
 const goals = ref<Goal[]>([]);
+const goalMap = computed(() => Object.fromEntries(goals.value.map((g) => [g.id, g])));
 const goalDialog = ref(false);
 const contributeDialog = ref(false);
 const selectedGoal = ref<Goal | null>(null);
@@ -646,6 +589,8 @@ const transactionSearch = ref('');
 type TransactionFilterKey = 'matched' | 'unmatched' | 'deleted';
 
 const transactionFilter = ref<TransactionFilterKey>('unmatched');
+const transactionToDelete = ref<Transaction | null>(null);
+const showDeleteTransactionDialog = ref(false);
 
 watch(
   [() => familyStore.selectedEntityId, currentMonth],
@@ -850,6 +795,8 @@ const formatLongMonth = (month: string) => {
   return date.toLocaleString('en-US', { month: 'long', year: 'numeric' });
 };
 
+const budgetLabel = computed(() => formatLongMonth(currentMonth.value));
+
 const catTransactions = computed(() => {
   const catTransactions: BudgetCategoryTrx[] = [];
   if (budget.value && budget.value.categories) {
@@ -958,19 +905,6 @@ const groups = computed(() => {
   return g;
 });
 
-const groupSummaries = computed(() => {
-  const totals = new Map<string, number>();
-  catTransactions.value.forEach((item) => {
-    const key = (item.group || '').trim() || 'Ungrouped';
-    const current = totals.get(key) || 0;
-    totals.set(key, current + (item.target || 0));
-  });
-  return Array.from(totals.entries())
-    .map(([name, planned]) => ({ name, planned }))
-    .sort((a, b) => b.planned - a.planned)
-    .slice(0, 4);
-});
-
 const incomeItems = computed(() => {
   const incTrx: IncomeTarget[] = [];
   if (budget.value && budget.value.categories) {
@@ -1006,27 +940,6 @@ const actualIncome = computed(() => {
 
 const plannedIncome = computed(() => {
   return incomeItems.value.reduce((sum, t) => sum + (t.planned || 0), 0);
-});
-
-const allocationBreakdown = computed(() => {
-  const allocated = Math.max(0, budgetedExpenses.value + savingsTotal.value);
-  const reference = Math.max(actualIncome.value, plannedIncome.value, allocated);
-  const income = reference > 0 ? reference : allocated;
-  const unallocated = income - allocated;
-  return {
-    income,
-    allocated,
-    unallocated,
-  };
-});
-
-const allocationPercent = computed(() => {
-  const total = allocationBreakdown.value.income;
-  if (!total) {
-    return 0;
-  }
-  const ratio = (allocationBreakdown.value.allocated / total) * 100;
-  return Math.max(0, Math.min(100, Math.round(ratio)));
 });
 
 const monthlyTransactions = computed(() => {
@@ -1124,63 +1037,6 @@ function onCategoryRowClick(item: BudgetCategoryTrx) {
 
 function getCategoryInfo(name: string): BudgetCategory {
   return budget.value.categories.filter((c) => c.name == name)[0];
-}
-
-function formatTransactionCategories(transaction: Transaction): string {
-  if (!transaction.categories || transaction.categories.length === 0) {
-    return 'Uncategorized';
-  }
-  return transaction.categories.map((c) => c.category).join(', ');
-}
-
-function formatTransactionAmount(transaction: Transaction): string {
-  const amount = Math.abs(Number(transaction.amount) || 0);
-  return formatCurrency(toDollars(toCents(amount)));
-}
-
-function formatTransactionMonthShort(dateStr?: string): string {
-  if (!dateStr) {
-    return '--';
-  }
-
-  const [yearStr, monthStr, dayStr] = dateStr.split('-');
-  const year = Number(yearStr);
-  const month = Number(monthStr);
-  const day = Number(dayStr);
-  const date = new Date(year, month - 1, day);
-  if (Number.isNaN(date.getTime())) {
-    return '--';
-  }
-  return date.toLocaleDateString('en-US', { month: 'short' });
-}
-
-function formatTransactionDay(dateStr?: string): string {
-  if (!dateStr) {
-    return '--';
-  }
-
-  const [yearStr, monthStr, dayStr] = dateStr.split('-');
-  const year = Number(yearStr);
-  const month = Number(monthStr);
-  const day = Number(dayStr);
-  const date = new Date(year, month - 1, day);
-  if (Number.isNaN(date.getTime())) {
-    return '--';
-  }
-  return date.toLocaleDateString('en-US', { day: '2-digit' });
-}
-
-function formatTransactionDateLong(dateStr?: string): string {
-  if (!dateStr) {
-    return '--';
-  }
-
-  try {
-    return formatDateLong(dateStr);
-  } catch (err) {
-    console.warn('Unable to format transaction date', dateStr, err);
-    return '--';
-  }
 }
 
 const updateSearch = debounce((value: string) => {
@@ -1820,6 +1676,46 @@ function editTransaction(transaction: Transaction) {
   showTransactionDialog.value = true;
 }
 
+function confirmDeleteTransaction(transaction: Transaction) {
+  transactionToDelete.value = transaction;
+  showDeleteTransactionDialog.value = true;
+}
+
+async function executeTransactionDelete() {
+  if (!transactionToDelete.value?.id) {
+    showDeleteTransactionDialog.value = false;
+    return;
+  }
+
+  $q.loading.show({
+    message: 'Deleting transaction...',
+    spinner: QSpinner,
+    spinnerColor: 'primary',
+    spinnerSize: 50,
+    customClass: 'q-ml-sm flex items-center justify-center',
+  });
+
+  try {
+    const targetBudget = budgetStore.getBudget(budgetId.value);
+    if (targetBudget) {
+      await dataAccess.deleteTransaction(targetBudget, transactionToDelete.value.id);
+    }
+    const updatedTransactions = budgetStore.getBudget(budgetId.value)?.transactions;
+    if (updatedTransactions) {
+      updateTransactions(updatedTransactions);
+    }
+    showSnackbar('Transaction deleted', 'positive');
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error('Error deleting transaction', err);
+    showSnackbar(`Failed to delete transaction: ${err.message}`, 'negative');
+  } finally {
+    $q.loading.hide();
+    showDeleteTransactionDialog.value = false;
+    transactionToDelete.value = null;
+  }
+}
+
 async function duplicateCurrentMonth(month: string) {
   const user = auth.user;
   if (!user) {
@@ -2012,5 +1908,23 @@ interface GroupCategory {
   overflow-y: auto;
   padding-bottom: 16px;
   gap: 16px;
+}
+
+.transactions-scroll {
+  min-height: 100px;
+  flex: 1;
+}
+
+.budget-transactions-card {
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+}
+
+.transactions-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 </style>
