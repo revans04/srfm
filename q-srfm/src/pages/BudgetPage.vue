@@ -1,5 +1,5 @@
 <template>
-  <q-page :class="['budget-page', { 'budget-page--mobile': isMobile }]"><!-- unified layout shell -->
+  <q-page class="bg-grey-1 q-pa-lg" :class="['budget-page', { 'budget-page--mobile': isMobile }]">
     <!-- Loading Animation -->
     <div v-if="loading" class="row justify-center q-mt-lg">
       <q-spinner color="primary" size="50px" />
@@ -29,93 +29,75 @@
 
     <!-- Main Content -->
     <div v-else>
-      <section class="budget-hero panel-card">
-        <div class="budget-hero__row">
-          <EntitySelector class="budget-hero__entity" @change="loadBudgets" />
-
-          <div class="budget-hero__month">
-            <div class="budget-hero__month-value">{{ formatLongMonth(currentMonth) }}</div>
-            <q-icon name="expand_more" class="budget-hero__month-icon" />
-            <MonthSelector
-              v-model="currentMonth"
-              :entity-id="familyStore.selectedEntityId"
-              :existing-months="selectedEntityMonthSet"
-              @select="selectMonth"
-            />
+      <section class="budget-header q-pa-lg q-mb-md bg-white border border-grey-3 rounded-lg">
+        <div class="row items-start justify-between q-mb-sm">
+          <div>
+            <div class="text-h4">Budget</div>
           </div>
-
-          <div v-if="!isMobile" class="budget-hero__actions">
-            <q-btn v-if="!isEditing" flat dense icon="edit" label="Edit Budget" @click="isEditing = true" />
-            <q-btn v-else flat dense icon="close" label="Done" @click="isEditing = false" />
-            <q-btn
-              v-if="!isEditing"
-              flat
-              dense
-              icon="delete"
-              color="negative"
-              label="Delete"
-              @click="confirmDeleteBudget"
-            />
-          </div>
-
-          <div v-else class="budget-hero__mobile-actions">
-            <q-btn round dense icon="add" color="primary" @click="addTransaction" />
+          <div class="row items-center q-col-gutter-sm">
+            <div class="row items-center q-gutter-sm">
+              <q-btn v-if="!isEditing" flat dense icon="edit" label="Edit" @click="isEditing = true" />
+              <q-btn v-else flat dense icon="close" label="Close" @click="isEditing = false" />
+              <q-btn v-if="!isEditing" flat dense icon="delete" color="negative" label="Delete" @click="confirmDeleteBudget" />
+            </div>
+            <q-btn round dense icon="add" color="primary" class="q-ml-sm" @click="addTransaction">
+              <q-tooltip>New transaction</q-tooltip>
+            </q-btn>
           </div>
         </div>
 
-        <div v-if="!isMobile" class="budget-hero__metrics">
-          <div class="metric-card metric-card--primary">
-            <div class="metric-card__label">{{ remainingToBudget >= 0 ? 'Left to Budget' : 'Over Budget' }}</div>
-            <div class="metric-card__value" :class="{ 'text-negative': remainingToBudget < 0 }">
+        <div class="row items-center q-col-gutter-sm q-mb-md">
+          <div class="col-12 col-md-4">
+            <EntitySelector @change="loadBudgets" />
+          </div>
+          <div class="col-12 col-md-3">
+            <MonthSelector v-model="currentMonth" :entity-id="familyStore.selectedEntityId" :existing-months="selectedEntityMonthSet" @select="selectMonth" />
+          </div>
+          <div class="col">
+            <q-input
+              v-model="search"
+              dense
+              rounded
+              outlined
+              clearable
+              ref="searchInput"
+              placeholder="Search categories or groups"
+              append-icon="search"
+              @keyup.enter="blurSearchInput"
+              @clear="clearSearch"
+            />
+          </div>
+        </div>
+
+        <div v-if="!isMobile" class="row q-col-gutter-md text-caption">
+          <div class="col">
+            <div class="text-body2">Left to Budget</div>
+            <div class="text-h6" :class="{ 'text-negative': remainingToBudget < 0 }">
               {{ formatCurrency(Math.abs(remainingToBudget)) }}
             </div>
           </div>
-          <div class="metric-card">
-            <div class="metric-card__label">Income Received</div>
-            <div class="metric-card__value">{{ formatCurrency(actualIncome) }}</div>
-            <div class="metric-card__hint">Planned {{ formatCurrency(plannedIncome) }}</div>
+          <div class="col">
+            <div class="text-body2">Income Received</div>
+            <div class="text-h6">{{ formatCurrency(actualIncome) }}</div>
+            <div class="text-caption text-muted">Planned {{ formatCurrency(plannedIncome) }}</div>
           </div>
-          <div class="metric-card">
-            <div class="metric-card__label">Savings Goals</div>
-            <div class="metric-card__value">{{ formatCurrency(savingsTotal) }}</div>
-            <div class="metric-card__hint">Monthly total</div>
+          <div class="col">
+            <div class="text-body2">Savings Goals</div>
+            <div class="text-h6">{{ formatCurrency(savingsTotal) }}</div>
+            <div class="text-caption text-muted">Monthly total</div>
           </div>
-        </div>
-
-        <div class="budget-hero__search" id="budget-search">
-          <q-input
-            v-model="search"
-            dense
-            rounded
-            outlined
-            clearable
-            ref="searchInput"
-            placeholder="Search categories or groups"
-            append-icon="search"
-            @keyup.enter="blurSearchInput"
-            @clear="clearSearch"
-          />
         </div>
       </section>
 
-      <q-page-sticky v-if="!isMobile" position="bottom-right" :offset="[24, 24]" class="desktop-budget-fab">
-        <q-btn round color="primary" icon="add" class="desktop-budget-fab__btn" @click="addTransaction" />
+      <q-page-sticky v-if="!isMobile" position="bottom-right" :offset="[24, 24]">
+        <q-btn round color="primary" icon="add" @click="addTransaction" />
       </q-page-sticky>
 
-      <div class="budget-layout row q-col-gutter-lg">
+      <div class="row q-col-gutter-lg q-mt-lg">
         <!-- Main Content -->
-        <div
-          :class="[
-            'budget-layout__main',
-            isMobile
-              ? selectedCategory || selectedGoal
-                ? 'col-0 d-none'
-                : 'col-12'
-              : 'col-12 col-lg-8',
-          ]"
-        >
+        <div :class="isMobile ? (selectedCategory || selectedGoal ? 'col-0 d-none' : 'col-12') : 'col-12 col-lg-8'">
           <!-- Budget Editing Form -->
-          <q-card v-if="isEditing" class="panel-card budget-edit-card">
+          <q-card v-if="isEditing" flat bordered>
             <q-card-section>Edit Budget for {{ selectedEntity?.name || 'selected entity' }}</q-card-section>
             <q-card-section>
               <q-form @submit.prevent="saveBudget">
@@ -173,7 +155,7 @@
           </q-card>
 
           <!-- Income Section -->
-          <q-card v-if="!isEditing && incomeItems" id="income-section" class="panel-card">
+          <q-card v-if="!isEditing && incomeItems" flat bordered id="income-section">
             <q-card-section>
               <div class="row text-bold">
                 <div class="col">Income for {{ selectedEntity?.name || 'selected entity' }}</div>
@@ -204,14 +186,10 @@
               </div>
             </q-card-section>
           </q-card>
-          <SavingsConversionPrompt
-            v-if="!isMobile && legacySavingsCategories.length"
-            :categories="legacySavingsCategories"
-            @convert="onConvertLegacy"
-          />
+          <SavingsConversionPrompt v-if="!isMobile && legacySavingsCategories.length" :categories="legacySavingsCategories" @convert="onConvertLegacy" />
 
           <!-- Favorites Section -->
-          <q-card v-if="!isEditing && favoriteItems.length" id="favorites-section" class="panel-card q-mt-md">
+          <q-card v-if="!isEditing && favoriteItems.length" flat bordered id="favorites-section" class="q-mt-md">
             <q-card-section>
               <div class="row text-primary">
                 <div class="col">Favorites</div>
@@ -254,18 +232,13 @@
           </q-card>
 
           <div id="goals-section" class="q-mt-md">
-            <GoalsGroupCard
-              :entity-id="familyStore.selectedEntityId || ''"
-              @add="onAddGoal"
-              @contribute="onContribute"
-              @view="onViewGoal"
-            />
+            <GoalsGroupCard :entity-id="familyStore.selectedEntityId || ''" @add="onAddGoal" @contribute="onContribute" @view="onViewGoal" />
           </div>
 
           <!-- Category Tables -->
           <div v-if="!isEditing && catTransactions" id="groups-section" class="row q-mt-md">
             <div class="col-12 q-py-sm" v-for="(g, gIdx) in groups" :key="gIdx">
-              <q-card class="panel-card budget-group-card" :id="`group-${gIdx}`">
+              <q-card class="budget-group-card" :id="`group-${gIdx}`" flat bordered>
                 <q-card-section>
                   <div class="row text-primary">
                     <div class="col">{{ g.group || 'Ungrouped' }}</div>
@@ -273,7 +246,13 @@
                     <div v-if="!isMobile" class="col-2">Planned</div>
                     <div :class="isMobile ? 'col-auto' : 'col-2'">Remaining</div>
                   </div>
-                  <div v-for="(item, idx) in catTransactions.filter((c) => c.group == g.group && !c.favorite).slice().sort((a,b)=>a.name.toLowerCase().localeCompare(b.name.toLowerCase()))" :key="idx">
+                  <div
+                    v-for="(item, idx) in catTransactions
+                      .filter((c) => c.group == g.group && !c.favorite)
+                      .slice()
+                      .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()))"
+                    :key="idx"
+                  >
                     <div class="row cursor-pointer" @click="handleRowClick(item)">
                       <div
                         v-if="!(inlineEdit.item?.name === item.name && inlineEdit.field === 'name')"
@@ -373,7 +352,7 @@
         </div>
 
         <!-- Desktop Sidebar -->
-        <div v-if="!isMobile" class="budget-layout__aside col-12 col-lg-4 desktop-sidebar">
+        <div v-if="!isMobile" class="col-12 col-lg-4 desktop-sidebar">
           <CategoryTransactions
             v-if="selectedCategory && !isEditing"
             :category="selectedCategory"
@@ -388,73 +367,68 @@
           />
           <GoalDetailsPanel v-else-if="selectedGoal && !isEditing" :goal="selectedGoal" @close="selectedGoal = null" />
           <template v-else>
-            <div class="budget-summary-stack">
-              <q-card class="panel-card budget-summary-card">
-                <div class="budget-summary-card__header row items-center no-wrap">
-                  <div class="col">
-                    <div class="summary-title">Summary</div>
-                    <div class="summary-subtitle text-muted">Income allocation</div>
+            <div class="column q-gutter-md">
+              <q-card class="q-pa-md" flat bordered>
+                <div class="row items-center justify-between q-mb-md">
+                  <div>
+                    <div class="text-subtitle1 q-mb-xs">Summary</div>
+                    <div class="text-caption text-muted">Income allocation</div>
                   </div>
-                  <div class="col-auto">
-                    <q-circular-progress
-                      :value="allocationPercent"
-                      size="90px"
-                      :thickness="0.24"
-                      color="primary"
-                      track-color="grey-3"
-                    >
-                      <div class="summary-progress">{{ allocationPercent }}%</div>
-                    </q-circular-progress>
-                  </div>
+                  <q-circular-progress :value="allocationPercent" size="90px" :thickness="0.24" color="primary" track-color="grey-3">
+                    <div class="text-subtitle2">{{ allocationPercent }}%</div>
+                  </q-circular-progress>
                 </div>
-                <div class="summary-breakdown">
-                  <div class="summary-row">
-                    <span class="summary-dot summary-dot--primary" />
-                    <span>Allocated</span>
-                    <span class="summary-amount">{{ formatCurrency(allocationBreakdown.allocated) }}</span>
+                <div class="column q-gutter-sm">
+                  <div class="row items-center justify-between">
+                    <div class="row items-center q-gutter-sm">
+                      <q-icon name="lens" size="12px" color="primary" />
+                      <span>Allocated</span>
+                    </div>
+                    <span class="text-body1">{{ formatCurrency(allocationBreakdown.allocated) }}</span>
                   </div>
-                  <div class="summary-row">
-                    <span class="summary-dot" />
-                    <span>Unallocated</span>
-                    <span class="summary-amount" :class="{ 'text-negative': allocationBreakdown.unallocated < 0 }">
+                  <div class="row items-center justify-between">
+                    <div class="row items-center q-gutter-sm">
+                      <q-icon name="lens" size="12px" color="grey-5" />
+                      <span>Unallocated</span>
+                    </div>
+                    <span class="text-body1" :class="{ 'text-negative': allocationBreakdown.unallocated < 0 }">
                       {{ formatCurrency(allocationBreakdown.unallocated) }}
                     </span>
                   </div>
                 </div>
               </q-card>
 
-              <q-card class="panel-card budget-summary-card">
-                <div class="summary-title">Group Totals</div>
-                <div class="summary-subtitle text-muted q-mb-sm">Top groups by plan</div>
+              <q-card class="q-pa-md" flat bordered>
+                <div class="text-subtitle1 q-mb-xs">Group Totals</div>
+                <div class="text-caption text-muted q-mb-sm">Top groups by plan</div>
                 <div v-if="groupSummaries.length">
-                  <div v-for="group in groupSummaries" :key="group.name" class="summary-row">
-                    <span class="summary-group">{{ group.name }}</span>
-                    <span class="summary-amount">{{ formatCurrency(group.planned) }}</span>
+                  <div v-for="group in groupSummaries" :key="group.name" class="row items-center justify-between q-py-xs">
+                    <span class="text-body2">{{ group.name }}</span>
+                    <span class="text-body1">{{ formatCurrency(group.planned) }}</span>
                   </div>
                 </div>
-                <div v-else class="text-muted text-caption">No groups available</div>
+                <div v-else class="text-caption text-muted">No groups available</div>
               </q-card>
             </div>
 
-            <q-card class="panel-card desktop-monthly-transactions modern-transaction-panel column">
-              <div class="desktop-transactions-shell">
-              <div class="transaction-panel-hero row items-center no-wrap">
-                <div class="col-auto">
+            <q-card class="column q-pa-none" flat bordered>
+              <div class="row items-center justify-between q-pt-md q-px-md q-pb-sm border-bottom">
+                <div class="row items-center q-gutter-sm">
                   <q-avatar size="44px" color="primary" text-color="white">
                     <q-icon name="payments" size="24px" />
                   </q-avatar>
+                  <div>
+                    <div class="text-body1">Transactions</div>
+                    <div class="text-caption text-muted">{{ formatLongMonth(currentMonth) }}</div>
+                  </div>
                 </div>
-                <div class="col">
-                  <div class="hero-title">Transactions</div>
-                  <div class="hero-subtitle">{{ formatLongMonth(currentMonth) }}</div>
-                </div>
-                <div class="col-auto text-right">
-                  <div class="hero-count">{{ filteredMonthTransactions.length }}</div>
-                  <div class="hero-count-label">{{ filteredMonthTransactions.length === 1 ? 'item' : 'items' }}</div>
+                <div class="text-right">
+                  <div class="text-h6">{{ filteredMonthTransactions.length }}</div>
+                  <div class="text-caption text-muted">{{ filteredMonthTransactions.length === 1 ? 'item' : 'items' }}</div>
                 </div>
               </div>
 
-              <q-card-section class="transaction-panel-tabs">
+              <q-card-section class="q-pt-md q-px-md">
                 <q-btn-toggle
                   v-model="transactionFilter"
                   dense
@@ -463,12 +437,11 @@
                   toggle-color="primary"
                   color="white"
                   text-color="primary"
-                  class="transaction-filter-toggle"
                   :options="transactionFilterOptions"
                 />
               </q-card-section>
 
-              <q-card-section class="transaction-panel-search q-pt-none">
+              <q-card-section class="q-pt-none q-px-md">
                 <q-input
                   v-model="transactionSearch"
                   dense
@@ -483,41 +456,45 @@
 
               <q-separator />
 
-              <div class="transaction-panel-scroll">
-                <q-list separator>
-                  <q-item
-                    v-for="transaction in filteredMonthTransactions"
-                    :key="transaction.id"
-                    class="transaction-panel-item"
-                    clickable
-                    @click="editTransaction(transaction)"
-                  >
-                    <q-item-section avatar>
-                      <div class="transaction-date-pill">
-                        <div class="month">{{ formatTransactionMonthShort(transaction.date) }}</div>
-                        <div class="day">{{ formatTransactionDay(transaction.date) }}</div>
+              <q-card-section class="q-pt-none q-px-md q-pb-md" style="min-height: 0">
+                <q-scroll-area style="min-height: 0">
+                  <q-list separator class="q-pa-none">
+                    <q-item
+                      v-for="transaction in filteredMonthTransactions"
+                      :key="transaction.id"
+                      clickable
+                      class="rounded-lg q-my-sm"
+                      @click="editTransaction(transaction)"
+                    >
+                      <div class="row items-center q-col-gutter-md q-py-sm q-px-sm">
+                        <div
+                          class="flex flex-column items-center justify-center text-caption text-uppercase"
+                          style="width: 54px; height: 64px; border-radius: 10px; background: rgba(15, 23, 42, 0.12); font-weight: 600"
+                        >
+                          <div class="text-caption text-primary">{{ formatTransactionMonthShort(transaction.date) }}</div>
+                          <div class="text-body2">{{ formatTransactionDay(transaction.date) }}</div>
+                        </div>
+                        <div class="col">
+                          <div class="text-body1">{{ transaction.merchant || 'Unnamed transaction' }}</div>
+                          <div class="row items-center q-gutter-sm text-caption text-muted">
+                            <span>{{ formatTransactionCategories(transaction) }}</span>
+                            <span>•</span>
+                            <span>{{ formatTransactionDateLong(transaction.date) }}</span>
+                          </div>
+                        </div>
+                        <div class="col-auto text-right">
+                          <div class="text-body1" :class="transaction.isIncome ? 'text-positive' : 'text-negative'">
+                            {{ transaction.isIncome ? '+' : '-' }}{{ formatTransactionAmount(transaction) }}
+                          </div>
+                        </div>
                       </div>
-                    </q-item-section>
-                    <q-item-section>
-                      <div class="transaction-name">{{ transaction.merchant || 'Unnamed transaction' }}</div>
-                      <div class="transaction-meta">
-                        <span>{{ formatTransactionCategories(transaction) }}</span>
-                        <span class="dot" />
-                        <span>{{ formatTransactionDateLong(transaction.date) }}</span>
-                      </div>
-                    </q-item-section>
-                    <q-item-section side class="text-right">
-                      <div class="transaction-value" :class="transaction.isIncome ? 'text-positive' : 'text-negative'">
-                        {{ transaction.isIncome ? '+' : '-' }}{{ formatTransactionAmount(transaction) }}
-                      </div>
-                    </q-item-section>
-                  </q-item>
-                </q-list>
-                <div v-if="!filteredMonthTransactions.length" class="transaction-empty q-pa-lg text-center text-grey-6">
+                    </q-item>
+                  </q-list>
+                </q-scroll-area>
+                <div v-if="!filteredMonthTransactions.length" class="text-center text-grey-6 q-pt-md">
                   {{ transactionEmptyLabel }}
                 </div>
-              </div>
-              </div>
+              </q-card-section>
             </q-card>
           </template>
         </div>
@@ -600,9 +577,7 @@ const appVersion = version;
 const currentMonth = ref(currentMonthISO());
 const isInitialLoad = ref(true);
 const availableBudgets = ref<Budget[]>([]);
-const selectedEntityMonthSet = computed(() =>
-  new Set(availableBudgets.value.filter(matchesSelectedEntity).map((b) => b.month)),
-);
+const selectedEntityMonthSet = computed(() => new Set(availableBudgets.value.filter(matchesSelectedEntity).map((b) => b.month)));
 const budget = ref<Budget>({
   familyId: '',
   month: currentMonthISO(),
@@ -1073,9 +1048,7 @@ const monthlyTransactions = computed(() => {
 
 const transactionCounts = computed<Record<TransactionFilterKey, number>>(() => ({
   unmatched: monthlyTransactions.value.filter((tx) => !tx.deleted && tx.status === 'U').length,
-  matched: monthlyTransactions.value.filter(
-    (tx) => !tx.deleted && (tx.status === 'C' || tx.status === 'R'),
-  ).length,
+  matched: monthlyTransactions.value.filter((tx) => !tx.deleted && (tx.status === 'C' || tx.status === 'R')).length,
   deleted: monthlyTransactions.value.filter((tx) => !!tx.deleted).length,
 }));
 
@@ -1108,10 +1081,7 @@ const filteredMonthTransactions = computed(() => {
     if (transactionFilter.value === 'unmatched' && (tx.status !== 'U' || tx.deleted)) {
       return false;
     }
-    if (
-      transactionFilter.value === 'matched' &&
-      (tx.deleted || (tx.status !== 'C' && tx.status !== 'R'))
-    ) {
+    if (transactionFilter.value === 'matched' && (tx.deleted || (tx.status !== 'C' && tx.status !== 'R'))) {
       return false;
     }
     if (transactionFilter.value === 'deleted' && !tx.deleted) {
@@ -1288,10 +1258,7 @@ const updateBudgetForMonth = debounce(async () => {
         ...fullBudget,
         budgetId: key,
         transactions: fullBudget.transactions || [],
-        categories:
-          fullBudget.categories && fullBudget.categories.length > 0
-            ? fullBudget.categories
-            : [],
+        categories: fullBudget.categories && fullBudget.categories.length > 0 ? fullBudget.categories : [],
       };
       budget.value = normalized;
       budgetStore.updateBudget(key, normalized);
@@ -1301,10 +1268,7 @@ const updateBudgetForMonth = debounce(async () => {
         ...defaultBudget,
         budgetId: key,
         transactions: defaultBudget.transactions || [],
-        categories:
-          defaultBudget.categories && defaultBudget.categories.length > 0
-            ? defaultBudget.categories
-            : [],
+        categories: defaultBudget.categories && defaultBudget.categories.length > 0 ? defaultBudget.categories : [],
       };
     }
 
@@ -1832,9 +1796,7 @@ function editTransaction(transaction: Transaction) {
     categories.push({ category: '', amount: transaction.amount ?? 0 });
   }
 
-  const taxMetadata = transaction.taxMetadata
-    ? transaction.taxMetadata.map((meta) => ({ ...meta, tags: meta.tags ? [...meta.tags] : [] }))
-    : [];
+  const taxMetadata = transaction.taxMetadata ? transaction.taxMetadata.map((meta) => ({ ...meta, tags: meta.tags ? [...meta.tags] : [] })) : [];
 
   const dialogTransaction: Transaction = {
     ...transaction,
@@ -1875,7 +1837,7 @@ async function duplicateCurrentMonth(month: string) {
     spinner: QSpinner,
     spinnerColor: 'primary',
     spinnerSize: 50,
-    customClass: 'q-ml-sm flex items-center justify-center',
+    customClass: 'q-ml-sm items-center justify-center',
   });
 
   try {
@@ -2029,120 +1991,16 @@ interface GroupCategory {
 
 <style scoped>
 .budget-page {
-  padding: 24px 24px 56px;
+  min-height: 100%;
 }
 
 .budget-page--mobile {
-  padding: 16px 16px 48px;
+  padding-bottom: 32px;
 }
 
-@media (min-width: 1280px) {
-  .budget-page {
-    padding: 32px 48px 72px;
-  }
-}
-
-.budget-hero {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.budget-hero__row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 16px;
-}
-
-.budget-hero__entity {
-  flex: 1 1 260px;
-  min-width: 200px;
-}
-
-.budget-hero__month {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  font-size: 1.15rem;
-  color: var(--color-text-primary);
-}
-
-.budget-hero__month-label {
-  white-space: nowrap;
-}
-
-.budget-hero__month-value {
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  font-size: 1.25rem;
-}
-
-.budget-hero__month-icon {
-  margin-left: 4px;
-  color: var(--color-text-primary);
-}
-
-.budget-hero__month-trigger {
-  background: rgba(37, 99, 235, 0.12);
-  color: var(--color-text-primary);
-}
-
-.budget-hero__actions {
-  margin-left: auto;
-  display: flex;
-  gap: 12px;
-}
-
-.budget-hero__mobile-actions {
-  margin-left: auto;
-}
-
-.budget-hero__metrics {
-  display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-}
-
-.metric-card {
-  background: var(--color-surface-subtle);
-  border-radius: var(--radius-md);
-  padding: 16px;
-  box-shadow: var(--shadow-subtle);
-}
-
-.metric-card--primary {
-  background: linear-gradient(140deg, rgba(37, 99, 235, 0.16), rgba(14, 165, 233, 0.08));
-  color: var(--color-text-primary);
-}
-
-.metric-card__label {
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--color-text-muted);
-  font-weight: 600;
-}
-
-.metric-card__value {
-  margin-top: 8px;
-  font-size: 1.45rem;
-  font-weight: 600;
-}
-
-.metric-card__hint {
-  margin-top: 4px;
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
-}
-
-.budget-hero__search {
-  max-width: 420px;
-}
-
-.budget-layout {
-  margin-top: 10px;
+.budget-header {
+  background: var(--color-surface-card);
+  box-shadow: none;
 }
 
 .desktop-sidebar {
@@ -2154,277 +2012,5 @@ interface GroupCategory {
   overflow-y: auto;
   padding-bottom: 16px;
   gap: 16px;
-}
-
-.budget-summary-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.budget-summary-card {
-  padding: 10px;
-}
-
-.budget-group-card + .budget-group-card {
-  margin-top: 16px;
-}
-
-.budget-group-card :deep(.q-linear-progress) {
-  height: 6px;
-  border-radius: 999px;
-}
-
-.budget-summary-card__header {
-  margin-bottom: 12px;
-}
-
-.summary-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.summary-subtitle {
-  font-size: 0.85rem;
-}
-
-.summary-breakdown {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.summary-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  justify-content: space-between;
-  font-weight: 500;
-}
-
-.summary-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--color-text-muted);
-}
-
-.summary-dot--primary {
-  background: #2563eb;
-}
-
-.summary-group {
-  flex: 1;
-  font-weight: 500;
-  color: var(--color-text-primary);
-}
-
-.summary-amount {
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.summary-progress {
-  font-weight: 600;
-  font-size: 1rem;
-  color: var(--color-text-primary);
-}
-
-.border {
-  border: 1px solid rgba(37, 99, 235, 0.35);
-}
-
-.border-bottom {
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-}
-
-
-.desktop-transactions-shell {
-}
-
-.desktop-transactions-shell :deep(.q-table) {
-  flex: 1;
-}
-
-.desktop-transactions-shell :deep(.q-table__middle) {
-  flex: 1;
-  overflow: auto;
-}
-
-.desktop-transactions-shell :deep(.q-list) {
-  overflow-y: auto;
-}
-/* .desktop-monthly-transactions {
-  box-shadow: var(--shadow-soft);
-} */
-
-.modern-transaction-panel {
-  background: var(--color-surface-card);
-}
-
-.transaction-panel-hero {
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-}
-
-.transaction-panel-hero .hero-title {
-  font-size: 1.1rem;
-  font-weight: 600;
-}
-
-.transaction-panel-hero .hero-subtitle {
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
-}
-
-.transaction-panel-hero .hero-count {
-  font-size: 1.2rem;
-  font-weight: 600;
-}
-
-.transaction-panel-hero .hero-count-label {
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.transaction-panel-tabs {
-  padding: 12px 10px 0;
-}
-
-/* .transaction-filter-toggle :deep(.q-btn) {
-  border-radius: 999px !important;
-  text-transform: none;
-  font-weight: 600;
-} */
-
-.transaction-panel-search {
-  padding: 6px 10px 16px;
-}
-
-.transaction-panel-scroll {
-  flex: 1;
-  min-height: 0;
-  padding: 0 12px 10px;
-  overflow-y: auto;
-}
-
-.transaction-panel-item {
-  padding: 5px 7px;
-  border-radius: 10px;
-  transition: background 0.2s ease, box-shadow 0.2s ease;
-  background: var(--color-surface-card);
-  box-shadow: var(--shadow-subtle);
-}
-
-.transaction-panel-item:hover {
-  background: rgba(37, 99, 235, 0.1);
-}
-
-.transaction-date-pill {
-  width: 54px;
-  height: 64px;
-  border-radius: 10px;
-  background: rgba(37, 99, 235, 0.12);
-  color: var(--color-text-primary);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-}
-
-.transaction-date-pill .month {
-  font-size: 0.5rem;
-  text-transform: uppercase;
-  color: #2563eb;
-}
-
-.transaction-date-pill .day {
-  font-size: .8rem;
-}
-
-.transaction-name {
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-.transaction-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
-}
-
-.transaction-meta .dot {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: rgba(148, 163, 184, 0.6);
-}
-
-.transaction-value {
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-.transaction-empty {
-  background: transparent;
-}
-
-.desktop-budget-fab {
-  z-index: 1200;
-}
-
-.desktop-budget-fab__btn {
-  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.2);
-}
-
-@media (max-width: 959px) {
-  .budget-hero__actions {
-    display: none;
-  }
-
-  .budget-hero__search {
-    max-width: none;
-  }
-
-  .desktop-sidebar {
-    position: static;
-    max-height: none;
-  }
-}
-
-.mobile-category-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 2000;
-  background: var(--color-surface-page, #fff);
-  display: flex;
-  flex-direction: column;
-  padding: 0;
-  overflow: hidden;
-}
-
-.mobile-category-overlay__panel {
-  flex: 1;
-  display: flex;
-}
-
-.mobile-category-overlay :deep(.category-transactions-panel) {
-  flex: 1;
-  min-height: 0;
-}
-
-.mobile-category-overlay :deep(.category-details-card) {
-  border-radius: 0;
-  height: 100%;
-}
-
-.mobile-category-overlay :deep(.hero-close) {
-  top: 16px;
-  right: 16px;
 }
 </style>

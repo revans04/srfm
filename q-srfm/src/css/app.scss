@@ -47,13 +47,11 @@ h4 { font-size: 1.25rem; line-height: 1.4; }
 .q-card {
   background: var(--color-surface-card);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-soft);
   border: 1px solid var(--color-outline-soft);
 }
 
 .panel-card {
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-soft);
   background: var(--color-surface-card);
   padding: 18px 20px;
 }

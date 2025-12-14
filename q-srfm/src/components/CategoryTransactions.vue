@@ -2,21 +2,33 @@
 <template>
   <div class="category-transactions-panel column">
     <q-card flat bordered class="category-details-card column">
-      <div :class="heroClass">
+      <div class="category-hero">
         <div class="hero-main row items-start no-wrap">
-          <q-avatar size="56px" class="hero-avatar" text-color="white" :color="isIncome ? 'positive' : 'primary'">
-            <q-icon :name="heroIcon" size="28px" />
+          <q-avatar size="44px" class="hero-avatar" text-color="white" :color="isIncome ? 'positive' : 'primary'">
+            <q-icon :name="heroIcon" size="24px" />
           </q-avatar>
           <div class="hero-text column">
-            <div class="hero-name text-weight-medium">{{ category.name }}</div>
-            <div class="hero-progress-summary">{{ progressSummary }}</div>
+            <div class="category-hero__label text-caption text-muted">{{ heroLabel }}</div>
+            <div class="hero-name text-h6">{{ category.name }}</div>
+            <div class="hero-progress-summary text-caption text-muted">{{ progressSummary }}</div>
           </div>
         </div>
-        <q-btn flat dense round icon="close" class="hero-close" text-color="white" @click="$emit('close')" />
+        <q-btn flat dense round icon="close" class="hero-close" @click="$emit('close')">
+          <q-tooltip>Close panel</q-tooltip>
+        </q-btn>
       </div>
 
-      <q-card-section class="hero-progress-wrapper">
-        <q-linear-progress :value="progressPercentage / 100" color="white" track-color="white" class="hero-progress" />
+      <q-card-section class="category-progress-section">
+        <div class="row items-center justify-between">
+          <div class="text-caption text-muted">Progress</div>
+          <div class="text-caption text-muted">{{ Math.round(progressPercentage) }}%</div>
+        </div>
+        <q-linear-progress
+          :value="progressPercentage / 100"
+          color="primary"
+          track-color="grey-3"
+          class="category-progress"
+        />
       </q-card-section>
 
       <q-card-section class="summary-grid q-gutter-md">
@@ -70,7 +82,7 @@
             >
               <q-item-section avatar>
                 <div class="date-pill">
-                  <div class="date-month">{{ formatDateMonth(transaction.date) }}</div>
+                  <div class="date-month text-primary">{{ formatDateMonth(transaction.date) }}</div>
                   <div class="date-day">{{ formatDateDay(transaction.date) }}</div>
                 </div>
               </q-item-section>
@@ -96,7 +108,9 @@
                   icon="delete"
                   color="negative"
                   @click.stop="confirmDelete(transaction)"
-                />
+                >
+                  <q-tooltip>Delete transaction</q-tooltip>
+                </q-btn>
               </q-item-section>
             </q-item>
           </q-list>
@@ -245,10 +259,10 @@ const heroIcon = computed(() => {
   return 'payments';
 });
 
-const heroClass = computed(() => {
-  if (isIncome.value) return 'category-hero income';
-  if (props.category.isFund) return 'category-hero fund';
-  return 'category-hero expense';
+const heroLabel = computed(() => {
+  if (isIncome.value) return 'Income';
+  if (props.category.isFund) return 'Savings goal';
+  return 'Expense';
 });
 
 const availableDisplay = computed(() => formatCurrency(toDollars(toCents(available.value))));
@@ -422,43 +436,35 @@ onMounted(() => {
 
 <style scoped>
 .category-transactions-panel {
-  position: relative;
   min-height: 100%;
 }
 
 .category-details-card {
   height: 100%;
-  background: var(--q-grey-1);
+  background: var(--color-surface-card);
   display: flex;
   flex-direction: column;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  padding: 0;
 }
 
 .category-hero {
-  position: relative;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  padding: 24px;
-  border-top-left-radius: 4px;
-  border-top-right-radius: 4px;
-  color: white;
-  background: linear-gradient(135deg, rgba(63, 81, 181, 0.95), rgba(33, 150, 243, 0.85));
-}
-
-.category-hero.income {
-  background: linear-gradient(135deg, rgba(56, 142, 60, 0.95), rgba(129, 199, 132, 0.85));
-}
-
-.category-hero.fund {
-  background: linear-gradient(135deg, rgba(21, 101, 192, 0.95), rgba(100, 181, 246, 0.85));
+  gap: 12px;
 }
 
 .hero-main {
-  gap: 16px;
+  gap: 12px;
 }
 
 .hero-avatar {
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.2);
 }
 
 .hero-text {
@@ -467,62 +473,49 @@ onMounted(() => {
 
 .hero-name {
   font-size: 1.15rem;
+  font-weight: 600;
 }
 
 .hero-progress-summary {
   font-size: 0.85rem;
-  opacity: 0.85;
-}
-
-.hero-amount {
-  text-align: right;
-}
-
-.hero-amount-label {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.hero-amount-value {
-  font-size: 1.4rem;
-  font-weight: 600;
+  color: var(--color-text-muted);
 }
 
 .hero-close {
-  position: absolute;
-  top: 12px;
-  right: 12px;
+  flex-shrink: 0;
 }
 
-.hero-progress-wrapper {
-  padding: 12px 24px 0;
+.category-progress-section {
+  padding: 8px 20px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.hero-progress {
+.category-progress {
   height: 6px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.25);
 }
 
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  padding: 16px 24px;
+  gap: 12px;
+  padding: 12px 20px;
 }
 
 .summary-item {
-  background: white;
-  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--radius-sm);
   padding: 12px 16px;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  background: var(--color-surface-card);
 }
 
 .summary-label {
   font-size: 0.75rem;
-  color: #546e7a;
+  color: var(--color-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   margin-bottom: 6px;
 }
 
@@ -532,31 +525,7 @@ onMounted(() => {
 }
 
 .transactions-header {
-  padding: 8px 24px;
-}
-
-.category-transactions-scroll {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.category-transactions-scroll__area {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-}
-
-.category-transactions-scroll__area :deep(.q-scrollarea) {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.category-transactions-scroll__area :deep(.q-scrollarea__container) {
-  flex: 1;
-  min-height: 0;
+  padding: 10px 20px 0;
 }
 
 .transactions-title {
@@ -566,27 +535,39 @@ onMounted(() => {
 
 .transactions-subtitle {
   font-size: 0.85rem;
-  color: #607d8b;
+  color: var(--color-text-muted);
+}
+
+.category-transactions-scroll {
+  flex: 1;
+  min-height: 0;
+}
+
+.category-transactions-scroll__area,
+.category-transactions-scroll__area :deep(.q-scrollarea),
+.category-transactions-scroll__area :deep(.q-scrollarea__container) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .transaction-row {
-  border-radius: 12px;
-  margin: 8px 8px 0;
-  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
   transition: background 0.2s ease;
 }
 
 .transaction-row:hover {
-  background: rgba(33, 150, 243, 0.08);
+  background: rgba(15, 23, 42, 0.04);
 }
 
 .date-pill {
   width: 48px;
   height: 56px;
-  border-radius: 18px;
-  background: white;
-  color: #1f2937;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+  border-radius: 12px;
+  background: var(--color-surface-muted);
+  color: var(--color-text-primary);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -595,9 +576,8 @@ onMounted(() => {
 }
 
 .date-month {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
-  color: #1e88e5;
 }
 
 .date-day {
@@ -611,7 +591,7 @@ onMounted(() => {
 
 .transaction-meta {
   font-size: 0.85rem;
-  color: #607d8b;
+  color: var(--color-text-muted);
   display: flex;
   align-items: center;
   gap: 4px;
