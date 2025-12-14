@@ -1,47 +1,40 @@
 <template>
-  <q-item clickable class="rounded-lg q-my-sm" @click="handleSelect">
-    <div class="row items-center q-col-gutter-md q-py-sm q-px-sm">
-      <div
-        class="transaction-date-pill column items-center justify-center text-caption text-uppercase text-primary"
-      >
-        <div>{{ formatTransactionMonthShort(transaction.date) }}</div>
-        <div class="text-body2">{{ formatTransactionDay(transaction.date) }}</div>
+  <q-item clickable @click="handleSelect">
+    <div class="row q-py-sm full-width">
+      <div class="col-auto date-circle column items-center justify-center text-caption text-uppercase q-pt-sm">
+        <div class="date-month">{{ formatTransactionMonthShort(transaction.date) }}</div>
+        <div class="date-day">{{ formatTransactionDay(transaction.date) }}</div>
       </div>
-      <div class="col">
-        <div class="text-body1">{{ transaction.merchant || 'Unnamed transaction' }}</div>
-        <div class="row items-center q-gutter-sm text-caption text-muted transaction-meta">
-          <span>{{ formatTransactionCategories() }}</span>
-          <span>•</span>
-          <span>{{ formatTransactionDateLong() }}</span>
-          <template v-if="goal">
-            <span>•</span>
-            <GoalFundingPill :goal="goal" class="goal-pill" />
-          </template>
-        </div>
+      <div class="col q-py-md q-pl-sm">
+        <div class="text-body2">{{ transaction.merchant || 'Unnamed transaction' }}</div>
       </div>
-      <div class="col-auto text-right transaction-amount-wrapper">
-        <div class="text-body1" :class="transaction.isIncome ? 'text-positive' : 'text-negative'">
+      <div class="col-auto q-py-md text-right no-wrap">
+        <div class="text-body2" :class="transaction.isIncome ? 'text-positive' : 'text-negative'">
           {{ transaction.isIncome ? '+' : '-' }}{{ formatTransactionAmount() }}
         </div>
       </div>
-      <div v-if="removable" class="col-auto text-right transaction-actions">
-        <q-btn flat dense round icon="delete" color="negative" @click.stop="handleDelete">
-          <q-tooltip>Delete transaction</q-tooltip>
-        </q-btn>
+      <div class="col-auto q-py-md text-right no-wrap">
+        <q-icon
+          v-if="removable"
+          name="delete"
+          desnse
+          class="transaction-delete"
+          color="negative"
+          size="20px"
+          @click.stop="handleDelete"
+        />
       </div>
     </div>
   </q-item>
 </template>
 
 <script setup lang="ts">
-import type { Goal, Transaction } from '../types';
-import { toDollars, toCents, formatCurrency, formatDateLong } from '../utils/helpers';
-import GoalFundingPill from './transactions/GoalFundingPill.vue';
+import type { Transaction } from '../types';
+import { toDollars, toCents, formatCurrency } from '../utils/helpers';
 
 const props = defineProps<{
   transaction: Transaction;
   categoryName?: string;
-  goal?: Goal | null;
   removable?: boolean;
 }>();
 const emit = defineEmits<{
@@ -78,13 +71,6 @@ function formatTransactionDay(dateStr?: string): string {
   return date.toLocaleDateString('en-US', { day: '2-digit' });
 }
 
-function formatTransactionCategories(): string {
-  if (!props.transaction.categories || props.transaction.categories.length === 0) {
-    return 'Uncategorized';
-  }
-  return props.transaction.categories.map((c) => c.category).join(', ');
-}
-
 function getCategoryAmount(): number {
   if (!props.categoryName) return 0;
   const split = props.transaction.categories?.find((s) => s.category === props.categoryName);
@@ -98,45 +84,35 @@ function formatTransactionAmount(): string {
   return formatCurrency(toDollars(toCents(amount)));
 }
 
-function formatTransactionDateLong(): string {
-  if (!props.transaction.date) return '--';
-  try {
-    return formatDateLong(props.transaction.date);
-  } catch (err) {
-    console.warn('Unable to format transaction date', props.transaction.date, err);
-    return '--';
-  }
-}
 </script>
 
 <style scoped>
-.transaction-date-pill {
+.date-circle {
   width: 54px;
-  height: 64px;
-  border-radius: 10px;
-  background: rgba(15, 23, 42, 0.12);
-  font-weight: 600;
+  height: 54px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.02);
+  font-weight: 100;
+  gap: 2px;
+  text-align: center;
+  padding: 0px;
 }
 
-.transaction-meta {
-  flex-wrap: wrap;
-  gap: 4px;
+.date-month,
+.date-day {
+  line-height: 1;
 }
 
-.goal-pill {
-  display: inline-flex;
-  align-items: center;
+.date-month {
+  font-size: 0.75rem;
 }
 
-.transaction-amount-wrapper {
-  min-width: 90px;
+.date-day {
+  font-size: 1.1rem;
 }
 
-.transaction-amount-wrapper .text-body1 {
-  word-break: keep-all;
-}
-
-.transaction-actions {
-  flex-shrink: 0;
+.transaction-delete {
+  cursor: pointer;
 }
 </style>
