@@ -434,25 +434,19 @@
         </div>
       </div>
 
-      <!-- Transaction Dialog -->
-      <q-dialog v-model="showTransactionDialog" max-width="600px">
-        <q-card>
-          <q-card-section>{{ isIncomeTransaction ? 'Add Income' : 'Add Transaction' }}</q-card-section>
-          <q-card-section>
-            <TransactionForm
-              :key="transactionDialogKey"
-              :initial-transaction="newTransaction"
-              :show-cancel="true"
-              :category-options="categoryOptions"
-              :budget-id="budgetId"
-              :user-id="userId"
-              @save="onTransactionSaved"
-              @cancel="showTransactionDialog = false"
-              @update-transactions="updateTransactions"
-            />
-          </q-card-section>
-        </q-card>
-      </q-dialog>
+      <TransactionDialog
+        :key="transactionDialogKey"
+        :show-dialog="showTransactionDialog"
+        :initial-transaction="newTransaction"
+        :category-options="categoryOptions"
+        :budget-id="budgetId"
+        :user-id="userId"
+        :title="isIncomeTransaction ? 'Add Income' : 'Add Transaction'"
+        @update:showDialog="showTransactionDialog = $event"
+        @save="onTransactionSaved"
+        @cancel="showTransactionDialog = false"
+        @update-transactions="updateTransactions"
+      />
       <q-dialog v-model="showDeleteTransactionDialog" max-width="400">
         <q-card>
           <q-card-section class="text-h6">Delete transaction</q-card-section>
@@ -479,7 +473,7 @@ import { useQuasar, QSpinner, Loading } from 'quasar';
 import { dataAccess } from '../dataAccess';
 import CurrencyInput from '../components/CurrencyInput.vue';
 import CategoryTransactions from '../components/CategoryTransactions.vue';
-import TransactionForm from '../components/TransactionForm.vue';
+import TransactionDialog from '../components/TransactionDialog.vue';
 import EntitySelector from '../components/EntitySelector.vue';
 import GoalsGroupCard from '../components/goals/GoalsGroupCard.vue';
 import GoalDialog from '../components/goals/GoalDialog.vue';

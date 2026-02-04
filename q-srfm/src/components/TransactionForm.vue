@@ -1,49 +1,61 @@
 <!-- src/components/TransactionForm.vue -->
 <template>
   <div v-if="isInitialized && locTrnsx?.categories">
-    <div class="row q-pa-none">
-      <div class="col col-6">
-        <q-btn flat type="submit" color="primary" :loading="isLoading" @click="save" label="Save" />
-      </div>
-      <div class="col text-right col-6">
-        <q-btn v-if="showCancel" @click="emit('cancel')" flat type="button" color="primary" :loading="isLoading" label="Cancel" />
-      </div>
-    </div>
-    <q-form ref="form" @submit.prevent="save">
-      <div class="row form-row">
-        <div class="col form-col-label">Date</div>
-        <div class="col form-col col-auto q-pt-md">
-          <q-input v-model="locTrnsx.date" type="date" :rules="requiredField" @input="updateBudgetMonth" dense borderless class="text-right" />
-        </div>
-      </div>
-      <div class="row form-row">
-        <div class="col form-col-label q-pr-xl">Merchant</div>
-        <div class="col form-col col-auto q-pt-md" style="min-width: 150px">
-          <q-input v-model="locTrnsx.merchant" :rules="requiredField" dense borderless class="text-right" clearable :input-attr="{ list: merchantOptionsId }" />
-          <datalist :id="merchantOptionsId">
-            <option v-for="merchant in merchantNames" :key="merchant" :value="merchant" />
-          </datalist>
-        </div>
-      </div>
-      <div class="row form-row">
-        <div class="col form-col-label col-auto">Total</div>
-        <div class="col form-col">
-          <Currency-Input v-model="locTrnsx.amount" class="text-right" borderless></Currency-Input>
-        </div>
+    <q-form ref="form" class="transaction-form q-gutter-lg" @submit.prevent="save">
+      <div class="transaction-form__field">
+        <q-input
+          v-model="locTrnsx.date"
+          type="date"
+          :rules="requiredField"
+          label="Date"
+          stack-label
+          dense
+          borderless
+          @input="updateBudgetMonth"
+        />
       </div>
 
-      <div class="form-row q-my-xl ms-n3 q-py-md">
-        <div v-for="(split, index) in locTrnsx.categories" :key="index">
-          <div class="row no-gutters">
-            <div class="col form-col-label q-pr-sm col-auto" :class="locTrnsx.categories.length > 1 ? '' : 'q-pb-md'">
-              <q-icon color="negative" @click="removeSplit(index)" name="close" />
-            </div>
-            <div class="col q-pr-sm">
+      <div class="transaction-form__field">
+        <q-input
+          v-model="locTrnsx.merchant"
+          :rules="requiredField"
+          label="Merchant"
+          stack-label
+          dense
+          borderless
+          clearable
+          :input-attr="{ list: merchantOptionsId }"
+        />
+        <datalist :id="merchantOptionsId">
+          <option v-for="merchant in merchantNames" :key="merchant" :value="merchant" />
+        </datalist>
+      </div>
+
+      <div class="transaction-form__field">
+        <Currency-Input
+          v-model="locTrnsx.amount"
+          label="Amount"
+          stack-label
+          dense
+          borderless
+          class="transaction-form__amount"
+        />
+      </div>
+
+      <div class="transaction-form__section">
+        <div class="transaction-form__section-title row items-center justify-between">
+          <div class="text-caption text-uppercase text-grey-6">Categories</div>
+          <q-btn flat color="primary" dense icon="add" label="Add Split" @click="addSplit" />
+        </div>
+        <div class="transaction-form__splits q-gutter-md">
+          <div v-for="(split, index) in locTrnsx.categories" :key="index" class="row items-end q-gutter-sm">
+            <div class="col">
               <q-select
                 v-model="split.category"
                 :options="remainingCategories"
                 label="Category"
                 :rules="requiredField"
+                stack-label
                 dense
                 borderless
                 menu-icon=""
@@ -51,112 +63,108 @@
                 required
               />
             </div>
-            <div class="col" v-if="locTrnsx.categories.length > 1">
-              <Currency-Input v-model="split.amount" class="text-right full-width" borderless></Currency-Input>
+            <div class="col-auto">
+              <Currency-Input v-model="split.amount" label="Split Amount" stack-label dense borderless />
+            </div>
+            <div class="col-auto">
+              <q-btn dense flat icon="close" color="negative" @click="removeSplit(index)" />
             </div>
           </div>
-        </div>
-        <div v-if="locTrnsx.categories.length > 1 && remainingSplit !== 0">
-          <q-banner v-if="remainingSplit !== 0" :type="remainingSplit < 0 ? 'error' : 'warning'" class="q-mb-lg">
+          <q-banner v-if="locTrnsx.categories.length > 1 && remainingSplit !== 0" :type="remainingSplit < 0 ? 'negative' : 'warning'">
             <div v-if="remainingSplit > 0">Remaining ${{ toDollars(toCents(Math.abs(remainingSplit))) }}</div>
             <div v-else>Over allocated ${{ toDollars(toCents(Math.abs(remainingSplit))) }} ({{ toDollars(toCents(locTrnsx.amount + remainingSplit)) }})</div>
           </q-banner>
         </div>
-        <div>
-          <q-btn flat color="primary" @click="addSplit()">Add Split</q-btn>
-        </div>
       </div>
 
-      <!-- Moved Type toggle above Notes -->
-      <div class="row form-row">
-        <div class="col form-col-label col-auto">Type</div>
-        <div class="col text-right">
+      <div class="transaction-form__field">
+        <div class="row items-center justify-between">
+          <div class="text-caption text-muted">Type</div>
           <ToggleButton v-model="locTrnsx.isIncome" active-text="Income" inactive-text="Expense" />
         </div>
       </div>
 
-      <div class="v-row form-row">
-        <q-input type="textarea" v-model="locTrnsx.notes" label="Notes" borderless @focus="scrollToNoteField" />
+      <div class="transaction-form__field">
+        <q-input
+          type="textarea"
+          v-model="locTrnsx.notes"
+          label="Notes"
+          stack-label
+          borderless
+          @focus="scrollToNoteField"
+        />
       </div>
 
-      <div class="row rounded-5 bg-light q-mb-sm justify-center">
-        <div class="col font-weight-bold col-auto" justify="center">Budget</div>
-        <div class="col q-pa-none q-ma-none q-pt-md">
-          <q-select
-            v-model="locTrnsx.budgetMonth"
-            :options="availableMonths"
-            :rules="requiredField"
-            dense
-            borderless
-            class="text-right"
-            :disabled="availableMonths.length === 0"
-          />
-        </div>
+      <div class="transaction-form__field">
+        <q-select
+          v-model="locTrnsx.budgetMonth"
+          :options="availableMonths"
+          :rules="requiredField"
+          label="Budget Month"
+          stack-label
+          dense
+          borderless
+          :disable="availableMonths.length === 0"
+        />
       </div>
 
-      <div class="row q-mt-sm" v-if="availableMonths.length === 0">
-        <div class="col">
-          <q-banner type="warning">No budgets available. Please create a budget in the Dashboard.</q-banner>
-        </div>
+      <div class="transaction-form__field" v-if="availableMonths.length === 0">
+        <q-banner type="warning" class="q-ma-none">No budgets available. Please create a budget in the Dashboard.</q-banner>
       </div>
 
-      <div class="row form-row">
-        <div class="col form-col-label col-auto">Fund from Goal</div>
-        <div class="col text-right">
-          <q-select v-model="locTrnsx.fundedByGoalId" :options="goalOptions" dense borderless emit-value map-options clearable />
-        </div>
+      <div class="transaction-form__field">
+        <q-select
+          v-model="locTrnsx.fundedByGoalId"
+          :options="goalOptions"
+          label="Fund from Goal"
+          stack-label
+          dense
+          borderless
+          emit-value
+          map-options
+          clearable
+        />
       </div>
 
-      <q-checkbox v-model="locTrnsx.recurring" label="Recurring"></q-checkbox>
-      <q-select v-if="locTrnsx.recurring" v-model="locTrnsx.recurringInterval" :options="intervals" label="Recurring Interval" dense borderless />
-
-      <!-- Imported Transaction Fields (Shown only if matched) -->
-      <div v-if="locTrnsx.status && (locTrnsx.status === 'C' || locTrnsx.status === 'R')" class="q-mt-lg">
-        <div class="row form-row">
-          <div class="col form-col-label">Posted Date</div>
-          <div class="col form-col">
-            <q-input v-model="locTrnsx.postedDate" type="date" dense borderless readonly></q-input>
-          </div>
-        </div>
-        <div class="row form-row">
-          <div class="col form-col-label q-pr-xl">Imported Merchant</div>
-          <div class="col form-col" style="min-width: 150px">
-            <q-input v-model="locTrnsx.importedMerchant" dense borderless readonly></q-input>
-          </div>
-        </div>
-        <div class="row form-row">
-          <div class="col form-col-label">Account Source</div>
-          <div class="col form-col">
-            <q-input v-model="locTrnsx.accountSource" dense borderless readonly></q-input>
-          </div>
-        </div>
-        <div class="row form-row">
-          <div class="col form-col-label">Account Number</div>
-          <div class="col form-col">
-            <q-input v-model="locTrnsx.accountNumber" dense borderless readonly></q-input>
-          </div>
-        </div>
-        <div class="row form-row">
-          <div class="col form-col-label">Check Number</div>
-          <div class="col form-col">
-            <q-input v-model="locTrnsx.checkNumber" dense borderless readonly></q-input>
-          </div>
-        </div>
-        <div class="row form-row">
-          <div class="col form-col-label">Status</div>
-          <div class="col form-col">
-            <q-input v-model="locTrnsx.status" dense borderless readonly></q-input>
-          </div>
-        </div>
-        <div class="row form-row">
-          <div class="col">
-            <q-btn variant="text" color="warning" :loading="isLoading" @click="resetMatch">Reset Match</q-btn>
-          </div>
-        </div>
+      <div class="transaction-form__field">
+        <q-checkbox v-model="locTrnsx.recurring" label="Recurring" />
+      </div>
+      <div class="transaction-form__field" v-if="locTrnsx.recurring">
+        <q-select
+          v-model="locTrnsx.recurringInterval"
+          :options="intervals"
+          label="Recurring Interval"
+          stack-label
+          dense
+          borderless
+        />
       </div>
 
-      <div class="text-center">
-        <q-btn v-if="locTrnsx.id" variant="text" color="negative" :loading="isLoading" @click="deleteTransaction" label="Delete Transaction" />
+      <div v-if="locTrnsx.status && (locTrnsx.status === 'C' || locTrnsx.status === 'R')" class="transaction-form__section">
+        <div class="transaction-form__section-title text-caption text-uppercase text-grey-6 q-mb-sm">
+          Imported data
+        </div>
+        <div class="transaction-form__field">
+          <q-input v-model="locTrnsx.postedDate" type="date" label="Posted Date" stack-label dense borderless readonly />
+        </div>
+        <div class="transaction-form__field">
+          <q-input v-model="locTrnsx.importedMerchant" label="Imported Merchant" stack-label dense borderless readonly />
+        </div>
+        <div class="transaction-form__field">
+          <q-input v-model="locTrnsx.accountSource" label="Account Source" stack-label dense borderless readonly />
+        </div>
+        <div class="transaction-form__field">
+          <q-input v-model="locTrnsx.accountNumber" label="Account Number" stack-label dense borderless readonly />
+        </div>
+        <div class="transaction-form__field">
+          <q-input v-model="locTrnsx.checkNumber" label="Check Number" stack-label dense borderless readonly />
+        </div>
+        <div class="transaction-form__field">
+          <q-input v-model="locTrnsx.status" label="Status" stack-label dense borderless readonly />
+        </div>
+        <div class="transaction-form__field q-pt-none">
+          <q-btn variant="text" color="warning" :loading="isLoading" @click="resetMatch">Reset Match</q-btn>
+        </div>
       </div>
     </q-form>
   </div>
@@ -186,11 +194,9 @@ const { listGoals, addGoalSpend } = useGoals();
 
 const props = defineProps<{
   initialTransaction: Transaction;
-  showCancel?: boolean;
   categoryOptions: string[];
   budgetId: string;
   userId: string;
-  loading?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -471,6 +477,12 @@ async function deleteTransaction() {
   }
 }
 
+defineExpose({
+  save,
+  deleteTransaction,
+  isLoading,
+});
+
 function showSnackbar(text: string, color = 'success') {
   $q.notify({
     message: text,
@@ -482,22 +494,34 @@ function showSnackbar(text: string, color = 'success') {
 }
 </script>
 
-<style>
-.form-row {
-  background-color: #f5f5f5;
-  padding: 4px 8px;
-  align-items: center;
-  margin-bottom: 4px;
-}
-
-.form-col-label {
-  font-weight: 600;
+<style scoped>
+.transaction-form {
+  width: 100%;
   display: flex;
-  align-items: center;
+  flex-direction: column;
 }
 
-.text-right .q-field__native,
-.text-right .q-placeholder {
-  text-align: right !important;
+.transaction-form__field {
+  width: 100%;
+}
+
+.transaction-form__section {
+  border-top: 1px solid var(--q-color-grey-3);
+  padding-top: 12px;
+  margin-top: 12px;
+}
+
+.transaction-form__section-title {
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+}
+
+.transaction-form__splits .row {
+  align-items: flex-end;
+}
+
+.transaction-form__amount .q-field__native,
+.transaction-form__splits .q-field__native {
+  text-align: right;
 }
 </style>

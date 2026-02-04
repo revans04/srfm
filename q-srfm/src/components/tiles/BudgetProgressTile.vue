@@ -12,11 +12,11 @@
         <div class="row items-center">
           <div class="col">
             <div class="text-caption text-grey-6">Planned Expenses</div>
-            <div class="text-h5 q-mt-xs">{{ money(plannedExpenses) }}</div>
+            <div class="text-h6 q-mt-xs">{{ money(plannedExpenses) }}</div>
           </div>
           <div class="col">
             <div class="text-caption text-grey-6">Actual Income</div>
-            <div class="text-h5 q-mt-xs">{{ money(actualIncome) }}</div>
+            <div class="text-h6 q-mt-xs">{{ money(actualIncome) }}</div>
           </div>
         </div>
         <div class="row items-center q-mt-sm">

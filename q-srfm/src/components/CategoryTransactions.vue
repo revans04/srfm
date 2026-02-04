@@ -90,27 +90,19 @@
       </q-card-section>
     </q-card>
 
-    <q-dialog v-model="showEditDialog" :width="!isMobile ? '600px' : undefined" :fullscreen="isMobile">
-      <q-card dense :width="!isMobile ? '600px' : undefined">
-        <q-card-section class="bg-primary row items-center q-py-md">
-          <div class="text-white">Edit {{ transactionToEdit?.merchant }} Transaction</div>
-          <q-btn flat dense color="white" label="X" class="q-ml-auto" @click="showEditDialog = false" />
-        </q-card-section>
-        <q-card-section>
-          <transaction-form
-            v-if="showEditDialog && transactionToEdit"
-            :initial-transaction="transactionToEdit"
-            :category-options="categoryOptions"
-            :budget-id="budgetId"
-            :user-id="userId"
-            :show-cancel="true"
-            @save="onTransactionSaved"
-            @cancel="showEditDialog = false"
-            @update-transactions="updateTransactions"
-          />
-        </q-card-section>
-      </q-card>
-    </q-dialog>
+    <TransactionDialog
+      v-if="transactionToEdit"
+      :show-dialog="showEditDialog"
+      :initial-transaction="transactionToEdit"
+      edit-mode
+      :category-options="categoryOptions"
+      :budget-id="budgetId"
+      :user-id="userId"
+      @update:showDialog="showEditDialog = $event"
+      @save="onTransactionSaved"
+      @cancel="showEditDialog = false"
+      @update-transactions="updateTransactions"
+    />
 
     <q-dialog v-model="showDeleteDialog" max-width="400">
       <q-card>
@@ -135,7 +127,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useQuasar, QSpinner } from 'quasar';
 import { dataAccess } from '../dataAccess';
-import TransactionForm from './TransactionForm.vue';
+import TransactionDialog from './TransactionDialog.vue';
 import BudgetTransactionItem from './BudgetTransactionItem.vue';
 import type { BudgetCategory, Transaction, Goal } from '../types';
 import { toDollars, toCents, formatCurrency } from '../utils/helpers';
@@ -215,8 +207,6 @@ const progressPercentage = computed(() => {
   const rawPercentage = targetVal > 0 ? (spentVal / targetVal) * 100 : 0;
   return Math.min(Math.max(rawPercentage, 0), 100);
 });
-
-const isMobile = computed(() => $q.screen.lt.md);
 
 const isIncome = computed(() => {
   return props.category.group === 'Income';
@@ -421,13 +411,13 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 12px;
-  padding: 12px 20px;
+  padding: 12px;
 }
 
 .summary-item {
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: var(--radius-sm);
-  padding: 12px 16px;
+  padding: 12px;
   background: var(--color-surface-card);
 }
 

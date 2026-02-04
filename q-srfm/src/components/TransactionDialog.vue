@@ -1,24 +1,43 @@
 <!-- components/TransactionDialog.vue -->
 <template>
   <q-dialog v-model="localShowDialog" :width="!isMobile ? '550px' : undefined" :fullscreen="isMobile" @update:modelValue="handleDialogClose">
-    <q-card class="full-width">
-      <q-card-section class="bg-primary row items-center">
-        <div class="text-h6 text-white">
-          {{ editMode ? `Edit ${transaction.merchant} Transaction` : 'Add Transaction' }}
+    <q-card class="transaction-dialog">
+      <q-card-section class="transaction-dialog__header row items-center">
+        <div class="transaction-dialog__title-group">
+          <div class="text-h6 transaction-dialog__title">{{ dialogTitle }}</div>
+          <div v-if="helperText" class="text-caption text-grey-6">{{ helperText }}</div>
         </div>
-        <q-btn flat dense icon="close" color="white" class="q-ml-auto" @click="handleCancel" />
+        <q-btn flat dense icon="close" color="primary" class="transaction-dialog__close" @click="handleCancel" />
       </q-card-section>
-      <q-card-section>
+
+      <q-card-section class="transaction-dialog__body">
         <TransactionForm
+          ref="transactionForm"
           :initial-transaction="transaction"
-          :loading="loading"
-          :show-cancel="true"
           :category-options="categoryOptions"
           :budget-id="budgetId"
           :user-id="userId"
           @save="handleSave"
           @cancel="handleCancel"
+          @update-transactions="handleTransactionsUpdated"
         />
+      </q-card-section>
+
+      <q-card-section class="transaction-dialog__actions">
+        <div class="row items-center justify-between">
+          <div class="row items-center q-gutter-sm">
+            <q-btn flat color="primary" label="Cancel" :disable="isBusy" @click="handleCancel" />
+            <q-btn
+              v-if="canDelete"
+              flat
+              color="negative"
+              label="Delete"
+              :loading="isBusy"
+              @click="handleDelete"
+            />
+          </div>
+          <q-btn unelevated color="primary" label="Save Transaction" :loading="isBusy" @click="handleSaveClick" />
+        </div>
       </q-card-section>
     </q-card>
   </q-dialog>
@@ -31,52 +50,86 @@ import TransactionForm from './TransactionForm.vue';
 import type { Transaction } from '../types';
 const $q = useQuasar();
 
+type TransactionFormHandle = {
+  save: () => Promise<void>;
+  deleteTransaction: () => Promise<void>;
+};
+
 const props = defineProps<{
   showDialog: boolean;
   initialTransaction: Transaction;
-  editMode: boolean;
-  loading: boolean;
+  editMode?: boolean;
+  loading?: boolean;
   categoryOptions: string[];
   budgetId: string;
   userId: string;
+  title?: string;
+  helperText?: string;
 }>();
 
 const emit = defineEmits<{
   (e: 'update:showDialog', value: boolean): void;
   (e: 'save', transaction: Transaction): void;
   (e: 'cancel'): void;
+  (e: 'update-transactions', transactions: Transaction[]): void;
 }>();
 
-// Local state to sync with prop
+// Local state to sync with props
 const localShowDialog = ref(props.showDialog);
 const transaction = ref<Transaction>({ ...props.initialTransaction });
 
-// Sync local dialog state with prop
+const transactionForm = ref<TransactionFormHandle | null>(null);
+const isMobile = computed(() => $q.screen.lt.md);
+
 watch(
   () => props.showDialog,
-  (newVal) => {
-    localShowDialog.value = newVal;
+  (value) => {
+    localShowDialog.value = value;
   },
 );
 
 watch(
   () => props.initialTransaction,
-  (newVal) => {
-    transaction.value = { ...newVal };
+  (newTransaction) => {
+    transaction.value = { ...newTransaction };
   },
   { deep: true },
 );
 
-// Computed prop for mobile check
-const isMobile = computed(() => $q.screen.lt.md);
+const dialogTitle = computed(() => {
+  if (props.title) {
+    return props.title;
+  }
+  if (props.editMode) {
+    return `Edit ${transaction.value.merchant || 'Transaction'}`;
+  }
+  return 'Add Transaction';
+});
+
+const canDelete = computed(() => Boolean(transaction.value?.id));
+const isBusy = computed(() => Boolean(props.loading));
 
 function handleDialogClose(value: boolean) {
   emit('update:showDialog', value);
-  if (!value) handleCancel();
+  if (!value) {
+    handleCancel();
+  }
 }
 
 function handleSave(updatedTransaction: Transaction) {
   emit('save', updatedTransaction);
+}
+
+function handleTransactionsUpdated(updatedTransactions: Transaction[]) {
+  emit('update-transactions', updatedTransactions);
+}
+
+function handleSaveClick() {
+  void transactionForm.value?.save();
+}
+
+function handleDelete() {
+  void transactionForm.value?.deleteTransaction();
 }
 
 function handleCancel() {
@@ -84,4 +137,34 @@ function handleCancel() {
 }
 </script>
 
-<style scoped></style>
+<style scoped>
+.transaction-dialog {
+  width: 100%;
+}
+
+.transaction-dialog__header {
+  border-bottom: 1px solid var(--q-color-grey-3);
+  padding-bottom: 16px;
+}
+
+.transaction-dialog__title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.transaction-dialog__body {
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-bottom: 0;
+}
+
+.transaction-dialog__actions {
+  position: sticky;
+  bottom: 0;
+  background-color: var(--q-color-white);
+  border-top: 1px solid var(--q-color-grey-3);
+  padding: 12px 16px;
+  z-index: 1;
+}
+</style>

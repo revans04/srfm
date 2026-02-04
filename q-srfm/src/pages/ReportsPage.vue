@@ -134,6 +134,15 @@
                   </q-markup-table>
                 </q-card-section>
                 <q-card-actions align="right">
+                  <div class="text-subtitle2 q-mr-md">
+                    Total:
+                    ${{
+                      selectedCategoryTotal.toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })
+                    }}
+                  </div>
                   <q-btn flat label="Close" v-close-popup />
                 </q-card-actions>
               </q-card>
@@ -164,6 +173,83 @@
                 </tr>
               </tbody>
             </q-markup-table>
+          </div>
+        </div>
+
+        <div class="row q-mt-lg">
+          <div class="col col-12">
+            <q-card>
+              <q-card-section>
+                <div class="text-h6">Category Averages</div>
+                <div class="text-caption">Average per selected budget</div>
+              </q-card-section>
+              <q-card-section>
+                <q-markup-table v-if="categoryAverages.length">
+                  <thead>
+                    <tr>
+                      <th>Category</th>
+                      <th class="text-right">Avg Income</th>
+                      <th class="text-right">Avg Expense</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="category in categoryAverages"
+                      :key="category.name"
+                      @click="openCategory(category.name)"
+                      style="cursor: pointer"
+                    >
+                      <td>{{ category.name }}</td>
+                      <td class="text-right">
+                        ${{
+                          category.avgIncome.toLocaleString("en-US", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })
+                        }}
+                      </td>
+                      <td class="text-right">
+                        ${{
+                          category.avgExpense.toLocaleString("en-US", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })
+                        }}
+                      </td>
+                    </tr>
+                  </tbody>
+                </q-markup-table>
+                <p v-else>No category data available</p>
+              </q-card-section>
+            </q-card>
+            <q-dialog v-model="showCategoryDialog" max-width="700px">
+              <q-card>
+                <q-card-section>{{ selectedCategory }} Transactions</q-card-section>
+                <q-card-section>
+                  <q-markup-table dense>
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Merchant</th>
+                        <th class="text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="tx in selectedCategoryTransactions" :key="tx.id">
+                        <td>{{ tx.date }}</td>
+                        <td>{{ tx.merchant }}</td>
+                        <td class="text-right">
+                          ${{ tx.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </q-markup-table>
+                </q-card-section>
+                <q-card-actions align="right">
+                  <q-btn flat label="Close" v-close-popup />
+                </q-card-actions>
+              </q-card>
+            </q-dialog>
           </div>
         </div>
       </q-tab-panel>
@@ -268,6 +354,8 @@ const groupOptions = ref<string[]>([]);
 const categoryOptions = ref<string[]>([]);
 const budgetGroups = ref<{ name: string; planned: number; actual: number }[]>([]);
 const monthlyTotals = ref<{ month: string; planned: number; actual: number }[]>([]);
+const categoryAverages = ref<{ name: string; avgIncome: number; avgExpense: number }[]>([]);
+const categoryTransactions = ref<Record<string, { id: string; date: string; merchant: string; amount: number; isIncome: boolean }[]>>({});
 const snapshots = ref<Snapshot[]>([]);
 const familyId = ref<string | null>(null);
 const isLoadingSnapshots = ref(true);
@@ -278,6 +366,16 @@ const selectedGroupTransactions = computed(() => {
   if (!selectedGroup.value) return [];
   const txs = groupTransactions.value[selectedGroup.value] || [];
   return [...txs].sort((a, b) => b.date.localeCompare(a.date));
+});
+const selectedCategory = ref<string | null>(null);
+const showCategoryDialog = ref(false);
+const selectedCategoryTransactions = computed(() => {
+  if (!selectedCategory.value) return [];
+  const txs = categoryTransactions.value[selectedCategory.value] || [];
+  return [...txs].sort((a, b) => b.date.localeCompare(a.date));
+});
+const selectedCategoryTotal = computed(() => {
+  return selectedCategoryTransactions.value.reduce((sum, tx) => sum + tx.amount, 0);
 });
 const loadedBudgetIds = new Set<string>();
 
@@ -765,10 +863,13 @@ async function updateReportData() {
   if (!selectedBudgets.value || !selectedBudgets.value.length) {
     budgetGroups.value = [];
     groupTransactions.value = {};
+    categoryAverages.value = [];
+    categoryTransactions.value = {};
     return;
   }
 
   groupTransactions.value = {};
+  categoryTransactions.value = {};
 
   try {
     const budgetsToLoad = selectedBudgets.value.filter((budgetId) => {
@@ -814,10 +915,12 @@ async function updateReportData() {
       .filter((budget): budget is Budget => budget !== null);
 
     const categoryToGroup = new Map<string, string>();
+    const categoryGroupMap = new Map<string, string>();
     const groupSet = new Set<string>();
     const categorySet = new Set<string>();
     budgets.forEach((budget) => {
       budget.categories.forEach((cat) => {
+        categoryGroupMap.set(cat.name, cat.group);
         if (cat.group && cat.group.toLowerCase() !== "income") {
           groupSet.add(cat.group);
           if (cat.name.toLowerCase() !== "income") {
@@ -922,15 +1025,89 @@ async function updateReportData() {
       planned: data.planned,
       actual: data.actual,
     }));
+
+    const budgetCount = budgets.length;
+    const allCategoryNames = new Set<string>();
+    budgets.forEach((budget) => {
+      budget.categories.forEach((cat) => {
+        allCategoryNames.add(cat.name);
+      });
+      budget.transactions.forEach((transaction) => {
+        transaction.categories.forEach((cat) => {
+          allCategoryNames.add(cat.category);
+        });
+      });
+    });
+
+    const categoryTotals = new Map<string, { incomeTotal: number; expenseTotal: number }>();
+    const categorySeenTxIds = new Map<string, Set<string>>();
+    const nextCategoryTransactions: Record<
+      string,
+      { id: string; date: string; merchant: string; amount: number; isIncome: boolean }[]
+    > = {};
+    allCategoryNames.forEach((name) => {
+      categoryTotals.set(name, { incomeTotal: 0, expenseTotal: 0 });
+      categorySeenTxIds.set(name, new Set<string>());
+    });
+
+    budgets.forEach((budget) => {
+      budget.transactions.forEach((transaction) => {
+        if (transaction.deleted) return;
+        transaction.categories.forEach((cat) => {
+          const groupName = categoryGroupMap.get(cat.category);
+          if (groupName && excludedGroups.value.includes(groupName)) return;
+          if (excludedCategories.value.includes(cat.category)) return;
+          const seenIds = categorySeenTxIds.get(cat.category) || new Set<string>();
+          if (seenIds.has(transaction.id)) return;
+          seenIds.add(transaction.id);
+          categorySeenTxIds.set(cat.category, seenIds);
+          const totals = categoryTotals.get(cat.category) || { incomeTotal: 0, expenseTotal: 0 };
+          const amount = cat.amount || 0;
+          if (transaction.isIncome) {
+            totals.incomeTotal += amount;
+          } else {
+            totals.expenseTotal += amount;
+          }
+          categoryTotals.set(cat.category, totals);
+          const txList = nextCategoryTransactions[cat.category] || [];
+          txList.push({
+            id: transaction.id,
+            date: transaction.date,
+            merchant: transaction.merchant,
+            amount: amount * (transaction.isIncome ? 1 : -1),
+            isIncome: transaction.isIncome,
+          });
+          nextCategoryTransactions[cat.category] = txList;
+        });
+      });
+    });
+
+    categoryAverages.value = Array.from(categoryTotals.entries())
+      .map(([name, totals]) => ({
+        name,
+        avgIncome: budgetCount ? totals.incomeTotal / budgetCount : 0,
+        avgExpense: budgetCount ? totals.expenseTotal / budgetCount : 0,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    categoryTransactions.value = nextCategoryTransactions;
   } catch (error: unknown) {
     console.error("Error updating report data:", error);
     budgetGroups.value = [];
+    categoryAverages.value = [];
+    categoryTransactions.value = {};
   }
 }
 
 function openGroup(name: string) {
   selectedGroup.value = name;
   showGroupDialog.value = true;
+}
+
+function openCategory(name: string) {
+  selectedCategory.value = name;
+  showCategoryDialog.value = true;
+  const txs = categoryTransactions.value[name] || [];
+  console.log(`Category ${name} transactions:`, txs);
 }
 </script>
 
