@@ -518,6 +518,9 @@ async function saveAccount(account: Account, isPersonal: boolean) {
       accounts.value.push({ ...account });
     }
 
+    // Keep the family store in sync for other pages (e.g., TransactionsPage filters)
+    await familyStore.refreshAccounts(familyId.value);
+
     if (!editMode.value && snapshot) {
       snapshots.value.push(snapshot);
       snapshots.value.sort((a, b) => timestampToMillis(b.date) - timestampToMillis(a.date));

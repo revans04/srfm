@@ -10,9 +10,9 @@ export const useFamilyStore = defineStore('family', () => {
   const family = ref<Family>();
   const selectedEntityId = ref<string>(''); // Track selected entity for filtering
 
-  async function loadFamily(userId: string = '') {
+  async function loadFamily(userId: string = '', options: { force?: boolean } = {}) {
     try {
-      if (family.value) return family.value;
+      if (family.value && !options.force) return family.value;
       if (!userId) userId = auth.user ? auth.user.uid : '';
       const f = await dataAccess.getUserFamily(userId);
       if (f) {
@@ -29,6 +29,22 @@ export const useFamilyStore = defineStore('family', () => {
       console.error('Error loading Family', err);
     }
     return null;
+  }
+
+  async function refreshAccounts(familyId?: string) {
+    try {
+      const fid = familyId || family.value?.id;
+      if (!fid) return [];
+      const accounts = await dataAccess.getAccounts(fid);
+      if (family.value) {
+        family.value.accounts = accounts;
+      }
+      return accounts;
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error('Error refreshing accounts', err);
+      return [];
+    }
   }
 
   async function getFamily() {
@@ -135,6 +151,7 @@ export const useFamilyStore = defineStore('family', () => {
     selectedEntityId,
     loadFamily,
     getFamily,
+    refreshAccounts,
     createEntity,
     updateEntity,
     deleteEntity,
