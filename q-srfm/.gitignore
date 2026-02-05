@@ -8,6 +8,8 @@ node_modules
 /quasar.config.*.temporary.compiled*
 */yarn.lock
 */package-lock.json
+yarn.lock
+package-lock.json
 
 # Cordova related directories and files
 /src-cordova/node_modules
