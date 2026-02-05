@@ -37,7 +37,6 @@ flowchart LR
     C1[FamilyController]
     C2[BudgetController]
     C3[AccountController]
-    C4[SyncController]
     SV1[FamilyService]
     SV2[BudgetService]
     SV3[AccountService]
@@ -116,4 +115,3 @@ Style/Rendering Guidance:
 ---
 
 Tip: You can also reconstruct these from the source at `docs/architecture.md` if needed.
-

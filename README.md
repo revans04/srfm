@@ -9,7 +9,7 @@ Below are concise instructions to run locally and deploy.
 
 ## Prerequisites
 
-- Node.js 20.x and npm (or Yarn)
+- Node.js 20.x and Yarn
 - .NET SDK 8.0+
 - Docker with Buildx
 - Google Cloud SDK (`gcloud`)
@@ -25,7 +25,7 @@ Optional for deployments using Artifact Registry and Cloud Run:
 From `api/`:
 
 - Ensure env vars are available in your shell:
-  - `SUPABASE_DB_CONNECTION` – your Postgres connection string
+  - `SUPABASE_DB_CONNECTION` – your Postgres connection string (Supabase is the system of record)
   - `GOOGLE_CLOUD_PROJECT=budget-buddy-a6b6c`
   - `GOOGLE_APPLICATION_CREDENTIALS_JSON` – contents of your Firebase service account JSON
 
@@ -55,8 +55,8 @@ From `q-srfm/`:
 
 ```
 cd q-srfm
-npm install
-npm run dev
+yarn
+yarn dev
 ```
 
 The app opens in your browser (Vite dev server). All API calls go to your local API at port 8080.
@@ -81,7 +81,7 @@ npm run update-version-and-deploy -- minor
 Alternatively, just deploy current build:
 
 ```
-npm run deploy:firebase
+yarn deploy:firebase
 ```
 
 Hosting site is pinned to `budget-buddy-a6b6c` in `q-srfm/firebase.json`. The SPA uses `VITE_API_BASE_URL=/api` and Firebase Hosting rewrites `/api/**` to the Cloud Run service.
@@ -156,4 +156,3 @@ After deploy, direct API URL is printed by `gcloud` (e.g., `https://family-budge
 - Quasar app: `q-srfm/`
 - Quasar deploy helper: `q-srfm/scripts/updateVersionAndDeploy.js`
 - Firebase Hosting config: `q-srfm/firebase.json`
-

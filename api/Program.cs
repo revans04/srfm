@@ -6,7 +6,6 @@ using Google.Cloud.Firestore.V1;
 using Microsoft.OpenApi.Models;
 using FamilyBudgetApi.Services;
 using FamilyBudgetApi.Controllers;
-using FamilyBudgetApi.Converters;
 using Microsoft.Extensions.Logging;
 using FamilyBudgetApi.Logging;
 using System;
@@ -81,11 +80,7 @@ catch (Exception ex)
 }
 
 // Register controllers and JSON converters
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        options.JsonSerializerOptions.Converters.Add(new TimestampJsonConverter());
-    });
+builder.Services.AddControllers();
 
 // Register application services
 var supabaseDbService = new SupabaseDbService(builder.Configuration);
@@ -97,7 +92,6 @@ builder.Services.AddSingleton<UserService>();
 builder.Services.AddSingleton<AccountService>();
 builder.Services.AddSingleton<BrevoService>();
 builder.Services.AddSingleton<StatementService>();
-builder.Services.AddSingleton<SyncService>();
 builder.Services.AddSingleton<GoalService>();
 
 // Configure CORS policies

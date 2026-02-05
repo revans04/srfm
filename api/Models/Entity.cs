@@ -12,16 +12,12 @@ namespace FamilyBudgetApi.Models
         Other
     }
 
-    [FirestoreData]
     public class Entity
     {
-        [FirestoreProperty("id")]
         public string Id { get; set; }
 
-        [FirestoreProperty("name")]
         public string Name { get; set; }
 
-        [FirestoreProperty("type")]
         public string Type { get; set; } // Store as string in Firestore
 
         // Helper property to work with EntityType enum in code
@@ -31,19 +27,14 @@ namespace FamilyBudgetApi.Models
             set => Type = value.ToString();
         }
 
-        [FirestoreProperty]
         public Timestamp CreatedAt { get; set; }
 
-        [FirestoreProperty]
         public Timestamp UpdatedAt { get; set; }
 
-        [FirestoreProperty("members")]
         public List<UserRef> Members { get; set; } = new();
 
-        [FirestoreProperty("templateBudget")]
         public TemplateBudget? TemplateBudget { get; set; }
 
-        [FirestoreProperty("taxFormIds")]
         public List<string>? TaxFormIds { get; set; }
     }
 }

@@ -7,8 +7,8 @@ This document maps the system at a glance and highlights the recent lazy-loading
   - `app/` (Vuetify) and `q-srfm/` (Quasar)
   - State via Pinia stores (`family`, `budget`)
 - API: ASP.NET Core (`api/*`)
-  - Controllers: `FamilyController`, `BudgetController`, `AccountController`, `SyncController`
-  - Services: `FamilyService`, `BudgetService`, `AccountService`, `SyncService`
+  - Controllers: `FamilyController`, `BudgetController`, `AccountController`
+  - Services: `FamilyService`, `BudgetService`, `AccountService`
   - Auth: Firebase JWT enforced by `AuthorizeFirebase`
 - Data: Supabase/PostgreSQL via `SupabaseDbService`
 - Email: `BrevoService` for invites
@@ -75,7 +75,6 @@ flowchart LR
     C1[FamilyController]
     C2[BudgetController]
     C3[AccountController]
-    C4[SyncController]
     SV1[FamilyService]
     SV2[BudgetService]
     SV3[AccountService]
@@ -163,4 +162,3 @@ sequenceDiagram
 - app/src/dataAccess.ts:320
 - q-srfm/src/dataAccess.ts:294
 - q-srfm/src/store/budget.ts:1
-
