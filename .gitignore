@@ -6,7 +6,6 @@ app/functions
 *firestore.rules
 .firebase*
 backup/*
-**/yarn.lock
 **/package-lock.json
 
 # local env files
