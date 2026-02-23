@@ -1,8 +1,6 @@
 /** Program.cs **/
 using FirebaseAdmin;
 using Google.Apis.Auth.OAuth2;
-using Google.Cloud.Firestore;
-using Google.Cloud.Firestore.V1;
 using Microsoft.OpenApi.Models;
 using FamilyBudgetApi.Services;
 using FamilyBudgetApi.Controllers;
@@ -63,10 +61,6 @@ try
     {
         throw new InvalidOperationException("Google Cloud project ID not set.");
     }
-    builder.Services.AddSingleton(FirestoreDb.Create(projectId, new FirestoreClientBuilder
-    {
-        Credential = credential
-    }.Build()));
 
     // Configure logging
     builder.Logging.ClearProviders();

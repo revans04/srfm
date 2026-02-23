@@ -1,7 +1,6 @@
 //Controllers/AuthController.cs
 using FirebaseAdmin.Auth;
 using Google.Apis.Auth;
-using Google.Cloud.Firestore;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using FamilyBudgetApi.Models;
@@ -14,13 +13,19 @@ namespace FamilyBudgetApi.Controllers
   [Route("api/auth")]
   public class AuthController : ControllerBase
   {
-    private readonly FirestoreDb _firestoreDb;
+    private readonly UserService _userService;
+    private readonly FamilyService _familyService;
     private readonly BrevoService _brevoService;
     private readonly string _baseUrl;
 
-    public AuthController(FirestoreDb firestoreDb, BrevoService brevoService, IConfiguration configuration)
+    public AuthController(
+      UserService userService,
+      FamilyService familyService,
+      BrevoService brevoService,
+      IConfiguration configuration)
     {
-      _firestoreDb = firestoreDb;
+      _userService = userService;
+      _familyService = familyService;
       _brevoService = brevoService;
       _baseUrl = configuration["BaseUrl"] ?? "http://family-budget.local:8080";
     }
@@ -50,14 +55,16 @@ namespace FamilyBudgetApi.Controllers
         try
         {
           userRecord = await FirebaseAuth.DefaultInstance.GetUserAsync(payload.Subject);
-          // For existing users, ensure VerificationToken exists if not verified
+
+          await _userService.SaveUser(payload.Subject, payload.Email);
+
+          // For existing users, ensure verification token exists if not verified
           if (!userRecord.EmailVerified)
           {
-            var userDoc = await _firestoreDb.Collection("users").Document(payload.Subject).GetSnapshotAsync();
-            if (userDoc.Exists && !userDoc.ContainsField("VerificationToken"))
+            var existingToken = await _userService.GetVerificationToken(payload.Subject);
+            if (string.IsNullOrWhiteSpace(existingToken))
             {
-              string verificationToken = Guid.NewGuid().ToString();
-              await userDoc.Reference.SetAsync(new { VerificationToken = verificationToken }, SetOptions.MergeAll);
+              var verificationToken = await _userService.EnsureVerificationToken(payload.Subject);
               await SendVerificationEmail(payload.Email, verificationToken);
             }
           }
@@ -74,15 +81,10 @@ namespace FamilyBudgetApi.Controllers
           };
           userRecord = await FirebaseAuth.DefaultInstance.CreateUserAsync(userRecordArgs);
 
-          string verificationToken = Guid.NewGuid().ToString();
-          await _firestoreDb.Collection("users").Document(payload.Subject)
-            .SetAsync(new { VerificationToken = verificationToken }, SetOptions.MergeAll);
-
+          await _userService.SaveUser(payload.Subject, payload.Email);
+          var verificationToken = await _userService.EnsureVerificationToken(payload.Subject);
           await SendVerificationEmail(payload.Email, verificationToken);
         }
-
-        await _firestoreDb.Collection("users").Document(payload.Subject)
-          .SetAsync(new { uid = payload.Subject, email = payload.Email, name = payload.Name ?? "" }, SetOptions.MergeAll);
 
         return Ok(new { Token = customToken });
       }
@@ -94,6 +96,7 @@ namespace FamilyBudgetApi.Controllers
     }
 
     [HttpPost("create-family")]
+    [AuthorizeFirebase]
     public async Task<IActionResult> CreateFamily([FromBody] CreateFamilyRequest request)
     {
       var userId = HttpContext.Items["UserId"]?.ToString() ?? throw new Exception("User ID not found");
@@ -101,17 +104,15 @@ namespace FamilyBudgetApi.Controllers
       if (string.IsNullOrEmpty(request.Name))
         return BadRequest(new { Error = "Family name is required" });
 
-      var familyId = _firestoreDb.Collection("families").Document().Id;
+      var familyId = Guid.NewGuid().ToString();
       var family = new Family
       {
         Id = familyId,
         Name = request.Name,
         OwnerUid = userId,
-        Members = new List<UserRef> { new UserRef { Uid = userId, Email = request.Email } },
-        CreatedAt = Timestamp.FromDateTime(DateTime.UtcNow),
-        UpdatedAt = Timestamp.FromDateTime(DateTime.UtcNow)
+        Members = new List<UserRef> { new UserRef { Uid = userId, Email = request.Email } }
       };
-      await _firestoreDb.Collection("families").Document(familyId).SetAsync(family);
+      await _familyService.CreateFamily(familyId, family);
       return Ok(new { FamilyId = familyId, Name = family.Name });
     }
 
@@ -122,13 +123,8 @@ namespace FamilyBudgetApi.Controllers
       try
       {
         var userId = HttpContext.Items["UserId"]?.ToString() ?? throw new Exception("User ID not found");
-
-        var userRef = _firestoreDb.Collection("users").Document(userId);
-        await userRef.SetAsync(new
-        {
-          uid = userId,
-          email = userRef.GetSnapshotAsync().Result.GetValue<string>("email") ?? ""
-        }, SetOptions.MergeAll);
+        var email = HttpContext.Items["Email"]?.ToString() ?? string.Empty;
+        await _userService.SaveUser(userId, email);
 
         return Ok();
       }
@@ -143,18 +139,11 @@ namespace FamilyBudgetApi.Controllers
     {
       try
       {
-        var userQuery = await _firestoreDb.Collection("users")
-          .WhereEqualTo("VerificationToken", token)
-          .Limit(1)
-          .GetSnapshotAsync();
-
-        if (userQuery.Count == 0)
+        var uid = await _userService.GetUserIdByVerificationToken(token);
+        if (string.IsNullOrWhiteSpace(uid))
         {
           return BadRequest(new { Error = "Invalid or expired verification token" });
         }
-
-        var userDoc = userQuery.Documents[0];
-        string uid = userDoc.GetValue<string>("uid");
 
         await FirebaseAuth.DefaultInstance.UpdateUserAsync(new UserRecordArgs
         {
@@ -162,7 +151,7 @@ namespace FamilyBudgetApi.Controllers
           EmailVerified = true
         });
 
-        await userDoc.Reference.UpdateAsync("VerificationToken", null);
+        await _userService.ClearVerificationToken(uid);
 
         return Ok(new { Message = "Email verified successfully" });
       }
@@ -184,20 +173,13 @@ namespace FamilyBudgetApi.Controllers
         {
           return BadRequest(new { Error = "Email is already verified" });
         }
-
-        var userDoc = await _firestoreDb.Collection("users").Document(userId).GetSnapshotAsync();
-        if (!userDoc.Exists)
+        if (string.IsNullOrWhiteSpace(userRecord.Email))
         {
-          return BadRequest(new { Error = "User data not found" });
+          return BadRequest(new { Error = "User does not have an email address on record" });
         }
 
-        // Safely handle missing VerificationToken
-        string? verificationToken = userDoc.TryGetValue<string>("VerificationToken", out var token) ? token : null;
-        if (string.IsNullOrEmpty(verificationToken))
-        {
-          verificationToken = Guid.NewGuid().ToString();
-          await userDoc.Reference.SetAsync(new { VerificationToken = verificationToken }, SetOptions.MergeAll);
-        }
+        await _userService.SaveUser(userId, userRecord.Email);
+        var verificationToken = await _userService.EnsureVerificationToken(userId);
 
         await SendVerificationEmail(userRecord.Email, verificationToken);
         return Ok(new { Message = "Verification email resent successfully" });
