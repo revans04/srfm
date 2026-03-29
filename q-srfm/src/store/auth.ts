@@ -43,7 +43,11 @@ export const useAuthStore = defineStore('auth', () => {
   async function loginWithGoogle(): Promise<void> {
     try {
       authError.value = null;
-      user.value = await signInWithGoogle();
+      const firebaseUser = await signInWithGoogle();
+      user.value = firebaseUser;
+      if (firebaseUser?.photoURL) {
+        avatarSrc.value = firebaseUser.photoURL;
+      }
     } catch (error) {
       console.error('Google login error:', error);
       authError.value = error instanceof Error ? error.message : String(error);

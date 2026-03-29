@@ -53,7 +53,8 @@
           <q-item clickable @click="signOut" :title="auth.user?.email" class="app-drawer__profile">
             <q-item-section avatar>
               <q-avatar size="36" color="white" text-color="primary">
-                <img :src="auth.avatarSrc" alt="User Avatar" />
+                <img v-if="auth.user?.photoURL" :src="auth.user.photoURL" alt="User Avatar" referrerpolicy="no-referrer" />
+                <span v-else>{{ userInitials }}</span>
               </q-avatar>
             </q-item-section>
             <q-item-section>{{ auth.user?.email }}</q-item-section>
@@ -101,6 +102,11 @@ const windowWidth = ref(window.innerWidth);
 
 const isMobile = computed(() => windowWidth.value < 960);
 const isLoginRoute = computed(() => route.path === '/login');
+const userInitials = computed(() => {
+  const name = auth.user?.displayName || auth.user?.email || '';
+  const parts = name.split(/[\s@]+/);
+  return parts.map(p => p[0]?.toUpperCase() || '').slice(0, 2).join('');
+});
 const appVersion = version;
 
 const navItems = [

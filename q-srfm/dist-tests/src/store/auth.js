@@ -1,0 +1,86 @@
+// src/store/auth.ts
+import { defineStore } from 'pinia';
+import { ref } from 'vue';
+import { auth, signInWithGoogle } from '../firebase/init';
+import { onAuthStateChanged, signInWithCustomToken, signOut } from 'firebase/auth';
+export const useAuthStore = defineStore('auth', () => {
+    const user = ref(null);
+    const avatarSrc = ref('https://via.placeholder.com/36');
+    const authError = ref(null);
+    function initializeAuth() {
+        return new Promise((resolve, reject) => {
+            console.log('Initializing Firebase auth');
+            const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+                console.log('Firebase auth state changed:', firebaseUser ? firebaseUser.uid : null);
+                user.value = firebaseUser;
+                if (firebaseUser) {
+                    avatarSrc.value = firebaseUser.photoURL || 'https://via.placeholder.com/36';
+                }
+                else {
+                    avatarSrc.value = 'https://via.placeholder.com/36';
+                }
+                resolve(firebaseUser);
+            }, (error) => {
+                console.error('Auth state error:', error);
+                authError.value = error.message;
+                unsubscribe();
+                reject(error);
+            });
+        });
+    }
+    // Auto-initialize auth
+    initializeAuth().catch((error) => {
+        console.error('Failed to initialize auth:', error);
+    });
+    async function loginWithGoogle() {
+        try {
+            authError.value = null;
+            const firebaseUser = await signInWithGoogle();
+            user.value = firebaseUser;
+            if (firebaseUser?.photoURL) {
+                avatarSrc.value = firebaseUser.photoURL;
+            }
+        }
+        catch (error) {
+            console.error('Google login error:', error);
+            authError.value = error instanceof Error ? error.message : String(error);
+            throw error;
+        }
+    }
+    async function loginWithCustomToken(token) {
+        try {
+            authError.value = null;
+            const userCredential = await signInWithCustomToken(auth, token);
+            user.value = userCredential.user;
+        }
+        catch (error) {
+            console.error('Custom token login error:', error);
+            authError.value = error instanceof Error ? error.message : String(error);
+            throw error;
+        }
+    }
+    async function logout() {
+        try {
+            await signOut(auth);
+            user.value = null;
+            authError.value = null;
+        }
+        catch (error) {
+            console.error('Logout error:', error);
+            authError.value = error instanceof Error ? error.message : String(error);
+            throw error;
+        }
+    }
+    async function getIdToken() {
+        try {
+            const currentUser = user.value;
+            return currentUser ? await currentUser.getIdToken(true) : null;
+        }
+        catch (error) {
+            console.error('Get ID token error:', error);
+            authError.value = error instanceof Error ? error.message : String(error);
+            return null;
+        }
+    }
+    return { user, avatarSrc, authError, initializeAuth, loginWithGoogle, loginWithCustomToken, logout, getIdToken };
+});

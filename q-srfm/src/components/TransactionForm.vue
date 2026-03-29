@@ -16,19 +16,21 @@
       </div>
 
       <div class="transaction-form__field">
-        <q-input
+        <q-select
           v-model="locTrnsx.merchant"
+          :options="filteredMerchants"
           :rules="requiredField"
           label="Merchant"
           stack-label
           dense
           borderless
           clearable
-          :input-attr="{ list: merchantOptionsId }"
+          use-input
+          input-debounce="0"
+          new-value-mode="add-unique"
+          @filter="onMerchantFilter"
+          @input-value="onMerchantInput"
         />
-        <datalist :id="merchantOptionsId">
-          <option v-for="merchant in merchantNames" :key="merchant" :value="merchant" />
-        </datalist>
       </div>
 
       <div class="transaction-form__field">
@@ -52,7 +54,7 @@
             <div class="col">
               <q-select
                 v-model="split.category"
-                :options="remainingCategories"
+                :options="filteredCategories"
                 label="Category"
                 :rules="requiredField"
                 stack-label
@@ -61,6 +63,9 @@
                 menu-icon=""
                 class="full-width"
                 required
+                use-input
+                input-debounce="0"
+                @filter="onCategoryFilter"
               />
             </div>
             <div class="col-auto">
@@ -244,8 +249,23 @@ const isMobile = computed(() => $q.screen.lt.md);
 const goalList = ref<Goal[]>([]);
 const goalOptions = computed(() => goalList.value.map((g) => ({ label: g.name, value: g.id })));
 
-const merchantOptionsId = `merchant-options-${Math.random().toString(36).slice(2, 10)}`;
 const merchantNames = computed(() => merchantStore.merchantNames);
+const merchantFilterText = ref('');
+const filteredMerchants = computed(() => {
+  if (!merchantFilterText.value) return merchantNames.value;
+  const needle = merchantFilterText.value.toLowerCase();
+  return merchantNames.value.filter((m) => m.toLowerCase().includes(needle));
+});
+
+function onMerchantFilter(val: string, update: (fn: () => void) => void) {
+  update(() => {
+    merchantFilterText.value = val;
+  });
+}
+
+function onMerchantInput(val: string) {
+  locTrnsx.merchant = val;
+}
 
 const availableMonths = computed(() => {
   return budgetStore.availableBudgetMonths;
@@ -253,14 +273,29 @@ const availableMonths = computed(() => {
 
 const remainingCategories = computed(() => {
   const categoryNames = new Set(locTrnsx.categories.map((entry) => entry.category));
-  return props.categoryOptions.filter((str) => {
-    if (locTrnsx.isIncome) {
-      return str === 'Income' && !categoryNames.has(str);
-    } else {
-      return str !== 'Income' && !categoryNames.has(str);
-    }
-  });
+  return props.categoryOptions
+    .filter((str) => {
+      if (locTrnsx.isIncome) {
+        return str === 'Income' && !categoryNames.has(str);
+      } else {
+        return str !== 'Income' && !categoryNames.has(str);
+      }
+    })
+    .sort((a, b) => a.localeCompare(b));
 });
+
+const categoryFilterText = ref('');
+const filteredCategories = computed(() => {
+  if (!categoryFilterText.value) return remainingCategories.value;
+  const needle = categoryFilterText.value.toLowerCase();
+  return remainingCategories.value.filter((c) => c.toLowerCase().includes(needle));
+});
+
+function onCategoryFilter(val: string, update: (fn: () => void) => void) {
+  update(() => {
+    categoryFilterText.value = val;
+  });
+}
 
 const remainingSplit = computed(() => {
   if (locTrnsx.categories.length <= 1) return 0;

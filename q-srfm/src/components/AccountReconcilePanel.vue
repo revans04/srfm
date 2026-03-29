@@ -44,7 +44,7 @@
             <q-input v-model="beginningBalanceInput" type="number" dense outlined label="Beginning Balance" />
           </div>
           <div class="col-6 col-md-2">
-            <q-input v-model="targetEndingInput" type="number" dense outlined label="Target Ending Balance" />
+            <q-input v-model="targetEndingInput" type="number" dense outlined label="Target Ending Balance" :hint="endingBalanceHint" />
           </div>
           <div class="col-12 col-md-1 q-mt-sm q-mt-md-none flex justify-end">
             <q-btn color="primary" :disable="finalizeDisabled" :loading="finalizing" label="Finalize" @click="finalize" />
@@ -166,6 +166,17 @@ const accountOptions = computed(() => {
       value: String(acct.id),
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
+});
+
+const selectedAccountType = computed(() => {
+  const accounts = familyStore.family?.accounts || [];
+  return accounts.find((a) => String(a.id) === selectedAccountId.value)?.type || '';
+});
+
+const endingBalanceHint = computed(() => {
+  if (selectedAccountType.value === 'CreditCard') return 'Enter as negative for credit cards';
+  if (selectedAccountType.value === 'Loan') return 'Enter as negative for loans';
+  return '';
 });
 
 const limitEnd = (date: string) => {
@@ -361,7 +372,7 @@ async function finalize() {
     endDate: endDate.value,
     beginningBalance: beginningBalance.value,
     endingBalance: targetEndingBalance.value,
-    matchedTransactionIds: selectedRowsDetailed.value.map((row) => row.id),
+    importedTransactionIds: selectedRowsDetailed.value.map((row) => row.id),
   };
   try {
     await dataAccess.finalizeStatement(payload);

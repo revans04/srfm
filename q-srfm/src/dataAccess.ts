@@ -20,6 +20,8 @@ import type {
 } from './types';
 import { useBudgetStore } from './store/budget';
 import { Timestamp } from 'firebase/firestore';
+import { toStatementFinalizeRequestBody } from './utils/statements';
+import { calculateCarryOver } from './utils/carryover';
 
 type RawAccount = Account & { createdAt?: unknown; updatedAt?: unknown };
 
@@ -173,6 +175,18 @@ export class DataAccess {
     const response = await fetch(url, { headers });
     if (!response.ok) throw new Error(`Failed to load accessible budgets: ${response.statusText}`);
     return await response.json();
+  }
+
+  async getBudgetsBatch(budgetIds: string[]): Promise<Budget[]> {
+    if (budgetIds.length === 0) return [];
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(`${this.apiBaseUrl}/budget/batch?ids=${budgetIds.join(',')}`, { headers });
+    if (!response.ok) throw new Error(`Failed to get budgets batch: ${response.statusText}`);
+    const raw: unknown[] = await response.json();
+    return raw.map((r) => this.mapBudget(r)).map((b, i) => {
+      if (!b.budgetId) b.budgetId = budgetIds[i];
+      return b;
+    });
   }
 
   async getBudget(budgetId: string): Promise<Budget | null> {
@@ -404,121 +418,7 @@ export class DataAccess {
   }
 
   calculateCarryOver(budget: Budget): Record<string, number> {
-    const nextCarryover: Record<string, number> = {};
-    const currTrx = budget.transactions || [];
-
-    const curSpend = currTrx
-      .filter((t) => !t.deleted && !t.isIncome)
-      .reduce(
-        (acc, t) => {
-          t.categories.forEach((split) => {
-            acc[split.category] = (acc[split.category] || 0) + split.amount;
-          });
-          return acc;
-        },
-        {} as Record<string, number>,
-      );
-
-    const curIncome = currTrx
-      .filter((t) => !t.deleted && t.isIncome)
-      .reduce(
-        (acc, t) => {
-          t.categories.forEach((split) => {
-            acc[split.category] = (acc[split.category] || 0) + split.amount;
-          });
-          return acc;
-        },
-        {} as Record<string, number>,
-      );
-
-    budget.categories.forEach((cat) => {
-      if (cat.isFund) {
-        const spent = curSpend[cat.name] || 0;
-        const income = curIncome[cat.name] || 0;
-        const prevCarryover = cat.carryover || 0;
-        const rem = prevCarryover + cat.target + income - spent;
-        nextCarryover[cat.name] = rem > 0 ? rem : 0;
-      }
-    });
-
-    return nextCarryover;
-  }
-
-  async recalculateCarryoverForFutureBudgets(
-    entityId: string,
-    startBudgetMonth: string,
-    affectedCategories: { category: string }[],
-  ): Promise<void> {
-    const budgetStore = useBudgetStore();
-    const budgets = Array.from(budgetStore.budgets.values());
-
-    const [startYear, startMonth] = startBudgetMonth.split('-').map(Number);
-    const affectedCategoryNames = affectedCategories.map((c) => c.category);
-
-    const futureBudgets = budgets
-      .filter((b) => {
-        if (b.entityId !== entityId) return false;
-        const [year, month] = b.month.split('-').map(Number);
-        return year > startYear || (year === startYear && month > startMonth);
-      })
-      .sort((a, b) => a.month.localeCompare(b.month));
-
-    // Ensure we have category data for candidate budgets; load on demand
-    const budgetList: Budget[] = [];
-    for (const b of futureBudgets) {
-      const id = b.budgetId;
-      const budgetWithCats = b.categories && b.categories.length > 0 ? b : id ? await this.getBudget(id) : null;
-      if (
-        budgetWithCats &&
-        budgetWithCats.categories.some((cat) => cat.isFund && affectedCategoryNames.includes(cat.name))
-      ) {
-        budgetList.push(budgetWithCats);
-      }
-    }
-
-    if (budgetList.length === 0) return;
-
-    // Find the starting budget for carryover calculations
-    let startBudget = budgets.find((b) => b.entityId === entityId && b.month === startBudgetMonth);
-    if (!startBudget) {
-      // Attempt to load the budget from the API if it's not already in the store
-      try {
-        const infos = await this.loadAccessibleBudgets(this.authStore.user?.uid || '', entityId);
-        const match = infos.find((b) => b.month === startBudgetMonth && b.budgetId);
-        if (match?.budgetId) {
-          startBudget = await this.getBudget(match.budgetId);
-          if (startBudget) budgetStore.updateBudget(match.budgetId, startBudget);
-        }
-      } catch {
-        /* ignore */
-      }
-    }
-
-    if (!startBudget) return;
-
-    const startCarryover = this.calculateCarryOver(startBudget);
-
-    for (const categoryName of affectedCategoryNames) {
-      let cumulativeCarryover = startCarryover[categoryName] || 0;
-
-      for (let i = 0; i < budgetList.length; i++) {
-        const budget = budgetList[i];
-        if (!budget?.budgetId) continue;
-        const isFirstFutureBudget = i === 0;
-
-        const updatedCategories = budget.categories.map((cat) => {
-          if (cat.isFund && cat.name === categoryName) {
-            const newCarryover = isFirstFutureBudget ? cumulativeCarryover : cumulativeCarryover;
-            cumulativeCarryover = newCarryover;
-            return { ...cat, carryover: newCarryover };
-          }
-          return cat;
-        });
-
-        await this.saveBudget(budget.budgetId, { ...budget, categories: updatedCategories });
-        budgetStore.updateBudget(budget.budgetId, { ...budget, categories: updatedCategories });
-      }
-    }
+    return calculateCarryOver(budget);
   }
 
   /**
@@ -569,7 +469,7 @@ export class DataAccess {
       }));
 
       const updatedBudget: Budget = { ...next, categories: updatedCategories };
-      await this.saveBudget(next.budgetId, updatedBudget);
+      await this.saveBudget(next.budgetId, updatedBudget, { skipCarryoverRecalc: true });
       budgetStore.updateBudget(next.budgetId, updatedBudget);
       // Ensure the next iteration sees the updated carryover values
       fullBudgets[i + 1] = updatedBudget;
@@ -1022,10 +922,10 @@ export class DataAccess {
 
   async finalizeStatement(payload: StatementFinalizePayload): Promise<void> {
     const headers = await this.getAuthHeaders();
-    const response = await fetch(`${this.apiBaseUrl}/statements/finalize`, {
+    const response = await fetch(`${this.apiBaseUrl}/families/${payload.familyId}/accounts/${payload.accountId}/statements/finalize`, {
       method: 'POST',
       headers,
-      body: JSON.stringify(payload),
+      body: JSON.stringify(toStatementFinalizeRequestBody(payload)),
     });
     if (!response.ok) {
       let message = '';
@@ -1045,7 +945,7 @@ export class DataAccess {
     accountNumber: string,
     statement: Statement,
     transactionRefs: { budgetId: string; transactionId: string }[],
-  ): Promise<void> {
+  ): Promise<Statement> {
     const headers = await this.getAuthHeaders();
     const response = await fetch(`${this.apiBaseUrl}/families/${familyId}/accounts/${accountNumber}/statements/${statement.id}`, {
       method: 'PUT',
@@ -1053,6 +953,7 @@ export class DataAccess {
       body: JSON.stringify({ statement, transactions: transactionRefs }),
     });
     if (!response.ok) throw new Error(`Failed to save statement: ${response.statusText}`);
+    return await response.json();
   }
 
   async deleteStatement(

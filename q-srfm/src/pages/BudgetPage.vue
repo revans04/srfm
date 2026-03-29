@@ -1374,7 +1374,6 @@ function onTransactionSaved(transaction: Transaction) {
     budgetStore.updateBudget(budgetId.value, { ...budget.value });
 
     updateMerchants();
-    showSnackbar(isIncomeTransaction.value ? 'Income added successfully' : 'Transaction added successfully');
   } catch (error: unknown) {
     const err = error as Error;
     showSnackbar(`Error updating transaction: ${err.message}`, 'negative');
@@ -1583,6 +1582,11 @@ function removeMerchant(index: number) {
 function addTransaction() {
   if (!familyStore.selectedEntityId) {
     showSnackbar('Please select an entity before adding a transaction', 'negative');
+    return;
+  }
+
+  if (selectedCategory.value) {
+    addTransactionForCategory(selectedCategory.value.name);
     return;
   }
 

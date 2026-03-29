@@ -165,6 +165,14 @@ UI/UX implementation governance:
 - When touching legacy inconsistent UI code, move changed areas toward the canonical direction defined in `docs/design_system.md` instead of extending legacy patterns.
 - If a change requires a new visual token, component variant, or theming mode, update `docs/design_system.md` in the same change.
 
+Mobile-first UI requirements:
+- Mobile is a first-class target; the app is used on phones at least 50% of the time, primarily for on-the-go transaction entry.
+- Any UI change that affects transaction entry, budget views, navigation, or account overview must be evaluated at 375–430px viewport widths before being considered complete.
+- All interactive elements must meet 44×44px tap target minimums.
+- Forms must use correct mobile input types (`number`, `date`, `tel`, etc.) and minimize required scrolling to submit.
+- Prefer bottom sheets or full-screen modals over inline panels for forms opened on mobile.
+- Do not rely solely on Quasar's default breakpoints without validating the result on phone-sized viewports.
+
 Modifying existing logic:
 - Preserve month-string conventions (`YYYY-MM`) and carryover semantics.
 - Preserve category exclusion behavior for goal-bound categories unless intentionally redesigning goals.
@@ -198,6 +206,8 @@ Error handling conventions:
 - Ignoring `docs/design_system.md` rules for frontend changes.
 - Adding inline styles, direct hex values, or arbitrary spacing/radius values where tokens/components already cover the use case.
 - Mixing Vuetify-era classes/APIs into Quasar components.
+- **Extending the transfer-as-income pattern.** The current workaround of recording an income-like transaction in a destination category to represent a fund/goal draw is a known defect that causes category spending to net to zero in reports. Do not build new flows that replicate this pattern; a first-class transfer transaction type is the intended solution.
+- Building UI that only works on desktop. Any new page, dialog, or form must be usable at 375px without horizontal scroll, broken layout, or inaccessible tap targets.
 
 ## 11. Testing Expectations
 Current baseline:

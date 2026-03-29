@@ -2661,21 +2661,24 @@ async function importEveryDollarTransactions() {
 
     if (carryoverImpacts.size > 0) {
       const allCategories = new Set<string>();
-      let earliestBudgetId: string | null = null;
-      let earliestTime = Number.POSITIVE_INFINITY;
+      let latestBudgetId: string | null = null;
+      let latestTime = Number.NEGATIVE_INFINITY;
 
       carryoverImpacts.forEach((value, budgetId) => {
         value.categories.forEach((name) => allCategories.add(name));
         const ts = parseBudgetMonth(value.month).getTime();
-        if (ts < earliestTime) {
-          earliestTime = ts;
-          earliestBudgetId = budgetId;
+        if (ts > latestTime) {
+          latestTime = ts;
+          latestBudgetId = budgetId;
         }
       });
 
-      if (earliestBudgetId && allCategories.size > 0) {
+      // Recalculate from the LAST imported budget forward so that imported
+      // carryover values are preserved. Only future budgets beyond the import
+      // range get recalculated.
+      if (latestBudgetId && allCategories.size > 0) {
         try {
-          await dataAccess.recalculateCarryover(earliestBudgetId, Array.from(allCategories));
+          await dataAccess.recalculateCarryover(latestBudgetId, Array.from(allCategories));
         } catch (error) {
           console.error('Failed to recalculate carryover after EveryDollar import', error);
           showSnackbar(
@@ -3280,7 +3283,8 @@ async function proceedWithImport() {
     const existingBudgetIds = new Set(storedPending?.existingBudgetIds ?? []);
 
     const preservedTransactionStatuses = new Map<string, 'U' | 'C' | 'R'>();
-    const collectStatusesForBudget = async (budgetId: string) => {
+    const preservedTransactions = new Map<string, Transaction[]>();
+    const collectExistingBudgetData = async (budgetId: string) => {
       if (!budgetId) return;
       let budget = budgetStore.budgets.get(budgetId);
       if (!budget) {
@@ -3291,8 +3295,18 @@ async function proceedWithImport() {
           return;
         }
       }
-      budget.transactions?.forEach((tx) => {
-        if (!tx || !tx.id) return;
+      let txs = budget.transactions;
+      if ((!txs || txs.length === 0) && budget.budgetId) {
+        try {
+          txs = await dataAccess.getTransactions(budget.budgetId);
+        } catch {
+          txs = [];
+        }
+      }
+      const validTxs = (txs || []).filter((tx) => tx && !tx.deleted);
+      preservedTransactions.set(budgetId, validTxs);
+      validTxs.forEach((tx) => {
+        if (!tx.id) return;
         const status = tx.status || 'U';
         if (status !== 'U') {
           preservedTransactionStatuses.set(tx.id, status);
@@ -3301,7 +3315,7 @@ async function proceedWithImport() {
     };
 
     if (existingBudgetIds.size > 0) {
-      await Promise.all(Array.from(existingBudgetIds).map((budgetId) => collectStatusesForBudget(budgetId)));
+      await Promise.all(Array.from(existingBudgetIds).map((budgetId) => collectExistingBudgetData(budgetId)));
     }
 
     pendingImportData.value = null;
@@ -3331,6 +3345,27 @@ async function proceedWithImport() {
         }
         return tx;
       });
+    });
+
+    // Deduplicate: keep existing transactions, only add imported ones that are new
+    entries.forEach(({ targetId, budget }) => {
+      const existingTxs = preservedTransactions.get(targetId);
+      if (!existingTxs || existingTxs.length === 0) return;
+
+      const txFingerprint = (tx: Transaction) => {
+        const date = tx.date || '';
+        const merchant = (tx.merchant || '').toLowerCase().trim();
+        const amount = Math.round(Math.abs(tx.amount) * 100);
+        return `${date}|${merchant}|${amount}`;
+      };
+
+      const existingFingerprints = new Set(existingTxs.map(txFingerprint));
+
+      const newImportedTxs = (budget.transactions || []).filter(
+        (tx) => !existingFingerprints.has(txFingerprint(tx)),
+      );
+
+      budget.transactions = [...existingTxs, ...newImportedTxs];
     });
 
     const shouldDeleteExisting = existingBudgetIds.size > 0 && overwriteMonths.value.length > 0;
@@ -3392,9 +3427,13 @@ async function proceedWithImport() {
       showSnackbar(`Saved budget ${toSave.month} with ${toSave.transactions.length} transactions`);
     }
 
+    // Recalculate from the LAST imported budget forward so that imported
+    // carryover values are preserved. Only future budgets beyond the import
+    // range get recalculated.
     if (sortedEntries.length > 0 && fundCategories.size > 0) {
+      const lastEntry = sortedEntries[sortedEntries.length - 1];
       try {
-        await dataAccess.recalculateCarryover(sortedEntries[0].targetId, Array.from(fundCategories));
+        await dataAccess.recalculateCarryover(lastEntry.targetId, Array.from(fundCategories));
       } catch (error) {
         console.error("Failed to recalculate carryover after import", error);
         showSnackbar("Budgets imported, but carryover recalculation failed. Please refresh and verify fund balances.", "warning");

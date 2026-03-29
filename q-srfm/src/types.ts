@@ -288,9 +288,16 @@ export interface Statement {
 export interface StatementFinalizePayload {
   familyId: string;
   accountId: string;
+  statementId?: string;
   startDate: string;
   endDate: string;
   beginningBalance: number;
   endingBalance: number;
-  matchedTransactionIds: string[];
+  importedTransactionIds?: string[];
+  // Backward-compatible alias for imported transaction IDs.
+  matchedTransactionIds?: string[];
+  budgetTransactionRefs?: Array<{
+    budgetId: string;
+    transactionId: string;
+  }>;
 }

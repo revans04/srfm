@@ -27,8 +27,9 @@
     </template>
 
     <template #body-cell-category="slotProps">
-      <q-td :props="slotProps" class="ellipsis">
+      <q-td :props="slotProps" class="ellipsis ledger-cell--category">
         {{ slotProps.row.category }}
+        <q-tooltip v-if="slotProps.row.category">{{ slotProps.row.category }}</q-tooltip>
       </q-td>
     </template>
 
@@ -50,7 +51,20 @@
           {{ statusMetaMap[slotProps.row.status].label }}
         </q-badge>
         <span v-else>{{ slotProps.row.status }}</span>
-        <q-icon v-if="slotProps.row.linkId" name="link" color="primary" size="16px" class="q-ml-xs" />
+        <q-btn
+          v-if="slotProps.row.matched && slotProps.row.status !== 'R'"
+          flat
+          dense
+          round
+          size="xs"
+          icon="link_off"
+          color="negative"
+          class="q-ml-xs"
+          @click.stop="emit('unmatch', slotProps.row)"
+        >
+          <q-tooltip>Unmatch from budget transaction</q-tooltip>
+        </q-btn>
+        <q-icon v-else-if="slotProps.row.linkId" name="link" color="primary" size="16px" class="q-ml-xs" />
         <q-icon v-if="slotProps.row.isDuplicate" name="warning" color="warning" size="16px" class="q-ml-xs" />
       </q-td>
     </template>
@@ -117,13 +131,14 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'row-click', row: LedgerRow): void;
   (e: 'update:selected', ids: string[]): void;
+  (e: 'unmatch', row: LedgerRow): void;
 }>();
 
 const statusMetaMap: Record<LedgerRow['status'], { label: string; color: string }> = {
   C: { label: 'C', color: 'positive' },
   U: { label: 'U', color: 'warning' },
   R: { label: 'R', color: 'primary' },
-  M: { label: 'M', color: 'accent' },
+  M: { label: 'C', color: 'positive' },
   I: { label: 'I', color: 'secondary' },
 };
 
@@ -261,5 +276,11 @@ function rowClassFn(row: LedgerRow, index: number) {
   top: 0;
   z-index: 1;
   background: var(--q-color-white, #ffffff);
+}
+.ledger-cell--category {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

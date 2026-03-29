@@ -488,7 +488,7 @@ import { useFamilyStore } from '../store/family';
 import { useStatementStore } from '../store/statements';
 import { createBudgetForMonth } from '../utils/budget';
 import { useUIStore } from '../store/ui';
-import type { Transaction, ImportedTransaction, Budget, Account, ImportedTransactionDoc, Statement } from '../types';
+import type { Transaction, ImportedTransaction, Budget, Account, ImportedTransactionDoc, Statement, StatementFinalizePayload } from '../types';
 import { formatCurrency, todayISO, getImportedTransactionDate } from '../utils/helpers';
 import { splitImportedId } from '../utils/imported';
 import { QForm } from 'quasar';
@@ -1431,9 +1431,9 @@ async function saveStatement() {
       accountNumber: selectedAccount.value,
       reconciled: false,
     };
-    await statementStore.saveStatement(familyId.value, selectedAccount.value, st, []);
+    const saved = await statementStore.saveStatement(familyId.value, selectedAccount.value, st, []);
     statements.value = statementStore.getStatements(familyId.value, selectedAccount.value);
-    selectedStatementId.value = st.id;
+    selectedStatementId.value = saved.id;
     showSnackbar('Statement saved successfully', 'success');
     closeStatementDialog();
   } catch (error: unknown) {
@@ -1460,41 +1460,42 @@ function closeStatementDialog() {
 
 async function markStatementReconciled() {
   if (!selectedStatement.value || !selectedAccount.value) return;
+  if (!reconcileMatches.value) {
+    showSnackbar('Statement delta must be 0 to reconcile.', 'negative');
+    return;
+  }
   saving.value = true;
   try {
-    const txRefs: { budgetId: string; transactionId: string }[] = [];
-
-    for (const budget of budgets.value) {
-      let updated = false;
-      for (const tx of budget.transactions) {
-        if (selectedRows.value.includes(tx.id)) {
-          tx.status = 'R';
-          if (budget.budgetId) {
-            txRefs.push({ budgetId: budget.budgetId, transactionId: tx.id });
-            updated = true;
-          }
-        }
-      }
-      if (updated && budget.budgetId) {
-        budgetStore.updateBudget(budget.budgetId, budget);
+    const selectedMap = new Map(statementTransactions.value.map((t) => [t.id, t]));
+    const budgetTransactionRefs: { budgetId: string; transactionId: string }[] = [];
+    const importedTransactionIds: string[] = [];
+    for (const selectedId of selectedRows.value) {
+      const tx = selectedMap.get(selectedId);
+      if (!tx) continue;
+      if (tx.budgetId) {
+        budgetTransactionRefs.push({ budgetId: tx.budgetId, transactionId: tx.id });
+      } else {
+        importedTransactionIds.push(tx.id);
       }
     }
 
-    for (const id of selectedRows.value) {
-      const idx = importedTransactions.value.findIndex((itx) => itx.id === id);
-      if (idx !== -1) {
-        const { docId, txId } = splitImportedId(id);
-        const baseItx = importedTransactions.value[idx];
-        if (baseItx) {
-          const updatedTx: ImportedTransaction = { ...baseItx, id: txId, status: 'R' };
-          importedTransactions.value[idx].status = 'R';
-          await dataAccess.updateImportedTransaction(docId, updatedTx);
-        }
-      }
-    }
+    const payload: StatementFinalizePayload = {
+      familyId: familyId.value,
+      accountId: selectedAccount.value,
+      statementId: selectedStatement.value.id,
+      startDate: selectedStatement.value.startDate,
+      endDate: selectedStatement.value.endDate,
+      beginningBalance: selectedStatement.value.startingBalance,
+      endingBalance: selectedStatement.value.endingBalance,
+      importedTransactionIds,
+      budgetTransactionRefs,
+    };
 
-    const updated: Statement = { ...selectedStatement.value, reconciled: true };
-    await statementStore.saveStatement(familyId.value, selectedAccount.value, updated, txRefs);
+    await dataAccess.finalizeStatement(payload);
+    await budgetStore.loadBudgets(auth.currentUser?.uid || '');
+    budgets.value = Array.from(budgetStore.budgets.values());
+    await loadImportedTransactions(true);
+    await statementStore.loadStatements(familyId.value, selectedAccount.value);
     statements.value = statementStore.getStatements(familyId.value, selectedAccount.value);
     showSnackbar('Statement reconciled', 'success');
     reconciling.value = false;

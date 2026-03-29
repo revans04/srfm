@@ -61,6 +61,9 @@
 - Support contribution and spend entries that immediately update progress.
 - Enforce non-negative targets and positive contribution/spend values.
 - Preserve historical records when editing or archiving goals.
+- Display current goal balance (total contributions minus total spends) as a first-class value — the "what's left" view.
+- Show contribution history alongside spend history so users can trace how a bonus or deposit was allocated and ultimately used.
+- Support linking a goal spend to a specific budget category so a user can answer "how much of this goal went to uniforms."
 
 ## 9) Merchant Management
 - Support merchant list/add/rename/merge/delete within budget/entity scope.
@@ -75,6 +78,9 @@
 - Provide Monthly Overview, Register Report, YoY, and Net Worth reporting views.
 - Ensure report aggregates reconcile with underlying budget/transaction/account data.
 - Provide drill-down from summary views to detailed transaction context.
+- **Exclude intra-budget transfers from spending and income totals in all reports.** Transfers between categories (e.g., moving money from a savings fund to pay for uniforms) must not appear as income in the destination category, as this causes category spending to net to zero and hides real expenditure in annual and YoY views.
+- **Distinguish real income from fund/goal draws.** Income lines in category and YoY reports must reflect only external income; draws from savings goals or fund categories must be reported separately or excluded from spending totals so actual spend is visible.
+- Enable category-level spending history that accurately answers "how much did we spend on uniforms this year" independent of how those purchases were funded.
 
 ## 11) Data Management (Import/Export)
 - Support structured import workflow: Upload -> Mapping -> Preview -> Commit.
@@ -88,3 +94,11 @@
 - Surface clear, actionable API/UI error messages and empty states.
 - Maintain performance for large datasets (thin endpoints, server-side aggregation where needed).
 - Preserve month/date ordering conventions (`YYYY-MM`, `YYYY-MM-DD`) and deterministic sorting.
+
+## 13) Mobile Experience
+- Treat mobile as a first-class target, not a fallback. The app is expected to be used on phones at least 50% of the time, primarily for entering transactions on the go.
+- All core workflows — adding a transaction, checking a category balance, viewing the current month's budget — must be fully usable on a phone without horizontal scrolling, tiny tap targets, or layout breakage.
+- Tap targets must meet minimum size guidelines (44×44px) for all interactive elements.
+- Forms (especially transaction entry) must be optimized for mobile keyboard input: correct input types (`number`, `date`, etc.), logical tab order, and minimal required fields visible without scrolling.
+- Navigation must be reachable with one thumb; avoid patterns that require precise interaction or hover states.
+- Responsive layout must be explicitly tested at common phone widths (375px, 390px, 430px) and not rely solely on Quasar's default breakpoints without validation.

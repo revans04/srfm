@@ -36,6 +36,9 @@ namespace FamilyBudgetApi.Controllers
         [AuthorizeFirebase]
          public async Task<IActionResult> SaveStatement(string familyId, string accountNumber, string statementId, [FromBody] SaveStatementRequest request)
         {
+            if (request?.Statement == null)
+                return BadRequest("Statement payload is required");
+
             if (request.Statement.Id != statementId)
                 return BadRequest("Statement ID mismatch");
 
@@ -47,8 +50,47 @@ namespace FamilyBudgetApi.Controllers
 
             var txRefs = request.Transactions?.Select(t => (t.BudgetId, t.TransactionId)).ToList() ?? new List<(string, string)>();
 
-            await _statementService.SaveStatement(familyId, accountNumber, request.Statement, txRefs, userId, userEmail);
-            return Ok();
+            try
+            {
+                var saved = await _statementService.SaveStatement(familyId, accountNumber, request.Statement, txRefs, userId, userEmail);
+                return Ok(saved);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(ex.Message);
+            }
+        }
+
+        [HttpPost("statements/finalize")]
+        [AuthorizeFirebase]
+        public async Task<IActionResult> FinalizeStatement(string familyId, string accountNumber, [FromBody] StatementFinalizeRequest request)
+        {
+            if (request == null)
+                return BadRequest("Finalize payload is required");
+
+            var userId = HttpContext.Items["UserId"]?.ToString() ?? string.Empty;
+            if (!await _accountService.IsFamilyMember(familyId, userId))
+                return Unauthorized("Not a member of this family");
+
+            var userEmail = (await FirebaseAuth.DefaultInstance.GetUserAsync(userId)).Email ?? string.Empty;
+
+            try
+            {
+                await _statementService.FinalizeStatement(familyId, accountNumber, request, userId, userEmail);
+                return Ok();
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(ex.Message);
+            }
         }
 
         [HttpDelete("statements/{statementId}")]
@@ -61,10 +103,21 @@ namespace FamilyBudgetApi.Controllers
 
             var userEmail = (await FirebaseAuth.DefaultInstance.GetUserAsync(userId)).Email ?? string.Empty;
 
-            var txRefs = request.Transactions?.Select(t => (t.BudgetId, t.TransactionId)).ToList() ?? new List<(string, string)>();
+            var txRefs = request?.Transactions?.Select(t => (t.BudgetId, t.TransactionId)).ToList() ?? new List<(string, string)>();
 
-            await _statementService.DeleteStatement(familyId, accountNumber, statementId, txRefs, userId, userEmail);
-            return Ok();
+            try
+            {
+                await _statementService.DeleteStatement(familyId, accountNumber, statementId, txRefs, userId, userEmail);
+                return Ok();
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(ex.Message);
+            }
         }
 
         [HttpPost("statements/{statementId}/unreconcile")]
@@ -77,10 +130,21 @@ namespace FamilyBudgetApi.Controllers
 
             var userEmail = (await FirebaseAuth.DefaultInstance.GetUserAsync(userId)).Email ?? string.Empty;
 
-            var txRefs = request.Transactions?.Select(t => (t.BudgetId, t.TransactionId)).ToList() ?? new List<(string, string)>();
+            var txRefs = request?.Transactions?.Select(t => (t.BudgetId, t.TransactionId)).ToList() ?? new List<(string, string)>();
 
-            await _statementService.UnreconcileStatement(familyId, accountNumber, statementId, txRefs, userId, userEmail);
-            return Ok();
+            try
+            {
+                await _statementService.UnreconcileStatement(familyId, accountNumber, statementId, txRefs, userId, userEmail);
+                return Ok();
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(ex.Message);
+            }
         }
     }
 

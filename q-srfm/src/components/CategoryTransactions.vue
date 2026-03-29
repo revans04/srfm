@@ -54,6 +54,9 @@
             {{ categoryTransactions.length === 1 ? 'transaction' : 'transactions' }}
           </div>
         </div>
+        <q-btn flat dense round icon="add" color="primary" @click="emit('add-transaction')">
+          <q-tooltip>Add transaction</q-tooltip>
+        </q-btn>
       </q-card-section>
 
       <q-card-section class="q-pt-none q-px-md">

@@ -1,0 +1,132 @@
+import { defineStore } from 'pinia';
+import { ref } from 'vue';
+import { EntityType } from '../types';
+import { dataAccess } from '../dataAccess';
+import { auth } from '../firebase/init';
+export const useFamilyStore = defineStore('family', () => {
+    const family = ref();
+    const selectedEntityId = ref('');
+    async function loadFamily(userId = '') {
+        try {
+            if (!userId)
+                userId = auth.currentUser ? auth.currentUser.uid : '';
+            const f = await dataAccess.getUserFamily(userId);
+            if (f) {
+                family.value = f;
+                if (f.entities?.length) {
+                    const defaultEntity = f.entities.find((e) => e.type === EntityType.Family) || f.entities[0];
+                    selectedEntityId.value = defaultEntity.id;
+                }
+                return f;
+            }
+        }
+        catch (error) {
+            console.error('Error loading Family', error);
+        }
+        return null;
+    }
+    async function getFamily() {
+        try {
+            if (!family.value) {
+                await loadFamily();
+            }
+            return family.value;
+        }
+        catch (error) {
+            console.error('Error getting Family', error);
+        }
+        return null;
+    }
+    async function createEntity(familyId, entity) {
+        try {
+            const response = await dataAccess.createEntity(familyId, entity);
+            if (family.value) {
+                family.value.entities = family.value.entities || [];
+                family.value.entities.push({ ...entity, id: response.entityId });
+                if (!selectedEntityId.value) {
+                    selectedEntityId.value = response.entityId;
+                }
+            }
+            return response.entityId;
+        }
+        catch (error) {
+            console.error('Error creating entity', error);
+            throw error;
+        }
+    }
+    async function updateEntity(familyId, entity) {
+        try {
+            await dataAccess.updateEntity(familyId, entity);
+            if (family.value) {
+                family.value.entities = family.value.entities?.map((e) => (e.id === entity.id ? entity : e)) || [];
+            }
+        }
+        catch (error) {
+            console.error('Error updating entity', error);
+            throw error;
+        }
+    }
+    async function deleteEntity(familyId, entityId) {
+        try {
+            await dataAccess.deleteEntity(familyId, entityId);
+            if (family.value) {
+                family.value.entities = family.value.entities?.filter((e) => e.id !== entityId) || [];
+                if (selectedEntityId.value === entityId) {
+                    selectedEntityId.value = family.value.entities[0]?.id || '';
+                }
+            }
+        }
+        catch (error) {
+            console.error('Error deleting entity', error);
+            throw error;
+        }
+    }
+    async function addEntityMember(familyId, entityId, member) {
+        try {
+            await dataAccess.addEntityMember(familyId, entityId, member);
+            if (family.value) {
+                const entity = family.value.entities?.find((e) => e.id === entityId);
+                if (entity) {
+                    entity.members = entity.members || [];
+                    if (!entity.members.some((m) => m.uid === member.uid)) {
+                        entity.members.push(member);
+                    }
+                }
+            }
+        }
+        catch (error) {
+            console.error('Error adding entity member', error);
+            throw error;
+        }
+    }
+    async function removeEntityMember(familyId, entityId, memberUid) {
+        try {
+            await dataAccess.removeEntityMember(familyId, entityId, memberUid);
+            if (family.value) {
+                const entity = family.value.entities?.find((e) => e.id === entityId);
+                if (entity) {
+                    entity.members = entity.members?.filter((m) => m.uid !== memberUid) || [];
+                }
+            }
+        }
+        catch (error) {
+            console.error('Error removing entity member', error);
+            throw error;
+        }
+    }
+    function selectEntity(entityId) {
+        selectedEntityId.value = entityId;
+    }
+    return {
+        family,
+        selectedEntityId,
+        loadFamily,
+        getFamily,
+        createEntity,
+        updateEntity,
+        deleteEntity,
+        addEntityMember,
+        removeEntityMember,
+        selectEntity,
+    };
+});

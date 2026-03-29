@@ -29,7 +29,7 @@ import { useBudgetStore } from '../store/budget';
 import { useFamilyStore } from '../store/family';
 import { useAuthStore } from '../store/auth';
 import { useUIStore } from '../store/ui';
-import type { ImportedTransaction, Transaction } from '../types';
+import type { Budget, ImportedTransaction, Transaction } from '../types';
 
 const budgetStore = useBudgetStore();
 const familyStore = useFamilyStore();
@@ -61,51 +61,57 @@ async function loadData() {
 
   const entries = Array.from(budgetStore.budgets.entries());
   const totalBudgets = entries.length;
-  let completedBudgets = 0;
-  if (totalBudgets > 0) {
-    progressMsg.value = `Loading budgets (0 of ${totalBudgets})`;
-  }
-  const updateProgress = () => {
-    completedBudgets += 1;
-    if (totalBudgets > 0) {
-      const clamped = Math.min(completedBudgets, totalBudgets);
-      progressMsg.value = `Loading budgets (${clamped} of ${totalBudgets})`;
+  progressMsg.value = `Loading budgets (0 of ${totalBudgets})`;
+
+  // Separate budgets that need fetching from those already loaded
+  const loaded: Budget[] = [];
+  const idsToFetch: string[] = [];
+  for (const [id, budget] of entries) {
+    if (budget.transactions && budget.transactions.length > 0) {
+      loaded.push(budget);
+    } else {
+      idsToFetch.push(id);
     }
-  };
+  }
 
-  const budgets = await Promise.all(
-    entries.map(async ([id, budget]) => {
-      if (budget.transactions && budget.transactions.length > 0) {
-        updateProgress();
-        return budget;
+  // Batch-fetch all unloaded budgets in one request
+  let fetched: Budget[] = [];
+  if (idsToFetch.length > 0) {
+    try {
+      fetched = await dataAccess.getBudgetsBatch(idsToFetch);
+      for (const b of fetched) {
+        if (b.budgetId) budgetStore.updateBudget(b.budgetId, b);
       }
+    } catch (error) {
+      console.error('Error batch-loading budgets', error);
+    }
+  }
+  progressMsg.value = `Loading budgets (${totalBudgets} of ${totalBudgets})`;
 
-      try {
-        const full = await dataAccess.getBudget(id);
-        if (full) {
-          budgetStore.updateBudget(id, full);
-          updateProgress();
-          return full;
-        }
-      } catch (error) {
-        console.error(`Error loading budget ${id}`, error);
-      }
+  const budgets = [...loaded, ...fetched];
 
-      updateProgress();
-      return budget;
-    }),
-  );
-
-  budgets.forEach((budget) => {
-    if (!budget) return;
+  for (const budget of budgets) {
+    if (!budget) continue;
     (budget.transactions || [])
       .filter((t) => !t.deleted && (!t.status || t.status === 'U'))
       .forEach((t) => txs.push(t));
-    (budget.categories || []).forEach((c) => cats.add(c.name));
-  });
+    (budget.categories || []).forEach((c) => {
+      if (c.name) cats.add(c.name);
+    });
+  }
+
+  // Also collect categories from store in case full budget data was loaded separately
+  for (const [, b] of budgetStore.budgets.entries()) {
+    if (b?.categories) {
+      b.categories.forEach((c) => {
+        if (c.name) cats.add(c.name);
+      });
+    }
+  }
 
   transactions.value = txs;
-  categoryOptions.value = ['Income', ...Array.from(cats).sort((a, b) => b.localeCompare(a))];
+  cats.delete('Income');
+  categoryOptions.value = ['Income', ...Array.from(cats).sort((a, b) => a.localeCompare(b))];
 
   progressMsg.value = 'Downloading imported transactions...';
   const imported = await dataAccess.getImportedTransactions();

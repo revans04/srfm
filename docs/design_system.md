@@ -24,7 +24,11 @@
 - `[ENFORCED]` Use Quasar grid (`row`, `col-*`, `q-col-gutter-*`) and spacing utilities (`q-pa-*`, `q-ma-*`) as the primary layout system.
 - `[ENFORCED]` Desktop shell uses left drawer navigation and mobile uses header/footer navigation as in `q-srfm/src/layouts/MainLayout.vue`.
 - `[ENFORCED]` Responsive behavior must use Quasar breakpoints (`col-12`, `col-md-*`, `col-lg-*`) and `$q.screen.lt.md` for logic-level switches.
+- `[ENFORCED]` Mobile is a first-class target; the app is used on phones at least 50% of the time, primarily for on-the-go transaction entry. Mobile usability is never optional.
 - `[ENFORCED]` Mobile-first adaptation is required for dialogs, sticky actions, and dense tables.
+- `[ENFORCED]` All new UI must be validated at 375px, 390px, and 430px viewport widths with no horizontal scrolling, broken layout, or inaccessible interactions.
+- `[ENFORCED]` Transaction entry is the highest-priority mobile workflow; its form must open in a bottom sheet or full-screen modal, use native mobile input types, and be submittable without scrolling on a standard phone.
+- `[ENFORCED]` Navigation must be reachable with one thumb; avoid patterns requiring precise tap or hover to access primary actions.
 - `[ENFORCED]` Data-dense screens must preserve clear hierarchy: title, filters, content, actions.
 - `[ENFORCED]` Form layout must use grouped card sections with labels and validation.
 - `[SUGGESTED]` Prefer `.panel-card`/tokenized cards over ad hoc panel wrappers.
@@ -51,6 +55,8 @@
 
 ## 6. Accessibility Standards
 - `[ENFORCED]` WCAG minimum contrast is 4.5:1 for normal text and 3:1 for large text/UI components.
+- `[ENFORCED]` All interactive elements must meet a 44×44px minimum tap target size for mobile usability.
+- `[ENFORCED]` Form inputs must use correct mobile input types (`number`, `date`, `tel`, `email`) to trigger appropriate on-screen keyboards.
 - `[ENFORCED]` All interactive controls must be keyboard reachable and operable.
 - `[ENFORCED]` Inputs and icon-only actions must have semantic labeling (`label`, `aria-label`, `aria-required` when appropriate).
 - `[ENFORCED]` Dialogs must trap focus and support Escape close unless persistence is required for data safety.
@@ -107,3 +113,6 @@
 - `[ENFORCED]` Vuetify-era classes/APIs in Quasar components.
 - `[ENFORCED]` Inline styles for layout/typography/colors except temporary debug code.
 - `[ENFORCED]` Silent async failure states.
+- `[ENFORCED]` Desktop-only layouts: any layout, dialog, or form that requires horizontal scrolling or produces broken/overlapping elements below 430px width.
+- `[ENFORCED]` Tap targets below 44×44px on interactive elements.
+- `[ENFORCED]` Using text input type for numeric or date fields (prevents appropriate mobile keyboard).

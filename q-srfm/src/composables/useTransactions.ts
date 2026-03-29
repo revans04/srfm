@@ -251,9 +251,11 @@ export function useTransactions() {
       : accountName;
     const derivedStatus: LedgerStatus = tx.ignored
       ? 'I'
-      : tx.matched
-        ? 'M'
-        : normalizeImportedStatus(tx.status);
+      : tx.status === 'R'
+        ? 'R'
+        : tx.matched
+          ? 'M'
+          : normalizeImportedStatus(tx.status);
 
     return {
       id: tx.id,
@@ -371,6 +373,30 @@ export function useTransactions() {
       const mapped = imported
         .filter((t) => !t.deleted)
         .map((t) => mapImportedToRow(t));
+
+      // Enrich matched rows with category from linked budget transactions
+      if (filters.value.accountId) {
+        try {
+          const budgetTxs = await dataAccess.getBudgetTransactionsMatchedToImported(filters.value.accountId);
+          const categoryByMerchant = new Map<string, string>();
+          for (const { transaction: btx } of budgetTxs) {
+            if (!btx.importedMerchant) continue;
+            const cats = (btx.categories || []).map((c: { category: string }) => c.category).filter(Boolean).join(', ');
+            if (cats) categoryByMerchant.set(btx.importedMerchant, cats);
+          }
+          for (const row of mapped) {
+            if (row.status === 'M' || row.status === 'R' || row.matched) {
+              const imp = importedMap.value[row.id];
+              if (!imp) continue;
+              const cat = categoryByMerchant.get(imp.payee);
+              if (cat) row.category = cat;
+            }
+          }
+        } catch {
+          /* non-critical — categories just stay empty */
+        }
+      }
+
       registerRows.value = mapped.sort((a, b) =>
         b.date.localeCompare(a.date),
       );

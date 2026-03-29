@@ -4,6 +4,7 @@ import { useBudgetStore } from '../store/budget';
 import { useFamilyStore } from '../store/family';
 import { DEFAULT_BUDGET_TEMPLATES } from '../constants/budgetTemplates';
 import { adjustTransactionDate } from './helpers';
+import { calculateCarryOver } from './carryover';
 import type { Budget, BudgetCategory, Transaction, BudgetInfo } from '../types';
 
 /**
@@ -105,7 +106,7 @@ export async function createBudgetForMonth(
 
     let newCarryover: Record<string, number> = {};
     if (isFutureMonth) {
-      newCarryover = dataAccess.calculateCarryOver(sourceBudget);
+      newCarryover = calculateCarryOver(sourceBudget);
     }
 
     const newBudget: Budget = {
@@ -219,3 +220,7 @@ export async function createBudgetForMonth(
 export function sortBudgetsByMonthDesc(budgets: Budget[]): Budget[] {
   return budgets.slice().sort((a, b) => b.month.localeCompare(a.month));
 }
+
+// Re-export pure carryover utilities (kept in a separate module so tests can
+// import them without pulling in the full app dependency graph).
+export { calculateCarryOver, cascadeCarryover } from './carryover';

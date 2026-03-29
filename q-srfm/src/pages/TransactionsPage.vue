@@ -12,7 +12,7 @@
           <q-tab name="match" label="Match Bank Transactions" />
         </q-tabs>
       </div>
-      <div class="transactions-hero__metrics">
+      <div v-show="tab !== 'register'" class="transactions-hero__metrics">
         <div class="tx-metric tx-metric--primary">
           <div class="tx-metric__label">Total Records</div>
           <div class="tx-metric__value">{{ overviewCounts.total }}</div>
@@ -37,120 +37,84 @@
       <q-tab-panel name="budget" class="transactions-panel">
         <div class="transactions-layout">
           <div class="transactions-layout__main">
-            <div class="transactions-filters panel-card">
-              <div class="row q-col-gutter-sm q-col-gutter-y-sm items-center">
-                <div class="col-12 col-md-4">
+            <div class="transactions-filters panel-card register-filters">
+              <!-- Row 1: entity, search, refresh/clear -->
+              <div class="row q-col-gutter-sm items-center">
+                <div class="col-12 col-sm-5 col-md-4">
                   <EntitySelector class="full-width" @change="loadBudgets" />
                 </div>
-                <div class="col-12 col-md-4">
-                  <q-input v-model="filters.search" dense outlined placeholder="Search" />
-                </div>
-                <div class="col-12 col-md-4">
-                  <div class="row q-gutter-sm justify-end">
-                    <div class="col-auto">
-                      <q-btn dense flat label="Refresh" @click="refreshBudget" />
-                    </div>
-                    <div class="col-auto">
-                      <q-btn dense flat label="Clear All" @click="clearBudgetFilters" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="row q-col-gutter-sm q-col-gutter-y-sm">
-                <div class="col-12">
-                  <q-select
-                    v-model="selectedBudgetIds"
-                    :options="budgetOptions"
-                    dense
-                    outlined
-                    multiple
-                    use-chips
-                    emit-value
-                    map-options
-                    placeholder="Select Budgets"
-                  />
-                </div>
-              </div>
-              <div class="row q-col-gutter-sm q-col-gutter-y-sm">
-                <div class="col-12 col-sm-6 col-md-3">
-                  <q-input v-model="filters.importedMerchant" dense outlined placeholder="Imported Merchant" />
-                </div>
-                <div class="col-12 col-sm-6 col-md-2">
-                  <q-input v-model="minAmtInput" type="number" dense outlined placeholder="Amount Min" />
-                </div>
-                <div class="col-12 col-sm-6 col-md-2">
-                  <q-input v-model="maxAmtInput" type="number" dense outlined placeholder="Amount Max" />
-                </div>
-                <div class="col-12 col-sm-6 col-md-2">
-                  <q-input v-model="filters.start" dense outlined placeholder="Start Date" mask="####-##-##">
+                <div class="col col-sm col-md">
+                  <q-input v-model="filters.search" dense outlined placeholder="Search">
                     <template #append>
-                      <q-icon name="event" class="cursor-pointer">
-                        <q-popup-proxy transition-show="scale" transition-hide="scale">
-                          <q-date v-model="filters.start" mask="YYYY-MM-DD" />
-                        </q-popup-proxy>
-                      </q-icon>
-                    </template>
-                  </q-input>
-                </div>
-                <div class="col-12 col-sm-6 col-md-2">
-                  <q-input v-model="filters.end" dense outlined placeholder="End Date" mask="####-##-##">
-                    <template #append>
-                      <q-icon name="event" class="cursor-pointer">
-                        <q-popup-proxy transition-show="scale" transition-hide="scale">
-                          <q-date v-model="filters.end" mask="YYYY-MM-DD" />
-                        </q-popup-proxy>
-                      </q-icon>
+                      <q-btn flat dense round size="sm" icon="refresh" @click="refreshBudget">
+                        <q-tooltip>Refresh</q-tooltip>
+                      </q-btn>
+                      <q-btn flat dense round size="sm" icon="clear_all" @click="clearBudgetFilters">
+                        <q-tooltip>Clear All</q-tooltip>
+                      </q-btn>
                     </template>
                   </q-input>
                 </div>
               </div>
-              <div class="transactions-filters__toggles">
-                <q-chip
-                  clickable
-                  class="filter-chip"
-                  :color="filters.cleared ? 'primary' : 'white'"
-                  :text-color="filters.cleared ? 'white' : 'primary'"
-                  @click="filters.cleared = !filters.cleared"
-                  >Cleared</q-chip
-                >
-                <q-chip
-                  clickable
-                  class="filter-chip"
-                  :color="filters.uncleared ? 'primary' : 'white'"
-                  :text-color="filters.uncleared ? 'white' : 'primary'"
-                  @click="filters.uncleared = !filters.uncleared"
-                  >Uncleared</q-chip
-                >
-                <q-chip
-                  clickable
-                  class="filter-chip"
-                  :color="filters.reconciled ? 'primary' : 'white'"
-                  :text-color="filters.reconciled ? 'white' : 'primary'"
-                  @click="filters.reconciled = !filters.reconciled"
-                  >Reconciled</q-chip
-                >
-                <q-chip
-                  clickable
-                  class="filter-chip"
-                  :color="filters.duplicatesOnly ? 'primary' : 'white'"
-                  :text-color="filters.duplicatesOnly ? 'white' : 'primary'"
-                  @click="filters.duplicatesOnly = !filters.duplicatesOnly"
-                  >Duplicates</q-chip
-                >
+
+              <!-- Row 2: budget selector -->
+              <q-select
+                v-model="selectedBudgetIds"
+                :options="budgetOptions"
+                dense
+                outlined
+                multiple
+                use-chips
+                emit-value
+                map-options
+                placeholder="Select Budgets"
+              />
+
+              <!-- Row 3: secondary filters + chips flowing together -->
+              <div class="register-filters__secondary">
+                <q-input v-model="filters.importedMerchant" dense outlined placeholder="Merchant" class="register-filters__input register-filters__input--merchant" />
+                <q-input v-model="minAmtInput" type="number" dense outlined placeholder="Min $" class="register-filters__input" />
+                <q-input v-model="maxAmtInput" type="number" dense outlined placeholder="Max $" class="register-filters__input" />
+                <q-input v-model="filters.start" dense outlined placeholder="Start" mask="####-##-##" class="register-filters__input register-filters__input--date">
+                  <template #append>
+                    <q-icon name="event" class="cursor-pointer">
+                      <q-popup-proxy transition-show="scale" transition-hide="scale">
+                        <q-date v-model="filters.start" mask="YYYY-MM-DD" />
+                      </q-popup-proxy>
+                    </q-icon>
+                  </template>
+                </q-input>
+                <q-input v-model="filters.end" dense outlined placeholder="End" mask="####-##-##" class="register-filters__input register-filters__input--date">
+                  <template #append>
+                    <q-icon name="event" class="cursor-pointer">
+                      <q-popup-proxy transition-show="scale" transition-hide="scale">
+                        <q-date v-model="filters.end" mask="YYYY-MM-DD" />
+                      </q-popup-proxy>
+                    </q-icon>
+                  </template>
+                </q-input>
+                <q-chip clickable class="filter-chip" :color="filters.cleared ? 'primary' : 'white'" :text-color="filters.cleared ? 'white' : 'primary'" @click="filters.cleared = !filters.cleared">Cleared</q-chip>
+                <q-chip clickable class="filter-chip" :color="filters.uncleared ? 'primary' : 'white'" :text-color="filters.uncleared ? 'white' : 'primary'" @click="filters.uncleared = !filters.uncleared">Uncleared</q-chip>
+                <q-chip clickable class="filter-chip" :color="filters.reconciled ? 'primary' : 'white'" :text-color="filters.reconciled ? 'white' : 'primary'" @click="filters.reconciled = !filters.reconciled">Reconciled</q-chip>
+                <q-chip clickable class="filter-chip" :color="filters.duplicatesOnly ? 'primary' : 'white'" :text-color="filters.duplicatesOnly ? 'white' : 'primary'" @click="filters.duplicatesOnly = !filters.duplicatesOnly">Duplicates</q-chip>
               </div>
+
+              <!-- Active filter chips -->
               <div class="transactions-filters__chips" v-if="Object.keys(activeChips).length">
                 <q-chip v-for="(val, key) in activeChips" :key="key" dense removable @remove="() => removeChip(key)">
                   {{ key }}<template v-if="val">: {{ val }}</template>
                 </q-chip>
               </div>
             </div>
-            <div v-if="selectedBudgetRowIds.length" class="transactions-selection panel-card">
-              <div class="transactions-selection__title">
-                {{ selectedBudgetRowIds.length }} transaction{{ selectedBudgetRowIds.length > 1 ? 's' : '' }} selected
-              </div>
-              <div class="transactions-selection__actions">
-                <q-btn color="negative" label="Mark as Deleted" @click="openBudgetDeleteDialog" />
-                <q-btn flat color="primary" label="Clear Selection" @click="clearBudgetSelection" />
+
+            <!-- Compact selection bar -->
+            <div v-if="selectedBudgetRowIds.length" class="register-selection-bar">
+              <span class="text-body2 text-weight-medium">
+                {{ selectedBudgetRowIds.length }} selected
+              </span>
+              <div class="row q-gutter-xs no-wrap">
+                <q-btn dense flat size="sm" color="negative" label="Mark Deleted" @click="openBudgetDeleteDialog" />
+                <q-btn dense flat size="sm" color="primary" label="Clear" @click="clearBudgetSelection" />
               </div>
             </div>
             <div class="transactions-table">
@@ -198,143 +162,124 @@
       <q-tab-panel name="register" class="transactions-panel">
         <div class="transactions-layout">
           <div class="transactions-layout__main">
-            <div class="transactions-filters panel-card">
-              <div class="row q-col-gutter-sm q-col-gutter-y-sm items-center">
-                <div class="col-12 col-md-4">
+            <div class="transactions-filters panel-card register-filters">
+              <!-- Row 1: account, search, refresh/clear -->
+              <div class="row q-col-gutter-sm items-center">
+                <div class="col-12 col-sm-5 col-md-4">
                   <q-select v-model="filters.accountId" :options="accountOptions" dense outlined label="Account" clearable emit-value map-options />
                 </div>
-                <div class="col-12 col-md-4">
-                  <q-input v-model="filters.search" dense outlined placeholder="Search" debounce="300" />
+                <div class="col col-sm col-md">
+                  <q-input v-model="filters.search" dense outlined placeholder="Search" debounce="300">
+                    <template #append>
+                      <q-btn flat dense round size="sm" icon="refresh" @click="refreshRegister">
+                        <q-tooltip>Refresh</q-tooltip>
+                      </q-btn>
+                      <q-btn flat dense round size="sm" icon="clear_all" @click="clearRegisterFilters">
+                        <q-tooltip>Clear All</q-tooltip>
+                      </q-btn>
+                    </template>
+                  </q-input>
                 </div>
-                <div class="col-12 col-md-4">
-                  <div class="row q-gutter-sm justify-end">
-                    <div class="col-auto">
-                      <q-btn dense flat label="Refresh" @click="refreshRegister" />
-                    </div>
-                    <div class="col-auto">
-                      <q-btn dense flat label="Clear All" @click="clearRegisterFilters" />
-                    </div>
+              </div>
+
+              <!-- Row 2: amounts, dates, and status chips in a single flowing row -->
+              <div class="register-filters__secondary">
+                <q-input v-model="minAmtInput" type="number" dense outlined placeholder="Min $" class="register-filters__input" />
+                <q-input v-model="maxAmtInput" type="number" dense outlined placeholder="Max $" class="register-filters__input" />
+                <q-input v-model="filters.start" dense outlined mask="####-##-##" placeholder="Start" debounce="300" class="register-filters__input register-filters__input--date">
+                  <template #append>
+                    <q-icon name="event" class="cursor-pointer">
+                      <q-popup-proxy transition-show="scale" transition-hide="scale">
+                        <q-date v-model="filters.start" mask="YYYY-MM-DD" />
+                      </q-popup-proxy>
+                    </q-icon>
+                  </template>
+                </q-input>
+                <q-input v-model="filters.end" dense outlined mask="####-##-##" placeholder="End" debounce="300" class="register-filters__input register-filters__input--date">
+                  <template #append>
+                    <q-icon name="event" class="cursor-pointer">
+                      <q-popup-proxy transition-show="scale" transition-hide="scale">
+                        <q-date v-model="filters.end" mask="YYYY-MM-DD" />
+                      </q-popup-proxy>
+                    </q-icon>
+                  </template>
+                </q-input>
+                <q-chip clickable class="filter-chip" :color="filters.cleared ? 'primary' : 'white'" :text-color="filters.cleared ? 'white' : 'primary'" @click="filters.cleared = !filters.cleared">Cleared</q-chip>
+                <q-chip clickable class="filter-chip" :color="filters.uncleared ? 'primary' : 'white'" :text-color="filters.uncleared ? 'white' : 'primary'" @click="filters.uncleared = !filters.uncleared">Uncleared</q-chip>
+                <q-chip clickable class="filter-chip" :color="filters.reconciled ? 'primary' : 'white'" :text-color="filters.reconciled ? 'white' : 'primary'" @click="filters.reconciled = !filters.reconciled">Reconciled</q-chip>
+                <q-chip clickable class="filter-chip" :color="filters.unmatchedOnly ? 'primary' : 'white'" :text-color="filters.unmatchedOnly ? 'white' : 'primary'" @click="filters.unmatchedOnly = !filters.unmatchedOnly">Unmatched</q-chip>
+              </div>
+
+              <!-- Collapsible: Reconciliation & Statement History -->
+              <q-expansion-item dense label="Reconciliation & Statements" header-class="text-caption text-grey-7 q-px-none">
+                <div class="register-reconcile-row">
+                  <q-input v-model="registerBeginningBalanceInput" type="number" dense outlined label="Statement Begin" class="register-reconcile-row__input" />
+                  <q-input v-model="registerTargetEndingInput" type="number" dense outlined label="Statement End" class="register-reconcile-row__input" />
+                  <div class="register-reconcile-row__badge">
+                    <div class="text-caption text-grey-7">Selected</div>
+                    <q-badge color="primary" outline class="text-body2">{{ formatCurrency(registerMatchedTotal) }}</q-badge>
                   </div>
-                </div>
-              </div>
-              <div class="row q-col-gutter-sm q-col-gutter-y-sm">
-                <div class="col-12 col-sm-6 col-md-3 col-lg-2">
-                  <q-input v-model="minAmtInput" type="number" dense outlined placeholder="Amount Min" />
-                </div>
-                <div class="col-12 col-sm-6 col-md-3 col-lg-2">
-                  <q-input v-model="maxAmtInput" type="number" dense outlined placeholder="Amount Max" />
-                </div>
-                <div class="col-12 col-sm-6 col-md-3 col-lg-2">
-                  <q-input v-model="filters.start" dense outlined mask="####-##-##" placeholder="Start" debounce="300">
-                    <template #append>
-                      <q-icon name="event" class="cursor-pointer">
-                        <q-popup-proxy transition-show="scale" transition-hide="scale">
-                          <q-date v-model="filters.start" mask="YYYY-MM-DD" />
-                        </q-popup-proxy>
-                      </q-icon>
-                    </template>
-                  </q-input>
-                </div>
-                <div class="col-12 col-sm-6 col-md-3 col-lg-2">
-                  <q-input v-model="filters.end" dense outlined mask="####-##-##" placeholder="End" debounce="300">
-                    <template #append>
-                      <q-icon name="event" class="cursor-pointer">
-                        <q-popup-proxy transition-show="scale" transition-hide="scale">
-                          <q-date v-model="filters.end" mask="YYYY-MM-DD" />
-                        </q-popup-proxy>
-                      </q-icon>
-                    </template>
-                  </q-input>
-                </div>
-              </div>
-              <div class="transactions-filters__toggles">
-                <q-chip
-                  clickable
-                  class="filter-chip"
-                  :color="filters.cleared ? 'primary' : 'white'"
-                  :text-color="filters.cleared ? 'white' : 'primary'"
-                  @click="filters.cleared = !filters.cleared"
-                  >Cleared</q-chip
-                >
-                <q-chip
-                  clickable
-                  class="filter-chip"
-                  :color="filters.uncleared ? 'primary' : 'white'"
-                  :text-color="filters.uncleared ? 'white' : 'primary'"
-                  @click="filters.uncleared = !filters.uncleared"
-                  >Uncleared</q-chip
-                >
-                <q-chip
-                  clickable
-                  class="filter-chip"
-                  :color="filters.reconciled ? 'primary' : 'white'"
-                  :text-color="filters.reconciled ? 'white' : 'primary'"
-                  @click="filters.reconciled = !filters.reconciled"
-                  >Reconciled</q-chip
-                >
-                <q-chip
-                  clickable
-                  class="filter-chip"
-                  :color="filters.unmatchedOnly ? 'primary' : 'white'"
-                  :text-color="filters.unmatchedOnly ? 'white' : 'primary'"
-                  @click="filters.unmatchedOnly = !filters.unmatchedOnly"
-                  >Unmatched Only</q-chip
-                >
-              </div>
-            </div>
-            <div class="register-reconcile panel-card q-mt-md">
-              <div class="row q-col-gutter-sm q-col-gutter-y-sm items-end">
-                <div class="col-12 col-sm-6 col-md-3">
-                  <q-input v-model="registerBeginningBalanceInput" type="number" dense outlined label="Beginning Balance" />
-                </div>
-                <div class="col-12 col-sm-6 col-md-3">
-                  <q-input v-model="registerTargetEndingInput" type="number" dense outlined label="Target Ending Balance" />
-                </div>
-                <div class="col-12 col-sm-6 col-md-2">
-                  <div class="text-caption text-grey-7">Matched Total</div>
-                  <q-badge color="primary" outline class="text-body2 q-mt-xs">{{ formatCurrency(registerMatchedTotal) }}</q-badge>
-                </div>
-                <div class="col-12 col-sm-6 col-md-2">
-                  <div class="text-caption text-grey-7">Computed Ending</div>
-                  <q-badge color="primary" outline class="text-body2 q-mt-xs">{{ formatCurrency(registerComputedEnding) }}</q-badge>
-                </div>
-                <div class="col-12 col-sm-6 col-md-2">
-                  <div class="text-caption text-grey-7">Delta</div>
-                  <q-badge :color="registerDeltaBadgeColor" outline class="text-body2 q-mt-xs">{{ formatCurrency(registerDelta) }}</q-badge>
-                </div>
-              </div>
-              <div class="row q-col-gutter-sm q-col-gutter-y-sm items-center q-mt-md">
-                <div class="col-12 col-md-4">
-                  <q-linear-progress :value="registerProgress" color="secondary" track-color="grey-3" rounded />
-                </div>
-                <div class="col-12 col-md-4">
-                  <q-checkbox
-                    v-model="registerAllClearedSelected"
-                    label="Select Cleared In View"
-                    dense
-                    :disable="!registerClearedVisibleRows.length"
-                  />
-                </div>
-                <div class="col-12 col-md-4 justify-end">
+                  <div class="register-reconcile-row__badge">
+                    <div class="text-caption text-grey-7">Difference</div>
+                    <q-badge :color="registerDeltaBadgeColor" outline class="text-body2">{{ formatCurrency(registerDelta) }}</q-badge>
+                  </div>
+                  <q-checkbox v-model="registerAllClearedSelected" dense :disable="!registerClearedVisibleRows.length" label="Select All Cleared" />
+                  <q-space />
                   <q-btn
+                    unelevated
                     color="primary"
                     :disable="registerFinalizeDisabled"
                     :loading="registerFinalizing"
-                    label="Finalize Reconciliation"
+                    label="Finalize"
                     @click="finalizeRegisterStatement"
                   />
                 </div>
-              </div>
+
+                <!-- Statement history sub-section -->
+                <div v-if="accountStatements.length" class="q-mt-sm">
+                  <div class="text-caption text-grey-7 q-mb-xs">Statement History</div>
+                  <q-list dense bordered separator>
+                    <q-item v-for="stmt in accountStatements" :key="stmt.id">
+                      <q-item-section>
+                        <q-item-label>{{ stmt.startDate }} &mdash; {{ stmt.endDate }}</q-item-label>
+                        <q-item-label caption>
+                          {{ formatCurrency(stmt.startingBalance) }} &rarr; {{ formatCurrency(stmt.endingBalance) }}
+                        </q-item-label>
+                      </q-item-section>
+                      <q-item-section side>
+                        <div class="row items-center q-gutter-sm">
+                          <q-badge :color="stmt.reconciled ? 'positive' : 'grey'" :label="stmt.reconciled ? 'Reconciled' : 'Draft'" />
+                          <q-btn
+                            v-if="stmt.reconciled"
+                            flat
+                            dense
+                            size="sm"
+                            color="negative"
+                            icon="undo"
+                            label="Unreconcile"
+                            @click="promptUnreconcile(stmt)"
+                          />
+                        </div>
+                      </q-item-section>
+                    </q-item>
+                  </q-list>
+                </div>
+              </q-expansion-item>
             </div>
-            <div v-if="selectedRegisterIds.length" class="transactions-selection panel-card">
-              <div class="transactions-selection__title">
-                {{ selectedRegisterIds.length }} transaction{{ selectedRegisterIds.length > 1 ? 's' : '' }} selected
-              </div>
-              <div class="transactions-selection__actions">
-                <q-btn color="primary" label="Create Budget Transactions" @click="openRegisterBatchDialog" />
-                <q-btn color="warning" label="Ignore" @click="confirmRegisterBatchAction('Ignore')" />
-                <q-btn color="negative" label="Delete" @click="confirmRegisterBatchAction('Delete')" />
+
+            <!-- Compact selection bar -->
+            <div v-if="selectedRegisterIds.length" class="register-selection-bar">
+              <span class="text-body2 text-weight-medium">
+                {{ selectedRegisterIds.length }} selected
+              </span>
+              <div class="row q-gutter-xs no-wrap">
+                <q-btn dense flat size="sm" color="primary" label="Match" @click="openRegisterBatchDialog" />
+                <q-btn dense flat size="sm" color="warning" label="Ignore" @click="confirmRegisterBatchAction('Ignore')" />
+                <q-btn dense flat size="sm" color="negative" label="Delete" @click="confirmRegisterBatchAction('Delete')" />
                 <q-btn
+                  dense
+                  flat
+                  size="sm"
                   color="positive"
                   label="Finalize"
                   :disable="registerFinalizeDisabled"
@@ -351,6 +296,7 @@
                 selection="multiple"
                 v-model:selected="selectedRegisterIds"
                 @row-click="onRegisterRowClick"
+                @unmatch="promptUnmatch"
               />
             </div>
           </div>
@@ -418,6 +364,42 @@
             </q-card-actions>
           </q-card>
         </q-dialog>
+        <q-dialog v-model="showUnreconcileDialog">
+          <q-card>
+            <q-card-section class="bg-warning text-white q-py-md">
+              <span>Unreconcile Statement</span>
+            </q-card-section>
+            <q-card-section v-if="statementToUnreconcile">
+              <p>
+                This will revert statement <strong>{{ statementToUnreconcile.startDate }} &mdash; {{ statementToUnreconcile.endDate }}</strong>
+                and mark its transactions as cleared (not reconciled).
+              </p>
+              <p>Are you sure?</p>
+            </q-card-section>
+            <q-card-actions align="right">
+              <q-btn flat label="Cancel" v-close-popup />
+              <q-btn flat label="Unreconcile" color="negative" :loading="unreconciling" @click="confirmUnreconcile" />
+            </q-card-actions>
+          </q-card>
+        </q-dialog>
+        <q-dialog v-model="showUnmatchDialog">
+          <q-card>
+            <q-card-section class="bg-warning text-white q-py-md">
+              <span>Unmatch Transaction</span>
+            </q-card-section>
+            <q-card-section v-if="rowToUnmatch">
+              <p>
+                Disconnect <strong>{{ rowToUnmatch.payee }}</strong> ({{ formatCurrency(rowToUnmatch.amount) }})
+                from its linked budget transaction?
+              </p>
+              <p class="text-caption text-grey-7">The budget transaction will remain but will no longer be linked to this imported transaction.</p>
+            </q-card-section>
+            <q-card-actions align="right">
+              <q-btn flat label="Cancel" v-close-popup />
+              <q-btn flat label="Unmatch" color="negative" :loading="unmatching" @click="confirmUnmatch" />
+            </q-card-actions>
+          </q-card>
+        </q-dialog>
       </q-tab-panel>
       <!-- Match Bank Transactions Tab -->
       <q-tab-panel name="match" class="transactions-panel">
@@ -443,7 +425,8 @@ import { useUIStore } from 'src/store/ui';
 import { useAuthStore } from 'src/store/auth';
 import { sortBudgetsByMonthDesc, createBudgetForMonth } from 'src/utils/budget';
 import { dataAccess } from 'src/dataAccess';
-import type { Budget, Transaction, StatementFinalizePayload } from 'src/types';
+import type { Budget, Transaction, StatementFinalizePayload, Statement } from 'src/types';
+import { useStatementStore } from 'src/store/statements';
 import { splitImportedId } from 'src/utils/imported';
 
 const tab = ref<'budget' | 'register' | 'match'>('budget');
@@ -452,6 +435,7 @@ const budgetStore = useBudgetStore();
 const familyStore = useFamilyStore();
 const uiStore = useUIStore();
 const auth = useAuthStore();
+const statementStore = useStatementStore();
 
 const { selectedBudgetIds, budgetFilters, registerFilters } = storeToRefs(uiStore);
 const { selectedEntityId } = storeToRefs(familyStore);
@@ -536,7 +520,7 @@ const registerFinalizing = ref(false);
 
 const normalizedRegisterStatus = (status: LedgerRow['status']): Status => {
   if (status === 'M') return 'C';
-  if (status === 'I') return 'U';
+  if (status === 'I') return 'C';
   return status;
 };
 
@@ -551,7 +535,7 @@ const registerSelectedRows = computed(() =>
 );
 
 const registerSelectedClearedRows = computed(() =>
-  registerSelectedRows.value.filter((row) => normalizedRegisterStatus(row.status) === 'C' || normalizedRegisterStatus(row.status) === 'U'),
+  registerSelectedRows.value.filter((row) => normalizedRegisterStatus(row.status) === 'C'),
 );
 
 const parseNumericInput = (value: string): number => {
@@ -564,18 +548,7 @@ const registerMatchedTotal = computed(() =>
 );
 const registerBeginningBalance = computed(() => parseNumericInput(registerBeginningBalanceInput.value));
 const registerTargetEndingBalance = computed(() => parseNumericInput(registerTargetEndingInput.value));
-const registerComputedEnding = computed(() => registerBeginningBalance.value + registerMatchedTotal.value);
-const registerDelta = computed(() => registerTargetEndingBalance.value - registerComputedEnding.value);
-
-const registerProgress = computed(() => {
-  const change = registerTargetEndingBalance.value - registerBeginningBalance.value;
-  if (!Number.isFinite(change) || change === 0) {
-    return Math.abs(registerDelta.value) < 0.005 ? 1 : 0;
-  }
-  const ratio = 1 - Math.min(1, Math.abs(registerDelta.value) / Math.abs(change));
-  const bounded = Number.isNaN(ratio) ? 0 : ratio;
-  return Math.max(0, Math.min(1, bounded));
-});
+const registerDelta = computed(() => registerTargetEndingBalance.value - (registerBeginningBalance.value + registerMatchedTotal.value));
 
 const registerDeltaBadgeColor = computed(() => {
   if (Math.abs(registerDelta.value) < 0.005) return 'positive';
@@ -584,7 +557,6 @@ const registerDeltaBadgeColor = computed(() => {
 
 const registerFinalizeDisabled = computed(() => {
   if (!filters.value.accountId) return true;
-  if (!filters.value.start || !filters.value.end) return true;
   if (!registerSelectedClearedRows.value.length) return true;
   if (!Number.isFinite(registerBeginningBalance.value) || !Number.isFinite(registerTargetEndingBalance.value)) return true;
   return Math.abs(registerDelta.value) >= 0.01;
@@ -606,6 +578,106 @@ const registerAllClearedSelected = computed({
     }
   },
 });
+
+// --- Statement history ---
+const showUnreconcileDialog = ref(false);
+const statementToUnreconcile = ref<Statement | null>(null);
+const unreconciling = ref(false);
+
+const selectedAccountNumber = computed(() => {
+  if (!filters.value.accountId) return null;
+  const acct = (familyStore.family?.accounts || []).find((a) => String(a.id) === filters.value.accountId);
+  return acct ? String(acct.id) : null;
+});
+
+const accountStatements = computed(() => {
+  const fid = familyStore.family?.id;
+  const an = selectedAccountNumber.value;
+  if (!fid || !an) return [];
+  return [...statementStore.getStatements(fid, an)].sort((a, b) => b.endDate.localeCompare(a.endDate));
+});
+
+const latestReconciledEndingBalance = computed(() => {
+  const reconciled = accountStatements.value.find((s) => s.reconciled);
+  return reconciled ? reconciled.endingBalance : null;
+});
+
+function promptUnreconcile(stmt: Statement) {
+  statementToUnreconcile.value = stmt;
+  showUnreconcileDialog.value = true;
+}
+
+async function confirmUnreconcile() {
+  const stmt = statementToUnreconcile.value;
+  const fid = familyStore.family?.id;
+  const an = selectedAccountNumber.value;
+  if (!stmt || !fid || !an) return;
+  unreconciling.value = true;
+  try {
+    await statementStore.unreconcileStatement(fid, an, stmt.id, []);
+    $q.notify({ type: 'positive', message: 'Statement unreconciled.' });
+    showUnreconcileDialog.value = false;
+    statementToUnreconcile.value = null;
+    await loadImportedTransactions(true);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to unreconcile.';
+    $q.notify({ type: 'negative', message });
+  } finally {
+    unreconciling.value = false;
+  }
+}
+
+// --- Unmatch ---
+const showUnmatchDialog = ref(false);
+const rowToUnmatch = ref<LedgerRow | null>(null);
+const unmatching = ref(false);
+
+function promptUnmatch(row: LedgerRow) {
+  rowToUnmatch.value = row;
+  showUnmatchDialog.value = true;
+}
+
+async function confirmUnmatch() {
+  const row = rowToUnmatch.value;
+  if (!row) return;
+  const imp = getImportedTx(row.id);
+  if (!imp) return;
+  unmatching.value = true;
+  try {
+    // Set matched=false on the imported transaction via batch-reconcile
+    // We need to find which budget has the linked transaction
+    const accountId = filters.value.accountId;
+    if (!accountId) return;
+    const budgetTxs = await dataAccess.getBudgetTransactionsMatchedToImported(accountId);
+    const linked = budgetTxs.find(
+      (bt) => bt.transaction.importedMerchant === imp.payee
+        && (bt.transaction.postedDate === (imp.transactionDate || imp.postedDate) || bt.transaction.transactionDate === (imp.transactionDate || imp.postedDate)),
+    );
+    if (linked) {
+      const budget = budgetStore.getBudget(linked.budgetId) || await dataAccess.getBudget(linked.budgetId);
+      if (budget) {
+        await dataAccess.batchReconcileTransactions(linked.budgetId, budget, {
+          budgetId: linked.budgetId,
+          reconciliations: [{
+            budgetTransactionId: linked.transaction.id || '',
+            importedTransactionId: imp.id,
+            match: false,
+            ignore: false,
+          }],
+        });
+      }
+    }
+    showUnmatchDialog.value = false;
+    rowToUnmatch.value = null;
+    $q.notify({ type: 'positive', message: 'Transaction unmatched.' });
+    await loadImportedTransactions(true);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to unmatch.';
+    $q.notify({ type: 'negative', message });
+  } finally {
+    unmatching.value = false;
+  }
+}
 
 const entityOptions = computed(() => (familyStore.family?.entities || []).map((e) => ({ id: e.id, name: e.name })));
 
@@ -645,22 +717,28 @@ async function finalizeRegisterStatement() {
     return;
   }
   registerFinalizing.value = true;
+  const selectedRows = registerSelectedClearedRows.value;
+  const selectedDates = selectedRows.map((r) => r.date).filter(Boolean).sort();
   const payload: StatementFinalizePayload = {
     familyId,
     accountId,
-    startDate: filters.value.start || '',
-    endDate: filters.value.end || '',
+    startDate: selectedDates[0] || filters.value.start || '',
+    endDate: selectedDates[selectedDates.length - 1] || filters.value.end || '',
     beginningBalance: registerBeginningBalance.value,
     endingBalance: registerTargetEndingBalance.value,
-    matchedTransactionIds: registerSelectedClearedRows.value.map((row) => row.id),
+    importedTransactionIds: selectedRows.map((row) => row.id),
   };
   try {
     await dataAccess.finalizeStatement(payload);
     $q.notify({ type: 'positive', message: 'Statement finalized.' });
     selectedRegisterIds.value = selectedRegisterIds.value.filter(
-      (id) => !payload.matchedTransactionIds.includes(id),
+      (id) => !(payload.importedTransactionIds || []).includes(id),
     );
     await loadImportedTransactions(true);
+    // Refresh statement history
+    if (familyId && accountId) {
+      await statementStore.loadStatements(familyId, accountId);
+    }
   } catch (err) {
     console.error('Failed to finalize statement', err);
     const message = err instanceof Error ? err.message : 'Unable to finalize statement.';
@@ -769,14 +847,28 @@ watch(
 
 watch(
   () => filters.value.accountId,
-  () => {
+  async (accountId) => {
     registerBeginningBalanceInput.value = '0';
     registerTargetEndingInput.value = '0';
     selectedRegisterIds.value = [];
     filters.value.start = null;
     filters.value.end = null;
+    // Load statement history for the selected account
+    const fid = familyStore.family?.id;
+    if (fid && accountId) {
+      try {
+        await statementStore.loadStatements(fid, accountId);
+      } catch { /* ignore */ }
+    }
   },
 );
+
+// Auto-populate beginning balance from last reconciled statement
+watch(latestReconciledEndingBalance, (bal) => {
+  if (bal != null) {
+    registerBeginningBalanceInput.value = String(bal);
+  }
+});
 
 const formatLongMonth = (month: string) => {
   const [year, monthNum] = month.split('-');
@@ -1256,6 +1348,30 @@ async function performRegisterBatchAction() {
   gap: 16px;
 }
 
+.register-filters {
+  gap: 8px;
+}
+
+.register-filters__secondary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.register-filters__input {
+  width: 110px;
+  flex: 0 0 auto;
+}
+
+.register-filters__input--date {
+  width: 150px;
+}
+
+.register-filters__input--merchant {
+  width: 160px;
+}
+
 .transactions-filters__toggles {
   gap: 8px;
   align-items: center;
@@ -1329,8 +1445,32 @@ async function performRegisterBatchAction() {
   gap: 12px;
 }
 
-.transactions-statement {
-  padding: 18px 20px;
+.register-reconcile-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.register-reconcile-row__input {
+  width: 140px;
+  flex: 0 0 auto;
+}
+
+.register-reconcile-row__badge {
+  text-align: center;
+}
+
+.register-selection-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-subtle);
 }
 
 .transactions-table {
@@ -1358,6 +1498,19 @@ async function performRegisterBatchAction() {
 
   .transactions-layout__aside {
     width: 100%;
+  }
+}
+
+@media (max-width: 599px) {
+  .register-filters__input,
+  .register-filters__input--date {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .register-reconcile-row__input {
+    width: 100%;
+    flex: 1 1 100%;
   }
 }
 </style>

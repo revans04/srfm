@@ -1,6 +1,6 @@
 <!-- src/views/AccountsView.vue -->
 <template>
-  <q-page fluid>
+  <q-page class="bg-grey-1 q-pa-lg">
     <h1>Accounts</h1>
 
     <!-- Loading handled via $q.loading -->
@@ -19,7 +19,7 @@
         <q-tab name="net-worth" label="Snapshots" />
       </q-tabs>
 
-      <q-tab-panels v-model="tab">
+      <q-tab-panels v-model="tab" class="bg-transparent">
         <q-tab-panel name="bank">
           <AccountList
             :accounts="bankAccounts"

@@ -1,0 +1,197 @@
+import { v4 as uuidv4 } from 'uuid';
+import { dataAccess } from '../dataAccess';
+import { useBudgetStore } from '../store/budget';
+import { useFamilyStore } from '../store/family';
+import { DEFAULT_BUDGET_TEMPLATES } from '../constants/budgetTemplates';
+import { adjustTransactionDate } from './helpers';
+import { calculateCarryOver } from './carryover';
+/**
+ * Creates a budget for the specified month and entity. If a budget already
+ * exists it is returned. Otherwise a new budget is created by copying from a
+ * template or the most recent existing budget. Recurring transactions from the
+ * source budget are added to the new budget.
+ */
+export async function createBudgetForMonth(month, familyId, ownerUid, entityId) {
+    const budgetStore = useBudgetStore();
+    const familyStore = useFamilyStore();
+    let accessibleBudgetInfos = null;
+    const ensureAccessibleBudgetInfos = async () => {
+        if (accessibleBudgetInfos !== null) {
+            return accessibleBudgetInfos;
+        }
+        try {
+            accessibleBudgetInfos = await dataAccess.loadAccessibleBudgets(ownerUid, entityId);
+        }
+        catch (error) {
+            console.warn('createBudgetForMonth: failed to load accessible budgets', error);
+            accessibleBudgetInfos = [];
+        }
+        return accessibleBudgetInfos;
+    };
+    // Check if a budget already exists for this entity/month combination in the
+    // local store before creating a new one.
+    let existingBudget = Array.from(budgetStore.budgets.values()).find((b) => b.month === month && b.entityId === entityId);
+    if (!existingBudget) {
+        const infos = await ensureAccessibleBudgetInfos();
+        const match = infos.find((b) => b.month === month && b.budgetId);
+        if (match?.budgetId) {
+            existingBudget = await dataAccess.getBudget(match.budgetId);
+            if (existingBudget)
+                budgetStore.updateBudget(match.budgetId, existingBudget);
+        }
+    }
+    if (existingBudget) {
+        return existingBudget;
+    }
+    // Generate a globally unique identifier for the new budget
+    const budgetId = uuidv4();
+    const entity = familyStore.family?.entities?.find((e) => e.id === entityId);
+    const templateBudget = entity?.templateBudget;
+    const predefinedTemplate = entity ? DEFAULT_BUDGET_TEMPLATES[entity.type] : undefined;
+    const availableBudgets = Array.from(budgetStore.budgets.values())
+        .filter((b) => b.entityId === entityId)
+        .sort((a, b) => a.month.localeCompare(b.month));
+    let sourceBudget = availableBudgets.filter((b) => b.month < month).pop();
+    if (!sourceBudget) {
+        sourceBudget = availableBudgets.find((b) => b.month > month);
+    }
+    if (!sourceBudget || !sourceBudget.budgetId) {
+        const infos = await ensureAccessibleBudgetInfos();
+        const relevantInfos = infos.filter((b) => b.entityId === entityId);
+        let sourceInfo = relevantInfos
+            .filter((b) => b.month < month)
+            .sort((a, b) => a.month.localeCompare(b.month))
+            .pop();
+        if (!sourceInfo) {
+            sourceInfo = relevantInfos
+                .filter((b) => b.month > month)
+                .sort((a, b) => a.month.localeCompare(b.month))
+                .shift();
+        }
+        if (sourceInfo?.budgetId) {
+            const fetched = await dataAccess.getBudget(sourceInfo.budgetId);
+            if (fetched) {
+                sourceBudget = fetched;
+                budgetStore.updateBudget(sourceInfo.budgetId, fetched);
+            }
+        }
+    }
+    else if (sourceBudget.budgetId && (!sourceBudget.categories?.length || !sourceBudget.transactions?.length)) {
+        const fetched = await dataAccess.getBudget(sourceBudget.budgetId);
+        if (fetched) {
+            sourceBudget = fetched;
+            budgetStore.updateBudget(fetched.budgetId, fetched);
+        }
+    }
+    if (sourceBudget) {
+        const [newYear, newMonthNum] = month.split('-').map(Number);
+        const [sourceYear, sourceMonthNum] = sourceBudget.month.split('-').map(Number);
+        const isFutureMonth = newYear > sourceYear || (newYear === sourceYear && newMonthNum > sourceMonthNum);
+        let newCarryover = {};
+        if (isFutureMonth) {
+            newCarryover = calculateCarryOver(sourceBudget);
+        }
+        const newBudget = {
+            familyId,
+            entityId,
+            month,
+            incomeTarget: sourceBudget.incomeTarget,
+            categories: sourceBudget.categories.map((cat) => ({
+                ...cat,
+                carryover: cat.isFund ? newCarryover[cat.name] || 0 : 0,
+            })),
+            label: sourceBudget.label || `Budget for ${month}`,
+            merchants: sourceBudget.merchants || [],
+            transactions: [],
+            budgetId,
+        };
+        const recurringTransactions = [];
+        if (sourceBudget.transactions) {
+            const recurringGroups = sourceBudget.transactions.reduce((groups, trx) => {
+                if (!trx.deleted && trx.recurring) {
+                    const key = `${trx.merchant}-${trx.amount}-${trx.recurringInterval}-${trx.userId}-${trx.isIncome}`;
+                    (groups[key] = groups[key] || []).push(trx);
+                }
+                return groups;
+            }, {});
+            Object.values(recurringGroups).forEach((group) => {
+                const firstInstance = group.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
+                if (firstInstance.recurringInterval === 'Monthly') {
+                    const newDate = adjustTransactionDate(firstInstance.date, month, 'Monthly');
+                    recurringTransactions.push({
+                        ...firstInstance,
+                        id: uuidv4(),
+                        date: newDate,
+                        budgetMonth: month,
+                        entityId,
+                    });
+                }
+            });
+        }
+        newBudget.transactions = recurringTransactions;
+        await dataAccess.saveBudget(budgetId, newBudget);
+        budgetStore.updateBudget(budgetId, newBudget);
+        return newBudget;
+    }
+    if (templateBudget && templateBudget.categories.length > 0) {
+        const newBudget = {
+            familyId,
+            entityId,
+            month,
+            incomeTarget: 0,
+            categories: templateBudget.categories.map((cat) => ({
+                ...cat,
+                carryover: cat.isFund ? 0 : 0,
+            })),
+            transactions: [],
+            label: `Template Budget for ${month}`,
+            merchants: [],
+            budgetId,
+        };
+        await dataAccess.saveBudget(budgetId, newBudget);
+        budgetStore.updateBudget(budgetId, newBudget);
+        return newBudget;
+    }
+    if (predefinedTemplate) {
+        const newBudget = {
+            familyId,
+            entityId,
+            month,
+            incomeTarget: 0,
+            categories: (predefinedTemplate?.categories ?? []).map((cat) => ({
+                ...cat,
+                carryover: cat.isFund ? 0 : 0,
+            })),
+            transactions: [],
+            label: `Default ${entity?.type ?? 'Family'} Budget for ${month}`,
+            merchants: [],
+            budgetId,
+        };
+        await dataAccess.saveBudget(budgetId, newBudget);
+        budgetStore.updateBudget(budgetId, newBudget);
+        return newBudget;
+    }
+    const defaultBudget = {
+        familyId,
+        entityId,
+        month,
+        incomeTarget: 0,
+        categories: [
+            { name: 'Income', target: 0, isFund: false, group: 'Income' },
+            { name: 'Miscellaneous', target: 0, isFund: false, group: 'Expenses' },
+        ],
+        transactions: [],
+        label: `Default Budget for ${month}`,
+        merchants: [],
+        budgetId,
+    };
+    await dataAccess.saveBudget(budgetId, defaultBudget);
+    budgetStore.updateBudget(budgetId, defaultBudget);
+    return defaultBudget;
+}
+export function sortBudgetsByMonthDesc(budgets) {
+    return budgets.slice().sort((a, b) => b.month.localeCompare(a.month));
+}
+// Re-export pure carryover utilities (kept in a separate module so tests can
+// import them without pulling in the full app dependency graph).
+export { calculateCarryOver, cascadeCarryover } from './carryover';

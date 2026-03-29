@@ -16,9 +16,15 @@ export const useStatementStore = defineStore('statements', () => {
     return statements.value[`${familyId}_${accountNumber}`] || [];
   }
 
-  async function saveStatement(familyId: string, accountNumber: string, statement: Statement, transactionRefs: { budgetId: string; transactionId: string }[]) {
-    await dataAccess.saveStatement(familyId, accountNumber, statement, transactionRefs);
+  async function saveStatement(
+    familyId: string,
+    accountNumber: string,
+    statement: Statement,
+    transactionRefs: { budgetId: string; transactionId: string }[],
+  ): Promise<Statement> {
+    const saved = await dataAccess.saveStatement(familyId, accountNumber, statement, transactionRefs);
     await loadStatements(familyId, accountNumber);
+    return saved;
   }
 
   async function deleteStatement(familyId: string, accountNumber: string, statementId: string, transactionRefs: { budgetId: string; transactionId: string }[]) {

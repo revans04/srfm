@@ -967,14 +967,24 @@ async function saveSplitTransaction() {
       transactionsByBudget[budget.budgetId].push(transaction);
     }
 
-    // Save transactions to their respective budgets
+    // Save transactions to their respective budgets (skip carryover during
+    // saves so we can do a single recalculation pass at the end).
     for (const budgetId in transactionsByBudget) {
       const budget = budgetStore.getBudget(budgetId) || (await dataAccess.getBudget(budgetId));
       if (!budget) continue;
 
-      await dataAccess.batchSaveTransactions(budgetId, budget, transactionsByBudget[budgetId] || []);
+      await dataAccess.batchSaveTransactions(budgetId, budget, transactionsByBudget[budgetId] || [], { skipCarryoverRecalc: true });
       const updatedBudget = await dataAccess.getBudget(budgetId);
       if (updatedBudget) budgetStore.updateBudget(budgetId, updatedBudget);
+    }
+
+    // Recalculate carryover once for each affected budget
+    for (const budgetId in transactionsByBudget) {
+      const txs = transactionsByBudget[budgetId] || [];
+      const categories = [...new Set(txs.flatMap((t) => t.categories.map((c) => c.category)))];
+      if (categories.length > 0) {
+        await dataAccess.recalculateCarryover(budgetId, categories);
+      }
     }
 
     const { docId, txId } = splitImportedId(importedTx.id);

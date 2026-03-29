@@ -240,6 +240,55 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
     /// <summary>
     /// Fetch a budget and its transactions from Supabase.
     /// </summary>
+    public async Task<List<Budget>> GetBudgets(string[] budgetIds)
+    {
+        if (budgetIds.Length == 0) return new List<Budget>();
+
+        await using var conn = await _db.GetOpenConnectionAsync();
+        const string sql = "SELECT id, family_id, entity_id, month, label, income_target, original_budget_id FROM budgets WHERE id = ANY(@ids)";
+        var budgets = new List<Budget>();
+
+        await using (var cmd = new NpgsqlCommand(sql, conn))
+        {
+            cmd.Parameters.AddWithValue("ids", budgetIds);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                budgets.Add(new Budget
+                {
+                    BudgetId = reader.GetString(0),
+                    FamilyId = reader.IsDBNull(1) ? string.Empty : reader.GetGuid(1).ToString(),
+                    EntityId = reader.IsDBNull(2) ? null : reader.GetGuid(2).ToString(),
+                    Month = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
+                    Label = reader.IsDBNull(4) ? null : reader.GetString(4),
+                    IncomeTarget = reader.IsDBNull(5) ? 0 : (double)reader.GetDecimal(5),
+                    OriginalBudgetId = reader.IsDBNull(6) ? null : reader.GetString(6),
+                    Transactions = new List<Transaction>(),
+                    Categories = new List<BudgetCategory>(),
+                    Merchants = new List<Merchant>()
+                });
+            }
+        }
+
+        // Limit concurrency to avoid exhausting the DB connection pool
+        using var semaphore = new SemaphoreSlim(5);
+        await Task.WhenAll(budgets.Select(async budget =>
+        {
+            await semaphore.WaitAsync();
+            try
+            {
+                await using var detailConn = await _db.GetOpenConnectionAsync();
+                await LoadBudgetDetails(detailConn, budget);
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        }));
+
+        return budgets;
+    }
+
     public async Task<Budget?> GetBudget(string budgetId)
     {
         _logger.LogInformation("Fetching budget {BudgetId}", budgetId);
@@ -1064,9 +1113,9 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
         if (ignored.HasValue) { updates.Add("ignored=@ignored"); cmd.Parameters.AddWithValue("ignored", ignored.Value); }
         if (deleted.HasValue) { updates.Add("deleted=@deleted"); cmd.Parameters.AddWithValue("deleted", deleted.Value); }
         if (updates.Count == 0) return;
-        cmd.CommandText = $"UPDATE imported_transactions SET {string.Join(",", updates)} WHERE document_id=@doc AND id=@id";
-        cmd.Parameters.AddWithValue("doc", Guid.Parse(docId));
-        cmd.Parameters.AddWithValue("id", transactionId);
+        var compositeId = $"{docId}-{transactionId}";
+        cmd.CommandText = $"UPDATE imported_transactions SET {string.Join(",", updates)} WHERE id=@id";
+        cmd.Parameters.AddWithValue("id", compositeId);
         await cmd.ExecuteNonQueryAsync();
     }
 
@@ -1193,37 +1242,62 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
 
         const string sql = @"SELECT budget_id, id, date, budget_month, merchant, amount, notes, recurring, recurring_interval, user_id, is_income, account_number, account_source, transaction_date, posted_date, imported_merchant, status, check_number, deleted, entity_id
                              FROM transactions WHERE account_number=@acct";
-        await using var cmd = new NpgsqlCommand(sql, conn);
-        cmd.Parameters.AddWithValue("acct", acctNum);
-        await using var reader = await cmd.ExecuteReaderAsync();
         var list = new List<TransactionWithBudgetId>();
-        while (await reader.ReadAsync())
+        await using (var cmd = new NpgsqlCommand(sql, conn))
         {
-            var tx = new Transaction
+            cmd.Parameters.AddWithValue("acct", acctNum);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
             {
-                Id = reader.GetString(1),
-                BudgetId = reader.GetString(0),
-                Date = reader.IsDBNull(2) ? null : reader.GetDateTime(2).ToString("yyyy-MM-dd"),
-                BudgetMonth = reader.IsDBNull(3) ? null : reader.GetString(3),
-                Merchant = reader.IsDBNull(4) ? null : reader.GetString(4),
-                Amount = (double)reader.GetDecimal(5),
-                Notes = reader.IsDBNull(6) ? null : reader.GetString(6),
-                Recurring = reader.GetBoolean(7),
-                RecurringInterval = reader.IsDBNull(8) ? null : reader.GetString(8),
-                UserId = reader.IsDBNull(9) ? null : reader.GetString(9),
-                IsIncome = reader.GetBoolean(10),
-                AccountNumber = reader.IsDBNull(11) ? null : reader.GetString(11),
-                AccountSource = reader.IsDBNull(12) ? null : reader.GetString(12),
-                TransactionDate = reader.IsDBNull(13) ? null : reader.GetDateTime(13).ToString("yyyy-MM-dd"),
-                PostedDate = reader.IsDBNull(14) ? null : reader.GetDateTime(14).ToString("yyyy-MM-dd"),
-                ImportedMerchant = reader.IsDBNull(15) ? null : reader.GetString(15),
-                Status = reader.IsDBNull(16) ? null : reader.GetString(16),
-                CheckNumber = reader.IsDBNull(17) ? null : reader.GetString(17),
-                Deleted = reader.IsDBNull(18) ? (bool?)null : reader.GetBoolean(18),
-                EntityId = reader.IsDBNull(19) ? null : reader.GetGuid(19).ToString()
-            };
-            list.Add(new TransactionWithBudgetId { BudgetId = reader.GetString(0), Transaction = tx });
+                var tx = new Transaction
+                {
+                    Id = reader.GetString(1),
+                    BudgetId = reader.GetString(0),
+                    Date = reader.IsDBNull(2) ? null : reader.GetDateTime(2).ToString("yyyy-MM-dd"),
+                    BudgetMonth = reader.IsDBNull(3) ? null : reader.GetString(3),
+                    Merchant = reader.IsDBNull(4) ? null : reader.GetString(4),
+                    Amount = (double)reader.GetDecimal(5),
+                    Notes = reader.IsDBNull(6) ? null : reader.GetString(6),
+                    Recurring = reader.GetBoolean(7),
+                    RecurringInterval = reader.IsDBNull(8) ? null : reader.GetString(8),
+                    UserId = reader.IsDBNull(9) ? null : reader.GetString(9),
+                    IsIncome = reader.GetBoolean(10),
+                    AccountNumber = reader.IsDBNull(11) ? null : reader.GetString(11),
+                    AccountSource = reader.IsDBNull(12) ? null : reader.GetString(12),
+                    TransactionDate = reader.IsDBNull(13) ? null : reader.GetDateTime(13).ToString("yyyy-MM-dd"),
+                    PostedDate = reader.IsDBNull(14) ? null : reader.GetDateTime(14).ToString("yyyy-MM-dd"),
+                    ImportedMerchant = reader.IsDBNull(15) ? null : reader.GetString(15),
+                    Status = reader.IsDBNull(16) ? null : reader.GetString(16),
+                    CheckNumber = reader.IsDBNull(17) ? null : reader.GetString(17),
+                    Deleted = reader.IsDBNull(18) ? (bool?)null : reader.GetBoolean(18),
+                    EntityId = reader.IsDBNull(19) ? null : reader.GetGuid(19).ToString()
+                };
+                list.Add(new TransactionWithBudgetId { BudgetId = reader.GetString(0), Transaction = tx });
+            }
+        } // reader is closed here
+
+        // Load categories for all matched transactions
+        if (list.Count > 0)
+        {
+            var txIds = list.Select(t => t.Transaction.Id!).ToArray();
+            const string sqlCats = "SELECT transaction_id, category_name, amount FROM transaction_categories WHERE transaction_id = ANY(@ids)";
+            await using var catCmd = new NpgsqlCommand(sqlCats, conn);
+            catCmd.Parameters.AddWithValue("ids", txIds);
+            await using var catReader = await catCmd.ExecuteReaderAsync();
+            var txMap = list.ToDictionary(t => t.Transaction.Id!);
+            while (await catReader.ReadAsync())
+            {
+                var txId = catReader.GetString(0);
+                if (!txMap.TryGetValue(txId, out var item)) continue;
+                item.Transaction.Categories ??= new List<TransactionCategory>();
+                item.Transaction.Categories.Add(new TransactionCategory
+                {
+                    Category = catReader.IsDBNull(1) ? null : catReader.GetString(1),
+                    Amount = catReader.IsDBNull(2) ? 0 : (double)catReader.GetDecimal(2)
+                });
+            }
         }
+
         return list;
     }
 

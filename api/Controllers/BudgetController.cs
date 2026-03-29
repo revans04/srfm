@@ -64,6 +64,25 @@ namespace FamilyBudgetApi.Controllers
             }
         }
 
+        [HttpGet("batch")]
+        [AuthorizeFirebase]
+        public async Task<IActionResult> GetBudgets([FromQuery] string ids)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(ids))
+                    return BadRequest("ids query parameter is required");
+                var budgetIds = ids.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                var budgets = await _budgetService.GetBudgets(budgetIds);
+                return Ok(budgets);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in GetBudgets batch: {ex.Message}");
+                return StatusCode(500, ex.Message);
+            }
+        }
+
         [HttpGet("{budgetId}")]
         [AuthorizeFirebase]
         public async Task<IActionResult> GetBudget(string budgetId)
