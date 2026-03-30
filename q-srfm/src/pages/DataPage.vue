@@ -1,12 +1,12 @@
 <!-- src/views/DataView.vue -->
 <template>
-  <q-page class="bg-grey-2 q-pa-md" fluid>
-    <h1 class="text-h5 q-mb-md">Data Management</h1>
+  <q-page class="bg-grey-1 q-pa-lg">
+    <h1 class="page-title q-mb-md">Data Management</h1>
 
     <!-- Loading handled via $q.loading -->
 
     <!-- Tabs -->
-    <q-tabs v-model="activeTab" color="primary" class="bg-white q-mb-md" style="border-radius: 4px">
+    <q-tabs v-model="activeTab" color="primary" class="bg-white q-mb-md rounded-sm">
       <q-tab name="import" label="Import" />
       <q-tab name="export" label="Export" />
     </q-tabs>

@@ -20,7 +20,7 @@
             :value="progress"
             height="10"
             color="primary"
-            background-color="#e0e0e0"
+            track-color="grey-3"
             rounded
           />
         </div>

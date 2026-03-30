@@ -1,39 +1,42 @@
 <template>
-  <q-item clickable @click="handleSelect">
-    <div class="row q-py-sm full-width">
-      <div class="col-auto date-circle column items-center justify-center text-caption text-uppercase q-pt-sm">
-        <div class="date-month">{{ formatTransactionMonthShort(transaction.date) }}</div>
-        <div class="date-day">{{ formatTransactionDay(transaction.date) }}</div>
+  <q-item clickable @click="handleSelect" class="tx-item">
+    <q-item-section avatar class="tx-item__date-col">
+      <div class="tx-date">
+        <div class="tx-date__month">{{ formatTransactionMonthShort(transaction.date) }}</div>
+        <div class="tx-date__day">{{ formatTransactionDay(transaction.date) }}</div>
       </div>
-      <div class="col q-py-md q-pl-sm">
-        <div class="text-body2">{{ transaction.merchant || 'Unnamed transaction' }}</div>
-      </div>
-      <div class="col-auto q-py-md text-right no-wrap">
-        <div class="text-body2" :class="transaction.isIncome ? 'text-positive' : 'text-negative'">
-          {{ transaction.isIncome ? '+' : '-' }}{{ formatTransactionAmount() }}
-        </div>
-      </div>
-      <div class="col-auto q-py-md text-right no-wrap">
-        <q-btn
-          v-if="removable"
-          flat
-          round
-          dense
-          icon="delete_outline"
-          color="grey-6"
-          size="sm"
-          class="transaction-delete"
-          @click.stop="handleDelete"
-          style="min-width: 44px; min-height: 44px;"
-        >
-          <q-tooltip>Mark as deleted — can be restored from Deleted tab</q-tooltip>
-        </q-btn>
-      </div>
-    </div>
+    </q-item-section>
+
+    <q-item-section>
+      <q-item-label class="tx-item__merchant">{{ transaction.merchant || 'Unnamed' }}</q-item-label>
+      <q-item-label v-if="categoryLabel" caption class="tx-item__category">{{ categoryLabel }}</q-item-label>
+    </q-item-section>
+
+    <q-item-section side class="tx-item__right">
+      <span class="tx-item__amount" :class="transaction.isIncome ? 'text-positive' : 'text-negative'">
+        {{ transaction.isIncome ? '+' : '-' }}{{ formatTransactionAmount() }}
+      </span>
+    </q-item-section>
+
+    <q-item-section v-if="removable" side class="tx-item__action">
+      <q-btn
+        flat
+        round
+        dense
+        icon="delete_outline"
+        color="grey-5"
+        size="xs"
+        @click.stop="handleDelete"
+        style="min-width: 36px; min-height: 36px;"
+      >
+        <q-tooltip>Mark as deleted — can be restored from Deleted tab</q-tooltip>
+      </q-btn>
+    </q-item-section>
   </q-item>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { Transaction } from '../types';
 import { toDollars, toCents, formatCurrency } from '../utils/helpers';
 
@@ -41,11 +44,20 @@ const props = defineProps<{
   transaction: Transaction;
   categoryName?: string;
   removable?: boolean;
+  goal?: { name: string } | null;
 }>();
 const emit = defineEmits<{
   (e: 'select', tx: Transaction): void;
   (e: 'delete', tx: Transaction): void;
 }>();
+
+const categoryLabel = computed(() => {
+  if (props.categoryName) return props.categoryName;
+  const cats = props.transaction.categories;
+  if (!cats || cats.length === 0) return '';
+  if (cats.length === 1) return cats[0].category;
+  return cats.map((c) => c.category).join(', ');
+});
 
 function handleSelect() {
   emit('select', props.transaction);
@@ -88,36 +100,69 @@ function formatTransactionAmount(): string {
   const amount = Math.abs(Number(amountSource) || 0);
   return formatCurrency(toDollars(toCents(amount)));
 }
-
 </script>
 
 <style scoped>
-.date-circle {
-  width: 54px;
-  height: 54px;
+.tx-item {
+  min-height: 48px;
+  padding: 4px 8px;
+}
+
+.tx-item__date-col {
+  min-width: 40px;
+  padding-right: 8px;
+}
+
+.tx-date {
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
-  border: 2px solid rgba(0, 0, 0, 0.15);
-  background: rgba(0, 0, 0, 0.02);
-  font-weight: 100;
-  gap: 2px;
-  text-align: center;
-  padding: 0px;
+  border: 1.5px solid var(--color-outline-soft);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
 }
 
-.date-month,
-.date-day {
+.tx-date__month {
+  font-size: 0.6rem;
+  font-weight: 500;
+  text-transform: uppercase;
   line-height: 1;
+  color: var(--color-text-muted);
 }
 
-.date-month {
+.tx-date__day {
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--color-text-primary);
+}
+
+.tx-item__merchant {
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.tx-item__category {
   font-size: 0.75rem;
+  color: var(--q-primary);
 }
 
-.date-day {
-  font-size: 1.1rem;
+.tx-item__right {
+  padding-left: 4px;
 }
 
-.transaction-delete {
-  cursor: pointer;
+.tx-item__amount {
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tx-item__action {
+  padding-left: 0;
+  min-width: 36px;
 }
 </style>

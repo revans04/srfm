@@ -1,7 +1,7 @@
 <!-- src/views/SettingsView.vue -->
 <template>
-  <q-page>
-    <h1>Settings</h1>
+  <q-page class="bg-grey-1 q-pa-lg">
+    <h1 class="page-title">Settings</h1>
 
     <q-banner v-if="userEmail && !emailVerified" type="warning" class="q-mb-lg">
       Your email ({{ userEmail }}) is not verified. Please check your inbox or resend the verification email.
@@ -10,7 +10,7 @@
       </template>
     </q-banner>
 
-    <q-tabs v-model="activeTab" color="primary" class="q-mt-lg">
+    <q-tabs v-model="activeTab" color="primary" class="q-mt-md">
       <q-tab name="group" label="Manage Family/Group" />
       <q-tab name="entity" label="Manage Entities" />
       <q-tab name="manageTransactions" label="Manage Imports" />
@@ -20,7 +20,7 @@
     <q-tab-panels v-model="activeTab">
       <!-- Group Management Tab -->
       <q-tab-panel name="group">
-        <q-card class="q-mt-lg">
+        <q-card class="q-mt-md">
           <q-card-section>Family/Group Information</q-card-section>
           <q-card-section>
             <div class="text-subtitle2 q-mb-sm">Members</div>
@@ -95,7 +95,7 @@
 
       <!-- Entity Management Tab -->
       <q-tab-panel name="entity">
-        <q-card class="q-mt-lg">
+        <q-card class="q-mt-md">
           <q-card-section>Entities</q-card-section>
           <q-card-section>
             <q-btn color="primary" @click="openCreateEntityDialog" class="q-mb-lg">Add Entity</q-btn>
@@ -110,7 +110,7 @@
                     <q-btn flat round dense color="primary" @click="openEditEntityDialog(entity)" icon="edit" />
                   </div>
                   <div class="col col-auto">
-                    <q-btn flat round dense @click="confirmDeleteEntity(entity)" color="negative" icon="o_delete" />
+                    <q-btn flat round dense @click="confirmDeleteEntity(entity)" color="negative" icon="delete_outline" />
                   </div>
                 </div>
               </q-item>
@@ -151,7 +151,7 @@
                         color="negative"
                         @click.stop="confirmDeleteTransactionDoc(props.row)"
                         title="Delete Transaction Document"
-                        icon="o_delete"
+                        icon="delete_outline"
                       />
                     </q-td>
                   </template>
@@ -198,7 +198,7 @@
                         color="negative"
                         @click.stop="confirmDeleteBudget(props.row)"
                         title="Delete Budget"
-                        icon="o_delete"
+                        icon="delete_outline"
                       />
                     </q-td>
                   </template>
@@ -538,14 +538,15 @@ async function loadAllData() {
   try {
     family.value = await familyStore.loadFamily(user.uid);
     if (family.value && family.value.members) {
+      const ownerUid = family.value.ownerUid;
       acceptedMembers.value = (
         await Promise.all(
           family.value.members
-            .filter((m) => m.uid && m.email)
+            .filter((m) => m.uid)
             .map(async (m) => ({
               uid: m.uid,
-              email: m.email,
-              role: "Editor",
+              email: m.email || m.uid,
+              role: m.uid === ownerUid ? 'Admin' : (m.role || 'Member'),
               lastAccessed: await dataAccess.getLastAccessed(m.uid),
             }))
         )

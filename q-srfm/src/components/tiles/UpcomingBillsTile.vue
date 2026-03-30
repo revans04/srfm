@@ -6,7 +6,8 @@
     </q-card-section>
     <q-card-section class="q-pt-xs q-px-md q-pb-md">
       <div class="text-body2 text-grey-7">
-        Connect or import statements to see upcoming bills.
+        No upcoming bills found.
+        <router-link to="/data" class="text-primary">Import bank data</router-link> to track bills.
       </div>
     </q-card-section>
   </q-card>
@@ -19,8 +20,8 @@ defineEmits<{ (e: 'open'): void }>();
 <style scoped>
 .dashboard-tile {
   min-height: 150px;
-  border-radius: 12px;
-  background-color: #ffffff;
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface-card);
 }
 .text-subtitle2 {
   font-weight: 600;

@@ -13,7 +13,7 @@
           <LineChart :data="chartData" :options="options" />
         </div>
         <div v-else-if="hasZeroData" class="text-center text-body2 text-grey-7 q-pa-md">
-          <q-icon name="info" size="24px" color="grey-5" class="q-mb-sm" /><br />
+          <q-icon name="info" size="24px" color="info" class="q-mb-sm" /><br />
           Income and expense data is not yet available for the selected period. Enter transactions in the Budget page to see this chart populate.
         </div>
         <div v-else class="text-body2 text-grey-7">No monthly data available yet.</div>
@@ -168,8 +168,8 @@ watch(
 
 <style scoped>
 .section-card {
-  border-radius: 12px;
-  background-color: #ffffff;
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface-card);
   min-height: 360px;
 }
 </style>

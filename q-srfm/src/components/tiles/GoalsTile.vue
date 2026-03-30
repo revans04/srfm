@@ -18,7 +18,10 @@
           +{{ goals.length - 3 }} more
         </div>
       </div>
-      <div v-else class="text-body2 text-grey-7">No active goals</div>
+      <div v-else class="text-body2 text-grey-7">
+        No active goals yet.
+        <q-btn flat dense color="primary" label="Set your first goal" no-caps class="q-mt-xs" @click="$emit('create')" />
+      </div>
     </q-card-section>
   </q-card>
 </template>
@@ -52,8 +55,8 @@ function formatCurrency(amount: number): string {
 <style scoped>
 .dashboard-tile {
   min-height: 150px;
-  border-radius: 12px;
-  background-color: #ffffff;
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface-card);
 }
 .text-subtitle2 {
   font-weight: 600;

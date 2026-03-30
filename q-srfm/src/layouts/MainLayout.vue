@@ -3,7 +3,6 @@
 
     <q-header v-if="isMobile && !isLoginRoute" class="mobile-header">
       <div class="row items-center no-wrap q-px-md q-py-sm">
-        <q-btn flat dense round icon="menu" color="white" @click="leftDrawerOpen = !leftDrawerOpen" aria-label="Toggle navigation menu" class="q-mr-sm" />
         <img
           src="../assets/family-funds-sm.png"
           alt="Steady Rise Financial Management logo"
@@ -11,10 +10,13 @@
           class="q-mr-sm"
         />
         <span class="text-subtitle1">Steady Rise Financial Management</span>
+        <q-space />
+        <span class="text-caption" style="opacity: 0.85;">v{{ appVersion }}</span>
       </div>
     </q-header>
 
     <q-drawer
+      v-if="!isMobile"
       v-model="leftDrawerOpen"
       show-if-above
       side="left"
@@ -22,7 +24,7 @@
       class="column app-drawer"
     >
       <div class="column justify-between fit app-drawer__content">
-        <div>
+        <div class="col app-drawer__scrollable">
           <div class="app-drawer__brand">
             <img src="../assets/family-funds-sm.png" alt="Steady Rise Financial Management" />
             <div class="app-drawer__brand-name">Steady Rise</div>
@@ -43,16 +45,11 @@
               <q-item-section>{{ item.title }}</q-item-section>
             </q-item>
           </q-list>
-          <div class="q-px-md q-mt-md">
+          <div class="q-px-md q-mt-sm q-pb-sm">
             <GettingStartedChecklist />
           </div>
         </div>
-        <q-list>
-          <q-item disabled>
-            <q-item-section>
-              <div class="text-caption text-center text-white text-opacity">Version: {{ appVersion }}</div>
-            </q-item-section>
-          </q-item>
+        <q-list class="app-drawer__footer-list">
           <q-separator dark inset />
           <q-item clickable @click="signOut" :title="auth.user?.email" class="app-drawer__profile">
             <q-item-section avatar>
@@ -61,7 +58,10 @@
                 <span v-else>{{ userInitials }}</span>
               </q-avatar>
             </q-item-section>
-            <q-item-section>{{ auth.user?.email }}</q-item-section>
+            <q-item-section>
+              <q-item-label>{{ auth.user?.email }}</q-item-label>
+              <q-item-label caption class="version-label">v{{ appVersion }}</q-item-label>
+            </q-item-section>
           </q-item>
         </q-list>
       </div>
@@ -198,12 +198,26 @@ onUnmounted(() => {
 }
 
 .app-drawer {
-  background: linear-gradient(180deg, #1d4ed8 0%, #1e3a8a 100%);
+  background: var(--q-primary);
   color: #ffffff;
 }
 
 .app-drawer__content {
-  gap: 24px;
+  gap: 0;
+}
+
+.app-drawer__scrollable {
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+}
+
+.app-drawer__footer-list {
+  flex-shrink: 0;
+}
+
+.app-drawer .version-label {
+  color: var(--color-text-muted) !important;
 }
 
 .app-drawer__brand {
@@ -255,12 +269,12 @@ onUnmounted(() => {
 
 .app-drawer__item--active {
   background: #ffffff;
-  color: #1d4ed8;
+  color: var(--q-primary);
   font-weight: 600;
 }
 
 .app-drawer__item--active :deep(.q-icon) {
-  color: #1d4ed8;
+  color: var(--q-primary);
 }
 
 .app-drawer__footer {
@@ -280,7 +294,7 @@ onUnmounted(() => {
 }
 
 .mobile-header {
-  background: linear-gradient(90deg, #1d4ed8 0%, #1e3a8a 100%);
+  background: var(--q-primary);
   color: #ffffff;
   padding: 12px 16px;
 }
@@ -292,7 +306,7 @@ onUnmounted(() => {
 }
 
 .mobile-footer {
-  background: linear-gradient(90deg, #1d4ed8 0%, #1e3a8a 100%);
+  background: var(--q-primary);
   color: #ffffff;
   padding: 6px 12px;
 }

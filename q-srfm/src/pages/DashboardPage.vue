@@ -1,7 +1,7 @@
 <template>
   <q-page class="bg-grey-1 q-pa-lg">
     <div class="row items-center justify-between q-mb-md dashboard-header">
-      <h1 class="col text-h4 q-mb-xs">Dashboard</h1>
+      <h1 class="col page-title q-mb-xs">Dashboard</h1>
       <div class="col-auto">
         <EntitySelector />
       </div>
@@ -14,7 +14,7 @@
       </div>
     </div>
 
-    <div class="row items-start q-col-gutter-md q-mb-lg">
+    <div class="row items-start q-col-gutter-md q-mb-md">
       <div class="col q-gutter-md">
         <div v-for="nudge in nudges" :key="nudge" class="q-mb-sm">
           <q-banner dense class="dashboard-nudge" color="warning" text-color="white" icon="savings">
@@ -24,7 +24,7 @@
       </div>
     </div>
 
-    <section class="dashboard-summary q-mb-lg">
+    <section class="dashboard-summary q-mb-md">
       <DashboardTiles :budget-id="budgetId" :family-id="familyId" :entity-id="entityId" @open-bills="onOpenBills" @create-goal="onCreateGoal" />
     </section>
 

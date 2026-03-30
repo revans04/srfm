@@ -32,7 +32,7 @@
               outline
               color="negative"
               label="Delete"
-              icon="delete"
+              icon="delete_outline"
               :loading="isBusy"
               @click="showDeleteConfirm = true"
             />

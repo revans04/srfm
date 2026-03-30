@@ -32,18 +32,18 @@
       <GuidedTip tip-id="budget-page">
         This is your monthly budget. Set planned amounts for each category and track actual spending.
       </GuidedTip>
-      <section class="budget-header q-pa-lg q-mb-md bg-white border border-grey-3 rounded-lg">
+      <section class="budget-header q-px-lg q-pb-xs q-mb-xs bg-white border border-grey-3 rounded-lg">
         <div class="row items-start justify-between q-mb-sm">
-          <h1 class="text-h4 col-auto q-pr-xl">Budget</h1>
+          <h1 class="page-title col-auto q-pr-xl">Budget</h1>
           <div class="col-auto items-center"><EntitySelector @change="loadBudgets" /></div>
           <div class="col-auto items-center text-h6 text-primary q-pt-xs">
             {{ budgetLabel }}
             <MonthSelector v-model="currentMonth" :entity-id="familyStore.selectedEntityId" :existing-months="selectedEntityMonthSet" @select="selectMonth" />
           </div>
           <div class="col text-right items-center q-gutter-sm">
-            <q-btn v-if="!isEditing" flat dense icon="edit" label="Edit" @click="isEditing = true" />
+            <q-btn v-if="!isEditing" flat dense icon="edit" color="primary" label="Edit" @click="isEditing = true" />
             <q-btn v-else flat dense icon="close" label="Close" @click="isEditing = false" />
-            <q-btn v-if="!isEditing" flat dense icon="delete" color="negative" label="Delete" @click="confirmDeleteBudget" />
+            <q-btn v-if="!isEditing" flat dense icon="delete_outline" color="negative" label="Delete" @click="confirmDeleteBudget" />
           </div>
         </div>
 
@@ -88,7 +88,7 @@
         <q-btn round color="primary" icon="add" @click="addTransaction" />
       </q-page-sticky>
 
-      <div class="row q-col-gutter-lg q-mt-lg">
+      <div class="row q-col-gutter-lg q-mt-none">
         <!-- Main Content -->
         <div :class="isMobile ? (selectedCategory || selectedGoal ? 'col-0 d-none' : 'col-12') : 'col-12 col-lg-8'">
           <!-- Budget Editing Form -->
@@ -181,7 +181,7 @@
               </div>
             </q-card-section>
           </q-card>
-          <SavingsConversionPrompt v-if="!isMobile && legacySavingsCategories.length" :categories="legacySavingsCategories" @convert="onConvertLegacy" />
+          <SavingsConversionPrompt v-if="!isMobile && legacySavingsCategories.length" :categories="legacySavingsCategories" @convert="onConvertLegacy" class="q-mt-md" />
 
           <!-- Favorites Section -->
           <q-card v-if="!isEditing && favoriteItems.length" flat bordered id="favorites-section" class="q-mt-md">
@@ -350,12 +350,10 @@
         <div v-if="isMobile && !selectedCategory && !selectedGoal && !isEditing" class="col-12 q-mt-md">
           <q-card class="column q-pa-none budget-transactions-card" flat bordered>
             <div class="row items-center justify-between q-pt-md q-px-md q-pb-sm border-bottom">
-              <div class="row items-center q-gutter-sm">
-                <q-avatar size="44px" color="primary" text-color="white">
-                  <q-icon name="payments" size="24px" />
-                </q-avatar>
+              <div class="row items-center q-gutter-xs">
+                <q-icon name="receipt_long" size="20px" color="primary" />
                 <div>
-                  <div class="text-body1">Transactions</div>
+                  <div class="text-body2 text-weight-medium">Transactions</div>
                   <div class="text-caption text-muted">{{ formatLongMonth(currentMonth) }}</div>
                 </div>
               </div>
@@ -430,12 +428,10 @@
           <template v-else>
             <q-card class="column q-pa-none budget-transactions-card full-height" flat bordered>
               <div class="row items-center justify-between q-pt-md q-px-md q-pb-sm border-bottom">
-                <div class="row items-center q-gutter-sm">
-                  <q-avatar size="44px" color="primary" text-color="white">
-                    <q-icon name="payments" size="24px" />
-                  </q-avatar>
+                <div class="row items-center q-gutter-xs">
+                  <q-icon name="receipt_long" size="20px" color="primary" />
                   <div>
-                    <div class="text-body1">Transactions</div>
+                    <div class="text-body2 text-weight-medium">Transactions</div>
                     <div class="text-caption text-muted">{{ formatLongMonth(currentMonth) }}</div>
                   </div>
                 </div>

@@ -1,7 +1,7 @@
 <!-- ReportsView.vue -->
 <template>
-  <q-page fluid>
-    <h1>Budget Reporting</h1>
+  <q-page class="bg-grey-1 q-pa-lg">
+    <h1 class="page-title">Budget Reporting</h1>
 
     <GuidedTip tip-id="reports-page">
       Compare your planned budget to actual spending across months.
@@ -19,7 +19,7 @@
       <!-- Monthly Overview -->
       <q-tab-panel name="monthly">
         <!-- Budget Selection -->
-        <div class="row q-mt-lg" >
+        <div class="row q-mt-md" >
           <div class="col col-12 col-md-6">
             <q-select
               v-model="selectedBudgets"
@@ -38,7 +38,7 @@
           </div>
         </div>
 
-        <div class="row q-mt-lg">
+        <div class="row q-mt-md">
           <div class="col col-12 col-md-6">
             <q-select
               v-model="excludedGroups"
@@ -65,7 +65,7 @@
           </div>
         </div>
 
-        <div class="row q-mt-lg" >
+        <div class="row q-mt-md" >
           <div class="col col-12 col-md-6">
             <q-card>
               <q-card-section class="text-center">
@@ -77,7 +77,7 @@
               </q-card-section>
             </q-card>
             <!-- Table for Group, Planned, Actual -->
-            <q-markup-table class="q-mt-lg">
+            <q-markup-table class="q-mt-md">
               <thead>
                 <tr>
                   <th>Group</th>
@@ -161,7 +161,7 @@
                 </div>
               </q-card-section>
             </q-card>
-            <q-markup-table class="q-mt-lg">
+            <q-markup-table class="q-mt-md">
               <thead>
                 <tr>
                   <th>Month</th>
@@ -180,7 +180,7 @@
           </div>
         </div>
 
-        <div class="row q-mt-lg">
+        <div class="row q-mt-md">
           <div class="col col-12">
             <q-card>
               <q-card-section>
@@ -260,7 +260,7 @@
 
       <!-- Year-over-Year -->
       <q-tab-panel name="year-over-year">
-        <div class="row q-mt-lg" >
+        <div class="row q-mt-md" >
           <div class="col">
             <q-card>
               <q-card-section>
@@ -273,7 +273,7 @@
 
       <!-- Net Worth -->
       <q-tab-panel name="net-worth">
-        <div class="row q-mt-lg" >
+        <div class="row q-mt-md" >
           <!-- Net Worth Over Time with Trend Line -->
           <div class="col col-12">
             <q-card>
@@ -322,6 +322,7 @@ import {
   LineElement,
   PointElement,
   LinearScale,
+  CategoryScale,
   TimeScale,
   TimeSeriesScale,
   Filler,
@@ -339,6 +340,7 @@ ChartJS.register(
   LineElement,
   PointElement,
   LinearScale,
+  CategoryScale,
   TimeScale,
   TimeSeriesScale,
   Filler,
@@ -702,22 +704,23 @@ const monthlyBudgetData = computed(() => {
   return {
     labels: monthlyTotals.value.map((t) => {
       const [y, m] = t.month.split('-').map(Number);
-      return new Date(y, (m || 1) - 1, 1);
+      const d = new Date(y, (m || 1) - 1, 1);
+      return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
     }),
     datasets: [
       {
         label: "Planned",
         data: monthlyTotals.value.map((t) => t.planned),
-        borderColor: "#4CAF50",
-        backgroundColor: "#4CAF50",
+        borderColor: "rgb(22, 163, 74)",
+        backgroundColor: "rgb(22, 163, 74)",
         fill: false,
-        pointRadius: 4,
+        pointRadius: 5,
       },
       {
         label: "Actual",
         data: monthlyTotals.value.map((t) => t.actual),
-        borderColor: "#F44336",
-        backgroundColor: "#F44336",
+        borderColor: "rgb(220, 38, 38)",
+        backgroundColor: "rgb(220, 38, 38)",
         fill: false,
         pointRadius: 4,
       },
@@ -731,17 +734,7 @@ const monthlyBudgetChartOptions = ref({
   maintainAspectRatio: false,
   scales: {
     x: {
-      type: "timeseries" as const,
-      time: {
-        unit: "month" as const,
-        displayFormats: {
-          month: "MMM yyyy",
-        },
-      },
-      ticks: {
-        autoSkip: true,
-        maxTicksLimit: 12,
-      },
+      type: "category" as const,
       title: {
         display: true,
         text: "Month",

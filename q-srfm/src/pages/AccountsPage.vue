@@ -1,7 +1,7 @@
 <!-- src/views/AccountsView.vue -->
 <template>
   <q-page class="bg-grey-1 q-pa-lg">
-    <h1>Accounts</h1>
+    <h1 class="page-title">Accounts</h1>
 
     <GuidedTip tip-id="accounts-page">
       Add your bank accounts, credit cards, and investments to track your net worth.
@@ -114,7 +114,7 @@
                 </template>
                 <template #body-cell-actions="props">
                   <q-td :props="props">
-                    <q-btn flat dense color="negative" icon="delete" @click.stop="confirmDeleteSnapshot(props.row.id)" />
+                    <q-btn flat dense color="negative" icon="delete_outline" @click.stop="confirmDeleteSnapshot(props.row.id)" />
                   </q-td>
                 </template>
               </q-table>

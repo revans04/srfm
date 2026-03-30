@@ -124,8 +124,8 @@ watch(
 <style scoped>
 .dashboard-tile {
   min-height: 150px;
-  border-radius: 12px;
-  background-color: #ffffff;
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface-card);
 }
 .text-subtitle2 {
   font-weight: 600;

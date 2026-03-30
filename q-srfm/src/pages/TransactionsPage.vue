@@ -231,44 +231,63 @@
               </div>
 
               <!-- Collapsible: Reconciliation & Statement History -->
-              <q-expansion-item dense label="Reconciliation & Statements" header-class="text-caption text-grey-7 q-px-none">
-                <div class="register-reconcile-row">
-                  <q-input v-model="registerBeginningBalanceInput" type="number" dense outlined label="Statement Begin" class="register-reconcile-row__input" />
-                  <q-input v-model="registerTargetEndingInput" type="number" dense outlined label="Statement End" class="register-reconcile-row__input" />
-                  <div class="register-reconcile-row__badge">
-                    <div class="text-caption text-grey-7">Selected</div>
-                    <q-badge color="primary" outline class="text-body2">{{ formatCurrency(registerMatchedTotal) }}</q-badge>
+              <q-expansion-item
+                dense
+                icon="account_balance"
+                label="Reconciliation & Statements"
+                header-class="text-body2 text-weight-medium q-px-none"
+                class="reconcile-expansion"
+              >
+                <q-card flat class="q-pa-sm reconcile-card">
+                  <div class="register-reconcile-row">
+                    <q-input v-model="registerBeginningBalanceInput" type="number" dense outlined label="Statement Begin" class="register-reconcile-row__input" />
+                    <q-input v-model="registerTargetEndingInput" type="number" dense outlined label="Statement End" class="register-reconcile-row__input" />
+                    <div class="register-reconcile-row__stat">
+                      <div class="text-caption text-muted">Selected</div>
+                      <div class="text-body2 text-weight-bold text-primary">{{ formatCurrency(registerMatchedTotal) }}</div>
+                    </div>
+                    <div class="register-reconcile-row__stat">
+                      <div class="text-caption text-muted">Difference</div>
+                      <div class="text-body2 text-weight-bold" :class="`text-${registerDeltaBadgeColor}`">{{ formatCurrency(registerDelta) }}</div>
+                    </div>
+                    <q-checkbox v-model="registerAllClearedSelected" dense :disable="!registerClearedVisibleRows.length" label="Select All Cleared" />
+                    <q-space />
+                    <q-btn
+                      color="primary"
+                      :disable="registerFinalizeDisabled"
+                      :loading="registerFinalizing"
+                      label="Finalize"
+                      icon="check_circle"
+                      @click="finalizeRegisterStatement"
+                    />
                   </div>
-                  <div class="register-reconcile-row__badge">
-                    <div class="text-caption text-grey-7">Difference</div>
-                    <q-badge :color="registerDeltaBadgeColor" outline class="text-body2">{{ formatCurrency(registerDelta) }}</q-badge>
-                  </div>
-                  <q-checkbox v-model="registerAllClearedSelected" dense :disable="!registerClearedVisibleRows.length" label="Select All Cleared" />
-                  <q-space />
-                  <q-btn
-                    unelevated
-                    color="primary"
-                    :disable="registerFinalizeDisabled"
-                    :loading="registerFinalizing"
-                    label="Finalize"
-                    @click="finalizeRegisterStatement"
-                  />
-                </div>
+                </q-card>
 
                 <!-- Statement history sub-section -->
-                <div v-if="accountStatements.length" class="q-mt-sm">
-                  <div class="text-caption text-grey-7 q-mb-xs">Statement History</div>
-                  <q-list dense bordered separator>
-                    <q-item v-for="stmt in accountStatements" :key="stmt.id">
-                      <q-item-section>
-                        <q-item-label>{{ stmt.startDate }} &mdash; {{ stmt.endDate }}</q-item-label>
-                        <q-item-label caption>
-                          {{ formatCurrency(stmt.startingBalance) }} &rarr; {{ formatCurrency(stmt.endingBalance) }}
-                        </q-item-label>
-                      </q-item-section>
-                      <q-item-section side>
-                        <div class="row items-center q-gutter-sm">
-                          <q-badge :color="stmt.reconciled ? 'positive' : 'grey'" :label="stmt.reconciled ? 'Reconciled' : 'Draft'" />
+                <div v-if="accountStatements.length" class="q-mt-md">
+                  <q-card flat class="reconcile-card">
+                    <q-card-section class="q-py-sm q-px-md">
+                      <div class="row items-center q-mb-xs">
+                        <q-icon name="history" size="18px" color="primary" class="q-mr-xs" />
+                        <span class="text-body2 text-weight-medium">Statement History</span>
+                      </div>
+                    </q-card-section>
+                    <q-list dense separator class="q-px-sm">
+                      <q-item v-for="stmt in accountStatements" :key="stmt.id" class="q-py-sm">
+                        <q-item-section avatar style="min-width: 36px;">
+                          <q-icon
+                            :name="stmt.reconciled ? 'check_circle' : 'pending'"
+                            :color="stmt.reconciled ? 'positive' : 'grey-5'"
+                            size="20px"
+                          />
+                        </q-item-section>
+                        <q-item-section>
+                          <q-item-label class="text-body2">{{ stmt.startDate }} &mdash; {{ stmt.endDate }}</q-item-label>
+                          <q-item-label caption>
+                            {{ formatCurrency(stmt.startingBalance) }} &rarr; {{ formatCurrency(stmt.endingBalance) }}
+                          </q-item-label>
+                        </q-item-section>
+                        <q-item-section side>
                           <q-btn
                             v-if="stmt.reconciled"
                             flat
@@ -279,10 +298,11 @@
                             label="Unreconcile"
                             @click="promptUnreconcile(stmt)"
                           />
-                        </div>
-                      </q-item-section>
-                    </q-item>
-                  </q-list>
+                          <q-badge v-else color="grey-4" text-color="grey-7" label="Draft" />
+                        </q-item-section>
+                      </q-item>
+                    </q-list>
+                  </q-card>
                 </div>
               </q-expansion-item>
             </div>
@@ -1296,7 +1316,7 @@ async function performRegisterBatchAction() {
 }
 
 .transactions-hero__title {
-  font-size: 1.6rem;
+  font-size: 1.5rem;
   font-weight: 600;
   color: var(--color-text-primary);
 }
@@ -1469,21 +1489,31 @@ async function performRegisterBatchAction() {
   gap: 12px;
 }
 
+.reconcile-expansion {
+  border-top: 1px solid var(--color-outline-soft);
+  margin-top: 8px;
+}
+
+.reconcile-card {
+  background: var(--color-surface-subtle);
+  border-radius: var(--radius-sm);
+}
+
 .register-reconcile-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 12px;
 }
 
 .register-reconcile-row__input {
-  width: 140px;
+  width: 150px;
   flex: 0 0 auto;
 }
 
-.register-reconcile-row__badge {
+.register-reconcile-row__stat {
   text-align: center;
+  min-width: 80px;
 }
 
 .register-selection-bar {

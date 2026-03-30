@@ -1,7 +1,7 @@
 <!-- src/views/SetupWizard.vue -->
 <template>
-  <q-page fluid>
-    <h1>Setup Wizard</h1>
+  <q-page class="bg-grey-1 q-pa-lg">
+    <h1 class="page-title">Setup Wizard</h1>
     <div class="text-subtitle-1 q-mb-sm">Step {{ currentStepIndex + 1 }} of {{ wizardSteps.length }}</div>
     <q-stepper v-model="currentStepValue" class="q-mt-lg wizard-stepper" hide-actions aria-label="Setup Wizard Steps">
       <template v-for="step in wizardSteps" :key="`item-${step.value}`">

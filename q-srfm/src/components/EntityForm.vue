@@ -103,7 +103,7 @@
                 <q-checkbox v-model="category.isFund" label="Is Fund?" density="compact"></q-checkbox>
               </div>
               <div class="col q-px-sm col-12 col-sm-1">
-                <q-btn icon="delete" variant="plain" @click="removeCategory(index)" color="negative"> </q-btn>
+                <q-btn icon="delete_outline" flat round dense @click="removeCategory(index)" color="negative" />
               </div>
             </div>
           </q-item>

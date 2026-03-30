@@ -245,8 +245,8 @@ watch(
 
 <style scoped>
 .section-card {
-  border-radius: 12px;
-  background-color: #ffffff;
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface-card);
   min-height: 360px;
 }
 .legend-dot {

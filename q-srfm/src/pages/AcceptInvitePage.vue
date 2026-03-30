@@ -1,6 +1,6 @@
 <template>
   <q-page>
-    <h1>Accept Invite</h1>
+    <h1 class="page-title">Accept Invite</h1>
     <q-circular-progress v-if="loading" indeterminate></q-circular-progress>
     <q-banner v-else-if="error" type="negative">{{ error }}</q-banner>
     <div v-else-if="accepted">
