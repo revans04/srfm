@@ -186,6 +186,7 @@ const groups = computed(() => {
 
   (b.transactions || []).forEach((t) => {
     if (t.deleted) return;
+    if (t.transactionType === 'transfer') return;
     (t.categories || []).forEach((split) => {
       const group = categoryToGroup.get(split.category) || 'Other';
       const sign = t.isIncome ? -1 : 1;

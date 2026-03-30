@@ -1,7 +1,26 @@
 <!-- src/components/TransactionForm.vue -->
 <template>
   <div v-if="isInitialized && locTrnsx?.categories">
-    <q-form ref="form" class="transaction-form q-gutter-lg" @submit.prevent="save">
+    <q-form ref="form" class="transaction-form q-gutter-sm" @submit.prevent="save">
+      <div class="transaction-form__field">
+        <div class="text-caption text-muted q-mb-xs">Type</div>
+        <q-btn-toggle
+          v-model="transactionMode"
+          :options="[
+            { label: 'Expense', value: 'expense' },
+            { label: 'Income', value: 'income' },
+            { label: 'Transfer', value: 'transfer' }
+          ]"
+          no-caps
+          unelevated
+          spread
+          toggle-color="primary"
+          color="grey-3"
+          text-color="dark"
+          class="transaction-form__type-toggle"
+        />
+      </div>
+
       <div class="transaction-form__field">
         <q-input
           v-model="locTrnsx.date"
@@ -11,12 +30,13 @@
           aria-required="true"
           stack-label
           dense
-          borderless
+          outlined
+          hide-bottom-space
           @input="updateBudgetMonth"
         />
       </div>
 
-      <div class="transaction-form__field">
+      <div v-if="transactionMode !== 'transfer'" class="transaction-form__field">
         <q-select
           v-model="locTrnsx.merchant"
           :options="filteredMerchants"
@@ -25,7 +45,8 @@
           aria-required="true"
           stack-label
           dense
-          borderless
+          outlined
+          hide-bottom-space
           clearable
           use-input
           input-debounce="0"
@@ -41,18 +62,59 @@
           label="Amount"
           stack-label
           dense
-          borderless
+          outlined
           class="transaction-form__amount"
         />
       </div>
 
-      <div class="transaction-form__section">
+      <!-- Transfer mode: source and destination category selects -->
+      <div v-if="transactionMode === 'transfer'" class="transaction-form__section">
+        <div class="transaction-form__section-title">
+          <div class="text-caption text-uppercase text-grey-6">Transfer Between Categories</div>
+        </div>
+        <div class="q-gutter-sm">
+          <q-select
+            v-model="transferSource"
+            :options="transferSourceOptions"
+            :rules="requiredField"
+            label="From Category *"
+            aria-required="true"
+            stack-label
+            dense
+            outlined
+            hide-bottom-space
+            use-input
+            input-debounce="0"
+            @filter="onTransferSourceFilter"
+          />
+          <q-select
+            v-model="transferDest"
+            :options="transferDestOptions"
+            :rules="requiredField"
+            label="To Category *"
+            aria-required="true"
+            stack-label
+            dense
+            outlined
+            hide-bottom-space
+            use-input
+            input-debounce="0"
+            @filter="onTransferDestFilter"
+          />
+          <q-banner v-if="transferSource && transferDest && transferSource === transferDest" type="negative">
+            Source and destination must be different categories.
+          </q-banner>
+        </div>
+      </div>
+
+      <!-- Standard mode: free-form category splits -->
+      <div v-else class="transaction-form__section">
         <div class="transaction-form__section-title row items-center justify-between">
           <div class="text-caption text-uppercase text-grey-6">Categories</div>
           <q-btn flat color="primary" dense icon="add" label="Add Split" @click="addSplit" />
         </div>
         <div class="transaction-form__splits q-gutter-md">
-          <div v-for="(split, index) in locTrnsx.categories" :key="index" class="row items-end q-gutter-sm">
+          <div v-for="(split, index) in locTrnsx.categories" :key="index" class="row items-start q-col-gutter-sm">
             <div class="col">
               <q-select
                 v-model="split.category"
@@ -62,20 +124,21 @@
                 aria-required="true"
                 stack-label
                 dense
-                borderless
+                outlined
                 menu-icon=""
                 class="full-width"
                 required
                 use-input
                 input-debounce="0"
+                hide-bottom-space
                 @filter="onCategoryFilter"
               />
             </div>
-            <div class="col-auto">
-              <Currency-Input v-model="split.amount" label="Split Amount" stack-label dense borderless />
+            <div class="col-4">
+              <Currency-Input v-model="split.amount" label="Amount" stack-label dense outlined />
             </div>
-            <div class="col-auto">
-              <q-btn dense flat icon="close" color="negative" @click="removeSplit(index)" />
+            <div class="col-auto q-pt-sm">
+              <q-btn dense flat round icon="close" color="negative" size="sm" @click="removeSplit(index)" />
             </div>
           </div>
           <q-banner v-if="locTrnsx.categories.length > 1 && remainingSplit !== 0" :type="remainingSplit < 0 ? 'negative' : 'warning'">
@@ -86,19 +149,12 @@
       </div>
 
       <div class="transaction-form__field">
-        <div class="row items-center justify-between">
-          <div class="text-caption text-muted">Type</div>
-          <ToggleButton v-model="locTrnsx.isIncome" active-text="Income" inactive-text="Expense" />
-        </div>
-      </div>
-
-      <div class="transaction-form__field">
         <q-input
           type="textarea"
           v-model="locTrnsx.notes"
           label="Notes"
           stack-label
-          borderless
+          outlined
           @focus="scrollToNoteField"
         />
       </div>
@@ -112,7 +168,8 @@
           aria-required="true"
           stack-label
           dense
-          borderless
+          outlined
+          hide-bottom-space
           :disable="availableMonths.length === 0"
         />
       </div>
@@ -121,31 +178,31 @@
         <q-banner type="warning" class="q-ma-none">No budgets available. Please create a budget in the Dashboard.</q-banner>
       </div>
 
-      <div class="transaction-form__field">
+      <div v-if="transactionMode !== 'transfer'" class="transaction-form__field">
         <q-select
           v-model="locTrnsx.fundedByGoalId"
           :options="goalOptions"
           label="Fund from Goal"
           stack-label
           dense
-          borderless
+          outlined
           emit-value
           map-options
           clearable
         />
       </div>
 
-      <div class="transaction-form__field">
+      <div v-if="transactionMode !== 'transfer'" class="transaction-form__field">
         <q-checkbox v-model="locTrnsx.recurring" label="Recurring" />
       </div>
-      <div class="transaction-form__field" v-if="locTrnsx.recurring">
+      <div class="transaction-form__field" v-if="locTrnsx.recurring && transactionMode !== 'transfer'">
         <q-select
           v-model="locTrnsx.recurringInterval"
           :options="intervals"
           label="Recurring Interval"
           stack-label
           dense
-          borderless
+          outlined
         />
       </div>
 
@@ -187,7 +244,6 @@ import { dataAccess } from '../dataAccess';
 import type { Budget, Transaction, Goal } from '../types';
 import { toCents, toDollars, todayISO, currentMonthISO } from '../utils/helpers';
 import CurrencyInput from './CurrencyInput.vue';
-import ToggleButton from './ToggleButton.vue';
 import { QForm } from 'quasar';
 import { useMerchantStore } from '../store/merchants';
 import { useBudgetStore } from '../store/budget';
@@ -252,6 +308,62 @@ const isMobile = computed(() => $q.screen.lt.md);
 
 const goalList = ref<Goal[]>([]);
 const goalOptions = computed(() => goalList.value.map((g) => ({ label: g.name, value: g.id })));
+
+const transactionMode = computed({
+  get(): 'expense' | 'income' | 'transfer' {
+    if (locTrnsx.transactionType === 'transfer') return 'transfer';
+    return locTrnsx.isIncome ? 'income' : 'expense';
+  },
+  set(val: 'expense' | 'income' | 'transfer') {
+    if (val === 'transfer') {
+      locTrnsx.transactionType = 'transfer';
+      locTrnsx.isIncome = false;
+    } else {
+      locTrnsx.transactionType = 'standard';
+      locTrnsx.isIncome = val === 'income';
+    }
+  },
+});
+
+// Transfer-specific state
+const transferSource = ref('');
+const transferDest = ref('');
+const transferSourceFilterText = ref('');
+const transferDestFilterText = ref('');
+
+// Initialize transfer fields from existing categories when editing a transfer
+if (locTrnsx.transactionType === 'transfer' && locTrnsx.categories?.length === 2) {
+  const neg = locTrnsx.categories.find((c) => c.amount < 0);
+  const pos = locTrnsx.categories.find((c) => c.amount >= 0);
+  if (neg) transferSource.value = neg.category;
+  if (pos) transferDest.value = pos.category;
+}
+
+const allNonIncomeCategories = computed(() =>
+  props.categoryOptions.filter((c) => c !== 'Income').sort((a, b) => a.localeCompare(b)),
+);
+
+const transferSourceOptions = computed(() => {
+  const cats = allNonIncomeCategories.value;
+  if (!transferSourceFilterText.value) return cats;
+  const needle = transferSourceFilterText.value.toLowerCase();
+  return cats.filter((c) => c.toLowerCase().includes(needle));
+});
+
+const transferDestOptions = computed(() => {
+  const cats = allNonIncomeCategories.value.filter((c) => c !== transferSource.value);
+  if (!transferDestFilterText.value) return cats;
+  const needle = transferDestFilterText.value.toLowerCase();
+  return cats.filter((c) => c.toLowerCase().includes(needle));
+});
+
+function onTransferSourceFilter(val: string, update: (fn: () => void) => void) {
+  update(() => { transferSourceFilterText.value = val; });
+}
+
+function onTransferDestFilter(val: string, update: (fn: () => void) => void) {
+  update(() => { transferDestFilterText.value = val; });
+}
 
 const merchantNames = computed(() => merchantStore.merchantNames);
 const merchantFilterText = ref('');
@@ -424,14 +536,39 @@ async function resetMatch() {
 }
 
 async function save() {
-  if (remainingSplit.value !== 0) return;
+  if (transactionMode.value !== 'transfer' && remainingSplit.value !== 0) return;
   if (!form.value) return;
 
   const valid = await form.value.validate();
   if (valid) {
+    // Transfer-specific validation
+    if (transactionMode.value === 'transfer') {
+      if (!transferSource.value || !transferDest.value) {
+        showSnackbar('Please select both source and destination categories', 'negative');
+        return;
+      }
+      if (transferSource.value === transferDest.value) {
+        showSnackbar('Source and destination must be different categories', 'negative');
+        return;
+      }
+      if (!locTrnsx.amount || locTrnsx.amount <= 0) {
+        showSnackbar('Transfer amount must be greater than 0', 'negative');
+        return;
+      }
+      // Set transfer fields
+      locTrnsx.transactionType = 'transfer';
+      locTrnsx.isIncome = false;
+      locTrnsx.merchant = 'Transfer';
+      locTrnsx.recurring = false;
+      locTrnsx.categories = [
+        { category: transferSource.value, amount: -locTrnsx.amount },
+        { category: transferDest.value, amount: locTrnsx.amount },
+      ];
+    }
+
     isLoading.value = true;
     try {
-      if (locTrnsx.categories.length === 1 && locTrnsx.categories[0]?.amount === 0) {
+      if (transactionMode.value !== 'transfer' && locTrnsx.categories.length === 1 && locTrnsx.categories[0]?.amount === 0) {
         const firstCategory = locTrnsx.categories[0];
         if (firstCategory) firstCategory.amount = locTrnsx.amount;
       }
@@ -473,7 +610,7 @@ async function save() {
         }
         emit('update-transactions', transactions.value);
 
-        if (locTrnsx.fundedByGoalId) {
+        if (locTrnsx.fundedByGoalId && transactionMode.value !== 'transfer') {
           addGoalSpend(locTrnsx.fundedByGoalId, savedTransaction.id, Math.abs(savedTransaction.amount), savedTransaction.date);
         }
         emit('save', savedTransaction);
@@ -562,5 +699,17 @@ function showSnackbar(text: string, color = 'success') {
 .transaction-form__amount .q-field__native,
 .transaction-form__splits .q-field__native {
   text-align: right;
+}
+
+.transaction-form__type-toggle {
+  font-size: 0.85rem;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.transaction-form__type-toggle :deep(.q-btn) {
+  border-radius: var(--radius-sm) !important;
+  padding: 6px 16px;
+  font-weight: 500;
 }
 </style>

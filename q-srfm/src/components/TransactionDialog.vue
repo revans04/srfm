@@ -118,6 +118,7 @@ const dialogTitle = computed(() => {
     return props.title;
   }
   if (props.editMode) {
+    if (transaction.value.transactionType === 'transfer') return 'Edit Transfer';
     return `Edit ${transaction.value.merchant || 'Transaction'}`;
   }
   return 'Add Transaction';

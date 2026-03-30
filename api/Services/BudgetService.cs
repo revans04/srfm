@@ -126,7 +126,7 @@ public class BudgetService
         if (includeTransactions)
         {
             var sqlTx = hasGoalTable
-                ? @"SELECT t.id, t.date, t.budget_month, t.merchant, t.amount, t.notes, t.recurring, t.recurring_interval, t.user_id, t.is_income, t.account_number, t.account_source, t.transaction_date, t.posted_date, t.imported_merchant, t.status, t.check_number, t.deleted, t.entity_id
+                ? @"SELECT t.id, t.date, t.budget_month, t.merchant, t.amount, t.notes, t.recurring, t.recurring_interval, t.user_id, t.is_income, t.account_number, t.account_source, t.transaction_date, t.posted_date, t.imported_merchant, t.status, t.check_number, t.deleted, t.entity_id, t.transaction_type
 FROM transactions t
 WHERE t.budget_id=@id AND t.entity_id=@entity
 AND NOT EXISTS (
@@ -135,7 +135,7 @@ AND NOT EXISTS (
     JOIN goals_budget_categories gbc ON gbc.budget_cat_id = bc.id
     WHERE tc.transaction_id = t.id
 );" :
-                @"SELECT t.id, t.date, t.budget_month, t.merchant, t.amount, t.notes, t.recurring, t.recurring_interval, t.user_id, t.is_income, t.account_number, t.account_source, t.transaction_date, t.posted_date, t.imported_merchant, t.status, t.check_number, t.deleted, t.entity_id
+                @"SELECT t.id, t.date, t.budget_month, t.merchant, t.amount, t.notes, t.recurring, t.recurring_interval, t.user_id, t.is_income, t.account_number, t.account_source, t.transaction_date, t.posted_date, t.imported_merchant, t.status, t.check_number, t.deleted, t.entity_id, t.transaction_type
 FROM transactions t
 WHERE t.budget_id=@id AND t.entity_id=@entity";
 
@@ -167,7 +167,8 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
                         Status = txReader.IsDBNull(15) ? null : txReader.GetString(15),
                         CheckNumber = txReader.IsDBNull(16) ? null : txReader.GetString(16),
                         Deleted = txReader.IsDBNull(17) ? (bool?)null : txReader.GetBoolean(17),
-                        EntityId = txReader.IsDBNull(18) ? null : txReader.GetGuid(18).ToString()
+                        EntityId = txReader.IsDBNull(18) ? null : txReader.GetGuid(18).ToString(),
+                        TransactionType = txReader.IsDBNull(19) ? "standard" : txReader.GetString(19)
                     };
                     budget.Transactions.Add(tx);
                 }
@@ -458,6 +459,7 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
         parameters.AddWithValue("check_number", (object?)tx.CheckNumber ?? DBNull.Value);
         parameters.AddWithValue("deleted", tx.Deleted.HasValue ? (object)tx.Deleted.Value : DBNull.Value);
         SetOptionalGuid(parameters, "entity_id", tx.EntityId);
+        parameters.AddWithValue("transaction_type", (object?)tx.TransactionType ?? "standard");
     }
 
     private static void SetOptionalGuid(NpgsqlParameterCollection parameters, string name, string? value)
@@ -740,9 +742,9 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
         if (string.IsNullOrEmpty(transaction.Id))
             transaction.Id = Guid.NewGuid().ToString();
         await using var conn = await _db.GetOpenConnectionAsync();
-        const string sql = @"INSERT INTO transactions (id, budget_id, date, budget_month, merchant, amount, notes, recurring, recurring_interval, user_id, is_income, account_number, account_source, transaction_date, posted_date, imported_merchant, status, check_number, deleted, entity_id, created_at, updated_at)
-VALUES (@id,@budget_id,@date,@budget_month,@merchant,@amount,@notes,@recurring,@recurring_interval,@user_id,@is_income,@account_number,@account_source,@transaction_date,@posted_date,@imported_merchant,@status,@check_number,@deleted,@entity_id, now(), now())
-ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date, budget_month=EXCLUDED.budget_month, merchant=EXCLUDED.merchant, amount=EXCLUDED.amount, notes=EXCLUDED.notes, recurring=EXCLUDED.recurring, recurring_interval=EXCLUDED.recurring_interval, user_id=EXCLUDED.user_id, is_income=EXCLUDED.is_income, account_number=EXCLUDED.account_number, account_source=EXCLUDED.account_source, transaction_date=EXCLUDED.transaction_date, posted_date=EXCLUDED.posted_date, imported_merchant=EXCLUDED.imported_merchant, status=EXCLUDED.status, check_number=EXCLUDED.check_number, deleted=EXCLUDED.deleted, entity_id=EXCLUDED.entity_id, updated_at=now();";
+        const string sql = @"INSERT INTO transactions (id, budget_id, date, budget_month, merchant, amount, notes, recurring, recurring_interval, user_id, is_income, account_number, account_source, transaction_date, posted_date, imported_merchant, status, check_number, deleted, entity_id, transaction_type, created_at, updated_at)
+VALUES (@id,@budget_id,@date,@budget_month,@merchant,@amount,@notes,@recurring,@recurring_interval,@user_id,@is_income,@account_number,@account_source,@transaction_date,@posted_date,@imported_merchant,@status,@check_number,@deleted,@entity_id,@transaction_type, now(), now())
+ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date, budget_month=EXCLUDED.budget_month, merchant=EXCLUDED.merchant, amount=EXCLUDED.amount, notes=EXCLUDED.notes, recurring=EXCLUDED.recurring, recurring_interval=EXCLUDED.recurring_interval, user_id=EXCLUDED.user_id, is_income=EXCLUDED.is_income, account_number=EXCLUDED.account_number, account_source=EXCLUDED.account_source, transaction_date=EXCLUDED.transaction_date, posted_date=EXCLUDED.posted_date, imported_merchant=EXCLUDED.imported_merchant, status=EXCLUDED.status, check_number=EXCLUDED.check_number, deleted=EXCLUDED.deleted, entity_id=EXCLUDED.entity_id, transaction_type=EXCLUDED.transaction_type, updated_at=now();";
         await using var cmd = new NpgsqlCommand(sql, conn);
         BindTransactionParameters(cmd.Parameters, budgetId, transaction);
         await cmd.ExecuteNonQueryAsync();
@@ -798,9 +800,9 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
         await using var conn = await _db.GetOpenConnectionAsync();
         await using var dbTx = await conn.BeginTransactionAsync();
 
-        const string sql = @"INSERT INTO transactions (id, budget_id, date, budget_month, merchant, amount, notes, recurring, recurring_interval, user_id, is_income, account_number, account_source, transaction_date, posted_date, imported_merchant, status, check_number, deleted, entity_id, created_at, updated_at)
-VALUES (@id,@budget_id,@date,@budget_month,@merchant,@amount,@notes,@recurring,@recurring_interval,@user_id,@is_income,@account_number,@account_source,@transaction_date,@posted_date,@imported_merchant,@status,@check_number,@deleted,@entity_id, now(), now())
-ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date, budget_month=EXCLUDED.budget_month, merchant=EXCLUDED.merchant, amount=EXCLUDED.amount, notes=EXCLUDED.notes, recurring=EXCLUDED.recurring, recurring_interval=EXCLUDED.recurring_interval, user_id=EXCLUDED.user_id, is_income=EXCLUDED.is_income, account_number=EXCLUDED.account_number, account_source=EXCLUDED.account_source, transaction_date=EXCLUDED.transaction_date, posted_date=EXCLUDED.posted_date, imported_merchant=EXCLUDED.imported_merchant, status=EXCLUDED.status, check_number=EXCLUDED.check_number, deleted=EXCLUDED.deleted, entity_id=EXCLUDED.entity_id, updated_at=now();";
+        const string sql = @"INSERT INTO transactions (id, budget_id, date, budget_month, merchant, amount, notes, recurring, recurring_interval, user_id, is_income, account_number, account_source, transaction_date, posted_date, imported_merchant, status, check_number, deleted, entity_id, transaction_type, created_at, updated_at)
+VALUES (@id,@budget_id,@date,@budget_month,@merchant,@amount,@notes,@recurring,@recurring_interval,@user_id,@is_income,@account_number,@account_source,@transaction_date,@posted_date,@imported_merchant,@status,@check_number,@deleted,@entity_id,@transaction_type, now(), now())
+ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date, budget_month=EXCLUDED.budget_month, merchant=EXCLUDED.merchant, amount=EXCLUDED.amount, notes=EXCLUDED.notes, recurring=EXCLUDED.recurring, recurring_interval=EXCLUDED.recurring_interval, user_id=EXCLUDED.user_id, is_income=EXCLUDED.is_income, account_number=EXCLUDED.account_number, account_source=EXCLUDED.account_source, transaction_date=EXCLUDED.transaction_date, posted_date=EXCLUDED.posted_date, imported_merchant=EXCLUDED.imported_merchant, status=EXCLUDED.status, check_number=EXCLUDED.check_number, deleted=EXCLUDED.deleted, entity_id=EXCLUDED.entity_id, transaction_type=EXCLUDED.transaction_type, updated_at=now();";
 
         var batch = new NpgsqlBatch(conn) { Transaction = dbTx };
 

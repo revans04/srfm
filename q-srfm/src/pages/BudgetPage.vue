@@ -32,56 +32,73 @@
       <GuidedTip tip-id="budget-page">
         This is your monthly budget. Set planned amounts for each category and track actual spending.
       </GuidedTip>
-      <section class="budget-header q-px-lg q-pb-xs q-mb-xs bg-white border border-grey-3 rounded-lg">
-        <div class="row items-start justify-between q-mb-sm">
-          <h1 class="page-title col-auto q-pr-xl">Budget</h1>
-          <div class="col-auto items-center"><EntitySelector @change="loadBudgets" /></div>
-          <div class="col-auto items-center text-h6 text-primary q-pt-xs">
-            {{ budgetLabel }}
-            <MonthSelector v-model="currentMonth" :entity-id="familyStore.selectedEntityId" :existing-months="selectedEntityMonthSet" @select="selectMonth" />
+      <section class="budget-header">
+        <!-- Row 1: Title + context + actions -->
+        <div class="row items-center justify-between q-mb-sm">
+          <div class="row items-center q-gutter-sm">
+            <h1 class="page-title q-mb-none">Budget</h1>
+            <EntitySelector @change="loadBudgets" />
+            <div class="text-body1 text-primary text-weight-medium">
+              {{ budgetLabel }}
+              <MonthSelector v-model="currentMonth" :entity-id="familyStore.selectedEntityId" :existing-months="selectedEntityMonthSet" @select="selectMonth" />
+            </div>
           </div>
-          <div class="col text-right items-center q-gutter-sm">
-            <q-btn v-if="!isEditing" flat dense icon="edit" color="primary" label="Edit" @click="isEditing = true" />
-            <q-btn v-else flat dense icon="close" label="Close" @click="isEditing = false" />
-            <q-btn v-if="!isEditing" flat dense icon="delete_outline" color="negative" label="Delete" @click="confirmDeleteBudget" />
-          </div>
-        </div>
-
-        <div class="row items-center q-col-gutter-sm q-mb-md">
-          <div class="col">
-            <q-input
-              v-model="search"
-              dense
-              rounded
-              outlined
-              clearable
-              ref="searchInput"
-              label="Search categories or groups"
-              append-icon="search"
-              @keyup.enter="blurSearchInput"
-              @clear="clearSearch"
-            />
+          <div class="row items-center q-gutter-xs">
+            <q-btn v-if="!isEditing" flat dense icon="edit" color="primary" @click="isEditing = true">
+              <q-tooltip>Edit budget</q-tooltip>
+            </q-btn>
+            <q-btn v-else flat dense icon="close" @click="isEditing = false">
+              <q-tooltip>Close editor</q-tooltip>
+            </q-btn>
+            <q-btn v-if="!isEditing" flat dense icon="delete_outline" color="negative" @click="confirmDeleteBudget">
+              <q-tooltip>Delete budget</q-tooltip>
+            </q-btn>
           </div>
         </div>
 
-        <div v-if="!isMobile" class="row q-col-gutter-md text-caption">
+        <!-- Row 2: Summary stats -->
+        <div v-if="!isMobile && !isEditing" class="row q-col-gutter-sm q-mb-sm">
           <div class="col">
-            <div class="text-body2">Left to Budget</div>
-            <div class="text-h6" :class="{ 'text-negative': remainingToBudget < 0 }">
-              {{ formatCurrency(Math.abs(remainingToBudget)) }}
+            <div class="budget-stat budget-stat--primary">
+              <div class="budget-stat__label">Left to Budget</div>
+              <div class="budget-stat__value" :class="{ 'text-negative': remainingToBudget < 0 }">
+                {{ formatCurrency(Math.abs(remainingToBudget)) }}
+              </div>
+              <div class="budget-stat__sub">{{ remainingToBudget < 0 ? 'Over budget' : 'Remaining' }}</div>
             </div>
           </div>
           <div class="col">
-            <div class="text-body2">Income Received</div>
-            <div class="text-h6">{{ formatCurrency(actualIncome) }}</div>
-            <div class="text-caption text-muted">Planned {{ formatCurrency(plannedIncome) }}</div>
+            <div class="budget-stat">
+              <div class="budget-stat__label">Income Received</div>
+              <div class="budget-stat__value">{{ formatCurrency(actualIncome) }}</div>
+              <div class="budget-stat__sub">Planned {{ formatCurrency(plannedIncome) }}</div>
+            </div>
           </div>
           <div class="col">
-            <div class="text-body2">Savings Goals</div>
-            <div class="text-h6">{{ formatCurrency(savingsTotal) }}</div>
-            <div class="text-caption text-muted">Monthly total</div>
+            <div class="budget-stat">
+              <div class="budget-stat__label">Savings Goals</div>
+              <div class="budget-stat__value">{{ formatCurrency(savingsTotal) }}</div>
+              <div class="budget-stat__sub">Monthly total</div>
+            </div>
           </div>
         </div>
+
+        <!-- Row 3: Search -->
+        <q-input
+          v-model="search"
+          dense
+          outlined
+          clearable
+          ref="searchInput"
+          label="Search categories or groups"
+          hide-bottom-space
+          @keyup.enter="blurSearchInput"
+          @clear="clearSearch"
+        >
+          <template #prepend>
+            <q-icon name="search" color="grey-5" />
+          </template>
+        </q-input>
       </section>
 
       <q-page-sticky v-if="!isMobile" position="bottom-right" :offset="[24, 24]" style="z-index: 1000">
@@ -366,13 +383,14 @@
             <q-card-section class="q-pt-md q-px-md">
               <q-btn-toggle
                 v-model="transactionFilter"
-                dense
-                spread
                 unelevated
+                spread
+                no-caps
                 toggle-color="primary"
-                color="white"
-                text-color="primary"
+                color="grey-3"
+                text-color="dark"
                 :options="transactionFilterOptions"
+                class="budget-tx-toggle"
               />
             </q-card-section>
 
@@ -890,6 +908,8 @@ const catTransactions = computed(() => {
               isSplit: t.categories.length > 1,
               amount: tc.amount,
               isIncome: t.isIncome,
+              transactionType: t.transactionType,
+              categories: t.categories,
             });
             if (t.isIncome) {
               catTransactions[i].spent -= tc.amount;
@@ -1960,7 +1980,55 @@ interface GroupCategory {
 
 .budget-header {
   background: var(--color-surface-card);
-  box-shadow: none;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-outline-soft);
+  padding: 16px 20px;
+  margin-bottom: 12px;
+}
+
+.budget-stat {
+  background: var(--color-surface-subtle);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+}
+
+.budget-stat--primary {
+  background: rgba(29, 78, 216, 0.06);
+}
+
+.budget-stat__label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.budget-stat__value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.budget-stat__sub {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.budget-tx-toggle {
+  border-radius: 999px !important;
+  overflow: hidden;
+}
+
+.budget-tx-toggle :deep(.q-btn-group) {
+  border-radius: 999px !important;
+}
+
+.budget-tx-toggle :deep(.q-btn-item) {
+  border-radius: 999px !important;
+  padding: 6px 14px;
+  font-weight: 500;
+  font-size: 0.8rem;
 }
 
 .desktop-sidebar {

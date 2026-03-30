@@ -61,6 +61,7 @@ export interface Transaction {
   taxMetadata: TaxMetadata[]; // Array to support multiple forms/entities
   receiptUrl?: string; // Firebase Storage link for receipts
   fundedByGoalId?: string; // Savings goal funding source
+  transactionType?: 'standard' | 'transfer';
   // Local-only metadata to track previous id during de-duplication workflows
   originalId?: string;
 }
@@ -191,6 +192,8 @@ export interface CategoryTrx {
   isSplit: boolean;
   amount: number;
   isIncome: boolean;
+  transactionType?: 'standard' | 'transfer';
+  categories?: Array<{ category: string; amount: number }>;
 }
 
 export interface EditEvent {

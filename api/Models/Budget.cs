@@ -84,6 +84,8 @@ namespace FamilyBudgetApi.Models
         public bool? Deleted { get; set; }
 
         public string? EntityId { get; set; } // New field
+
+        public string? TransactionType { get; set; } // 'standard' or 'transfer'
     }
 
     public class TransactionCategory

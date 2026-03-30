@@ -957,6 +957,7 @@ async function updateReportData() {
 
       budget.transactions.forEach((transaction) => {
         if (!transaction.deleted) {
+          if (transaction.transactionType === 'transfer') return;
           transaction.categories.forEach((cat) => {
             const groupName = categoryToGroup.get(cat.category);
             if (
@@ -997,6 +998,7 @@ async function updateReportData() {
 
       budget.transactions.forEach((transaction) => {
         if (!transaction.deleted) {
+          if (transaction.transactionType === 'transfer') return;
           transaction.categories.forEach((cat) => {
             const groupName = categoryToGroup.get(cat.category);
             if (

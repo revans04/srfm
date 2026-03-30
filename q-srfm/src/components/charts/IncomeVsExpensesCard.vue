@@ -94,6 +94,7 @@ function loadSeries() {
       let expenseSum = 0;
       (b.transactions || []).forEach((t) => {
         if (t.deleted) return;
+        if (t.transactionType === 'transfer') return;
         (t.categories || []).forEach((split) => {
           if (incomeCats.has(split.category)) incomeSum += split.amount || 0;
           else expenseSum += (t.isIncome ? -1 : 1) * (split.amount || 0);

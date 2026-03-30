@@ -8,13 +8,19 @@
     </q-item-section>
 
     <q-item-section>
-      <q-item-label class="tx-item__merchant">{{ transaction.merchant || 'Unnamed' }}</q-item-label>
-      <q-item-label v-if="categoryLabel" caption class="tx-item__category">{{ categoryLabel }}</q-item-label>
+      <q-item-label class="tx-item__merchant">
+        <q-icon v-if="isTransfer" name="swap_horiz" color="info" size="16px" class="q-mr-xs" />
+        {{ transaction.merchant || 'Unnamed' }}
+      </q-item-label>
+      <q-item-label v-if="isTransfer && counterpartCategory" caption class="tx-item__category tx-item__category--transfer">
+        {{ transferDirection }}
+      </q-item-label>
+      <q-item-label v-else-if="categoryLabel" caption class="tx-item__category">{{ categoryLabel }}</q-item-label>
     </q-item-section>
 
     <q-item-section side class="tx-item__right">
-      <span class="tx-item__amount" :class="transaction.isIncome ? 'text-positive' : 'text-negative'">
-        {{ transaction.isIncome ? '+' : '-' }}{{ formatTransactionAmount() }}
+      <span class="tx-item__amount" :class="isTransfer ? 'text-info' : (transaction.isIncome ? 'text-positive' : 'text-negative')">
+        {{ isTransfer ? '' : (transaction.isIncome ? '+' : '-') }}{{ formatTransactionAmount() }}
       </span>
     </q-item-section>
 
@@ -50,6 +56,29 @@ const emit = defineEmits<{
   (e: 'select', tx: Transaction): void;
   (e: 'delete', tx: Transaction): void;
 }>();
+
+const isTransfer = computed(() => props.transaction.transactionType === 'transfer');
+
+const counterpartCategory = computed(() => {
+  if (!isTransfer.value || !props.categoryName) return '';
+  const cats = props.transaction.categories;
+  if (!cats || cats.length !== 2) return '';
+  const other = cats.find((c) => c.category !== props.categoryName);
+  return other?.category || '';
+});
+
+const transferDirection = computed(() => {
+  if (!isTransfer.value || !props.categoryName) return '';
+  const cats = props.transaction.categories;
+  if (!cats || cats.length !== 2) return '';
+  const thisSplit = cats.find((c) => c.category === props.categoryName);
+  if (!thisSplit) return '';
+  // Negative amount = money leaving this category (source)
+  // Positive amount = money entering this category (destination)
+  return thisSplit.amount < 0
+    ? `→ ${counterpartCategory.value}`
+    : `← ${counterpartCategory.value}`;
+});
 
 const categoryLabel = computed(() => {
   if (props.categoryName) return props.categoryName;
@@ -149,6 +178,10 @@ function formatTransactionAmount(): string {
 .tx-item__category {
   font-size: 0.75rem;
   color: var(--q-primary);
+}
+
+.tx-item__category--transfer {
+  color: var(--q-info);
 }
 
 .tx-item__right {

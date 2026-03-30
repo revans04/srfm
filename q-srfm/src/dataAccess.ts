@@ -118,6 +118,9 @@ export class DataAccess {
       entityId: typeof tx.entityId === 'string' ? tx.entityId : undefined,
       taxMetadata: Array.isArray(tx.taxMetadata) ? (tx.taxMetadata as Transaction['taxMetadata']) : [],
       receiptUrl: typeof tx.receiptUrl === 'string' ? tx.receiptUrl : undefined,
+      transactionType: typeof tx.transactionType === 'string'
+        ? (tx.transactionType as Transaction['transactionType'])
+        : 'standard',
     };
   }
 
