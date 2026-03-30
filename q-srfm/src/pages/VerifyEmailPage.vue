@@ -3,7 +3,7 @@
     <div class="row justify-center">
       <div class="col col-12 col-md-6">
         <q-card>
-          <q-card-section>Email Verification</q-card-section>
+          <q-card-section><h1 class="text-h5">Email Verification</h1></q-card-section>
           <q-card-section v-if="loading">Verifying...</q-card-section>
           <q-card-section v-else-if="error">{{ error }}</q-card-section>
           <q-card-section v-else>Email verified successfully! You can now <router-link to="/login">log in</router-link>.</q-card-section>

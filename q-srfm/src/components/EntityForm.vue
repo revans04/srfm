@@ -133,7 +133,7 @@
     </q-card-section>
     <q-card-actions>
       <q-space></q-space>
-      <q-btn color="negative" @click="handleCancel">Cancel</q-btn>
+      <q-btn flat @click="handleCancel">Cancel</q-btn>
       <q-btn color="primary" @click="save" :disabled="!isFormValid" :loading="saving">Save Entity</q-btn>
     </q-card-actions>
 

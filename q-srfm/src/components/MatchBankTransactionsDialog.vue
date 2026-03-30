@@ -213,7 +213,7 @@
                   <div v-else>Over allocated ${{ toDollars(toCents(Math.abs(remainingSplitAmount))) }}</div>
                 </q-banner>
                 <q-btn color="primary" @click="addSplitTransaction">Add Split</q-btn>
-                <q-btn color="positive" type="submit" :disabled="remainingSplitAmount !== 0 || props.matching" :loading="props.matching" class="q-ml-sm">
+                <q-btn color="primary" type="submit" :disabled="remainingSplitAmount !== 0 || props.matching" :loading="props.matching" class="q-ml-sm">
                   Save Splits
                 </q-btn>
               </q-form>

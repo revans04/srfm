@@ -29,9 +29,12 @@
 
     <!-- Main Content -->
     <div v-else>
+      <GuidedTip tip-id="budget-page">
+        This is your monthly budget. Set planned amounts for each category and track actual spending.
+      </GuidedTip>
       <section class="budget-header q-pa-lg q-mb-md bg-white border border-grey-3 rounded-lg">
         <div class="row items-start justify-between q-mb-sm">
-          <div class="text-h4 col-auto q-pr-xl">Budget</div>
+          <h1 class="text-h4 col-auto q-pr-xl">Budget</h1>
           <div class="col-auto items-center"><EntitySelector @change="loadBudgets" /></div>
           <div class="col-auto items-center text-h6 text-primary q-pt-xs">
             {{ budgetLabel }}
@@ -53,7 +56,7 @@
               outlined
               clearable
               ref="searchInput"
-              placeholder="Search categories or groups"
+              label="Search categories or groups"
               append-icon="search"
               @keyup.enter="blurSearchInput"
               @clear="clearSearch"
@@ -140,8 +143,8 @@
                 </div>
 
                 <q-btn flat color="primary" @click="addCategory" class="q-mt-sm">Add Category</q-btn>
-                <q-btn flat color="positive" @click="addIncomeCategory" class="q-mt-sm q-ml-sm">Add Income Category</q-btn>
-                <q-btn type="submit" color="positive" class="q-mt-sm q-ml-sm" :loading="saving">Save Budget</q-btn>
+                <q-btn flat color="primary" @click="addIncomeCategory" class="q-mt-sm q-ml-sm">Add Income Category</q-btn>
+                <q-btn type="submit" color="primary" class="q-mt-sm q-ml-sm" :loading="saving">Save Budget</q-btn>
               </q-form>
             </q-card-section>
           </q-card>
@@ -343,6 +346,72 @@
           <GoalDetailsPanel :goal="selectedGoal" @close="selectedGoal = null" />
         </div>
 
+        <!-- Mobile Transactions Panel (stacked below main content) -->
+        <div v-if="isMobile && !selectedCategory && !selectedGoal && !isEditing" class="col-12 q-mt-md">
+          <q-card class="column q-pa-none budget-transactions-card" flat bordered>
+            <div class="row items-center justify-between q-pt-md q-px-md q-pb-sm border-bottom">
+              <div class="row items-center q-gutter-sm">
+                <q-avatar size="44px" color="primary" text-color="white">
+                  <q-icon name="payments" size="24px" />
+                </q-avatar>
+                <div>
+                  <div class="text-body1">Transactions</div>
+                  <div class="text-caption text-muted">{{ formatLongMonth(currentMonth) }}</div>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="text-h6">{{ filteredMonthTransactions.length }}</div>
+                <div class="text-caption text-muted">{{ filteredMonthTransactions.length === 1 ? 'item' : 'items' }}</div>
+              </div>
+            </div>
+
+            <q-card-section class="q-pt-md q-px-md">
+              <q-btn-toggle
+                v-model="transactionFilter"
+                dense
+                spread
+                unelevated
+                toggle-color="primary"
+                color="white"
+                text-color="primary"
+                :options="transactionFilterOptions"
+              />
+            </q-card-section>
+
+            <q-card-section class="q-pt-none q-px-md">
+              <q-input
+                v-model="transactionSearch"
+                dense
+                rounded
+                outlined
+                clearable
+                label="Search transactions"
+                prepend-icon="search"
+                @clear="transactionSearch = ''"
+              />
+            </q-card-section>
+
+            <q-separator />
+
+            <q-card-section class="q-pt-none q-px-md q-pb-md">
+              <q-list separator class="q-pa-none">
+                <BudgetTransactionItem
+                  v-for="transaction in filteredMonthTransactions"
+                  :key="transaction.id"
+                  :transaction="transaction"
+                  :goal="goalMap[transaction.fundedByGoalId]"
+                  removable
+                  @select="editTransaction"
+                  @delete="confirmDeleteTransaction"
+                />
+              </q-list>
+              <div v-if="!filteredMonthTransactions.length" class="text-center text-grey-6 q-pt-md">
+                {{ transactionEmptyLabel }}
+              </div>
+            </q-card-section>
+          </q-card>
+        </div>
+
         <!-- Desktop Sidebar -->
         <div v-if="!isMobile" class="col-12 col-lg-4 desktop-sidebar">
           <CategoryTransactions
@@ -396,7 +465,7 @@
                   rounded
                   outlined
                   clearable
-                  placeholder="Search transactions"
+                  label="Search transactions"
                   prepend-icon="search"
                   @clear="transactionSearch = ''"
                 />
@@ -482,6 +551,7 @@ import SavingsConversionPrompt from '../components/goals/SavingsConversionPrompt
 import GoalDetailsPanel from '../components/goals/GoalDetailsPanel.vue';
 import MonthSelector from '../components/MonthSelector.vue';
 import BudgetTransactionItem from '../components/BudgetTransactionItem.vue';
+import GuidedTip from '../components/GuidedTip.vue';
 import type { Transaction, Budget, IncomeTarget, BudgetCategoryTrx, BudgetCategory, Goal } from '../types';
 import { EntityType } from '../types';
 import version from '../version';

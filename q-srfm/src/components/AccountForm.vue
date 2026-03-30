@@ -3,7 +3,7 @@
   <q-form ref="formRef" @submit.prevent="save">
     <q-input
       v-model="localAccount.name"
-      label="Account Name"
+      label="Account Name *"
       variant="outlined"
       density="compact"
       :rules="[(v: string | null) => !!v || 'Account name is required']"

@@ -3,6 +3,10 @@
   <q-page fluid>
     <h1>Budget Reporting</h1>
 
+    <GuidedTip tip-id="reports-page">
+      Compare your planned budget to actual spending across months.
+    </GuidedTip>
+
     <!-- Tabs -->
     <q-tabs v-model="tab" color="primary">
       <q-tab name="monthly" label="Monthly Overview" />
@@ -308,6 +312,7 @@ import { ref, onMounted, computed } from "vue";
 import { auth } from "../firebase/init";
 import { dataAccess } from "../dataAccess";
 import type { Account, Budget, Snapshot } from "../types";
+import GuidedTip from "../components/GuidedTip.vue";
 import { Doughnut, Line } from "vue-chartjs";
 import {
   Chart as ChartJS,
@@ -695,7 +700,10 @@ const assetDebtChartOptions = ref({
 const monthlyBudgetData = computed(() => {
   if (!monthlyTotals.value.length) return { labels: [], datasets: [] };
   return {
-    labels: monthlyTotals.value.map((t) => new Date(`${t.month}-01`)),
+    labels: monthlyTotals.value.map((t) => {
+      const [y, m] = t.month.split('-').map(Number);
+      return new Date(y, (m || 1) - 1, 1);
+    }),
     datasets: [
       {
         label: "Planned",
@@ -729,6 +737,10 @@ const monthlyBudgetChartOptions = ref({
         displayFormats: {
           month: "MMM yyyy",
         },
+      },
+      ticks: {
+        autoSkip: true,
+        maxTicksLimit: 12,
       },
       title: {
         display: true,

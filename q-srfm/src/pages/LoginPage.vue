@@ -5,7 +5,7 @@
       <div class="col-xs-12 col-sm-8 col-md-4">
         <q-card class="elevation-12">
           <q-toolbar class="bg-primary text-white" flat>
-            <q-toolbar-title>Steady Rise Login</q-toolbar-title>
+            <q-toolbar-title><h1 class="text-h6" style="margin:0;font-weight:inherit;color:inherit;">Steady Rise Login</h1></q-toolbar-title>
           </q-toolbar>
           <q-card-section>
             <p class="text-center">Sign in with your Google account to manage your finances.</p>

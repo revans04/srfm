@@ -29,16 +29,32 @@
             <q-btn flat color="primary" label="Cancel" :disable="isBusy" @click="handleCancel" />
             <q-btn
               v-if="canDelete"
-              flat
+              outline
               color="negative"
               label="Delete"
+              icon="delete"
               :loading="isBusy"
-              @click="handleDelete"
+              @click="showDeleteConfirm = true"
             />
           </div>
           <q-btn unelevated color="primary" label="Save Transaction" :loading="isBusy" @click="handleSaveClick" />
         </div>
       </q-card-section>
+    </q-card>
+  </q-dialog>
+
+  <q-dialog v-model="showDeleteConfirm">
+    <q-card>
+      <q-card-section class="text-h6">Delete Transaction</q-card-section>
+      <q-card-section>
+        Are you sure you want to delete the transaction for
+        <strong>{{ transaction.merchant || 'this merchant' }}</strong>?
+        This cannot be undone.
+      </q-card-section>
+      <q-card-actions align="right">
+        <q-btn flat label="Cancel" @click="showDeleteConfirm = false" />
+        <q-btn color="negative" label="Delete Transaction" @click="confirmDelete" />
+      </q-card-actions>
     </q-card>
   </q-dialog>
 </template>
@@ -79,6 +95,7 @@ const localShowDialog = ref(props.showDialog);
 const transaction = ref<Transaction>({ ...props.initialTransaction });
 
 const transactionForm = ref<TransactionFormHandle | null>(null);
+const showDeleteConfirm = ref(false);
 const isMobile = computed(() => $q.screen.lt.md);
 
 watch(
@@ -130,6 +147,11 @@ function handleSaveClick() {
 
 function handleDelete() {
   void transactionForm.value?.deleteTransaction();
+}
+
+function confirmDelete() {
+  showDeleteConfirm.value = false;
+  handleDelete();
 }
 
 function handleCancel() {

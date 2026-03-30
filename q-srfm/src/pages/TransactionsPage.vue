@@ -3,13 +3,18 @@
     <section class="transactions-hero panel-card no-round-bottom">
       <div class="transactions-hero__header">
         <div class="transactions-hero__title-group">
-          <div class="transactions-hero__title">Transactions</div>
-          <div class="transactions-hero__subtitle">Monitor budgets and accounts side by side</div>
+          <h1 class="transactions-hero__title">Transactions</h1>
         </div>
         <q-tabs v-model="tab" dense class="transactions-hero__tabs" align="left">
-          <q-tab name="budget" label="Budget Register" />
-          <q-tab name="register" label="Account Register" />
-          <q-tab name="match" label="Match Bank Transactions" />
+          <q-tab name="budget" label="Budget Register">
+            <q-tooltip>Transactions matched to your budget categories</q-tooltip>
+          </q-tab>
+          <q-tab name="register" label="Account Register">
+            <q-tooltip>Transactions imported from your bank account</q-tooltip>
+          </q-tab>
+          <q-tab name="match" label="Match Bank Transactions">
+            <q-tooltip>Link imported bank transactions to your budget entries</q-tooltip>
+          </q-tab>
         </q-tabs>
       </div>
       <div v-show="tab !== 'register'" class="transactions-hero__metrics">
@@ -18,15 +23,24 @@
           <div class="tx-metric__value">{{ overviewCounts.total }}</div>
         </div>
         <div class="tx-metric">
-          <div class="tx-metric__label">Cleared</div>
+          <div class="tx-metric__label">
+            Cleared
+            <q-tooltip>Transaction has posted to your account</q-tooltip>
+          </div>
           <div class="tx-metric__value">{{ overviewCounts.cleared }}</div>
         </div>
         <div class="tx-metric">
-          <div class="tx-metric__label">Reconciled</div>
+          <div class="tx-metric__label">
+            Reconciled
+            <q-tooltip>Verified against your bank statement</q-tooltip>
+          </div>
           <div class="tx-metric__value">{{ overviewCounts.reconciled }}</div>
         </div>
         <div class="tx-metric">
-          <div class="tx-metric__label">Uncleared</div>
+          <div class="tx-metric__label">
+            Uncleared
+            <q-tooltip>Transaction hasn't posted yet</q-tooltip>
+          </div>
           <div class="tx-metric__value">{{ overviewCounts.uncleared }}</div>
         </div>
       </div>
@@ -35,6 +49,9 @@
     <q-tab-panels v-model="tab" animated>
       <!-- Budget Register Tab -->
       <q-tab-panel name="budget" class="transactions-panel">
+        <GuidedTip tip-id="budget-register">
+          Budget transactions are ones you've entered or matched to your budget categories.
+        </GuidedTip>
         <div class="transactions-layout">
           <div class="transactions-layout__main">
             <div class="transactions-filters panel-card register-filters">
@@ -44,7 +61,7 @@
                   <EntitySelector class="full-width" @change="loadBudgets" />
                 </div>
                 <div class="col col-sm col-md">
-                  <q-input v-model="filters.search" dense outlined placeholder="Search">
+                  <q-input v-model="filters.search" dense outlined label="Search">
                     <template #append>
                       <q-btn flat dense round size="sm" icon="refresh" @click="refreshBudget">
                         <q-tooltip>Refresh</q-tooltip>
@@ -72,10 +89,10 @@
 
               <!-- Row 3: secondary filters + chips flowing together -->
               <div class="register-filters__secondary">
-                <q-input v-model="filters.importedMerchant" dense outlined placeholder="Merchant" class="register-filters__input register-filters__input--merchant" />
-                <q-input v-model="minAmtInput" type="number" dense outlined placeholder="Min $" class="register-filters__input" />
-                <q-input v-model="maxAmtInput" type="number" dense outlined placeholder="Max $" class="register-filters__input" />
-                <q-input v-model="filters.start" dense outlined placeholder="Start" mask="####-##-##" class="register-filters__input register-filters__input--date">
+                <q-input v-model="filters.importedMerchant" dense outlined label="Merchant" class="register-filters__input register-filters__input--merchant" />
+                <q-input v-model="minAmtInput" type="number" dense outlined label="Min $" class="register-filters__input" />
+                <q-input v-model="maxAmtInput" type="number" dense outlined label="Max $" class="register-filters__input" />
+                <q-input v-model="filters.start" dense outlined label="Start" mask="####-##-##" class="register-filters__input register-filters__input--date">
                   <template #append>
                     <q-icon name="event" class="cursor-pointer">
                       <q-popup-proxy transition-show="scale" transition-hide="scale">
@@ -84,7 +101,7 @@
                     </q-icon>
                   </template>
                 </q-input>
-                <q-input v-model="filters.end" dense outlined placeholder="End" mask="####-##-##" class="register-filters__input register-filters__input--date">
+                <q-input v-model="filters.end" dense outlined label="End" mask="####-##-##" class="register-filters__input register-filters__input--date">
                   <template #append>
                     <q-icon name="event" class="cursor-pointer">
                       <q-popup-proxy transition-show="scale" transition-hide="scale">
@@ -93,9 +110,9 @@
                     </q-icon>
                   </template>
                 </q-input>
-                <q-chip clickable class="filter-chip" :color="filters.cleared ? 'primary' : 'white'" :text-color="filters.cleared ? 'white' : 'primary'" @click="filters.cleared = !filters.cleared">Cleared</q-chip>
-                <q-chip clickable class="filter-chip" :color="filters.uncleared ? 'primary' : 'white'" :text-color="filters.uncleared ? 'white' : 'primary'" @click="filters.uncleared = !filters.uncleared">Uncleared</q-chip>
-                <q-chip clickable class="filter-chip" :color="filters.reconciled ? 'primary' : 'white'" :text-color="filters.reconciled ? 'white' : 'primary'" @click="filters.reconciled = !filters.reconciled">Reconciled</q-chip>
+                <q-chip clickable class="filter-chip" :color="filters.cleared ? 'primary' : 'white'" :text-color="filters.cleared ? 'white' : 'primary'" @click="filters.cleared = !filters.cleared">Cleared<q-tooltip>Transaction has posted to your account</q-tooltip></q-chip>
+                <q-chip clickable class="filter-chip" :color="filters.uncleared ? 'primary' : 'white'" :text-color="filters.uncleared ? 'white' : 'primary'" @click="filters.uncleared = !filters.uncleared">Uncleared<q-tooltip>Transaction hasn't posted yet</q-tooltip></q-chip>
+                <q-chip clickable class="filter-chip" :color="filters.reconciled ? 'primary' : 'white'" :text-color="filters.reconciled ? 'white' : 'primary'" @click="filters.reconciled = !filters.reconciled">Reconciled<q-tooltip>Verified against your bank statement</q-tooltip></q-chip>
                 <q-chip clickable class="filter-chip" :color="filters.duplicatesOnly ? 'primary' : 'white'" :text-color="filters.duplicatesOnly ? 'white' : 'primary'" @click="filters.duplicatesOnly = !filters.duplicatesOnly">Duplicates</q-chip>
               </div>
 
@@ -160,6 +177,9 @@
       </q-tab-panel>
       <!-- Account Register Tab -->
       <q-tab-panel name="register" class="transactions-panel">
+        <GuidedTip tip-id="account-register">
+          These are transactions imported from your bank. Match them to budget entries to reconcile.
+        </GuidedTip>
         <div class="transactions-layout">
           <div class="transactions-layout__main">
             <div class="transactions-filters panel-card register-filters">
@@ -169,7 +189,7 @@
                   <q-select v-model="filters.accountId" :options="accountOptions" dense outlined label="Account" clearable emit-value map-options />
                 </div>
                 <div class="col col-sm col-md">
-                  <q-input v-model="filters.search" dense outlined placeholder="Search" debounce="300">
+                  <q-input v-model="filters.search" dense outlined label="Search" debounce="300">
                     <template #append>
                       <q-btn flat dense round size="sm" icon="refresh" @click="refreshRegister">
                         <q-tooltip>Refresh</q-tooltip>
@@ -184,9 +204,9 @@
 
               <!-- Row 2: amounts, dates, and status chips in a single flowing row -->
               <div class="register-filters__secondary">
-                <q-input v-model="minAmtInput" type="number" dense outlined placeholder="Min $" class="register-filters__input" />
-                <q-input v-model="maxAmtInput" type="number" dense outlined placeholder="Max $" class="register-filters__input" />
-                <q-input v-model="filters.start" dense outlined mask="####-##-##" placeholder="Start" debounce="300" class="register-filters__input register-filters__input--date">
+                <q-input v-model="minAmtInput" type="number" dense outlined label="Min $" class="register-filters__input" />
+                <q-input v-model="maxAmtInput" type="number" dense outlined label="Max $" class="register-filters__input" />
+                <q-input v-model="filters.start" dense outlined mask="####-##-##" label="Start" debounce="300" class="register-filters__input register-filters__input--date">
                   <template #append>
                     <q-icon name="event" class="cursor-pointer">
                       <q-popup-proxy transition-show="scale" transition-hide="scale">
@@ -195,7 +215,7 @@
                     </q-icon>
                   </template>
                 </q-input>
-                <q-input v-model="filters.end" dense outlined mask="####-##-##" placeholder="End" debounce="300" class="register-filters__input register-filters__input--date">
+                <q-input v-model="filters.end" dense outlined mask="####-##-##" label="End" debounce="300" class="register-filters__input register-filters__input--date">
                   <template #append>
                     <q-icon name="event" class="cursor-pointer">
                       <q-popup-proxy transition-show="scale" transition-hide="scale">
@@ -204,9 +224,9 @@
                     </q-icon>
                   </template>
                 </q-input>
-                <q-chip clickable class="filter-chip" :color="filters.cleared ? 'primary' : 'white'" :text-color="filters.cleared ? 'white' : 'primary'" @click="filters.cleared = !filters.cleared">Cleared</q-chip>
-                <q-chip clickable class="filter-chip" :color="filters.uncleared ? 'primary' : 'white'" :text-color="filters.uncleared ? 'white' : 'primary'" @click="filters.uncleared = !filters.uncleared">Uncleared</q-chip>
-                <q-chip clickable class="filter-chip" :color="filters.reconciled ? 'primary' : 'white'" :text-color="filters.reconciled ? 'white' : 'primary'" @click="filters.reconciled = !filters.reconciled">Reconciled</q-chip>
+                <q-chip clickable class="filter-chip" :color="filters.cleared ? 'primary' : 'white'" :text-color="filters.cleared ? 'white' : 'primary'" @click="filters.cleared = !filters.cleared">Cleared<q-tooltip>Transaction has posted to your account</q-tooltip></q-chip>
+                <q-chip clickable class="filter-chip" :color="filters.uncleared ? 'primary' : 'white'" :text-color="filters.uncleared ? 'white' : 'primary'" @click="filters.uncleared = !filters.uncleared">Uncleared<q-tooltip>Transaction hasn't posted yet</q-tooltip></q-chip>
+                <q-chip clickable class="filter-chip" :color="filters.reconciled ? 'primary' : 'white'" :text-color="filters.reconciled ? 'white' : 'primary'" @click="filters.reconciled = !filters.reconciled">Reconciled<q-tooltip>Verified against your bank statement</q-tooltip></q-chip>
                 <q-chip clickable class="filter-chip" :color="filters.unmatchedOnly ? 'primary' : 'white'" :text-color="filters.unmatchedOnly ? 'white' : 'primary'" @click="filters.unmatchedOnly = !filters.unmatchedOnly">Unmatched</q-chip>
               </div>
 
@@ -403,6 +423,9 @@
       </q-tab-panel>
       <!-- Match Bank Transactions Tab -->
       <q-tab-panel name="match" class="transactions-panel">
+        <GuidedTip tip-id="match-transactions">
+          This tool helps you link imported bank transactions to your budget entries automatically.
+        </GuidedTip>
         <match-bank-panel />
       </q-tab-panel>
     </q-tab-panels>
@@ -414,6 +437,7 @@ import { computed, ref, watch, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { storeToRefs } from 'pinia';
 import LedgerTable from 'src/components/LedgerTable.vue';
+import GuidedTip from 'src/components/GuidedTip.vue';
 import MatchBankPanel from 'src/components/MatchBankPanel.vue';
 import EntitySelector from 'src/components/EntitySelector.vue';
 import TransactionDialog from 'src/components/TransactionDialog.vue';

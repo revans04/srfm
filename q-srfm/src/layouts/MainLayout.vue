@@ -3,6 +3,7 @@
 
     <q-header v-if="isMobile && !isLoginRoute" class="mobile-header">
       <div class="row items-center no-wrap q-px-md q-py-sm">
+        <q-btn flat dense round icon="menu" color="white" @click="leftDrawerOpen = !leftDrawerOpen" aria-label="Toggle navigation menu" class="q-mr-sm" />
         <img
           src="../assets/family-funds-sm.png"
           alt="Steady Rise Financial Management logo"
@@ -28,7 +29,7 @@
           </div>
           <q-list class="app-drawer__nav">
             <q-item
-              v-for="item in navItems.filter(i => i.desktop)"
+              v-for="item in navItems"
               :key="item.title"
               :to="item.path"
               clickable
@@ -42,6 +43,9 @@
               <q-item-section>{{ item.title }}</q-item-section>
             </q-item>
           </q-list>
+          <div class="q-px-md q-mt-md">
+            <GettingStartedChecklist />
+          </div>
         </div>
         <q-list>
           <q-item disabled>
@@ -70,7 +74,7 @@
     <q-footer v-if="isMobile && !isLoginRoute" class="mobile-footer">
       <div class="row no-wrap justify-around items-center">
         <q-btn
-          v-for="item in navItems.filter(i => i.mobile)"
+          v-for="item in bottomBarItems"
           :key="item.title"
           dense
           flat
@@ -81,8 +85,47 @@
         >
           <span class="text-caption">{{ item.title }}</span>
         </q-btn>
+        <q-btn
+          dense
+          flat
+          color="white"
+          icon="more_horiz"
+          title="More"
+          @click="showMoreMenu = true"
+        >
+          <span class="text-caption">More</span>
+        </q-btn>
       </div>
     </q-footer>
+
+    <q-dialog v-model="showMoreMenu" position="bottom">
+      <q-card class="more-menu-sheet">
+        <q-list>
+          <q-item
+            v-for="item in moreMenuItems"
+            :key="item.title"
+            clickable
+            v-close-popup
+            @click="onNavClick(item)"
+          >
+            <q-item-section avatar>
+              <q-icon :name="item.icon" />
+            </q-item-section>
+            <q-item-section>{{ item.title }}</q-item-section>
+          </q-item>
+          <q-separator />
+          <q-item clickable v-close-popup @click="signOut">
+            <q-item-section avatar>
+              <q-icon name="logout" color="negative" />
+            </q-item-section>
+            <q-item-section class="text-negative">Logout</q-item-section>
+          </q-item>
+        </q-list>
+        <div class="q-pa-md">
+          <GettingStartedChecklist />
+        </div>
+      </q-card>
+    </q-dialog>
   </q-layout>
 </template>
 
@@ -91,12 +134,14 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../store/auth';
 import version from '../version';
+import GettingStartedChecklist from '../components/GettingStartedChecklist.vue';
 
 const router = useRouter();
 const route = useRoute();
 const auth = useAuthStore();
 
-const leftDrawerOpen = ref(true);
+const leftDrawerOpen = ref(false);
+const showMoreMenu = ref(false);
 const currentTab = ref('/');
 const windowWidth = ref(window.innerWidth);
 
@@ -110,24 +155,22 @@ const userInitials = computed(() => {
 const appVersion = version;
 
 const navItems = [
-  { title: 'Dashboard', path: '/', icon: 'dashboard', desktop: true, mobile: true },
-  { title: 'Budget', path: '/budget', icon: 'savings', desktop: true, mobile: true },
-  { title: 'Transactions', path: '/transactions', icon: 'format_list_bulleted', desktop: true, mobile: true },
-  { title: 'Accounts', path: '/accounts', icon: 'account_balance', desktop: true, mobile: true },
-  { title: 'Reports', path: '/reports', icon: 'trending_up', desktop: true, mobile: false },
-  { title: 'Data Mgmt', path: '/data', icon: 'dataset', desktop: true, mobile: false },
-  { title: 'Settings', path: '/settings', icon: 'manage_accounts', desktop: true, mobile: false },
-  { title: 'Logout', path: '', icon: 'logout', desktop: false, mobile: true },
+  { title: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
+  { title: 'Budget', path: '/budget', icon: 'savings' },
+  { title: 'Transactions', path: '/transactions', icon: 'format_list_bulleted' },
+  { title: 'Accounts', path: '/accounts', icon: 'account_balance' },
+  { title: 'Reports', path: '/reports', icon: 'trending_up' },
+  { title: 'Data Mgmt', path: '/data', icon: 'dataset' },
+  { title: 'Settings', path: '/settings', icon: 'manage_accounts' },
 ];
+
+const bottomBarItems = navItems.slice(0, 4);
+const moreMenuItems = navItems.slice(4);
 
 
 async function onNavClick(item: { title: string; path: string }) {
-  if (item.title === 'Logout') {
-    await signOut();
-  } else {
-    await router.push(item.path);
-    currentTab.value = item.path;
-  }
+  await router.push(item.path);
+  currentTab.value = item.path;
 }
 
 async function signOut() {
@@ -263,5 +306,15 @@ onUnmounted(() => {
 .mobile-footer .q-btn span {
   font-size: 0.75rem;
   font-weight: 600;
+}
+
+.more-menu-sheet {
+  width: 100%;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.more-menu-sheet .q-item {
+  min-height: 48px;
+  padding: 12px 16px;
 }
 </style>

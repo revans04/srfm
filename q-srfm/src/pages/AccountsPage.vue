@@ -3,6 +3,10 @@
   <q-page class="bg-grey-1 q-pa-lg">
     <h1>Accounts</h1>
 
+    <GuidedTip tip-id="accounts-page">
+      Add your bank accounts, credit cards, and investments to track your net worth.
+    </GuidedTip>
+
     <!-- Loading handled via $q.loading -->
 
     <!-- Family Prompt -->
@@ -182,11 +186,14 @@
         <q-card-section class="bg-negative q-py-md">
           <span class="text-white">Delete Account</span>
         </q-card-section>
-        <q-card-section class="q-pt-lg"> Are you sure you want to delete this account? </q-card-section>
+        <q-card-section class="q-pt-lg">
+          Delete <strong>{{ accounts.find(a => a.id === accountToDelete)?.name || 'this account' }}</strong>?
+          This will remove the account and its transaction history. This cannot be undone.
+        </q-card-section>
         <q-card-actions>
           <q-space></q-space>
-          <q-btn color="grey" variant="text" @click="showDeleteAccountDialog = false"> Cancel </q-btn>
-          <q-btn color="negative" variant="flat" @click="executeDeleteAccount"> Delete </q-btn>
+          <q-btn flat @click="showDeleteAccountDialog = false"> Cancel </q-btn>
+          <q-btn color="negative" @click="executeDeleteAccount"> Delete Account </q-btn>
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -270,6 +277,7 @@ import { auth } from '../firebase/init';
 import { dataAccess } from '../dataAccess';
 import { useFamilyStore } from '../store/family';
 import AccountList from '../components/AccountList.vue';
+import GuidedTip from '../components/GuidedTip.vue';
 import AccountForm from '../components/AccountForm.vue'; // Import AccountForm directly
 import type { Account, Snapshot, ImportedTransaction } from '../types';
 import { AccountType } from '../types';

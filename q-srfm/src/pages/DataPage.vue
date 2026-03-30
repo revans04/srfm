@@ -85,7 +85,7 @@
                         :disabled="importing || availableAccounts.length === 0"
                         class="q-mb-lg"
                       ></q-select>
-                      <q-banner v-if="availableAccounts.length === 0" type="warning" class="q-mb-lg">
+                      <q-banner v-if="dataLoaded && availableAccounts.length === 0" type="warning" class="q-mb-lg">
                         No bank or credit card accounts found. Please create an account in the Accounts section before importing transactions.
                       </q-banner>
                     </div>
@@ -578,6 +578,7 @@ const exporting = ref(false);
 const importing = ref(false);
 const activeTab = ref<string>("import");
 const availableAccounts = ref<Account[]>([]);
+const dataLoaded = ref(false);
 const selectedAccountId = ref<string>("");
 const selectedEntityId = ref<string>("");
 const importError = ref<string | null>(null);
@@ -1042,6 +1043,7 @@ async function loadAllData() {
     console.error("Error loading data:", error);
     showSnackbar(`Error loading data: ${error.message}`, "negative");
   } finally {
+    dataLoaded.value = true;
     $q.loading.hide();
   }
 }

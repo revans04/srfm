@@ -11,7 +11,60 @@
       </div>
     </q-card-section>
     <q-card-section>
-      <q-table v-if="accounts.length > 0" :columns="columns" :rows="accounts" class="elevation-1" :pagination="{ rowsPerPage: 100 }" hide-bottom>
+      <!-- Mobile card view -->
+      <q-list v-if="isMobileView && accounts.length > 0" separator>
+        <q-expansion-item
+          v-for="account in accounts"
+          :key="account.id"
+          group="accounts"
+          class="account-card-item"
+        >
+          <template #header>
+            <q-item-section>
+              <q-item-label class="text-weight-medium">{{ account.name }}</q-item-label>
+              <q-item-label caption>{{ account.institution || type }}</q-item-label>
+            </q-item-section>
+            <q-item-section side>
+              <q-item-label class="text-weight-bold">{{ formatCurrency(account.balance || 0) }}</q-item-label>
+            </q-item-section>
+          </template>
+          <q-card flat>
+            <q-card-section class="q-pt-none">
+              <div v-if="account.accountNumber" class="q-mb-xs">
+                <span class="text-caption text-muted">Account #:</span> {{ account.accountNumber }}
+              </div>
+              <div class="q-mb-xs">
+                <span class="text-caption text-muted">Owner:</span> {{ account.userId ? 'Personal' : 'Shared' }}
+              </div>
+              <div class="row q-gutter-sm q-mt-sm">
+                <q-btn
+                  flat
+                  dense
+                  color="primary"
+                  icon="edit"
+                  label="Edit"
+                  @click="$emit('edit', account)"
+                  :disabled="account.userId && account.userId !== userId"
+                  style="min-width: 44px; min-height: 44px;"
+                />
+                <q-btn
+                  flat
+                  dense
+                  color="negative"
+                  icon="delete"
+                  label="Delete"
+                  @click="$emit('delete', account.id)"
+                  :disabled="account.userId && account.userId !== userId"
+                  style="min-width: 44px; min-height: 44px;"
+                />
+              </div>
+            </q-card-section>
+          </q-card>
+        </q-expansion-item>
+      </q-list>
+
+      <!-- Desktop table view -->
+      <q-table v-else-if="accounts.length > 0" :columns="columns" :rows="accounts" class="elevation-1" :pagination="{ rowsPerPage: 100 }" hide-bottom>
         <template v-slot:body-cell-owner="props">
           <q-td :props="props">
             {{ props.row.userId ? 'Personal' : 'Shared' }}
@@ -42,9 +95,13 @@
 
 <script setup lang="ts">
 import { computed, defineProps } from 'vue';
+import { useQuasar } from 'quasar';
 import type { Account, ImportedTransaction } from '../types';
 import { formatCurrency } from '../utils/helpers';
 import { auth } from '../firebase/init';
+
+const $q = useQuasar();
+const isMobileView = computed(() => $q.screen.lt.md);
 
 const props = defineProps<{
   accounts: Account[];
@@ -79,4 +136,8 @@ const columns = computed(() => [
 ]);
 </script>
 
-<style scoped></style>
+<style scoped>
+.account-card-item {
+  min-height: 48px;
+}
+</style>

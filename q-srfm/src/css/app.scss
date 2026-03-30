@@ -121,3 +121,9 @@ h4 { font-size: 1.25rem; line-height: 1.4; }
 .rounded-sm { border-radius: var(--radius-sm); }
 .rounded-md { border-radius: var(--radius-md); }
 .rounded-lg { border-radius: var(--radius-lg); }
+
+@media (max-width: 430px) {
+  html, body {
+    font-size: 16px;
+  }
+}

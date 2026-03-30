@@ -14,15 +14,20 @@
         </div>
       </div>
       <div class="col-auto q-py-md text-right no-wrap">
-        <q-icon
+        <q-btn
           v-if="removable"
-          name="delete"
-          desnse
+          flat
+          round
+          dense
+          icon="delete_outline"
+          color="grey-6"
+          size="sm"
           class="transaction-delete"
-          color="negative"
-          size="20px"
           @click.stop="handleDelete"
-        />
+          style="min-width: 44px; min-height: 44px;"
+        >
+          <q-tooltip>Mark as deleted — can be restored from Deleted tab</q-tooltip>
+        </q-btn>
       </div>
     </div>
   </q-item>

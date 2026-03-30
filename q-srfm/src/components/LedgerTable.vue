@@ -1,5 +1,51 @@
 <template>
+  <!-- Mobile card list view -->
+  <div v-if="isMobileView" class="ledger-cards">
+    <div v-if="loading" class="text-center q-pa-lg">
+      <q-spinner color="primary" size="40px" />
+    </div>
+    <q-list v-else-if="props.rows.length > 0" separator>
+      <q-item
+        v-for="row in props.rows"
+        :key="row.id"
+        clickable
+        @click="emit('row-click', row)"
+        class="ledger-card-item"
+      >
+        <q-item-section>
+          <div class="row items-center justify-between q-mb-xs">
+            <span class="text-caption text-muted">{{ formatDate(row.date) }}</span>
+            <span class="text-weight-bold" :class="{ 'text-negative': row.amount < 0 }">
+              {{ money(row.amount) }}
+            </span>
+          </div>
+          <q-item-label class="text-weight-medium">{{ row.payee || 'No payee' }}</q-item-label>
+          <div class="row items-center q-gutter-x-sm q-mt-xs">
+            <q-badge v-if="row.category" outline color="primary" class="text-caption">{{ row.category }}</q-badge>
+            <q-badge v-if="statusMetaMap[row.status]" :color="statusMetaMap[row.status].color" outline class="text-caption">
+              {{ statusMetaMap[row.status].label }}
+            </q-badge>
+            <q-icon v-if="row.isDuplicate" name="warning" color="warning" size="16px" />
+          </div>
+          <q-item-label v-if="row.notes" caption class="q-mt-xs ellipsis">{{ row.notes }}</q-item-label>
+        </q-item-section>
+        <q-item-section side v-if="selection">
+          <q-checkbox
+            :model-value="props.selected?.includes(row.id) ?? false"
+            @update:model-value="toggleRowSelection(row)"
+            @click.stop
+          />
+        </q-item-section>
+      </q-item>
+    </q-list>
+    <div v-else class="text-center q-pa-lg text-muted">
+      No transactions to display.
+    </div>
+  </div>
+
+  <!-- Desktop table view -->
   <q-table
+    v-else
     :rows="props.rows"
     :columns="visibleColumns"
     row-key="id"
@@ -87,8 +133,12 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useQuasar } from 'quasar';
 import type { QTableProps } from 'quasar';
 import type { Transaction } from '../types';
+
+const $q = useQuasar();
+const isMobileView = computed(() => $q.screen.lt.md);
 
 type Align = 'left' | 'right' | 'center';
 
@@ -133,6 +183,16 @@ const emit = defineEmits<{
   (e: 'update:selected', ids: string[]): void;
   (e: 'unmatch', row: LedgerRow): void;
 }>();
+
+function toggleRowSelection(row: LedgerRow) {
+  const current = props.selected ?? [];
+  const idx = current.indexOf(row.id);
+  if (idx >= 0) {
+    emit('update:selected', current.filter((id) => id !== row.id));
+  } else {
+    emit('update:selected', [...current, row.id]);
+  }
+}
 
 const statusMetaMap: Record<LedgerRow['status'], { label: string; color: string }> = {
   C: { label: 'C', color: 'positive' },
@@ -258,6 +318,11 @@ function rowClassFn(row: LedgerRow, index: number) {
 </script>
 
 <style scoped>
+.ledger-card-item {
+  min-height: 56px;
+  padding: 12px 16px;
+}
+
 .row-striped.row-even {
   background: rgba(37, 99, 235, 0.04);
 }

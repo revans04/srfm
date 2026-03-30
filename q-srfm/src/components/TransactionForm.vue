@@ -7,7 +7,8 @@
           v-model="locTrnsx.date"
           type="date"
           :rules="requiredField"
-          label="Date"
+          label="Date *"
+          aria-required="true"
           stack-label
           dense
           borderless
@@ -20,7 +21,8 @@
           v-model="locTrnsx.merchant"
           :options="filteredMerchants"
           :rules="requiredField"
-          label="Merchant"
+          label="Merchant *"
+          aria-required="true"
           stack-label
           dense
           borderless
@@ -55,8 +57,9 @@
               <q-select
                 v-model="split.category"
                 :options="filteredCategories"
-                label="Category"
+                label="Category *"
                 :rules="requiredField"
+                aria-required="true"
                 stack-label
                 dense
                 borderless
@@ -105,7 +108,8 @@
           v-model="locTrnsx.budgetMonth"
           :options="availableMonths"
           :rules="requiredField"
-          label="Budget Month"
+          label="Budget Month *"
+          aria-required="true"
           stack-label
           dense
           borderless

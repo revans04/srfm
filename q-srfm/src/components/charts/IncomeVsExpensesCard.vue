@@ -12,6 +12,10 @@
         <div v-if="series.labels.length" style="height: 260px">
           <LineChart :data="chartData" :options="options" />
         </div>
+        <div v-else-if="hasZeroData" class="text-center text-body2 text-grey-7 q-pa-md">
+          <q-icon name="info" size="24px" color="grey-5" class="q-mb-sm" /><br />
+          Income and expense data is not yet available for the selected period. Enter transactions in the Budget page to see this chart populate.
+        </div>
         <div v-else class="text-body2 text-grey-7">No monthly data available yet.</div>
       </div>
     </q-card-section>
@@ -104,6 +108,12 @@ function loadSeries() {
     loading.value = false;
   }
 }
+
+const hasZeroData = computed(() => {
+  return series.value.labels.length > 0 &&
+    series.value.income.every((v) => v === 0) &&
+    series.value.expenses.every((v) => v === 0);
+});
 
 const chartData = computed(() => ({
   labels: series.value.labels,

@@ -6,7 +6,7 @@
     <q-banner v-if="userEmail && !emailVerified" type="warning" class="q-mb-lg">
       Your email ({{ userEmail }}) is not verified. Please check your inbox or resend the verification email.
       <template v-slot:action>
-        <q-btn variant="plain" @click="sendVerificationEmail" :loading="resending">Resend</q-btn>
+        <q-btn flat @click="sendVerificationEmail" :loading="resending">Resend</q-btn>
       </template>
     </q-banner>
 
@@ -23,18 +23,70 @@
         <q-card class="q-mt-lg">
           <q-card-section>Family/Group Information</q-card-section>
           <q-card-section>
-            <q-list>
+            <div class="text-subtitle2 q-mb-sm">Members</div>
+            <q-list separator bordered class="rounded-md q-mb-md">
               <q-item v-for="member in acceptedMembers" :key="member.uid">
-                {{ member.email }} ({{ member.role }}) - Last Accessed: {{ formatDate(member.lastAccessed) || "Never" }}
-                <q-btn v-if="member.uid !== user.uid" @click="removeMember(member.uid)">Remove</q-btn>
+                <q-item-section avatar>
+                  <q-avatar color="primary" text-color="white" size="36px">
+                    {{ member.email?.[0]?.toUpperCase() || '?' }}
+                  </q-avatar>
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label :class="{ 'text-weight-bold': member.role === 'Admin' }">
+                    {{ member.email }}
+                  </q-item-label>
+                  <q-item-label caption>
+                    Last active: {{ formatDate(member.lastAccessed) || 'Never' }}
+                  </q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <div class="row items-center q-gutter-sm">
+                    <q-chip
+                      :color="member.role === 'Admin' ? 'primary' : 'grey-4'"
+                      :text-color="member.role === 'Admin' ? 'white' : 'dark'"
+                      dense
+                      size="sm"
+                    >
+                      {{ member.role === 'Admin' ? 'Owner' : 'Member' }}
+                    </q-chip>
+                    <q-btn
+                      v-if="member.uid !== user.uid"
+                      flat
+                      round
+                      dense
+                      icon="person_remove"
+                      color="negative"
+                      size="sm"
+                      @click="removeMember(member.uid)"
+                      style="min-width: 44px; min-height: 44px;"
+                    >
+                      <q-tooltip>Remove member</q-tooltip>
+                    </q-btn>
+                  </div>
+                </q-item-section>
               </q-item>
               <q-item v-for="invite in pendingInvites" :key="invite.token">
-                {{ invite.inviteeEmail }} (Pending) - Invited: {{ formatDate(invite.createdAt) }}
+                <q-item-section avatar>
+                  <q-avatar color="grey-4" text-color="grey-7" size="36px">
+                    <q-icon name="mail_outline" />
+                  </q-avatar>
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>{{ invite.inviteeEmail }}</q-item-label>
+                  <q-item-label caption>Invited {{ formatDate(invite.createdAt) }}</q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <q-chip color="warning" text-color="dark" dense size="sm">Pending</q-chip>
+                </q-item-section>
+              </q-item>
+              <q-item v-if="!acceptedMembers.length && !pendingInvites.length">
+                <q-item-section class="text-muted">No members yet. Invite someone below.</q-item-section>
               </q-item>
             </q-list>
-            <q-form @submit.prevent="inviteMember">
-              <q-input v-model="inviteEmail" label="Invite Email" type="email" required></q-input>
-              <q-btn type="submit" :loading="inviting">Invite</q-btn>
+            <div class="text-subtitle2 q-mb-sm">Invite New Member</div>
+            <q-form @submit.prevent="inviteMember" class="row items-start q-gutter-sm">
+              <q-input v-model="inviteEmail" label="Email address" type="email" required dense outlined class="col" aria-required="true"></q-input>
+              <q-btn type="submit" color="primary" :loading="inviting" class="col-auto">Invite</q-btn>
             </q-form>
           </q-card-section>
         </q-card>
@@ -55,10 +107,10 @@
                     <q-chip v-if="entity.templateBudget" color="positive" size="small" class="q-ml-sm">Has Template</q-chip>
                   </div>
                   <div class="col col-auto">
-                    <q-btn variant="plain" color="primary" @click="openEditEntityDialog(entity)" icon="edit" />
+                    <q-btn flat round dense color="primary" @click="openEditEntityDialog(entity)" icon="edit" />
                   </div>
                   <div class="col col-auto">
-                    <q-btn variant="plain" @click="confirmDeleteEntity(entity)" color="negative" icon="o_delete" />
+                    <q-btn flat round dense @click="confirmDeleteEntity(entity)" color="negative" icon="o_delete" />
                   </div>
                 </div>
               </q-item>
@@ -95,7 +147,7 @@
                     <q-td :props="props">
                       <q-btn
                         density="compact"
-                        variant="plain"
+                        flat
                         color="negative"
                         @click.stop="confirmDeleteTransactionDoc(props.row)"
                         title="Delete Transaction Document"
@@ -142,7 +194,7 @@
                     <q-td :props="props">
                       <q-btn
                         density="compact"
-                        variant="plain"
+                        flat
                         color="negative"
                         @click.stop="confirmDeleteBudget(props.row)"
                         title="Delete Budget"

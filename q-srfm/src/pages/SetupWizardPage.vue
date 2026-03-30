@@ -43,7 +43,7 @@
                     <div class="row full-width align-center" >
                       <div class="col text-h6" >Saved Entities</div>
                       <div class="col text-right col-auto" >
-                        <q-btn density="compact" variant="plain" icon="add" color="positive" @click="initNewEntity" aria-label="Add New Entity"></q-btn>
+                        <q-btn dense flat icon="add" color="primary" @click="initNewEntity" aria-label="Add New Entity"></q-btn>
                       </div>
                     </div>
                     <q-item
@@ -68,7 +68,7 @@
                   />
                 </q-card-section>
                 <q-card-actions class="q-pa-lg">
-                  <q-btn color="secondary" variant="text" @click="navigateStep('back')"> Back </q-btn>
+                  <q-btn color="secondary" flat @click="navigateStep('back')"> Back </q-btn>
                   <q-space />
                   <q-btn color="primary" @click="navigateStep('next')" class="q-ml-sm"> Next </q-btn>
                 </q-card-actions>
@@ -109,9 +109,9 @@
                   />
                 </q-card-section>
                 <q-card-actions class="q-pa-lg">
-                  <q-btn color="secondary" variant="text" @click="navigateStep('back')"> Back </q-btn>
+                  <q-btn color="secondary" flat @click="navigateStep('back')"> Back </q-btn>
                   <q-space />
-                  <q-btn v-if="!isLastStep && step.accountType" color="secondary" variant="text" @click="navigateStep('next')" class="q-ml-sm"> Skip </q-btn>
+                  <q-btn v-if="!isLastStep && step.accountType" color="secondary" flat @click="navigateStep('next')" class="q-ml-sm"> Skip </q-btn>
                   <q-btn v-if="!isLastStep" color="primary" @click="navigateStep('next')" class="q-ml-sm"> Next </q-btn>
                   <q-btn v-else color="primary" @click="finishSetup" :loading="finishingSetup" class="q-ml-sm"> Finish </q-btn>
                 </q-card-actions>
@@ -528,7 +528,7 @@ async function finishSetup() {
       await dataAccess.saveAccount(family.value.id, newAccountToSave);
     }
     showSnackbarMessage("Setup completed successfully! Redirecting...", "success");
-    setTimeout(() => void router.push("/dashboard"), 1500);
+    setTimeout(() => void router.push("/budget"), 1500);
   } catch (error: unknown) {
     showSnackbarMessage(`Error saving accounts: ${errorMessage(error)}`, "error");
     console.error("Error in finishSetup:", error);
@@ -553,57 +553,51 @@ function showSnackbarMessage(keyOrText: string, color: string = "success", ...ar
 <style scoped>
 .entity-list-item {
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s ease;
   border-left: 4px solid transparent;
 }
 .entity-list-item:hover {
-  background-color: rgba(var(--v-theme-on-surface), 0.04);
+  background-color: var(--color-surface-subtle);
 }
 .selected-entity {
-  background-color: rgba(var(--v-theme-primary), 0.1) !important;
-  border-left-color: rgb(var(--v-theme-primary)) !important;
-  color: rgb(var(--v-theme-primary)) !important;
+  background-color: var(--color-surface-subtle) !important;
+  border-left-color: var(--q-primary) !important;
+  color: var(--q-primary) !important;
 }
 
-/* Horizontal Scrollable Stepper */
-.wizard-stepper .v-stepper-header {
+/* Horizontal Scrollable Stepper Header */
+.wizard-stepper :deep(.q-stepper__header) {
   overflow-x: auto;
   white-space: nowrap;
   scrollbar-width: thin;
-  -ms-overflow-style: auto;
 }
 
-.wizard-stepper .v-stepper-header::-webkit-scrollbar {
+.wizard-stepper :deep(.q-stepper__header::-webkit-scrollbar) {
   height: 8px;
 }
 
-.wizard-stepper .v-stepper-header::-webkit-scrollbar-thumb {
-  background-color: rgba(var(--v-theme-primary), 0.5);
+.wizard-stepper :deep(.q-stepper__header::-webkit-scrollbar-thumb) {
+  background-color: var(--color-surface-muted);
   border-radius: 4px;
 }
 
-.wizard-stepper .v-stepper-header::-webkit-scrollbar-track {
-  background: rgba(var(--v-theme-surface-variant), 0.2);
+.wizard-stepper :deep(.q-stepper__header::-webkit-scrollbar-track) {
+  background: var(--color-surface-subtle);
 }
 
-.wizard-stepper .v-stepper-header .v-stepper-item {
-  display: inline-block;
+.wizard-stepper :deep(.q-stepper__tab) {
   flex: 0 0 auto;
   min-width: 150px;
 }
 
-/* Stepper Item Styles */
-.v-stepper-item--complete {
-  background-color: rgba(var(--v-theme-success), 0.1);
-}
-
-.q-stepper__tab--active {
-  background-color: rgba(var(--q-primary-rgb), 0.05);
+/* Stepper Active State */
+.wizard-stepper :deep(.q-stepper__tab--active) {
+  background-color: var(--color-surface-subtle);
 }
 
 /* Content Styles */
 .wizard-step-content-wrapper .q-card.wizard-step-card {
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--color-outline-soft);
   box-shadow: none;
   margin-top: 16px;
   margin-bottom: 16px;
@@ -612,14 +606,5 @@ function showSnackbarMessage(keyOrText: string, color: string = "success", ...ar
 
 .q-card-section {
   padding-bottom: 24px;
-}
-
-.q-list.q-py-none {
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-}
-
-.q-pl-none {
-  padding-left: 0 !important;
 }
 </style>

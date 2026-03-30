@@ -1,7 +1,7 @@
 <template>
   <q-page class="bg-grey-1 q-pa-lg">
     <div class="row items-center justify-between q-mb-md dashboard-header">
-      <div class="col text-h4 q-mb-xs">Dashboard</div>
+      <h1 class="col text-h4 q-mb-xs">Dashboard</h1>
       <div class="col-auto">
         <EntitySelector />
       </div>

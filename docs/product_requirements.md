@@ -15,13 +15,21 @@
 - Ensure user profile exists on first login without destructive overwrite.
 - Support email verification flow with idempotent verification endpoint.
 - Support invite acceptance flow, including redirect-to-login and return.
-- Provide onboarding wizard for family creation, entity setup, and optional account setup.
+- Provide initial setup flow for family creation, entity setup, and optional account setup (existing wizard handles this).
+- Replace the step-by-step wizard with a **guided tour approach** for ongoing onboarding:
+  - Auto-trigger contextual prompts for first-time users as they navigate (dismissible permanently).
+  - Provide a persistent "Getting Started" checklist/section accessible from the sidebar or settings that users can return to at any time.
+  - The guided tour should cover: creating a first budget, understanding entities, importing transactions, setting up goals, and using reconciliation.
+  - Include contextual help explaining concepts like "entity" in plain language (e.g., "Most families just need one entity called 'Family Budget'").
+- The existing SetupWizardPage must be migrated from Vuetify-era CSS to Quasar design system standards.
+- After login, users should land on the **Budget page** (not the Dashboard). The Budget page is the primary workspace where most user actions happen.
 
 ## 3) Family and Entity Management
 - Support family create/read/update operations for authorized members.
 - Support entity create/update/delete within family boundaries.
 - Require safe deletion handling for entities with dependent data.
 - Support member invite/remove workflows with role checks.
+- The Settings > Manage Family/Group page must display a list of current family members with their role (owner/member), join date, and a remove option (owner-only). The current page only shows an invite field with no visibility into existing membership.
 
 ## 4) Budget Management
 - Support budget CRUD scoped to `entity_id` and `month` (`YYYY-MM`).
@@ -41,13 +49,20 @@
 - Support batch transaction actions with explicit confirmation and affected-count display.
 - Support imported transaction storage and matching workflow to budget transactions.
 - Maintain transaction statuses (`U`, `C`, `R`) with reconciliation-safe behavior.
+- Introduce a first-class transfer transaction type to replace the current income-in-destination workaround for inter-category and goal-to-category moves. Transfers must be identifiable so they can be excluded from spending and income aggregates in reporting, preventing category spend from netting to zero. This is the intended solution for the known anti-pattern documented in `AGENTS.md`.
 
 ## 6) Reconciliation
 - Support statement-based reconciliation (start/end dates, opening/ending balance).
 - Support reconcile finalization that updates transaction statuses and locks statement state.
+- Derive statement dates from the selected transactions rather than requiring manual date entry.
 - Support unreconcile workflow with restore behavior and audit trail.
 - Block finalize when computed delta is non-zero unless explicitly overridden.
 - Support batch reconciliation actions against selected transactions.
+- Include ignored transactions in reconciliation — ignored means "not matched to a budget transaction" but still part of the bank statement.
+- Auto-populate beginning balance from the last reconciled statement's ending balance.
+- Display statement history per account with dates, balances, and reconciled status.
+- Show matched budget transaction category on the account register for cleared/matched imported transactions.
+- Support unmatch workflow to disconnect an imported transaction from its linked budget transaction (blocked while reconciled).
 
 ## 7) Account and Snapshot Management
 - Support account CRUD across `Bank`, `CreditCard`, `Investment`, `Property`, `Loan`.
@@ -90,15 +105,32 @@
 - Support family-scoped export bundles containing core finance domains.
 
 ## 12) Operational and UX Requirements
-- Require confirmation for destructive operations and high-impact batch operations.
-- Surface clear, actionable API/UI error messages and empty states.
+- Require confirmation for destructive operations and high-impact batch operations. Confirmation dialogs must name the affected item(s) and state the impact. Destructive buttons must be visually distinct (not plain text links).
+- Surface clear, actionable API/UI error messages and empty states. Empty states must include guidance copy and a link/button to the next action. Loading and error states must never appear simultaneously.
+- Provide visible success feedback (toast notification) for all write operations — save, create, delete, import. Silent success is not acceptable.
 - Maintain performance for large datasets (thin endpoints, server-side aggregation where needed).
 - Preserve month/date ordering conventions (`YYYY-MM`, `YYYY-MM-DD`) and deterministic sorting.
+- Accounting terminology (Reconciled, Cleared, Uncleared, Budget Register, Account Register) must be accompanied by contextual help via tooltips on hover/tap for non-expert users. Labels remain as-is; tooltips bridge the knowledge gap. **Decision: keep current labels, add tooltips (not rename).**
+- Remove the Transactions page subtitle ("Monitor budgets and accounts side by side") entirely — the page title "Transactions" is sufficient. **Decision: no subtitle needed.**
+- The default post-login landing page must be the **Budget page**, not the Dashboard. **Decision: Budget is the primary workspace.**
+- All pages must have a proper heading hierarchy starting with `h1` for the page title.
 
 ## 13) Mobile Experience
-- Treat mobile as a first-class target, not a fallback. The app is expected to be used on phones at least 50% of the time, primarily for entering transactions on the go.
+- Treat mobile as a first-class target, not a fallback. The app is expected to be used on phones at least 50% of the time, primarily for entering transactions on the go. Users migrating from EveryDollar and Mint expect a polished, mobile-native experience — mobile quality is a competitive differentiator.
 - All core workflows — adding a transaction, checking a category balance, viewing the current month's budget — must be fully usable on a phone without horizontal scrolling, tiny tap targets, or layout breakage.
 - Tap targets must meet minimum size guidelines (44×44px) for all interactive elements.
 - Forms (especially transaction entry) must be optimized for mobile keyboard input: correct input types (`number`, `date`, etc.), logical tab order, and minimal required fields visible without scrolling.
 - Navigation must be reachable with one thumb; avoid patterns that require precise interaction or hover states.
+- Mobile navigation must use a single primary pattern. The sidebar drawer must not auto-open on page navigation at mobile breakpoints. The bottom tab bar must provide access to all major sections — currently missing Reports, Data Mgmt, and Settings, which must be reachable via a "More" item or equivalent.
+- Data tables (Transactions, Accounts) must use a responsive mobile pattern — card views, expandable rows, or scrollable containers with visible affordance. Simply truncating columns is not acceptable.
+- Base font size must be at least 16px on mobile to prevent iOS auto-zoom on input focus.
+- The viewport meta tag must not disable user zoom (`user-scalable=no`, `maximum-scale=1`). This is a WCAG 2.1 AA requirement.
 - Responsive layout must be explicitly tested at common phone widths (375px, 390px, 430px) and not rely solely on Quasar's default breakpoints without validation.
+
+## 14) Competitive Positioning
+- The application intends to replace EveryDollar, Mint (discontinued), Quicken, and Excel for families tracking budgets, transactions, accounts, and net worth.
+- The user base spans non-expert family budget managers (majority) and accountants/bookkeepers (minority but important).
+- Key differentiators vs. EveryDollar: multi-entity support, reconciliation workflows, net worth tracking, detailed reporting.
+- Key differentiators vs. Quicken: modern web-based UI, family collaboration, mobile-first accessibility.
+- Key gaps vs. competitors: mobile experience polish (EveryDollar/Mint were mobile-first), guided onboarding (EveryDollar offers step-by-step budget setup), plain-language UX (EveryDollar avoids accounting terminology).
+- To capture the family-budget market, the app must offer: (1) a polished mobile experience, (2) plain-language alternatives for accounting terminology, (3) guided onboarding for first-time users, and (4) simplified views alongside the full data-dense power-user views.

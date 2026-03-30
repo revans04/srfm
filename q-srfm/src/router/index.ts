@@ -27,8 +27,8 @@ export default defineRouter(function (ctx /* { store, ssrContext } */) {
       try {
         const user = await auth.initializeAuth();
         if (user) {
-          console.log('Route guard: Already authenticated, redirecting from /login to /');
-          return next('/');
+          console.log('Route guard: Already authenticated, redirecting from /login to /budget');
+          return next('/budget');
         }
       } catch (error) {
         console.warn('Route guard: Auth check failed on login route', error);
