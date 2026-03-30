@@ -3,7 +3,7 @@ import { dataAccess } from '../dataAccess';
 import { useBudgetStore } from '../store/budget';
 import { useFamilyStore } from '../store/family';
 import { DEFAULT_BUDGET_TEMPLATES } from '../constants/budgetTemplates';
-import { adjustTransactionDate } from './helpers';
+import { adjustTransactionDate, generateDailyTransactions, generateWeeklyTransactions, generateBiWeeklyTransactions } from './helpers';
 import { calculateCarryOver } from './carryover';
 import type { Budget, BudgetCategory, Transaction, BudgetInfo } from '../types';
 
@@ -139,15 +139,35 @@ export async function createBudgetForMonth(
 
       Object.values(recurringGroups).forEach((group) => {
         const firstInstance = group.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
-        if (firstInstance.recurringInterval === 'Monthly') {
-          const newDate = adjustTransactionDate(firstInstance.date, month, 'Monthly');
-          recurringTransactions.push({
-            ...firstInstance,
-            id: uuidv4(),
-            date: newDate,
-            budgetMonth: month,
-            entityId,
-          });
+        const interval = firstInstance.recurringInterval;
+
+        if (interval === 'Daily') {
+          recurringTransactions.push(...generateDailyTransactions(firstInstance, month).map((t) => ({ ...t, entityId })));
+        } else if (interval === 'Weekly') {
+          recurringTransactions.push(...generateWeeklyTransactions(firstInstance, month).map((t) => ({ ...t, entityId })));
+        } else if (interval === 'Bi-Weekly') {
+          recurringTransactions.push(...generateBiWeeklyTransactions(firstInstance, month).map((t) => ({ ...t, entityId })));
+        } else if (interval === 'Monthly' || interval === 'Quarterly' || interval === 'Bi-Annually' || interval === 'Yearly') {
+          // For longer intervals, check if this month is a valid recurrence
+          const sourceDate = new Date(firstInstance.date);
+          const [targetYear, targetMonthNum] = month.split('-').map(Number);
+          const monthsDiff = (targetYear - sourceDate.getFullYear()) * 12 + (targetMonthNum - (sourceDate.getMonth() + 1));
+          let shouldInclude = false;
+          if (interval === 'Monthly') shouldInclude = true;
+          else if (interval === 'Quarterly') shouldInclude = monthsDiff > 0 && monthsDiff % 3 === 0;
+          else if (interval === 'Bi-Annually') shouldInclude = monthsDiff > 0 && monthsDiff % 6 === 0;
+          else if (interval === 'Yearly') shouldInclude = monthsDiff > 0 && monthsDiff % 12 === 0;
+
+          if (shouldInclude || interval === 'Monthly') {
+            const newDate = adjustTransactionDate(firstInstance.date, month, interval);
+            recurringTransactions.push({
+              ...firstInstance,
+              id: uuidv4(),
+              date: newDate,
+              budgetMonth: month,
+              entityId,
+            });
+          }
         }
       });
     }

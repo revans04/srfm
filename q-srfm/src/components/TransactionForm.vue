@@ -114,8 +114,8 @@
           <q-btn flat color="primary" dense icon="add" label="Add Split" @click="addSplit" />
         </div>
         <div class="transaction-form__splits q-gutter-md">
-          <div v-for="(split, index) in locTrnsx.categories" :key="index" class="row items-start q-col-gutter-sm">
-            <div class="col">
+          <div v-for="(split, index) in locTrnsx.categories" :key="index" class="split-row">
+            <div class="split-row__category">
               <q-select
                 v-model="split.category"
                 :options="filteredCategories"
@@ -134,12 +134,10 @@
                 @filter="onCategoryFilter"
               />
             </div>
-            <div class="col-4">
+            <div class="split-row__amount">
               <Currency-Input v-model="split.amount" label="Amount" stack-label dense outlined />
             </div>
-            <div class="col-auto q-pt-sm">
-              <q-btn dense flat round icon="close" color="negative" size="sm" @click="removeSplit(index)" />
-            </div>
+            <q-btn v-if="locTrnsx.categories.length > 1" dense flat round icon="close" color="negative" size="sm" class="split-row__remove" @click="removeSplit(index)" />
           </div>
           <q-banner v-if="locTrnsx.categories.length > 1 && remainingSplit !== 0" :type="remainingSplit < 0 ? 'negative' : 'warning'">
             <div v-if="remainingSplit > 0">Remaining ${{ toDollars(toCents(Math.abs(remainingSplit))) }}</div>
@@ -242,7 +240,7 @@ import { ref, computed, onMounted, reactive } from 'vue';
 import { useQuasar } from 'quasar';
 import { dataAccess } from '../dataAccess';
 import type { Budget, Transaction, Goal } from '../types';
-import { toCents, toDollars, todayISO, currentMonthISO } from '../utils/helpers';
+import { toCents, toDollars, todayISO, currentMonthISO, adjustTransactionDate, generateDailyTransactions, generateWeeklyTransactions, generateBiWeeklyTransactions } from '../utils/helpers';
 import CurrencyInput from './CurrencyInput.vue';
 import { QForm } from 'quasar';
 import { useMerchantStore } from '../store/merchants';
@@ -250,6 +248,7 @@ import { useBudgetStore } from '../store/budget';
 import { useGoals } from '../composables/useGoals';
 import { useFamilyStore } from '../store/family';
 import { createBudgetForMonth } from '../utils/budget';
+import { v4 as uuidv4 } from 'uuid';
 
 const merchantStore = useMerchantStore();
 const budgetStore = useBudgetStore();
@@ -615,6 +614,11 @@ async function save() {
         }
         emit('save', savedTransaction);
         showSnackbar('Transaction saved successfully', 'success');
+
+        // Prompt to propagate recurring transaction to future budgets
+        if (savedTransaction.recurring && savedTransaction.recurringInterval) {
+          promptRecurringPropagation(savedTransaction);
+        }
       } else {
         showSnackbar('Could not save Transaction, Budget does not exist!', 'negative');
       }
@@ -628,6 +632,104 @@ async function save() {
   } else {
     console.log('Form validation failed');
     showSnackbar('Form validation failed', 'negative');
+  }
+}
+
+/**
+ * Generate transaction(s) for a given month based on the recurring interval.
+ * Daily/Weekly/Bi-Weekly produce multiple transactions per month.
+ * Monthly/Quarterly/Bi-Annually/Yearly produce one (or zero if the interval
+ * doesn't land in that month).
+ */
+function generateTransactionsForMonth(source: Transaction, targetMonth: string): Transaction[] {
+  const interval = source.recurringInterval;
+  if (!interval) return [];
+
+  // For intervals that can produce multiple transactions per month, use the dedicated generators
+  if (interval === 'Daily') return generateDailyTransactions(source, targetMonth);
+  if (interval === 'Weekly') return generateWeeklyTransactions(source, targetMonth);
+  if (interval === 'Bi-Weekly') return generateBiWeeklyTransactions(source, targetMonth);
+
+  // For longer intervals, check whether the target month is a valid recurrence
+  const sourceDate = new Date(source.date);
+  const [targetYear, targetMonthNum] = targetMonth.split('-').map(Number);
+  const monthsDiff = (targetYear - sourceDate.getFullYear()) * 12 + (targetMonthNum - (sourceDate.getMonth() + 1));
+
+  if (monthsDiff <= 0) return []; // Don't propagate to same or earlier months
+
+  let shouldInclude = false;
+  if (interval === 'Monthly') {
+    shouldInclude = true;
+  } else if (interval === 'Quarterly') {
+    shouldInclude = monthsDiff % 3 === 0;
+  } else if (interval === 'Bi-Annually') {
+    shouldInclude = monthsDiff % 6 === 0;
+  } else if (interval === 'Yearly') {
+    shouldInclude = monthsDiff % 12 === 0;
+  }
+
+  if (!shouldInclude) return [];
+
+  const newDate = adjustTransactionDate(source.date, targetMonth, interval);
+  return [{
+    ...source,
+    id: uuidv4(),
+    date: newDate,
+    budgetMonth: targetMonth,
+    status: undefined,
+    postedDate: undefined,
+    importedMerchant: undefined,
+    accountNumber: undefined,
+    accountSource: undefined,
+  }];
+}
+
+function promptRecurringPropagation(savedTransaction: Transaction) {
+  const currentMonth = savedTransaction.budgetMonth || savedTransaction.date?.slice(0, 7);
+  if (!currentMonth) return;
+
+  // Find future months that already have budgets
+  const futureMonths = budgetStore.availableBudgetMonths
+    .filter((m: string) => m > currentMonth)
+    .sort();
+
+  if (futureMonths.length === 0) return;
+
+  // Prompt the user
+  $q.dialog({
+    title: 'Add to Future Budgets?',
+    message: `This recurring transaction (${savedTransaction.recurringInterval}) can be added to ${futureMonths.length} existing future budget${futureMonths.length > 1 ? 's' : ''} (${futureMonths[0]}${futureMonths.length > 1 ? ' – ' + futureMonths[futureMonths.length - 1] : ''}).`,
+    cancel: { flat: true, label: 'No thanks' },
+    ok: { unelevated: true, color: 'primary', label: 'Add to future budgets' },
+    persistent: false,
+  }).onOk(() => {
+    void propagateRecurring(savedTransaction, futureMonths);
+  });
+}
+
+async function propagateRecurring(savedTransaction: Transaction, futureMonths: string[]) {
+  try {
+    let addedCount = 0;
+    for (const month of futureMonths) {
+      const newTransactions = generateTransactionsForMonth(savedTransaction, month);
+      if (newTransactions.length === 0) continue;
+
+      // Find the budget for this month
+      const targetBudget = Array.from(budgetStore.budgets.values()).find(
+        (b) => b.month === month && b.entityId === budget.value?.entityId,
+      );
+      if (!targetBudget) continue;
+
+      await dataAccess.batchSaveTransactions(targetBudget.budgetId, targetBudget, newTransactions);
+      addedCount += newTransactions.length;
+    }
+    if (addedCount > 0) {
+      showSnackbar(`Added ${addedCount} recurring transaction${addedCount > 1 ? 's' : ''} to future budgets`, 'success');
+    }
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error('Error propagating recurring transactions:', err.message);
+    showSnackbar(`Error adding to future budgets: ${err.message}`, 'negative');
   }
 }
 
@@ -692,12 +794,27 @@ function showSnackbar(text: string, color = 'success') {
   letter-spacing: 0.1em;
 }
 
-.transaction-form__splits .row {
-  align-items: flex-end;
+.split-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.split-row__category {
+  flex: 1;
+  min-width: 0;
+}
+
+.split-row__amount {
+  flex: 0 0 35%;
+}
+
+.split-row__remove {
+  flex-shrink: 0;
 }
 
 .transaction-form__amount .q-field__native,
-.transaction-form__splits .q-field__native {
+.split-row__amount .q-field__native {
   text-align: right;
 }
 
@@ -708,8 +825,16 @@ function showSnackbar(text: string, color = 'success') {
 }
 
 .transaction-form__type-toggle :deep(.q-btn) {
-  border-radius: var(--radius-sm) !important;
+  border-radius: 0 !important;
   padding: 6px 16px;
   font-weight: 500;
+}
+
+.transaction-form__type-toggle :deep(.q-btn:first-child) {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm) !important;
+}
+
+.transaction-form__type-toggle :deep(.q-btn:last-child) {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0 !important;
 }
 </style>

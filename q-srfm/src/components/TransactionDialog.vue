@@ -2,12 +2,12 @@
 <template>
   <q-dialog v-model="localShowDialog" :width="!isMobile ? '550px' : undefined" :fullscreen="isMobile" @update:modelValue="handleDialogClose">
     <q-card class="transaction-dialog">
-      <q-card-section class="transaction-dialog__header row items-center">
+      <q-card-section class="transaction-dialog__header row items-start justify-between no-wrap">
         <div class="transaction-dialog__title-group">
           <div class="text-h6 transaction-dialog__title">{{ dialogTitle }}</div>
           <div v-if="helperText" class="text-caption text-grey-6">{{ helperText }}</div>
         </div>
-        <q-btn flat dense icon="close" color="primary" class="transaction-dialog__close" @click="handleCancel" />
+        <q-btn flat round dense icon="close" size="sm" color="grey-6" @click="handleCancel" />
       </q-card-section>
 
       <q-card-section class="transaction-dialog__body">

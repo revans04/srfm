@@ -17,7 +17,7 @@
       <q-tab name="manageBudgets" label="Manage Budgets" />
     </q-tabs>
 
-    <q-tab-panels v-model="activeTab">
+    <q-tab-panels v-model="activeTab" class="bg-transparent">
       <!-- Group Management Tab -->
       <q-tab-panel name="group">
         <q-card class="q-mt-md">
@@ -543,12 +543,21 @@ async function loadAllData() {
         await Promise.all(
           family.value.members
             .filter((m) => m.uid)
-            .map(async (m) => ({
-              uid: m.uid,
-              email: m.email || m.uid,
-              role: m.uid === ownerUid ? 'Admin' : (m.role || 'Member'),
-              lastAccessed: await dataAccess.getLastAccessed(m.uid),
-            }))
+            .map(async (m) => {
+              let email = m.email;
+              if (!email) {
+                try {
+                  const userData = await dataAccess.getUser(m.uid);
+                  email = userData?.email || null;
+                } catch { /* ignore lookup failure */ }
+              }
+              return {
+                uid: m.uid,
+                email: email || m.uid,
+                role: m.uid === ownerUid ? 'Admin' : (m.role || 'Member'),
+                lastAccessed: await dataAccess.getLastAccessed(m.uid),
+              };
+            })
         )
       ).filter((m) => m.uid !== undefined);
       pendingInvites.value = await dataAccess.getPendingInvites(user.uid);

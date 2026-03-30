@@ -125,6 +125,7 @@ namespace FamilyBudgetApi.Controllers
         var userId = HttpContext.Items["UserId"]?.ToString() ?? throw new Exception("User ID not found");
         var email = HttpContext.Items["Email"]?.ToString() ?? string.Empty;
         await _userService.SaveUser(userId, email);
+        try { await _familyService.UpdateLastAccessed(userId); } catch { /* column may not exist yet */ }
 
         return Ok();
       }

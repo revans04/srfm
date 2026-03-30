@@ -380,21 +380,23 @@
               </div>
             </div>
 
-            <q-card-section class="q-pt-md q-px-md">
-              <q-btn-toggle
-                v-model="transactionFilter"
-                unelevated
-                spread
-                no-caps
-                toggle-color="primary"
-                color="grey-3"
-                text-color="dark"
-                :options="transactionFilterOptions"
-                class="budget-tx-toggle"
-              />
+            <q-card-section class="q-pt-sm q-px-md q-pb-sm">
+              <div class="budget-tx-toggle">
+                <q-btn-toggle
+                  v-model="transactionFilter"
+                  unelevated
+                  spread
+                  no-caps
+                  rounded
+                  toggle-color="primary"
+                  color="grey-3"
+                  text-color="dark"
+                  :options="transactionFilterOptions"
+                />
+              </div>
             </q-card-section>
 
-            <q-card-section class="q-pt-none q-px-md">
+            <q-card-section class="q-pt-none q-px-md q-pb-xs">
               <q-input
                 v-model="transactionSearch"
                 dense
@@ -459,20 +461,22 @@
                 </div>
               </div>
 
-              <q-card-section class="q-pt-md q-px-md">
-                <q-btn-toggle
-                  v-model="transactionFilter"
-                  dense
-                  spread
-                  unelevated
-                  toggle-color="primary"
-                  color="white"
-                  text-color="primary"
-                  :options="transactionFilterOptions"
-                />
+              <q-card-section class="q-pt-sm q-px-md q-pb-sm">
+                <div class="budget-tx-toggle">
+                  <q-btn-toggle
+                    v-model="transactionFilter"
+                    unelevated
+                    spread
+                    no-caps
+                    toggle-color="primary"
+                    color="grey-3"
+                    text-color="dark"
+                    :options="transactionFilterOptions"
+                  />
+                </div>
               </q-card-section>
 
-              <q-card-section class="q-pt-none q-px-md">
+              <q-card-section class="q-pt-none q-px-md q-pb-xs">
                 <q-input
                   v-model="transactionSearch"
                   dense
@@ -2015,20 +2019,23 @@ interface GroupCategory {
   color: var(--color-text-muted);
 }
 
-.budget-tx-toggle {
-  border-radius: 999px !important;
-  overflow: hidden;
-}
-
 .budget-tx-toggle :deep(.q-btn-group) {
-  border-radius: 999px !important;
+  border-radius: var(--radius-sm) !important;
 }
 
-.budget-tx-toggle :deep(.q-btn-item) {
-  border-radius: 999px !important;
-  padding: 6px 14px;
+.budget-tx-toggle :deep(.q-btn) {
+  border-radius: 0 !important;
+  padding: 4px 12px !important;
   font-weight: 500;
   font-size: 0.8rem;
+}
+
+.budget-tx-toggle :deep(.q-btn:first-child) {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm) !important;
+}
+
+.budget-tx-toggle :deep(.q-btn:last-child) {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0 !important;
 }
 
 .desktop-sidebar {
