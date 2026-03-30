@@ -11,6 +11,9 @@
       <q-item-label class="tx-item__merchant">
         <q-icon v-if="isTransfer" name="swap_horiz" color="info" size="16px" class="q-mr-xs" />
         {{ transaction.merchant || 'Unnamed' }}
+        <q-icon v-if="transaction.recurring" name="repeat" color="grey-5" size="14px" class="q-ml-xs">
+          <q-tooltip>Recurring ({{ transaction.recurringInterval || 'Monthly' }})</q-tooltip>
+        </q-icon>
       </q-item-label>
       <q-item-label v-if="isTransfer && counterpartCategory" caption class="tx-item__category tx-item__category--transfer">
         {{ transferDirection }}

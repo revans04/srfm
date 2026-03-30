@@ -107,7 +107,7 @@
 
       <div class="row q-col-gutter-lg q-mt-none">
         <!-- Main Content -->
-        <div :class="isMobile ? (selectedCategory || selectedGoal ? 'col-0 d-none' : 'col-12') : 'col-12 col-lg-8'">
+        <div :class="isMobile ? 'col-12' : 'col-12 col-lg-8'">
           <!-- Budget Editing Form -->
           <q-card v-if="isEditing" flat bordered>
             <q-card-section>Edit Budget for {{ selectedEntity?.name || 'selected entity' }}</q-card-section>
@@ -343,25 +343,30 @@
           </div>
         </div>
 
-        <!-- Mobile Detail Panels -->
-        <div v-if="isMobile && selectedCategory && !isEditing" class="mobile-category-overlay">
-          <CategoryTransactions
-            class="mobile-category-overlay__panel"
-            :category="selectedCategory"
-            :transactions="budget.transactions"
-            :target="selectedCategory.target || 0"
-            :budget-id="budgetId"
-            :user-id="userId"
-            :category-options="categoryOptions"
-            @close="selectedCategory = null"
-            @add-transaction="addTransactionForCategory(selectedCategory.name)"
-            @update-transactions="updateTransactions"
-          />
-        </div>
+        <!-- Mobile Detail Panels (full-screen dialogs) -->
+        <q-dialog v-model="showMobileCategoryDialog" fullscreen transition-show="slide-up" transition-hide="slide-down">
+          <q-card class="column full-height">
+            <CategoryTransactions
+              v-if="selectedCategory"
+              class="col"
+              :category="selectedCategory"
+              :transactions="budget.transactions"
+              :target="selectedCategory.target || 0"
+              :budget-id="budgetId"
+              :user-id="userId"
+              :category-options="categoryOptions"
+              @close="closeMobileCategoryDialog"
+              @add-transaction="addTransactionForCategory(selectedCategory.name)"
+              @update-transactions="updateTransactions"
+            />
+          </q-card>
+        </q-dialog>
 
-        <div v-if="isMobile && selectedGoal && !isEditing" class="col-12 q-mt-md">
-          <GoalDetailsPanel :goal="selectedGoal" @close="selectedGoal = null" />
-        </div>
+        <q-dialog v-model="showMobileGoalDialog" fullscreen transition-show="slide-up" transition-hide="slide-down">
+          <q-card class="column full-height">
+            <GoalDetailsPanel v-if="selectedGoal" :goal="selectedGoal" @close="closeMobileGoalDialog" />
+          </q-card>
+        </q-dialog>
 
         <!-- Mobile Transactions Panel (stacked below main content) -->
         <div v-if="isMobile && !selectedCategory && !selectedGoal && !isEditing" class="col-12 q-mt-md">
@@ -663,6 +668,8 @@ const budgetId = computed(() => {
 });
 const userId = computed(() => auth.user?.uid || '');
 const selectedCategory = ref<BudgetCategory | null>(null);
+const showMobileCategoryDialog = ref(false);
+const showMobileGoalDialog = ref(false);
 const newMerchantName = ref('');
 const searchInput = ref(null);
 const search = ref('');
@@ -731,6 +738,9 @@ async function onViewGoal(goal: Goal) {
   console.log('onViewGoal clicked', goal);
   selectedGoal.value = goal;
   selectedCategory.value = null;
+  if (isMobile.value) {
+    showMobileGoalDialog.value = true;
+  }
   try {
     await loadGoalDetails(goal.id);
     console.log('Loaded goal details for', goal.id);
@@ -1116,6 +1126,19 @@ function onIncomeRowClick(item: IncomeTarget) {
 
 function onCategoryRowClick(item: BudgetCategoryTrx) {
   selectedCategory.value = getCategoryInfo(item.name);
+  selectedGoal.value = null;
+  if (isMobile.value) {
+    showMobileCategoryDialog.value = true;
+  }
+}
+
+function closeMobileCategoryDialog() {
+  showMobileCategoryDialog.value = false;
+  selectedCategory.value = null;
+}
+
+function closeMobileGoalDialog() {
+  showMobileGoalDialog.value = false;
   selectedGoal.value = null;
 }
 
