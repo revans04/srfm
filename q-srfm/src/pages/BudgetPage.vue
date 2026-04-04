@@ -344,11 +344,11 @@
         </div>
 
         <!-- Mobile Detail Panels (full-screen dialogs) -->
-        <q-dialog v-model="showMobileCategoryDialog" fullscreen transition-show="slide-up" transition-hide="slide-down">
+        <q-dialog v-model="showMobileCategoryDialog" maximized transition-show="slide-up" transition-hide="slide-down" no-route-dismiss>
           <q-card class="column full-height">
             <CategoryTransactions
               v-if="selectedCategory"
-              class="col"
+              class="fit"
               :category="selectedCategory"
               :transactions="budget.transactions"
               :target="selectedCategory.target || 0"
@@ -362,7 +362,7 @@
           </q-card>
         </q-dialog>
 
-        <q-dialog v-model="showMobileGoalDialog" fullscreen transition-show="slide-up" transition-hide="slide-down">
+        <q-dialog v-model="showMobileGoalDialog" maximized transition-show="slide-up" transition-hide="slide-down" no-route-dismiss>
           <q-card class="column full-height">
             <GoalDetailsPanel v-if="selectedGoal" :goal="selectedGoal" @close="closeMobileGoalDialog" />
           </q-card>

@@ -5,19 +5,19 @@
         <div class="transactions-hero__title-group">
           <h1 class="transactions-hero__title">Transactions</h1>
         </div>
-        <q-tabs v-model="tab" dense class="transactions-hero__tabs" align="left">
-          <q-tab name="budget" label="Budget Register">
+        <q-tabs v-model="tab" dense class="transactions-hero__tabs" align="left" no-caps narrow-indicator>
+          <q-tab name="budget" :label="$q.screen.lt.md ? 'Budget' : 'Budget Register'">
             <q-tooltip>Transactions matched to your budget categories</q-tooltip>
           </q-tab>
-          <q-tab name="register" label="Account Register">
+          <q-tab name="register" :label="$q.screen.lt.md ? 'Account' : 'Account Register'">
             <q-tooltip>Transactions imported from your bank account</q-tooltip>
           </q-tab>
-          <q-tab name="match" label="Match Bank Transactions">
+          <q-tab name="match" :label="$q.screen.lt.md ? 'Match' : 'Match Bank Transactions'">
             <q-tooltip>Link imported bank transactions to your budget entries</q-tooltip>
           </q-tab>
         </q-tabs>
       </div>
-      <div v-show="tab !== 'register'" class="transactions-hero__metrics">
+      <div v-show="tab !== 'register' && !$q.screen.lt.md" class="transactions-hero__metrics">
         <div class="tx-metric tx-metric--primary">
           <div class="tx-metric__label">Total Records</div>
           <div class="tx-metric__value">{{ overviewCounts.total }}</div>

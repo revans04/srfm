@@ -1,5 +1,5 @@
 <template>
-  <div class="relative-position panel-card match-panel" :class="{ 'cursor-wait': !ready }">
+  <div class="relative-position match-panel" :class="{ 'cursor-wait': !ready }">
     <MatchBankTransactionsDialog
       v-if="ready"
       :remaining-imported-transactions="remainingImportedTransactions"

@@ -1,26 +1,30 @@
 <!-- src/components/BankTransactionMatchingDialog.vue -->
 <template>
   <div v-if="isReady">
-    <q-card class="panel-card match-dialog">
-      <q-card-section>
+    <q-card flat bordered class="match-dialog">
+      <q-card-section class="q-pa-md">
         <!-- Smart Matches Header -->
-        <div class="row items-center q-gutter-md q-mb-md">
-          <div class="col">
-            <div class="row items-center q-gutter-sm">
-              <h3 class="q-mb-none">Smart Matches ({{ smartMatchCountLabel }})</h3>
-              <q-input v-model="filterStartDate" label="Start Date" type="date" dense class="q-ml-md" style="width: 150px" :max="filterEndDate || undefined" />
-              <q-input v-model="filterEndDate" label="End Date" type="date" dense class="q-ml-sm" style="width: 150px" :min="filterStartDate || undefined" />
-              <q-input v-model="smartMatchDateRange" label="Days" type="number" dense class="q-ml-md" style="width: 90px" :min="0" />
-            </div>
-            <p class="text-caption q-mt-xs q-mb-none">
-              These imported transactions have exactly one potential match. Showing up to {{ MAX_SMART_MATCHES }} results.
-            </p>
-          </div>
-          <div class="col-auto">
-            <q-btn color="secondary" @click="findSmartMatches" :loading="findingSmartMatches">
+        <div class="q-mb-sm">
+          <div class="row items-center justify-between q-mb-xs">
+            <div class="text-body1 text-weight-bold">Smart Matches ({{ smartMatchCountLabel }})</div>
+            <q-btn color="primary" dense @click="findSmartMatches" :loading="findingSmartMatches" no-caps>
               <q-icon start name="playlist_add_check" />
-              Find Smart Matches
+              Find
             </q-btn>
+          </div>
+          <p class="text-caption text-muted q-mb-sm">
+            Imported transactions with exactly one potential match (up to {{ MAX_SMART_MATCHES }}).
+          </p>
+          <div class="row q-col-gutter-xs">
+            <div class="col col-sm-auto">
+              <q-input v-model="filterStartDate" label="Start Date" type="date" dense outlined hide-bottom-space :max="filterEndDate || undefined" />
+            </div>
+            <div class="col col-sm-auto">
+              <q-input v-model="filterEndDate" label="End Date" type="date" dense outlined hide-bottom-space :min="filterStartDate || undefined" />
+            </div>
+            <div class="col-4 col-sm-auto">
+              <q-input v-model="smartMatchDateRange" label="Days" type="number" dense outlined hide-bottom-space :min="0" />
+            </div>
           </div>
         </div>
 
