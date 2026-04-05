@@ -37,9 +37,9 @@
       </div>
 
       <div v-if="transactionMode !== 'transfer'" class="transaction-form__field">
-        <q-select
+        <q-input
+          ref="merchantInputRef"
           v-model="locTrnsx.merchant"
-          :options="filteredMerchants"
           :rules="requiredField"
           label="Merchant *"
           aria-required="true"
@@ -48,12 +48,35 @@
           outlined
           hide-bottom-space
           clearable
-          use-input
-          input-debounce="0"
-          new-value-mode="add-unique"
-          @filter="onMerchantFilter"
-          @input-value="onMerchantInput"
-        />
+          autocomplete="off"
+          @update:model-value="onMerchantTyping"
+          @focus="showMerchantSuggestions = true"
+          @blur="hideMerchantSuggestions"
+        >
+          <q-menu
+            v-model="showMerchantSuggestions"
+            no-parent-event
+            fit
+            no-focus
+            no-refocus
+            class="merchant-suggestions-menu"
+          >
+            <q-list dense>
+              <q-item
+                v-for="name in filteredMerchants"
+                :key="name"
+                clickable
+                v-close-popup
+                @mousedown.prevent="selectMerchant(name)"
+              >
+                <q-item-section>{{ name }}</q-item-section>
+              </q-item>
+              <q-item v-if="filteredMerchants.length === 0" disable>
+                <q-item-section class="text-grey-6 text-caption">No matches</q-item-section>
+              </q-item>
+            </q-list>
+          </q-menu>
+        </q-input>
       </div>
 
       <div class="transaction-form__field">
@@ -365,21 +388,29 @@ function onTransferDestFilter(val: string, update: (fn: () => void) => void) {
 }
 
 const merchantNames = computed(() => merchantStore.merchantNames);
-const merchantFilterText = ref('');
+const showMerchantSuggestions = ref(false);
+const merchantInputRef = ref<HTMLElement | null>(null);
 const filteredMerchants = computed(() => {
-  if (!merchantFilterText.value) return merchantNames.value;
-  const needle = merchantFilterText.value.toLowerCase();
-  return merchantNames.value.filter((m) => m.toLowerCase().includes(needle));
+  const val = locTrnsx.merchant?.trim();
+  if (!val) return merchantNames.value.slice(0, 20);
+  const needle = val.toLowerCase();
+  return merchantNames.value.filter((m) => m.toLowerCase().includes(needle)).slice(0, 20);
 });
 
-function onMerchantFilter(val: string, update: (fn: () => void) => void) {
-  update(() => {
-    merchantFilterText.value = val;
-  });
+function onMerchantTyping() {
+  showMerchantSuggestions.value = !!(locTrnsx.merchant && locTrnsx.merchant.length > 0);
 }
 
-function onMerchantInput(val: string) {
-  locTrnsx.merchant = val;
+function selectMerchant(name: string) {
+  locTrnsx.merchant = name;
+  showMerchantSuggestions.value = false;
+}
+
+function hideMerchantSuggestions() {
+  // Small delay so mousedown on menu item fires before we hide
+  setTimeout(() => {
+    showMerchantSuggestions.value = false;
+  }, 150);
 }
 
 const availableMonths = computed(() => {
@@ -836,5 +867,15 @@ function showSnackbar(text: string, color = 'success') {
 
 .transaction-form__type-toggle :deep(.q-btn:last-child) {
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0 !important;
+}
+</style>
+
+<style>
+.merchant-suggestions-menu {
+  max-height: 240px;
+}
+.merchant-suggestions-menu .q-item {
+  min-height: 36px;
+  padding: 4px 12px;
 }
 </style>

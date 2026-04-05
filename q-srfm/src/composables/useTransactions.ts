@@ -70,60 +70,21 @@ function amountsMatch(a: number | undefined, b: number | undefined): boolean {
 //   return true;
 // }
 
-function datesAlign(a: BudgetTransaction, b: BudgetTransaction): boolean {
-  if (withinDateWindow(a.date, b.date, 3)) return true;
-  const aImported = a.transactionDate || a.postedDate;
-  const bImported = b.transactionDate || b.postedDate;
-  if (aImported && bImported && withinDateWindow(aImported, bImported, 3)) return true;
-  return false;
-}
-
-function checkNumbersMatch(a: BudgetTransaction, b: BudgetTransaction): boolean {
-  if (!a.checkNumber || !b.checkNumber) return false;
-  return a.checkNumber === b.checkNumber;
-}
 
 export function isDuplicate(tx: BudgetTransaction, list: BudgetTransaction[]): boolean {
-  if (tx.amount == 649.52)  {
-      console.log('Dup check', tx);
-      console.log('Dup check list', list.filter(t => t.amount == 649.52));
-    }
   return list.some((other) => {
     if (other.id === tx.id) return false;
     if (!amountsMatch(other.amount, tx.amount)) return false;
 
-    const sameEntity = Boolean(other.entityId && tx.entityId && other.entityId === tx.entityId);
-    // const accountAligned = accountMatches(other, tx);
-    // const similarPayee = merchantSimilar(
-    //   other.merchant || other.importedMerchant,
-    //   tx.merchant || tx.importedMerchant,
-    // );
-    // const identicalPayee = merchantsMatchStrict(
-    //   other.merchant || other.importedMerchant,
-    //   tx.merchant || tx.importedMerchant,
-    // );
-    const sameCheck = checkNumbersMatch(other, tx);
-    const closeInTime = datesAlign(other, tx);
+    // Same merchant (case-insensitive)
+    const txMerchant = (tx.merchant || tx.importedMerchant || '').toLowerCase().trim();
+    const otherMerchant = (other.merchant || other.importedMerchant || '').toLowerCase().trim();
+    if (!txMerchant || !otherMerchant || txMerchant !== otherMerchant) return false;
 
-    return sameEntity && sameCheck && closeInTime; //&& (identicalPayee || similarPayee)
+    // Within 2 days of each other
+    if (!withinDateWindow(other.date, tx.date, 2)) return false;
 
-    // if (identicalPayee && (closeInTime || sameEntity || accountAligned || sameCheck)) {
-    //   return true;
-    // }
-
-    // if (closeInTime && sameCheck && (similarPayee || sameEntity || accountAligned || sameCheck)) {
-    //   return true;
-    // }
-
-    // if ((sameEntity || accountAligned) && identicalPayee) {
-    //   return true;
-    // }
-
-    // if (sameCheck && (similarPayee || sameEntity || accountAligned)) {
-    //   return true;
-    // }
-
-    // return false;
+    return true;
   });
 }
 
@@ -139,7 +100,6 @@ export interface LedgerFilters {
   search: string;
   importedMerchant: string;
   cleared: boolean;
-  uncleared: boolean;
   reconciled: boolean;
   duplicatesOnly: boolean;
   minAmt: number | null;
@@ -165,7 +125,6 @@ export function useTransactions() {
     search: '',
     importedMerchant: '',
     cleared: false,
-    uncleared: false,
     reconciled: false,
     duplicatesOnly: false,
     minAmt: null,
@@ -431,10 +390,10 @@ export function useTransactions() {
         return false;
       const statusFilters: Status[] = [];
       if (f.cleared) statusFilters.push('C');
-      if (f.uncleared) statusFilters.push('U');
       if (f.reconciled) statusFilters.push('R');
       if (statusFilters.length && !statusFilters.includes(normalizeImportedStatus(r.status))) return false;
       if (f.duplicatesOnly && !r.isDuplicate) return false;
+      if (f.unmatchedOnly && r.linkId) return false;
       if (f.minAmt != null && r.amount < f.minAmt) return false;
       if (f.maxAmt != null && r.amount > f.maxAmt) return false;
       if (f.start && r.date < f.start) return false;
@@ -456,10 +415,13 @@ export function useTransactions() {
       if (f.end && r.date > f.end) return false;
       const statusFilters: Status[] = [];
       if (f.cleared) statusFilters.push('C');
-      if (f.uncleared) statusFilters.push('U');
       if (f.reconciled) statusFilters.push('R');
       if (statusFilters.length && !statusFilters.includes(normalizeImportedStatus(r.status))) return false;
       if (f.unmatchedOnly && r.matched) return false;
+      if (f.duplicatesOnly && !r.isDuplicate) return false;
+      if (f.minAmt != null && Math.abs(r.amount) < f.minAmt) return false;
+      if (f.maxAmt != null && Math.abs(r.amount) > f.maxAmt) return false;
+      if (f.importedMerchant && !r.importedMerchant?.toLowerCase().includes(f.importedMerchant.toLowerCase())) return false;
       return true;
     });
   });

@@ -1,24 +1,20 @@
 <template>
   <q-page class="transactions-page">
-    <section class="transactions-hero panel-card no-round-bottom">
-      <div class="transactions-hero__header">
-        <div class="transactions-hero__title-group">
-          <h1 class="transactions-hero__title">Transactions</h1>
-        </div>
-        <q-tabs v-model="tab" dense class="transactions-hero__tabs" align="left" no-caps narrow-indicator>
-          <q-tab name="budget" :label="$q.screen.lt.md ? 'Budget' : 'Budget Register'">
-            <q-tooltip>Transactions matched to your budget categories</q-tooltip>
-          </q-tab>
-          <q-tab name="register" :label="$q.screen.lt.md ? 'Account' : 'Account Register'">
-            <q-tooltip>Transactions imported from your bank account</q-tooltip>
-          </q-tab>
-          <q-tab name="match" :label="$q.screen.lt.md ? 'Match' : 'Match Bank Transactions'">
-            <q-tooltip>Link imported bank transactions to your budget entries</q-tooltip>
-          </q-tab>
-        </q-tabs>
+    <section class="transactions-hero">
+      <h1 class="page-title q-mb-sm">Transactions</h1>
+      <div class="transactions-hero__tabs-row">
+        <button
+          v-for="t in tabOptions"
+          :key="t.value"
+          class="tx-pill"
+          :class="{ 'tx-pill--active': tab === t.value }"
+          @click="tab = t.value"
+        >
+          {{ $q.screen.lt.md ? t.shortLabel : t.label }}
+        </button>
       </div>
       <div v-show="tab !== 'register' && !$q.screen.lt.md" class="transactions-hero__metrics">
-        <div class="tx-metric tx-metric--primary">
+        <div class="tx-metric">
           <div class="tx-metric__label">Total Records</div>
           <div class="tx-metric__value">{{ overviewCounts.total }}</div>
         </div>
@@ -38,10 +34,10 @@
         </div>
         <div class="tx-metric">
           <div class="tx-metric__label">
-            Uncleared
-            <q-tooltip>Transaction hasn't posted yet</q-tooltip>
+            Unmatched
+            <q-tooltip>Not yet linked to a budget transaction</q-tooltip>
           </div>
-          <div class="tx-metric__value">{{ overviewCounts.uncleared }}</div>
+          <div class="tx-metric__value">{{ overviewCounts.unmatched }}</div>
         </div>
       </div>
     </section>
@@ -110,8 +106,8 @@
                     </q-icon>
                   </template>
                 </q-input>
+                <q-chip clickable class="filter-chip" :color="filters.unmatchedOnly ? 'primary' : 'white'" :text-color="filters.unmatchedOnly ? 'white' : 'primary'" @click="filters.unmatchedOnly = !filters.unmatchedOnly">Unmatched<q-tooltip>Not yet linked to a budget transaction</q-tooltip></q-chip>
                 <q-chip clickable class="filter-chip" :color="filters.cleared ? 'primary' : 'white'" :text-color="filters.cleared ? 'white' : 'primary'" @click="filters.cleared = !filters.cleared">Cleared<q-tooltip>Transaction has posted to your account</q-tooltip></q-chip>
-                <q-chip clickable class="filter-chip" :color="filters.uncleared ? 'primary' : 'white'" :text-color="filters.uncleared ? 'white' : 'primary'" @click="filters.uncleared = !filters.uncleared">Uncleared<q-tooltip>Transaction hasn't posted yet</q-tooltip></q-chip>
                 <q-chip clickable class="filter-chip" :color="filters.reconciled ? 'primary' : 'white'" :text-color="filters.reconciled ? 'white' : 'primary'" @click="filters.reconciled = !filters.reconciled">Reconciled<q-tooltip>Verified against your bank statement</q-tooltip></q-chip>
                 <q-chip clickable class="filter-chip" :color="filters.duplicatesOnly ? 'primary' : 'white'" :text-color="filters.duplicatesOnly ? 'white' : 'primary'" @click="filters.duplicatesOnly = !filters.duplicatesOnly">Duplicates</q-chip>
               </div>
@@ -224,10 +220,10 @@
                     </q-icon>
                   </template>
                 </q-input>
+                <q-chip clickable class="filter-chip" :color="filters.unmatchedOnly ? 'primary' : 'white'" :text-color="filters.unmatchedOnly ? 'white' : 'primary'" @click="filters.unmatchedOnly = !filters.unmatchedOnly">Unmatched<q-tooltip>Not yet linked to a budget transaction</q-tooltip></q-chip>
                 <q-chip clickable class="filter-chip" :color="filters.cleared ? 'primary' : 'white'" :text-color="filters.cleared ? 'white' : 'primary'" @click="filters.cleared = !filters.cleared">Cleared<q-tooltip>Transaction has posted to your account</q-tooltip></q-chip>
-                <q-chip clickable class="filter-chip" :color="filters.uncleared ? 'primary' : 'white'" :text-color="filters.uncleared ? 'white' : 'primary'" @click="filters.uncleared = !filters.uncleared">Uncleared<q-tooltip>Transaction hasn't posted yet</q-tooltip></q-chip>
                 <q-chip clickable class="filter-chip" :color="filters.reconciled ? 'primary' : 'white'" :text-color="filters.reconciled ? 'white' : 'primary'" @click="filters.reconciled = !filters.reconciled">Reconciled<q-tooltip>Verified against your bank statement</q-tooltip></q-chip>
-                <q-chip clickable class="filter-chip" :color="filters.unmatchedOnly ? 'primary' : 'white'" :text-color="filters.unmatchedOnly ? 'white' : 'primary'" @click="filters.unmatchedOnly = !filters.unmatchedOnly">Unmatched</q-chip>
+                <q-chip clickable class="filter-chip" :color="filters.duplicatesOnly ? 'primary' : 'white'" :text-color="filters.duplicatesOnly ? 'white' : 'primary'" @click="filters.duplicatesOnly = !filters.duplicatesOnly">Duplicates</q-chip>
               </div>
 
               <!-- Collapsible: Reconciliation & Statement History -->
@@ -474,6 +470,11 @@ import { useStatementStore } from 'src/store/statements';
 import { splitImportedId } from 'src/utils/imported';
 
 const tab = ref<'budget' | 'register' | 'match'>('budget');
+const tabOptions = [
+  { value: 'budget' as const, label: 'BUDGET REGISTER', shortLabel: 'Budget' },
+  { value: 'register' as const, label: 'ACCOUNT REGISTER', shortLabel: 'Account' },
+  { value: 'match' as const, label: 'MATCH BANK TRANSACTIONS', shortLabel: 'Match' },
+];
 
 const budgetStore = useBudgetStore();
 const familyStore = useFamilyStore();
@@ -518,14 +519,18 @@ const activeRows = computed(() => {
 });
 
 const overviewCounts = computed(() => {
-  const counts = { total: activeRows.value.length, cleared: 0, reconciled: 0, uncleared: 0 };
+  const counts = { total: activeRows.value.length, cleared: 0, reconciled: 0, unmatched: 0, duplicates: 0 };
   activeRows.value.forEach((row) => {
     if (row.status === 'C') {
       counts.cleared += 1;
     } else if (row.status === 'R') {
       counts.reconciled += 1;
-    } else {
-      counts.uncleared += 1;
+    }
+    if (!row.matched) {
+      counts.unmatched += 1;
+    }
+    if (row.isDuplicate) {
+      counts.duplicates += 1;
     }
   });
   return counts;
@@ -796,7 +801,6 @@ const createDefaultFilters = (): LedgerFilters => ({
   search: '',
   importedMerchant: '',
   cleared: false,
-  uncleared: false,
   reconciled: false,
   duplicatesOnly: false,
   minAmt: null,
@@ -1306,57 +1310,65 @@ async function performRegisterBatchAction() {
 }
 
 .transactions-hero {
-  gap: 20px;
+  padding: 0 0 16px;
 }
 
-.transactions-hero__header {
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+.transactions-hero__tabs-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
 }
 
-.transactions-hero__title {
-  font-size: 1.5rem;
+.tx-pill {
+  border: none;
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background: transparent;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+}
+
+.tx-pill--active {
+  background: #1d4ed8;
+  color: #ffffff;
+  border-color: #1d4ed8;
   font-weight: 600;
-  color: var(--color-text-primary);
 }
 
-.transactions-hero__subtitle {
-  font-size: 0.95rem;
-  color: var(--color-text-muted);
-  margin-top: 4px;
+.tx-pill:hover:not(.tx-pill--active) {
+  background: #f8fafc;
 }
 
 .transactions-hero__metrics {
   display: grid;
   gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
 }
 
 .tx-metric {
-  background: var(--color-surface-subtle);
-  border-radius: var(--radius-md);
-  padding: 16px;
-  box-shadow: var(--shadow-subtle);
-}
-
-.tx-metric--primary {
-  background: linear-gradient(140deg, rgba(37, 99, 235, 0.16), rgba(14, 165, 233, 0.08));
+  background: #dbeafe;
+  border-radius: 14px;
+  padding: 12px 16px;
 }
 
 .tx-metric__label {
-  font-size: 0.8rem;
+  font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--color-text-muted);
+  letter-spacing: 0.04em;
+  color: #1e40af;
   font-weight: 600;
 }
 
 .tx-metric__value {
-  margin-top: 8px;
-  font-size: 1.35rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
+  margin-top: 6px;
+  font-size: 24px;
+  font-weight: 700;
+  color: #1e3a5f;
 }
 
 .transactions-layout {
@@ -1537,17 +1549,17 @@ async function performRegisterBatchAction() {
   overflow: auto;
 }
 
-.transactions-hero__tabs :deep(.q-tab) {
-  min-width: 0;
-}
-
 @media (max-width: 959px) {
   .transactions-page {
     padding: 16px 12px 48px;
   }
 
   .transactions-hero__metrics {
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .transactions-hero__tabs-row {
+    flex-wrap: wrap;
   }
 
   .transactions-layout__aside {

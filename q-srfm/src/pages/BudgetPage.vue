@@ -11,7 +11,7 @@
     <!-- No Budgets Found -->
     <div v-else-if="!loading && budgets.length === 0" class="row justify-center q-mt-lg">
       <div class="col-12 text-center">
-        <q-card flat bordered class="q-pa-md">
+        <q-card  class="q-pa-md">
           <q-card-section>
             <div class="row items-center">
               <div class="col">
@@ -44,41 +44,40 @@
             </div>
           </div>
           <div class="row items-center q-gutter-xs">
-            <q-btn v-if="!isEditing" flat dense icon="edit" color="primary" @click="isEditing = true">
-              <q-tooltip>Edit budget</q-tooltip>
+            <q-btn v-if="!isEditing" unelevated no-caps class="btn-edit" @click="isEditing = true">
+              <q-icon name="edit" size="14px" class="q-mr-xs" />Edit
             </q-btn>
-            <q-btn v-else flat dense icon="close" @click="isEditing = false">
-              <q-tooltip>Close editor</q-tooltip>
+            <q-btn v-else unelevated no-caps class="btn-edit" @click="isEditing = false">
+              <q-icon name="close" size="14px" class="q-mr-xs" />Close
             </q-btn>
-            <q-btn v-if="!isEditing" flat dense icon="delete_outline" color="negative" @click="confirmDeleteBudget">
-              <q-tooltip>Delete budget</q-tooltip>
+            <q-btn v-if="!isEditing" unelevated no-caps class="btn-delete" @click="confirmDeleteBudget">
+              <q-icon name="delete_outline" size="14px" class="q-mr-xs" />Delete
             </q-btn>
           </div>
         </div>
 
         <!-- Row 2: Summary stats -->
-        <div v-if="!isMobile && !isEditing" class="row q-col-gutter-sm q-mb-sm">
+        <div v-if="!isMobile && !isEditing" class="row q-col-gutter-md q-mb-md budget-stats-row">
           <div class="col">
-            <div class="budget-stat budget-stat--primary">
-              <div class="budget-stat__label">Left to Budget</div>
-              <div class="budget-stat__value" :class="{ 'text-negative': remainingToBudget < 0 }">
+            <div class="budget-stat-card">
+              <div class="budget-stat-card__label">Left to Budget</div>
+              <div class="budget-stat-card__value" :class="remainingToBudget >= 0 ? 'text-positive' : 'text-negative'">
                 {{ formatCurrency(Math.abs(remainingToBudget)) }}
               </div>
-              <div class="budget-stat__sub">{{ remainingToBudget < 0 ? 'Over budget' : 'Remaining' }}</div>
             </div>
           </div>
           <div class="col">
-            <div class="budget-stat">
-              <div class="budget-stat__label">Income Received</div>
-              <div class="budget-stat__value">{{ formatCurrency(actualIncome) }}</div>
-              <div class="budget-stat__sub">Planned {{ formatCurrency(plannedIncome) }}</div>
+            <div class="budget-stat-card">
+              <div class="budget-stat-card__label">Income Received</div>
+              <div class="budget-stat-card__value">{{ formatCurrency(actualIncome) }}</div>
+              <div class="budget-stat-card__sub">Planned {{ formatCurrency(plannedIncome) }}</div>
             </div>
           </div>
           <div class="col">
-            <div class="budget-stat">
-              <div class="budget-stat__label">Savings Goals</div>
-              <div class="budget-stat__value">{{ formatCurrency(savingsTotal) }}</div>
-              <div class="budget-stat__sub">Monthly total</div>
+            <div class="budget-stat-card">
+              <div class="budget-stat-card__label">Savings Goals</div>
+              <div class="budget-stat-card__value">{{ formatCurrency(savingsTotal) }}</div>
+              <div class="budget-stat-card__sub">Monthly total</div>
             </div>
           </div>
         </div>
@@ -90,8 +89,9 @@
           outlined
           clearable
           ref="searchInput"
-          label="Search categories or groups"
+          placeholder="Search categories or groups"
           hide-bottom-space
+          class="budget-search"
           @keyup.enter="blurSearchInput"
           @clear="clearSearch"
         >
@@ -109,7 +109,7 @@
         <!-- Main Content -->
         <div :class="isMobile ? 'col-12' : 'col-12 col-lg-8'">
           <!-- Budget Editing Form -->
-          <q-card v-if="isEditing" flat bordered>
+          <q-card v-if="isEditing" >
             <q-card-section>Edit Budget for {{ selectedEntity?.name || 'selected entity' }}</q-card-section>
             <q-card-section>
               <q-form @submit.prevent="saveBudget">
@@ -167,77 +167,73 @@
           </q-card>
 
           <!-- Income Section -->
-          <q-card v-if="!isEditing && incomeItems" flat bordered id="income-section">
-            <q-card-section>
-              <div class="row text-bold">
-                <div class="col">Income for {{ selectedEntity?.name || 'selected entity' }}</div>
-                <div v-if="!isMobile" class="col-auto">Planned</div>
-                <div :class="isMobile ? 'col-auto' : 'col-2'" class="text-right">Received</div>
+          <q-card v-if="!isEditing && incomeItems" id="income-section" class="income-card">
+            <q-card-section class="q-pa-lg">
+              <div class="income-header">
+                <span class="income-title">Income for {{ selectedEntity?.name || 'selected entity' }}</span>
+                <span v-if="!isMobile" class="col-header income-col-planned">Planned</span>
+                <span class="col-header income-col-received">Received</span>
               </div>
-              <div v-for="item in incomeItems" :key="item.name" class="q-py-sm border-bottom">
-                <div class="row cursor-pointer" @click="onIncomeRowClick(item)">
-                  <div class="col">{{ item.name }}</div>
-                  <div v-if="!isMobile" class="col-auto">{{ formatCurrency(toDollars(toCents(item.planned))) }}</div>
-                  <div :class="isMobile ? 'col-auto' : 'col-2'" class="text-right">
-                    <span :class="item.received > item.planned ? 'text-positive' : ''">
-                      {{ formatCurrency(toDollars(toCents(item.received))) }}
-                    </span>
-                  </div>
-                </div>
+              <div class="income-divider" />
+              <div v-for="item in incomeItems" :key="item.name" class="income-row cursor-pointer" @click="onIncomeRowClick(item)">
+                <span class="income-row__name">{{ item.name }}</span>
+                <span v-if="!isMobile" class="income-row__planned">{{ formatCurrency(toDollars(toCents(item.planned))) }}</span>
+                <span class="income-row__received" :class="item.received > item.planned ? 'text-positive' : ''">
+                  {{ formatCurrency(toDollars(toCents(item.received))) }}
+                </span>
               </div>
-              <div v-if="!isMobile" class="row q-mt-sm">
-                <div class="col">
-                  <q-space />
-                </div>
-                <div v-if="!isMobile" class="col-auto text-bold">{{ formatCurrency(toDollars(toCents(plannedIncome))) }}</div>
-                <div :class="isMobile ? 'col-auto' : 'col-2'" class="text-right">
-                  <span class="text-bold" :class="actualIncome > plannedIncome ? 'text-positive' : ''">
-                    {{ formatCurrency(toDollars(toCents(actualIncome))) }}
-                  </span>
-                </div>
+              <div class="income-divider" />
+              <div class="income-total">
+                <span class="income-total__label">Total Income</span>
+                <span v-if="!isMobile" class="income-total__planned">{{ formatCurrency(toDollars(toCents(plannedIncome))) }}</span>
+                <span class="income-total__received" :class="actualIncome > plannedIncome ? 'text-positive' : ''">
+                  {{ formatCurrency(toDollars(toCents(actualIncome))) }}
+                </span>
               </div>
             </q-card-section>
           </q-card>
           <SavingsConversionPrompt v-if="!isMobile && legacySavingsCategories.length" :categories="legacySavingsCategories" @convert="onConvertLegacy" class="q-mt-md" />
 
           <!-- Favorites Section -->
-          <q-card v-if="!isEditing && favoriteItems.length" flat bordered id="favorites-section" class="q-mt-md">
-            <q-card-section>
-              <div class="row text-primary">
-                <div class="col">Favorites</div>
-                <div class="col-auto"><q-space /></div>
-                <div v-if="!isMobile" class="col-2">Planned</div>
-                <div :class="isMobile ? 'col-auto' : 'col-2'">Remaining</div>
+          <q-card v-if="!isEditing && favoriteItems.length" id="favorites-section" class="q-mt-md">
+            <q-card-section class="q-pa-lg">
+              <!-- Column headers -->
+              <div class="cat-table-header">
+                <span class="col-header cat-col-name">Category</span>
+                <span v-if="!isMobile" class="col-header cat-col-progress">Progress</span>
+                <span v-if="!isMobile" class="col-header cat-col-planned">Planned</span>
+                <span class="col-header cat-col-remaining">Remaining</span>
               </div>
-              <div v-for="(fg, gIdx) in favoriteGroups" :key="gIdx">
-                <div class="row text-secondary q-mt-sm">
-                  <div class="col">{{ fg.group || 'Ungrouped' }}</div>
-                </div>
-                <div v-for="(item, idx) in fg.items" :key="idx">
-                  <div class="row cursor-pointer" @click="handleRowClick(item)">
-                    <div class="col row items-center no-wrap">
-                      <q-icon
-                        :name="item.favorite ? 'star' : 'star_border'"
-                        size="xs"
-                        class="q-mr-xs cursor-pointer"
-                        :color="item.favorite ? 'amber' : 'grey'"
-                        @click.stop="toggleFavorite(item)"
-                      >
-                        <q-tooltip>Toggle Favorite</q-tooltip>
-                      </q-icon>
-                      <q-icon v-if="item.isFund" size="xs" class="q-mr-xs" color="primary" name="savings" />
-                      <span>{{ item.name }}</span>
+              <div class="cat-divider" />
+              <div class="cat-group-header">Favorites</div>
+              <div v-for="(item, idx) in favoriteItems" :key="idx">
+                <div class="cat-row cursor-pointer" @click="handleRowClick(item)">
+                  <span class="cat-col-name row items-center no-wrap">
+                    <q-icon
+                      :name="item.favorite ? 'star' : 'star_border'"
+                      size="16px"
+                      class="q-mr-xs cursor-pointer"
+                      :color="item.favorite ? 'amber' : 'grey'"
+                      @click.stop="toggleFavorite(item)"
+                    >
+                      <q-tooltip>Toggle Favorite</q-tooltip>
+                    </q-icon>
+                    <q-icon v-if="item.isFund" size="16px" class="q-mr-xs" color="primary" name="savings" />
+                    <span class="cat-name-text">{{ item.name }}</span>
+                  </span>
+                  <span v-if="!isMobile" class="cat-col-progress">
+                    <div class="cat-progress-track">
+                      <div
+                        class="cat-progress-fill"
+                        :class="item.percentage > 100 ? 'cat-progress--over' : item.percentage >= 100 ? 'cat-progress--full' : 'cat-progress--partial'"
+                        :style="{ width: Math.min(item.percentage, 100) + '%' }"
+                      />
                     </div>
-                    <div v-if="!isMobile" class="col-2">{{ formatCurrency(item.target) }}</div>
-                    <div :class="[isMobile ? 'col-auto' : 'col-2', { 'text-negative': item.remaining < 0 }]">
-                      {{ formatCurrency(item.remaining) }}
-                    </div>
-                  </div>
-                  <div class="row">
-                    <div class="col-12">
-                      <q-linear-progress :value="item.percentage / 100" color="primary" class="q-my-xs" />
-                    </div>
-                  </div>
+                  </span>
+                  <span v-if="!isMobile" class="cat-col-planned cat-amount">{{ formatCurrency(item.target) }}</span>
+                  <span class="cat-col-remaining cat-amount" :class="{ 'text-negative': item.remaining < 0 }">
+                    {{ formatCurrency(item.remaining) }}
+                  </span>
                 </div>
               </div>
             </q-card-section>
@@ -248,16 +244,20 @@
           </div>
 
           <!-- Category Tables -->
-          <div v-if="!isEditing && catTransactions" id="groups-section" class="row q-mt-md">
-            <div class="col-12 q-py-sm" v-for="(g, gIdx) in groups" :key="gIdx">
-              <q-card class="budget-group-card" :id="`group-${gIdx}`" flat bordered>
-                <q-card-section>
-                  <div class="row text-primary">
-                    <div class="col">{{ g.group || 'Ungrouped' }}</div>
-                    <div class="col-auto"><q-space /></div>
-                    <div v-if="!isMobile" class="col-2">Planned</div>
-                    <div :class="isMobile ? 'col-auto' : 'col-2'">Remaining</div>
-                  </div>
+          <div v-if="!isEditing && catTransactions" id="groups-section" class="q-mt-md">
+            <q-card class="cat-table-card">
+              <q-card-section class="q-pa-lg">
+                <!-- Column headers (shown once) -->
+                <div v-if="!favoriteItems.length" class="cat-table-header">
+                  <span class="col-header cat-col-name">Category</span>
+                  <span v-if="!isMobile" class="col-header cat-col-progress">Progress</span>
+                  <span v-if="!isMobile" class="col-header cat-col-planned">Planned</span>
+                  <span class="col-header cat-col-remaining">Remaining</span>
+                </div>
+                <div v-if="!favoriteItems.length" class="cat-divider" />
+
+                <template v-for="(g, gIdx) in groups" :key="gIdx">
+                  <div class="cat-group-header">{{ g.group || 'Ungrouped' }}</div>
                   <div
                     v-for="(item, idx) in catTransactions
                       .filter((c) => c.group == g.group && !c.favorite)
@@ -265,36 +265,35 @@
                       .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()))"
                     :key="idx"
                   >
-                    <div class="row cursor-pointer" @click="handleRowClick(item)">
-                      <div
+                    <div class="cat-row cursor-pointer" @click="handleRowClick(item)">
+                      <span
                         v-if="!(inlineEdit.item?.name === item.name && inlineEdit.field === 'name')"
                         @dblclick.stop="handleNameDblClick(item)"
                         @touchstart="startTouch(item, 'name')"
                         @touchend="endTouch"
-                        class="col row items-center no-wrap"
+                        class="cat-col-name row items-center no-wrap"
                       >
                         <q-icon
                           :name="item.favorite ? 'star' : 'star_border'"
-                          size="xs"
+                          size="16px"
                           class="q-mr-xs cursor-pointer"
                           :color="item.favorite ? 'amber' : 'grey'"
                           @click.stop="toggleFavorite(item)"
                         />
-                        <q-icon v-if="item.isFund" size="xs" class="q-mr-xs" color="primary" name="savings" />
-                        <span>{{ item.name }}</span>
-                        <!-- show the convert icon if the category is in legacySavingsCategories -->
+                        <q-icon v-if="item.isFund" size="16px" class="q-mr-xs" color="primary" name="savings" />
+                        <span class="cat-name-text">{{ item.name }}</span>
                         <q-icon
                           v-if="legacySavingsCategories.find((c) => c.name === item.name)"
                           name="change_circle"
-                          size="xs"
+                          size="16px"
                           class="q-ml-xs cursor-pointer"
                           color="accent"
                           @click.stop="onConvertLegacy(item)"
                         >
                           <q-tooltip>Convert to Savings Goal</q-tooltip>
                         </q-icon>
-                      </div>
-                      <div v-else class="col">
+                      </span>
+                      <span v-else class="cat-col-name">
                         <q-input
                           v-model="inlineEdit.value"
                           dense
@@ -303,17 +302,28 @@
                           @keydown.esc="cancelInlineEdit"
                           @blur="saveInlineEdit"
                         />
-                      </div>
-                      <div
+                      </span>
+                      <span v-if="!isMobile" class="cat-col-progress">
+                        <template v-if="!(inlineEdit.item?.name === item.name && inlineEdit.field === 'target')">
+                          <div class="cat-progress-track">
+                            <div
+                              class="cat-progress-fill"
+                              :class="item.percentage > 100 ? 'cat-progress--over' : item.percentage >= 100 ? 'cat-progress--full' : 'cat-progress--partial'"
+                              :style="{ width: Math.min(item.percentage, 100) + '%' }"
+                            />
+                          </div>
+                        </template>
+                      </span>
+                      <span
                         v-if="!isMobile && !(inlineEdit.item?.name === item.name && inlineEdit.field === 'target')"
-                        class="col-2"
+                        class="cat-col-planned cat-amount"
                         @dblclick.stop="handleTargetDblClick(item)"
                         @touchstart="startTouch(item, 'target')"
                         @touchend="endTouch"
                       >
                         {{ formatCurrency(item.target) }}
-                      </div>
-                      <div v-else-if="!isMobile" class="col-2">
+                      </span>
+                      <span v-else-if="!isMobile" class="cat-col-planned">
                         <CurrencyInput
                           v-model="inlineEditNumber"
                           dense
@@ -321,22 +331,17 @@
                           @keydown.esc="cancelInlineEdit"
                           @blur="saveInlineEdit"
                         />
-                      </div>
-                      <div :class="[isMobile ? 'col-auto' : 'col-2', { 'text-negative': item.remaining < 0 }]">
+                      </span>
+                      <span class="cat-col-remaining cat-amount" :class="{ 'text-negative': item.remaining < 0 }">
                         {{ formatCurrency(item.remaining) }}
-                      </div>
-                    </div>
-                    <div class="row">
-                      <div class="col-12">
-                        <q-linear-progress :value="item.percentage / 100" color="primary" class="q-my-xs" />
-                      </div>
+                      </span>
                     </div>
                   </div>
-                </q-card-section>
-              </q-card>
-            </div>
-            <div class="col-12" v-if="groups.length === 0">
-              <q-card flat bordered>
+                </template>
+              </q-card-section>
+            </q-card>
+            <div v-if="groups.length === 0">
+              <q-card>
                 <q-card-section>No categories defined for this budget.</q-card-section>
               </q-card>
             </div>
@@ -370,7 +375,7 @@
 
         <!-- Mobile Transactions Panel (stacked below main content) -->
         <div v-if="isMobile && !selectedCategory && !selectedGoal && !isEditing" class="col-12 q-mt-md">
-          <q-card class="column q-pa-none budget-transactions-card" flat bordered>
+          <q-card class="column q-pa-none budget-transactions-card" >
             <div class="row items-center justify-between q-pt-md q-px-md q-pb-sm border-bottom">
               <div class="row items-center q-gutter-xs">
                 <q-icon name="receipt_long" size="20px" color="primary" />
@@ -451,7 +456,7 @@
           />
           <GoalDetailsPanel v-else-if="selectedGoal && !isEditing" :goal="selectedGoal" @close="selectedGoal = null" />
           <template v-else>
-            <q-card class="column q-pa-none budget-transactions-card full-height" flat bordered>
+            <q-card class="column q-pa-none budget-transactions-card full-height" >
               <div class="row items-center justify-between q-pt-md q-px-md q-pb-sm border-bottom">
                 <div class="row items-center q-gutter-xs">
                   <q-icon name="receipt_long" size="20px" color="primary" />
@@ -955,26 +960,6 @@ const favoriteItems = computed(() =>
     .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase())),
 );
 
-const favoriteGroups = computed(() => {
-  const map = new Map<string, BudgetCategoryTrx[]>();
-  favoriteItems.value.forEach((item) => {
-    const key = item.group || '';
-    if (!map.has(key)) map.set(key, []);
-    map.get(key).push(item);
-  });
-  const groups = Array.from(map.entries()).map(([group, items]) => ({
-    group,
-    items: items.slice().sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase())),
-  }));
-  groups.sort((a, b) => {
-    const ga = (a.group || '').toLowerCase();
-    const gb = (b.group || '').toLowerCase();
-    if (!ga && gb) return 1; // push empty group to end
-    if (ga && !gb) return -1;
-    return ga.localeCompare(gb);
-  });
-  return groups;
-});
 
 const groups = computed(() => {
   const g: GroupCategory[] = [];
@@ -2006,40 +1991,235 @@ interface GroupCategory {
 }
 
 .budget-header {
+  padding: 0 0 12px;
+  margin-bottom: 0;
+}
+
+.budget-stat-card {
   background: var(--color-surface-card);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-outline-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-subtle);
   padding: 16px 20px;
-  margin-bottom: 12px;
+  min-height: 100px;
 }
 
-.budget-stat {
-  background: var(--color-surface-subtle);
-  border-radius: var(--radius-sm);
-  padding: 10px 14px;
-}
-
-.budget-stat--primary {
-  background: rgba(29, 78, 216, 0.06);
-}
-
-.budget-stat__label {
-  font-size: 0.75rem;
+.budget-stat-card__label {
+  font-size: 12px;
   font-weight: 500;
   color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
 }
 
-.budget-stat__value {
-  font-size: 1.25rem;
+.budget-stat-card__value {
+  font-size: 28px;
   font-weight: 700;
   line-height: 1.3;
+  margin-top: 6px;
+  color: var(--color-text-primary);
 }
 
-.budget-stat__sub {
-  font-size: 0.75rem;
+.budget-stat-card__sub {
+  font-size: 11px;
+  font-weight: 400;
   color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.btn-edit {
+  background: #eef2ff !important;
+  color: #1d4ed8 !important;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 16px;
+}
+
+.btn-delete {
+  background: #fce7e7 !important;
+  color: #dc2626 !important;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 16px;
+}
+
+.budget-search :deep(.q-field__control) {
+  height: 40px;
+  border-radius: var(--radius-md);
+  border-color: #94a3b8;
+}
+
+.income-card {
+  margin-top: 16px;
+}
+
+.income-header {
+  display: flex;
+  align-items: center;
+}
+
+.income-title {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.income-col-planned {
+  width: 120px;
+  text-align: right;
+}
+
+.income-col-received {
+  width: 120px;
+  text-align: right;
+}
+
+.income-divider {
+  height: 1px;
+  background: var(--color-divider, #e2e8f0);
+  margin: 12px 0;
+}
+
+.income-row {
+  display: flex;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.income-row__name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--color-text-primary);
+}
+
+.income-row__planned {
+  width: 120px;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.income-row__received {
+  width: 120px;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.income-total {
+  display: flex;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.income-total__label {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.income-total__planned {
+  width: 120px;
+  text-align: right;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.income-total__received {
+  width: 120px;
+  text-align: right;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+/* Category table layout */
+.cat-table-header {
+  display: flex;
+  align-items: center;
+}
+
+.cat-col-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.cat-col-progress {
+  width: 180px;
+  flex-shrink: 0;
+  padding: 0 16px;
+}
+
+.cat-col-planned {
+  width: 100px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.cat-col-remaining {
+  width: 100px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.cat-divider {
+  height: 1px;
+  background: var(--color-divider, #e2e8f0);
+  margin: 10px 0;
+}
+
+.cat-group-header {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1d4ed8;
+  padding: 12px 0 6px;
+}
+
+.cat-row {
+  display: flex;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.cat-name-text {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--color-text-primary);
+}
+
+.cat-amount {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.cat-progress-track {
+  width: 100%;
+  height: var(--progress-height, 8px);
+  background: #e2e8f0;
+  border-radius: var(--progress-radius, 4px);
+  overflow: hidden;
+}
+
+.cat-progress-fill {
+  height: 100%;
+  border-radius: var(--progress-radius, 4px);
+  transition: width 0.3s ease;
+}
+
+.cat-progress--partial {
+  background: #f59e0b;
+}
+
+.cat-progress--full {
+  background: #16a34a;
+}
+
+.cat-progress--over {
+  background: #dc2626;
 }
 
 .budget-tx-toggle :deep(.q-btn-group) {

@@ -1,5 +1,5 @@
 <template>
-  <q-card flat bordered class="dashboard-tile">
+  <q-card class="dashboard-tile">
     <q-card-section class="row items-center justify-between q-px-md q-py-sm">
       <div class="text-subtitle2 q-mb-none">Goals</div>
       <q-btn dense flat icon="add" color="primary" @click="$emit('create')" title="Create Goal" />

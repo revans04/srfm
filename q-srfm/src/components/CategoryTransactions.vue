@@ -1,7 +1,7 @@
 <!-- CategoryTransactions.vue -->
 <template>
   <div class="category-transactions-panel column">
-    <q-card flat bordered class="category-details-card column">
+    <q-card class="category-details-card column">
       <div class="category-hero">
         <div class="hero-main row items-start no-wrap">
           <q-avatar size="44px" class="hero-avatar" text-color="white" :color="isIncome ? 'positive' : 'primary'">

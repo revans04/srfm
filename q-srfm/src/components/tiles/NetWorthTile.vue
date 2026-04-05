@@ -1,5 +1,5 @@
 <template>
-  <q-card flat bordered class="dashboard-tile">
+  <q-card class="dashboard-tile">
     <q-card-section class="row items-center justify-between q-px-md q-py-sm">
       <div class="text-subtitle2 q-mb-none">Net Worth</div>
       <q-btn dense flat icon="refresh" color="primary" :loading="loading" @click="loadNetWorth" />

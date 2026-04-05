@@ -28,7 +28,6 @@ export const useUIStore = defineStore('uiState', () => {
     search: '',
     importedMerchant: '',
     cleared: false,
-    uncleared: false,
     reconciled: false,
     duplicatesOnly: false,
     minAmt: null,

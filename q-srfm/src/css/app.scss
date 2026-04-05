@@ -14,8 +14,12 @@
   --color-outline-soft: rgba(148, 163, 184, 0.24);
   --color-text-primary: #0f172a;
   --color-text-muted: #64748b;
+  --color-text-subtle: #94a3b8;
+  --color-divider: #e2e8f0;
   --shadow-soft: 0 18px 36px rgba(15, 23, 42, 0.08);
   --shadow-subtle: 0 6px 16px rgba(15, 23, 42, 0.06);
+  --progress-height: 8px;
+  --progress-radius: 4px;
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 18px;
@@ -47,7 +51,8 @@ h4 { font-size: 1.25rem; line-height: 1.4; }
 .q-card {
   background: var(--color-surface-card);
   border-radius: var(--radius-lg);
-  border: 1px solid var(--color-outline-soft);
+  box-shadow: var(--shadow-subtle);
+  border: none;
 }
 
 .panel-card {
@@ -109,8 +114,15 @@ h4 { font-size: 1.25rem; line-height: 1.4; }
 }
 
 .page-title {
-  font-size: 1.5rem;
-  line-height: 1.35;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.col-header {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
 }
 
 .section-title {

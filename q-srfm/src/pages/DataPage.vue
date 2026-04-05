@@ -16,7 +16,7 @@
       <q-tab-panel name="import">
         <div class="row">
           <div class="col col-12">
-            <q-card flat bordered class="bg-white q-pa-md" rounded>
+            <q-card class="bg-white q-pa-md" rounded>
               <q-card-section>Import Data</q-card-section>
               <q-card-section>
                 <q-select
@@ -266,7 +266,7 @@
                     class="row q-mt-md"
                   >
                     <div class="col col-12">
-                      <q-card flat bordered class="bg-white q-pa-md" rounded>
+                      <q-card class="bg-white q-pa-md" rounded>
                         <q-card-section>
                           <div class="text-h6">Budgets ready for import</div>
                           <div class="text-caption q-mb-sm">
@@ -511,7 +511,7 @@
       <q-tab-panel name="export">
         <div class="row">
           <div class="col col-12">
-            <q-card flat bordered class="bg-white q-pa-md" rounded>
+            <q-card class="bg-white q-pa-md" rounded>
               <q-card-section>Export Data</q-card-section>
               <q-card-section>
                 <q-btn color="primary" @click="exportDataToCSV" :loading="exporting">Export All Data</q-btn>

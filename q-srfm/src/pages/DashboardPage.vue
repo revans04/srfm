@@ -1,16 +1,11 @@
 <template>
   <q-page class="bg-grey-1 q-pa-lg">
-    <div class="row items-center justify-between q-mb-md dashboard-header">
-      <h1 class="col page-title q-mb-xs">Dashboard</h1>
-      <div class="col-auto">
-        <EntitySelector />
-      </div>
-      <div class="row items-center q-col-gutter-sm">
-        <div class="col-auto text-h6 text-primary">
-          {{ budgetLabel }}
-          <q-btn flat dense round icon="expand_more" size="sm"></q-btn>
-          <MonthSelector v-model="selectedMonth" :entity-id="entityId" :existing-months="monthSet" @select="selectMonth" />
-        </div>
+    <div class="row items-center q-gutter-sm q-mb-md">
+      <h1 class="page-title q-mb-none">Dashboard</h1>
+      <EntitySelector />
+      <div class="text-body1 text-primary text-weight-medium">
+        {{ budgetLabel }}
+        <MonthSelector v-model="selectedMonth" :entity-id="entityId" :existing-months="monthSet" @select="selectMonth" />
       </div>
     </div>
 

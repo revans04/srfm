@@ -1,7 +1,7 @@
 <!-- src/components/BankTransactionMatchingDialog.vue -->
 <template>
   <div v-if="isReady">
-    <q-card flat bordered class="match-dialog">
+    <q-card class="match-dialog">
       <q-card-section class="q-pa-md">
         <!-- Smart Matches Header -->
         <div class="q-mb-sm">

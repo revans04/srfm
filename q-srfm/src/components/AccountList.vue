@@ -1,6 +1,6 @@
 <!-- src/components/AccountList.vue -->
 <template>
-  <q-card flat bordered class="account-list-card">
+  <q-card class="account-list-card">
     <q-card-section class="row items-center q-py-sm">
       <div class="col">
         <span class="text-body1 text-weight-medium">{{ typeLabel }}</span>

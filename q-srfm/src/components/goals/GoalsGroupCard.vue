@@ -1,5 +1,5 @@
 <template>
-  <q-card flat bordered class="q-mt-md">
+  <q-card class="q-mt-md">
     <q-card-section>
       <div class="row items-center">
         <div class="col text-bold">Savings Goals</div>

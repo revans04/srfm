@@ -25,7 +25,7 @@
             <q-badge v-if="statusMetaMap[row.status]" :color="statusMetaMap[row.status].color" outline class="text-caption">
               {{ statusMetaMap[row.status].label }}
             </q-badge>
-            <q-icon v-if="row.isDuplicate" name="warning" color="warning" size="16px" />
+            <q-icon v-if="row.isDuplicate" name="warning" color="warning" size="16px"><q-tooltip>Possible duplicate — same merchant, amount, and within 2 days</q-tooltip></q-icon>
           </div>
           <q-item-label v-if="row.notes" caption class="q-mt-xs ellipsis">{{ row.notes }}</q-item-label>
         </q-item-section>

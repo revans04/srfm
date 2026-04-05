@@ -1,5 +1,5 @@
 <template>
-  <q-card flat bordered class="section-card">
+  <q-card class="section-card">
     <q-card-section class="row items-center justify-between q-px-md q-py-sm">
       <div class="text-subtitle2">Spending by Category</div>
       <q-btn dense flat icon="refresh" :loading="loading" @click="loadBudget" color="primary" />
