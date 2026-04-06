@@ -36,7 +36,6 @@
         <!-- Row 1: Title + context + actions -->
         <div class="row items-center justify-between q-mb-sm">
           <div class="row items-center q-gutter-sm">
-            <h1 class="page-title q-mb-none">Budget</h1>
             <EntitySelector @change="loadBudgets" />
             <div class="text-body1 text-primary text-weight-medium">
               {{ budgetLabel }}
@@ -54,6 +53,15 @@
               <q-icon name="delete_outline" size="14px" class="q-mr-xs" />Delete
             </q-btn>
           </div>
+        </div>
+
+        <!-- Non-current month banner -->
+        <div v-if="!isViewingCurrentMonth" class="non-current-banner q-mb-sm">
+          <q-icon name="schedule" size="16px" />
+          <span class="non-current-banner__text">
+            Viewing <strong>{{ budgetLabel }}</strong> · {{ monthOffsetLabel }}
+          </span>
+          <a class="non-current-banner__link" @click="returnToCurrentMonth">Return to current month</a>
         </div>
 
         <!-- Row 2: Summary stats -->
@@ -105,7 +113,7 @@
         <q-btn round color="primary" icon="add" @click="addTransaction" />
       </q-page-sticky>
 
-      <div class="row q-col-gutter-lg q-mt-none">
+      <div class="row budget-content-row">
         <!-- Main Content -->
         <div :class="isMobile ? 'col-12' : 'col-12 col-lg-8'">
           <!-- Budget Editing Form -->
@@ -245,22 +253,37 @@
 
           <!-- Category Tables -->
           <div v-if="!isEditing && catTransactions" id="groups-section" class="q-mt-md">
-            <q-card class="cat-table-card">
-              <q-card-section class="q-pa-lg">
-                <!-- Column headers (shown once) -->
-                <div v-if="!favoriteItems.length" class="cat-table-header">
-                  <span class="col-header cat-col-name">Category</span>
-                  <span v-if="!isMobile" class="col-header cat-col-progress">Progress</span>
-                  <span v-if="!isMobile" class="col-header cat-col-planned">Planned</span>
-                  <span class="col-header cat-col-remaining">Remaining</span>
-                </div>
-                <div v-if="!favoriteItems.length" class="cat-divider" />
-
-                <template v-for="(g, gIdx) in groups" :key="gIdx">
-                  <div class="cat-group-header">{{ g.group || 'Ungrouped' }}</div>
+            <template v-for="(g, gIdx) in groups" :key="gIdx">
+              <q-card class="cat-table-card q-mb-md">
+                <q-card-section class="q-pa-lg">
+                  <div class="cat-table-header">
+                    <span class="col-header cat-col-name row items-center no-wrap">
+                      <span class="group-reorder-arrows">
+                        <q-btn
+                          flat dense round
+                          size="xs"
+                          icon="arrow_upward"
+                          :disable="gIdx === 0"
+                          @click.stop="moveGroup(g.group, -1)"
+                        />
+                        <q-btn
+                          flat dense round
+                          size="xs"
+                          icon="arrow_downward"
+                          :disable="gIdx === groups.length - 1"
+                          @click.stop="moveGroup(g.group, 1)"
+                        />
+                      </span>
+                      {{ g.group || 'Ungrouped' }}
+                    </span>
+                    <span v-if="!isMobile" class="col-header cat-col-progress">Progress</span>
+                    <span v-if="!isMobile" class="col-header cat-col-planned">Planned</span>
+                    <span class="col-header cat-col-remaining">Remaining</span>
+                  </div>
+                  <div class="cat-divider" />
                   <div
                     v-for="(item, idx) in catTransactions
-                      .filter((c) => c.group == g.group && !c.favorite)
+                      .filter((c) => c.group == g.group)
                       .slice()
                       .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()))"
                     :key="idx"
@@ -337,9 +360,9 @@
                       </span>
                     </div>
                   </div>
-                </template>
-              </q-card-section>
-            </q-card>
+                </q-card-section>
+              </q-card>
+            </template>
             <div v-if="groups.length === 0">
               <q-card>
                 <q-card-section>No categories defined for this budget.</q-card-section>
@@ -717,6 +740,32 @@ function onContribute(goal: Goal) {
   contributeDialog.value = true;
 }
 
+function ensureGroupOrder() {
+  if (!budget.value.groupOrder || budget.value.groupOrder.length === 0) {
+    budget.value.groupOrder = groups.value.map((g) => g.group);
+  }
+}
+
+async function moveGroup(groupName: string, direction: -1 | 1) {
+  ensureGroupOrder();
+  const order = budget.value.groupOrder;
+  if (!order) return;
+  const idx = order.indexOf(groupName);
+  if (idx === -1) return;
+  const newIdx = idx + direction;
+  if (newIdx < 0 || newIdx >= order.length) return;
+  [order[idx], order[newIdx]] = [order[newIdx], order[idx]];
+  try {
+    if (budgetId.value) {
+      budget.value.budgetId = budgetId.value;
+      await dataAccess.saveBudget(budgetId.value, budget.value);
+      budgetStore.updateBudget(budgetId.value, { ...budget.value });
+    }
+  } catch (err) {
+    console.error('Failed to save group order', err);
+  }
+}
+
 async function toggleFavorite(item: BudgetCategoryTrx) {
   const idx = budget.value.categories.findIndex((c) => c.name === item.name);
   if (idx === -1) return;
@@ -894,6 +943,23 @@ const formatLongMonth = (month: string) => {
 
 const budgetLabel = computed(() => formatLongMonth(currentMonth.value));
 
+const isViewingCurrentMonth = computed(() => currentMonth.value === currentMonthISO());
+
+const monthOffsetLabel = computed(() => {
+  if (isViewingCurrentMonth.value) return '';
+  const now = currentMonthISO();
+  const [nowY, nowM] = now.split('-').map(Number);
+  const [selY, selM] = currentMonth.value.split('-').map(Number);
+  const diff = (selY - nowY) * 12 + (selM - nowM);
+  const abs = Math.abs(diff);
+  if (diff < 0) return `${abs} month${abs > 1 ? 's' : ''} ago`;
+  return `${abs} month${abs > 1 ? 's' : ''} from now`;
+});
+
+async function returnToCurrentMonth() {
+  await selectMonth(currentMonthISO());
+}
+
 const catTransactions = computed(() => {
   const catTransactions: BudgetCategoryTrx[] = [];
   if (budget.value && budget.value.categories) {
@@ -971,16 +1037,23 @@ const groups = computed(() => {
     }
     grp.cat.push(c.name);
   });
-  // Sort groups alphabetically (case-insensitive), pushing empty/undefined to end
-  g.sort((a, b) => {
-    const ga = (a.group || '').toLowerCase();
-    const gb = (b.group || '').toLowerCase();
-    if (!ga && gb) return 1;
-    if (ga && !gb) return -1;
-    return ga.localeCompare(gb);
-  });
-  // Sort categories within each group
-  g.forEach((grp) => grp.cat.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase())));
+  const order = budget.value?.groupOrder;
+  if (order && order.length > 0) {
+    g.sort((a, b) => {
+      const idxA = order.indexOf(a.group);
+      const idxB = order.indexOf(b.group);
+      const posA = idxA === -1 ? Number.MAX_SAFE_INTEGER : idxA;
+      const posB = idxB === -1 ? Number.MAX_SAFE_INTEGER : idxB;
+      return posA - posB;
+    });
+  } else {
+    // Fallback: push ungrouped to end, preserve insertion order
+    g.sort((a, b) => {
+      if (!a.group && b.group) return 1;
+      if (a.group && !b.group) return -1;
+      return 0;
+    });
+  }
   return g;
 });
 
@@ -1107,6 +1180,9 @@ function onIncomeRowClick(item: IncomeTarget) {
   const t = getCategoryInfo(item.name);
   selectedCategory.value = t;
   selectedGoal.value = null;
+  if (isMobile.value) {
+    showMobileCategoryDialog.value = true;
+  }
 }
 
 function onCategoryRowClick(item: BudgetCategoryTrx) {
@@ -1982,6 +2058,34 @@ interface GroupCategory {
 </script>
 
 <style scoped>
+.non-current-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: #fef3c7;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #92400e;
+}
+
+.non-current-banner__text {
+  flex: 1;
+}
+
+.non-current-banner__link {
+  font-weight: 600;
+  color: #92400e;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}
+
+.non-current-banner__link:hover {
+  color: #78350f;
+}
+
 .budget-page {
   min-height: 100%;
 }
@@ -1990,8 +2094,18 @@ interface GroupCategory {
   padding-bottom: 32px;
 }
 
+.budget-content-row {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.budget-content-row > * {
+  margin-bottom: 16px;
+  padding: 0 16px;
+}
+
 .budget-header {
-  padding: 0 0 12px;
+  padding: 0 0 0px;
   margin-bottom: 0;
 }
 
@@ -2140,6 +2254,18 @@ interface GroupCategory {
 .cat-table-header {
   display: flex;
   align-items: center;
+}
+
+.group-reorder-arrows {
+  display: inline-flex;
+  flex-direction: column;
+  margin-right: 4px;
+  opacity: 0.4;
+  transition: opacity 0.15s;
+}
+
+.cat-table-header:hover .group-reorder-arrows {
+  opacity: 1;
 }
 
 .cat-col-name {

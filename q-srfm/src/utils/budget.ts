@@ -122,6 +122,7 @@ export async function createBudgetForMonth(
       merchants: sourceBudget.merchants || [],
       transactions: [],
       budgetId,
+      groupOrder: sourceBudget.groupOrder ? [...sourceBudget.groupOrder] : undefined,
     };
 
     const recurringTransactions: Transaction[] = [];

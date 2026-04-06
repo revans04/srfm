@@ -246,7 +246,7 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
         if (budgetIds.Length == 0) return new List<Budget>();
 
         await using var conn = await _db.GetOpenConnectionAsync();
-        const string sql = "SELECT id, family_id, entity_id, month, label, income_target, original_budget_id FROM budgets WHERE id = ANY(@ids)";
+        const string sql = "SELECT id, family_id, entity_id, month, label, income_target, original_budget_id, group_order FROM budgets WHERE id = ANY(@ids)";
         var budgets = new List<Budget>();
 
         await using (var cmd = new NpgsqlCommand(sql, conn))
@@ -264,6 +264,7 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
                     Label = reader.IsDBNull(4) ? null : reader.GetString(4),
                     IncomeTarget = reader.IsDBNull(5) ? 0 : (double)reader.GetDecimal(5),
                     OriginalBudgetId = reader.IsDBNull(6) ? null : reader.GetString(6),
+                    GroupOrder = reader.IsDBNull(7) ? null : reader.GetFieldValue<string[]>(7)?.ToList(),
                     Transactions = new List<Transaction>(),
                     Categories = new List<BudgetCategory>(),
                     Merchants = new List<Merchant>()
@@ -294,7 +295,7 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
     {
         _logger.LogInformation("Fetching budget {BudgetId}", budgetId);
         await using var conn = await _db.GetOpenConnectionAsync();
-        const string sqlBudget = "SELECT id, family_id, entity_id, month, label, income_target, original_budget_id FROM budgets WHERE id=@id";
+        const string sqlBudget = "SELECT id, family_id, entity_id, month, label, income_target, original_budget_id, group_order FROM budgets WHERE id=@id";
         await using var cmd = new NpgsqlCommand(sqlBudget, conn);
         cmd.Parameters.AddWithValue("id", budgetId);
         await using var reader = await cmd.ExecuteReaderAsync();
@@ -313,6 +314,7 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
             Label = reader.IsDBNull(4) ? null : reader.GetString(4),
             IncomeTarget = reader.IsDBNull(5) ? 0 : (double)reader.GetDecimal(5),
             OriginalBudgetId = reader.IsDBNull(6) ? null : reader.GetString(6),
+            GroupOrder = reader.IsDBNull(7) ? null : reader.GetFieldValue<string[]>(7)?.ToList(),
             Transactions = new List<Transaction>(),
             Categories = new List<BudgetCategory>(),
             Merchants = new List<Merchant>()
@@ -333,9 +335,9 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
         _logger.LogInformation("Saving budget {BudgetId}", budgetId);
         await using var conn = await _db.GetOpenConnectionAsync();
         await using var dbTx = await conn.BeginTransactionAsync();
-        const string sql = @"INSERT INTO budgets (id, family_id, entity_id, month, label, income_target, original_budget_id, created_at, updated_at)
-VALUES (@id,@family_id,@entity_id,@month,@label,@income_target,@original_budget_id, now(), now())
-ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.entity_id, month=EXCLUDED.month, label=EXCLUDED.label, income_target=EXCLUDED.income_target, original_budget_id=EXCLUDED.original_budget_id, updated_at=now();";
+        const string sql = @"INSERT INTO budgets (id, family_id, entity_id, month, label, income_target, original_budget_id, group_order, created_at, updated_at)
+VALUES (@id,@family_id,@entity_id,@month,@label,@income_target,@original_budget_id,@group_order, now(), now())
+ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.entity_id, month=EXCLUDED.month, label=EXCLUDED.label, income_target=EXCLUDED.income_target, original_budget_id=EXCLUDED.original_budget_id, group_order=EXCLUDED.group_order, updated_at=now();";
         await using var cmd = new NpgsqlCommand(sql, conn, dbTx);
         cmd.Parameters.AddWithValue("id", budgetId);
         cmd.Parameters.AddWithValue("family_id", Guid.Parse(budget.FamilyId));
@@ -344,6 +346,7 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
         cmd.Parameters.AddWithValue("label", (object?)budget.Label ?? DBNull.Value);
         cmd.Parameters.AddWithValue("income_target", (decimal)budget.IncomeTarget);
         cmd.Parameters.AddWithValue("original_budget_id", (object?)budget.OriginalBudgetId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("group_order", budget.GroupOrder != null ? (object)budget.GroupOrder.ToArray() : DBNull.Value);
         await cmd.ExecuteNonQueryAsync();
 
         // Replace existing categories and insert current ones

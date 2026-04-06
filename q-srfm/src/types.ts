@@ -116,6 +116,7 @@ export interface Budget {
   transactions: Transaction[];
   originalBudgetId?: string;
   merchants: Array<{ name: string; usageCount: number }>;
+  groupOrder?: string[];
 }
 
 export interface BudgetInfo extends Budget {

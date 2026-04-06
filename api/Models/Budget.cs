@@ -29,6 +29,8 @@ namespace FamilyBudgetApi.Models
         public string? OriginalBudgetId { get; set; }
 
         public List<Merchant> Merchants { get; set; } = new();
+
+        public List<string>? GroupOrder { get; set; }
     }
 
     public class BudgetCategory

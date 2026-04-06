@@ -74,6 +74,11 @@ function amountsMatch(a: number | undefined, b: number | undefined): boolean {
 export function isDuplicate(tx: BudgetTransaction, list: BudgetTransaction[]): boolean {
   return list.some((other) => {
     if (other.id === tx.id) return false;
+
+    // Must be the same transaction type (income vs expense vs transfer)
+    if (other.isIncome !== tx.isIncome) return false;
+    if ((other.transactionType || 'standard') !== (tx.transactionType || 'standard')) return false;
+
     if (!amountsMatch(other.amount, tx.amount)) return false;
 
     // Same merchant (case-insensitive)

@@ -165,6 +165,9 @@ export class DataAccess {
             };
           })
         : [],
+      groupOrder: Array.isArray(b.groupOrder)
+        ? (b.groupOrder as unknown[]).filter((g): g is string => typeof g === 'string')
+        : undefined,
     };
   }
 
