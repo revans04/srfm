@@ -120,7 +120,7 @@ try {
     console.log('Building SPA for Firebase Hosting (yarn build)...');
     execSync('yarn build', { cwd: projectRoot, stdio: 'inherit' });
     console.log(`Deploying to Firebase Hosting (project: ${fbProject})...`);
-    execSync(`npx firebase deploy --only hosting --project ${fbProject}`, { cwd: projectRoot, stdio: 'inherit' });
+    execSync(`firebase deploy --only hosting --project ${fbProject}`, { cwd: projectRoot, stdio: 'inherit' });
     console.log('Firebase Hosting deployment successful.');
   } else {
     console.log('Building and deploying q-srfm (Cloud Run)...');

@@ -7,7 +7,7 @@
         <div class="q-mb-sm">
           <div class="row items-center justify-between q-mb-xs">
             <div class="text-body1 text-weight-bold">Smart Matches ({{ smartMatchCountLabel }})</div>
-            <q-btn color="primary" dense @click="findSmartMatches" :loading="findingSmartMatches" no-caps>
+            <q-btn color="primary" @click="findSmartMatches" :loading="findingSmartMatches" no-caps>
               <q-icon start name="playlist_add_check" />
               Find
             </q-btn>

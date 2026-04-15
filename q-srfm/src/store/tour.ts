@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia';
 import { shallowRef, computed } from 'vue';
+import { useBudgetStore } from './budget';
+import { useFamilyStore } from './family';
 
 export interface ChecklistItem {
   id: string;
@@ -20,15 +22,65 @@ export const useTourStore = defineStore('tour', () => {
     { id: 'reconcile-account', label: 'Reconcile an account' },
   ];
 
+  // Derive completion from actual data in the budget/family stores.
+  // Each check is reactive — as stores hydrate, items tick on automatically.
+  // Sticky: once a check goes true, it stays true via completedChecklist
+  // (so a user who clears state still sees historical progress).
+  const derivedCompleted = computed<Record<string, boolean>>(() => {
+    const budgetStore = useBudgetStore();
+    const familyStore = useFamilyStore();
+    const budgets = Array.from(budgetStore.budgets.values());
+
+    const hasBudget = budgets.length > 0;
+
+    let hasTransaction = false;
+    let hasGoal = false;
+    let hasReconciled = false;
+    let hasImported = false;
+    for (const b of budgets) {
+      const txs = b.transactions || [];
+      for (const t of txs) {
+        if (t.deleted) continue;
+        hasTransaction = true;
+        if (t.status === 'R') hasReconciled = true;
+        if (t.importedMerchant || t.accountNumber) hasImported = true;
+      }
+      const cats = b.categories || [];
+      for (const c of cats) {
+        if (c.isFund) {
+          hasGoal = true;
+          break;
+        }
+      }
+      if (hasTransaction && hasGoal && hasReconciled && hasImported) break;
+    }
+
+    // Fallback signal for imports: family has at least one linked account
+    // with an account number (the user has gone through account setup).
+    if (!hasImported) {
+      const accounts = familyStore.family?.accounts || [];
+      hasImported = accounts.some((a) => Boolean(a.accountNumber));
+    }
+
+    return {
+      'create-budget': hasBudget,
+      'enter-transaction': hasTransaction,
+      'import-transactions': hasImported,
+      'setup-goal': hasGoal,
+      'reconcile-account': hasReconciled,
+    };
+  });
+
   const checklist = computed<ChecklistItem[]>(() => {
-    const completed = completedChecklist.value;
+    const sticky = completedChecklist.value;
+    const derived = derivedCompleted.value;
     return checklistItems.map((item) => ({
       ...item,
-      completed: completed.indexOf(item.id) >= 0,
+      completed: Boolean(derived[item.id]) || sticky.indexOf(item.id) >= 0,
     }));
   });
 
-  const completedCount = computed(() => completedChecklist.value.length);
+  const completedCount = computed(() => checklist.value.filter((i) => i.completed).length);
   const totalCount = checklistItems.length;
   const allComplete = computed(() => completedCount.value >= totalCount);
 

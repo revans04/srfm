@@ -101,6 +101,13 @@ export interface BudgetCategory {
   group: string;
   carryover?: number;
   favorite?: boolean;
+  /**
+   * Name of another budget category (typically a goal's fund category) that
+   * by default funds expenses in this category. When set, the transaction
+   * form offers to source the expense from this category, creating a
+   * transfer transaction automatically instead of a standard expense.
+   */
+  fundingSourceCategory?: string;
 }
 
 export interface Budget {

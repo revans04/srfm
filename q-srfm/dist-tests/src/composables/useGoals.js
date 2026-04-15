@@ -6,14 +6,18 @@ import { useBudgetStore } from '../store/budget';
 /**
  * Composable for managing savings goals.
  *
- * Sample seed in console:
- * const { createGoal, addContribution } = useGoals();
- * const goal = await createGoal({ entityId: 'demo', name: 'Vacation', totalTarget: 5000, monthlyTarget: 500 });
- * await addContribution(goal.id, 500, '2025-08');
+ * Contributions and goal spends are no longer tracked in-memory — they are
+ * derived from transfer transactions stored on monthly budgets. Use the
+ * TransactionForm or BudgetPage.saveContribution to persist them. This
+ * composable caches backend-derived roll-ups (savedToDate / spentToDate) and
+ * the detail lists returned by `loadGoalDetails` for display.
  */
 const goals = ref([]);
-const contributions = ref({});
-const spends = ref({});
+// Cache of backend-derived contributions/spends keyed by goalId. Populated by
+// loadGoalDetails and kept around so the details panel can render without
+// refetching on every open.
+const contributionsCache = ref({});
+const spendsCache = ref({});
 const loadedEntities = new Set();
 export function useGoals() {
     const familyStore = useFamilyStore();
@@ -22,16 +26,18 @@ export function useGoals() {
         return goals.value.filter((g) => g.entityId === entityId && !g.archived);
     }
     function listContributions(goalId) {
-        return contributions.value[goalId] || [];
+        return contributionsCache.value[goalId] || [];
     }
     function listGoalSpends(goalId) {
-        return spends.value[goalId] || [];
+        return spendsCache.value[goalId] || [];
     }
     function getGoal(goalId) {
         return goals.value.find((g) => g.id === goalId);
     }
-    async function loadGoals(entityId) {
-        if (!entityId || loadedEntities.has(entityId))
+    async function loadGoals(entityId, force = false) {
+        if (!entityId)
+            return;
+        if (loadedEntities.has(entityId) && !force)
             return;
         const fetched = await dataAccess.getGoals(entityId);
         goals.value = goals.value.filter((g) => g.entityId !== entityId);
@@ -90,43 +96,51 @@ export function useGoals() {
         }
     }
     async function loadGoalDetails(goalId) {
-        console.log('Loading goal details', goalId);
         const details = await dataAccess.getGoalDetails(goalId);
-        console.log('Loaded goal details', goalId, details);
-        contributions.value[goalId] = details.contributions;
-        spends.value[goalId] = details.spend;
-        recomputeRollups(goalId);
+        contributionsCache.value[goalId] = details.contributions;
+        spendsCache.value[goalId] = details.spend;
     }
-    function addContribution(goalId, amount, month, note) {
-        const list = contributions.value[goalId] || (contributions.value[goalId] = []);
-        list.push({ goalId, amount, month, note });
-        recomputeRollups(goalId);
-    }
-    function addGoalSpend(goalId, txId, amount, txDate, note) {
-        const list = spends.value[goalId] || (spends.value[goalId] = []);
-        list.push({ goalId, txId, amount, txDate, note });
-        recomputeRollups(goalId);
-    }
-    function recomputeRollups(goalId) {
-        const goal = goals.value.find((g) => g.id === goalId);
-        if (!goal)
-            return;
-        const saved = (contributions.value[goalId] || []).reduce((s, c) => s + c.amount, 0);
-        const spent = (spends.value[goalId] || []).reduce((s, c) => s + c.amount, 0);
-        goal.savedToDate = saved;
-        goal.spentToDate = spent;
-        goal.status = saved >= goal.totalTarget ? 'reached' : goal.status;
-        goal.updatedAt = new Date();
-    }
-    function contributionsForMonth(goalId, month) {
-        return (contributions.value[goalId] || [])
-            .filter((c) => c.month === month)
-            .reduce((s, c) => s + c.amount, 0);
-    }
+    /**
+     * Sum of planned monthly savings across active goals. The month parameter
+     * is accepted for API stability but is currently unused — planned savings
+     * come from each goal's `monthlyTarget`, which is not per-month. Actual
+     * contributions for a given month should be read from transaction data
+     * instead.
+     */
     function monthlySavingsTotal(entityId, _month) {
         void _month;
         const activeGoals = listGoals(entityId);
-        return activeGoals.reduce((sum, g) => sum + g.monthlyTarget, 0);
+        return activeGoals.reduce((sum, g) => sum + (g.monthlyTarget || 0), 0);
+    }
+    /**
+     * Actual contributions to a goal in a given month, computed from transfer
+     * transactions in the loaded budgets. A contribution is any positive
+     * transaction_category amount whose category name matches the goal. If the
+     * relevant month's budget isn't loaded, the cache may not be populated; the
+     * caller should ensure the budget is loaded or fall back to
+     * loadGoalDetails which hits the backend directly.
+     */
+    function contributionsForMonth(goalId, month) {
+        const goal = goals.value.find((g) => g.id === goalId);
+        if (!goal)
+            return 0;
+        let total = 0;
+        for (const b of budgetStore.budgets.values()) {
+            if (b.month !== month)
+                continue;
+            if (goal.entityId && b.entityId && b.entityId !== goal.entityId)
+                continue;
+            for (const t of b.transactions) {
+                if (t.deleted)
+                    continue;
+                for (const tc of t.categories || []) {
+                    if (tc.category === goal.name && (tc.amount || 0) > 0) {
+                        total += tc.amount;
+                    }
+                }
+            }
+        }
+        return total;
     }
     return {
         listGoals,
@@ -136,9 +150,6 @@ export function useGoals() {
         updateGoal,
         archiveGoal,
         loadGoalDetails,
-        addContribution,
-        addGoalSpend,
-        recomputeRollups,
         monthlySavingsTotal,
         contributionsForMonth,
         listContributions,

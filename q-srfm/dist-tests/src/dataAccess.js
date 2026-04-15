@@ -93,6 +93,9 @@ export class DataAccess {
             entityId: typeof tx.entityId === 'string' ? tx.entityId : undefined,
             taxMetadata: Array.isArray(tx.taxMetadata) ? tx.taxMetadata : [],
             receiptUrl: typeof tx.receiptUrl === 'string' ? tx.receiptUrl : undefined,
+            transactionType: typeof tx.transactionType === 'string'
+                ? tx.transactionType
+                : 'standard',
         };
     }
     mapBudget(apiBudget) {
@@ -109,6 +112,9 @@ export class DataAccess {
                     carryover: typeof cat.carryover === 'number' ? cat.carryover : undefined,
                     favorite: typeof cat.favorite === 'boolean'
                         ? (cat.favorite)
+                        : undefined,
+                    fundingSourceCategory: typeof cat.fundingSourceCategory === 'string' && cat.fundingSourceCategory.length > 0
+                        ? cat.fundingSourceCategory
                         : undefined,
                 };
             })
@@ -133,6 +139,9 @@ export class DataAccess {
                     };
                 })
                 : [],
+            groupOrder: Array.isArray(b.groupOrder)
+                ? b.groupOrder.filter((g) => typeof g === 'string')
+                : undefined,
         };
     }
     // Budget Functions
@@ -146,6 +155,20 @@ export class DataAccess {
         if (!response.ok)
             throw new Error(`Failed to load accessible budgets: ${response.statusText}`);
         return await response.json();
+    }
+    async getBudgetsBatch(budgetIds) {
+        if (budgetIds.length === 0)
+            return [];
+        const headers = await this.getAuthHeaders();
+        const response = await fetch(`${this.apiBaseUrl}/budget/batch?ids=${budgetIds.join(',')}`, { headers });
+        if (!response.ok)
+            throw new Error(`Failed to get budgets batch: ${response.statusText}`);
+        const raw = await response.json();
+        return raw.map((r) => this.mapBudget(r)).map((b, i) => {
+            if (!b.budgetId)
+                b.budgetId = budgetIds[i];
+            return b;
+        });
     }
     async getBudget(budgetId) {
         const headers = await this.getAuthHeaders();

@@ -422,7 +422,7 @@ export function useTransactions() {
       if (f.cleared) statusFilters.push('C');
       if (f.reconciled) statusFilters.push('R');
       if (statusFilters.length && !statusFilters.includes(normalizeImportedStatus(r.status))) return false;
-      if (f.unmatchedOnly && r.matched) return false;
+      if (f.unmatchedOnly && (r.matched || r.status === 'I')) return false;
       if (f.duplicatesOnly && !r.isDuplicate) return false;
       if (f.minAmt != null && Math.abs(r.amount) < f.minAmt) return false;
       if (f.maxAmt != null && Math.abs(r.amount) > f.maxAmt) return false;

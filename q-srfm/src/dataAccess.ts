@@ -140,6 +140,10 @@ export class DataAccess {
               typeof cat.favorite === 'boolean'
                 ? (cat.favorite)
                 : undefined,
+            fundingSourceCategory:
+              typeof cat.fundingSourceCategory === 'string' && cat.fundingSourceCategory.length > 0
+                ? cat.fundingSourceCategory
+                : undefined,
           };
         })
       : [];

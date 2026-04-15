@@ -165,6 +165,19 @@
                   <div class="col-6 col-sm-1 q-pa-xs">
                     <q-btn flat icon="close" color="negative" @click="removeCategory(index)" />
                   </div>
+                  <div class="col-12 col-sm-6 q-pa-xs">
+                    <q-select
+                      :model-value="cat.fundingSourceCategory || null"
+                      :options="fundingSourceOptionsFor(cat)"
+                      label="Funded from (optional)"
+                      dense
+                      outlined
+                      stack-label
+                      clearable
+                      hint="If set, new expenses in this category default to a transfer from the source."
+                      @update:model-value="(v) => (cat.fundingSourceCategory = v || undefined)"
+                    />
+                  </div>
                 </div>
 
                 <q-btn flat color="primary" @click="addCategory" class="q-mt-sm">Add Category</q-btn>
@@ -253,27 +266,21 @@
 
           <!-- Category Tables -->
           <div v-if="!isEditing && catTransactions" id="groups-section" class="q-mt-md">
-            <template v-for="(g, gIdx) in groups" :key="gIdx">
-              <q-card class="cat-table-card q-mb-md">
+            <template v-for="(g, gIdx) in groups" :key="g.group">
+              <q-card
+                class="cat-table-card q-mb-md"
+                :class="{ 'group-drag-over': dragOverIndex === gIdx }"
+                draggable="true"
+                @dragstart="onGroupDragStart(gIdx, $event)"
+                @dragover.prevent="onGroupDragOver(gIdx)"
+                @dragleave="onGroupDragLeave"
+                @drop.prevent="onGroupDrop(gIdx)"
+                @dragend="onGroupDragEnd"
+              >
                 <q-card-section class="q-pa-lg">
                   <div class="cat-table-header">
                     <span class="col-header cat-col-name row items-center no-wrap">
-                      <span class="group-reorder-arrows">
-                        <q-btn
-                          flat dense round
-                          size="xs"
-                          icon="arrow_upward"
-                          :disable="gIdx === 0"
-                          @click.stop="moveGroup(g.group, -1)"
-                        />
-                        <q-btn
-                          flat dense round
-                          size="xs"
-                          icon="arrow_downward"
-                          :disable="gIdx === groups.length - 1"
-                          @click.stop="moveGroup(g.group, 1)"
-                        />
-                      </span>
+                      <q-icon name="drag_indicator" size="18px" class="group-drag-handle q-mr-xs" />
                       {{ g.group || 'Ungrouped' }}
                     </span>
                     <span v-if="!isMobile" class="col-header cat-col-progress">Progress</span>
@@ -582,7 +589,12 @@
         </q-card>
       </q-dialog>
       <GoalDialog v-model="goalDialog" :goal="selectedGoal || undefined" @save="saveGoal" />
-      <ContributeDialog v-model="contributeDialog" :goal="selectedGoal || undefined" @save="saveContribution" />
+      <ContributeDialog
+        v-model="contributeDialog"
+        :goal="selectedGoal || undefined"
+        :category-options="categoryOptions"
+        @save="saveContribution"
+      />
     </div>
   </q-page>
 </template>
@@ -668,7 +680,7 @@ const newTransaction = ref<Transaction>({
   isIncome: false,
   taxMetadata: [],
 });
-const { monthlySavingsTotal, createGoal, listGoals, loadGoals, addContribution, addGoalSpend, loadGoalDetails } = useGoals();
+const { monthlySavingsTotal, createGoal, listGoals, loadGoals, loadGoalDetails } = useGoals();
 const savingsTotal = ref(0);
 const goals = ref<Goal[]>([]);
 const goalMap = computed(() => Object.fromEntries(goals.value.map((g) => [g.id, g])));
@@ -740,21 +752,47 @@ function onContribute(goal: Goal) {
   contributeDialog.value = true;
 }
 
+// --- Group drag-and-drop reordering ---
+const dragFromIndex = ref<number | null>(null);
+const dragOverIndex = ref<number | null>(null);
+
 function ensureGroupOrder() {
   if (!budget.value.groupOrder || budget.value.groupOrder.length === 0) {
     budget.value.groupOrder = groups.value.map((g) => g.group);
   }
 }
 
-async function moveGroup(groupName: string, direction: -1 | 1) {
+function onGroupDragStart(idx: number, e: DragEvent) {
+  dragFromIndex.value = idx;
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(idx));
+  }
+}
+
+function onGroupDragOver(idx: number) {
+  if (dragFromIndex.value !== null && dragFromIndex.value !== idx) {
+    dragOverIndex.value = idx;
+  }
+}
+
+function onGroupDragLeave() {
+  dragOverIndex.value = null;
+}
+
+async function onGroupDrop(toIdx: number) {
+  const fromIdx = dragFromIndex.value;
+  dragOverIndex.value = null;
+  dragFromIndex.value = null;
+  if (fromIdx === null || fromIdx === toIdx) return;
+
   ensureGroupOrder();
   const order = budget.value.groupOrder;
   if (!order) return;
-  const idx = order.indexOf(groupName);
-  if (idx === -1) return;
-  const newIdx = idx + direction;
-  if (newIdx < 0 || newIdx >= order.length) return;
-  [order[idx], order[newIdx]] = [order[newIdx], order[idx]];
+
+  const [moved] = order.splice(fromIdx, 1);
+  order.splice(toIdx, 0, moved);
+
   try {
     if (budgetId.value) {
       budget.value.budgetId = budgetId.value;
@@ -764,6 +802,11 @@ async function moveGroup(groupName: string, direction: -1 | 1) {
   } catch (err) {
     console.error('Failed to save group order', err);
   }
+}
+
+function onGroupDragEnd() {
+  dragFromIndex.value = null;
+  dragOverIndex.value = null;
 }
 
 async function toggleFavorite(item: BudgetCategoryTrx) {
@@ -827,13 +870,86 @@ async function saveGoal(data: Partial<Goal>) {
   }
 }
 
-function saveContribution(amount: number, note?: string) {
-  if (!selectedGoal.value) return;
-  addContribution(selectedGoal.value.id, amount, currentMonth.value, note);
-  contributeDialog.value = false;
-  if (familyStore.selectedEntityId) {
-    goals.value = listGoals(familyStore.selectedEntityId);
-    savingsTotal.value = monthlySavingsTotal(familyStore.selectedEntityId, currentMonth.value);
+async function saveContribution(payload: { amount: number; note?: string; sourceCategory: string }) {
+  const goal = selectedGoal.value;
+  if (!goal) return;
+  const { amount, note, sourceCategory } = payload;
+  if (!amount || amount <= 0) {
+    showSnackbar('Contribution amount must be greater than 0', 'negative');
+    return;
+  }
+
+  try {
+    // Make sure a budget exists for the current month/entity so the transfer has a home
+    let targetBudget: Budget | null = null;
+    if (familyStore.family && familyStore.selectedEntityId) {
+      targetBudget = await createBudgetForMonth(
+        currentMonth.value,
+        familyStore.family.id,
+        userId.value,
+        familyStore.selectedEntityId,
+      );
+    } else if (budget.value.budgetId) {
+      targetBudget = budget.value;
+    }
+
+    if (!targetBudget || !targetBudget.budgetId) {
+      showSnackbar('Unable to save contribution: no budget for this month.', 'negative');
+      return;
+    }
+
+    const tx: Transaction = {
+      id: uuidv4(),
+      budgetId: targetBudget.budgetId,
+      date: todayISO(),
+      budgetMonth: currentMonth.value,
+      merchant: note && note.trim().length > 0 ? note.trim() : 'Contribution',
+      categories: [
+        { category: sourceCategory, amount: -amount },
+        { category: goal.name, amount: amount },
+      ],
+      amount,
+      notes: note || '',
+      recurring: false,
+      recurringInterval: 'Monthly',
+      userId: userId.value,
+      familyId: familyStore.family?.id,
+      isIncome: false,
+      taxMetadata: [],
+      entityId: familyStore.selectedEntityId || undefined,
+      transactionType: 'transfer',
+    };
+
+    const saved = await dataAccess.saveTransaction(targetBudget, tx);
+    // Keep the in-memory budget in sync so category math updates immediately
+    const existingIdx = targetBudget.transactions.findIndex((t) => t.id === saved.id);
+    if (existingIdx >= 0) {
+      targetBudget.transactions[existingIdx] = saved;
+    } else {
+      targetBudget.transactions.push(saved);
+    }
+    if (targetBudget.budgetId) {
+      budgetStore.updateBudget(targetBudget.budgetId, { ...targetBudget });
+    }
+
+    contributeDialog.value = false;
+    showSnackbar('Contribution saved', 'success');
+
+    if (familyStore.selectedEntityId) {
+      // Pull fresh savedToDate/spentToDate for all goals (backend derives from transactions)
+      await loadGoals(familyStore.selectedEntityId);
+      goals.value = listGoals(familyStore.selectedEntityId);
+      savingsTotal.value = monthlySavingsTotal(familyStore.selectedEntityId, currentMonth.value);
+      // Refresh the details panel cache for this goal so the contribution list updates
+      try {
+        await loadGoalDetails(goal.id);
+      } catch (err) {
+        console.warn('Failed to refresh goal details after contribution', err);
+      }
+    }
+  } catch (err) {
+    console.error('Failed to save contribution', err);
+    showSnackbar('Failed to save contribution', 'negative');
   }
 }
 
@@ -841,46 +957,16 @@ async function convertLegacyCategory(cat: BudgetCategory, data: Partial<Goal>) {
   document.body.style.cursor = 'progress';
   Loading.show({ message: 'Converting savings category to goal…' });
   try {
-    if (userId.value) {
-      await budgetStore.loadBudgets(userId.value, familyStore.selectedEntityId);
-      for (const [id, b] of budgetStore.budgets.entries()) {
-        const full = await dataAccess.getBudget(b.budgetId || id);
-        if (full) budgetStore.updateBudget(b.budgetId || id, full);
-      }
-    }
-
-    const goal = await createGoal({
+    // The backend links any existing budget_categories sharing the goal's name
+    // via goals_budget_categories, so historical transactions automatically
+    // roll up into the goal's savedToDate/spentToDate — no client-side
+    // backfill required.
+    await createGoal({
       ...data,
       name: data.name || cat.name,
       monthlyTarget: data.monthlyTarget ?? cat.target,
       entityId: familyStore.selectedEntityId || '',
     });
-
-    // For each existing budget, add contributions for underspend and log goal spends
-    for (const b of budgetStore.budgets.values()) {
-      if (b.entityId && b.entityId !== goal.entityId) continue;
-      if (b.month > currentMonth.value) continue;
-
-      let spent = 0;
-      for (const t of b.transactions) {
-        if (t.deleted || t.isIncome) continue;
-        for (const tc of t.categories) {
-          if (tc.category === goal.name) {
-            const amt = Math.abs(tc.amount);
-            spent += amt;
-            addGoalSpend(goal.id, t.id, amt, t.date);
-          }
-        }
-      }
-
-      const budgetCat = b.categories.find((c) => c.name === goal.name);
-      if (budgetCat) {
-        const diff = budgetCat.target - spent;
-        if (diff > 0) {
-          addContribution(goal.id, diff, b.month);
-        }
-      }
-    }
 
     if (budget.value.categories) {
       categoryOptions.value = budget.value.categories.map((c) => c.name);
@@ -1548,6 +1634,20 @@ function onTransactionSaved(transaction: Transaction) {
     budgetStore.updateBudget(budgetId.value, { ...budget.value });
 
     updateMerchants();
+
+    // If the transaction touches any goal's fund category, refresh goal
+    // roll-ups so savedToDate/spentToDate reflect the change immediately.
+    const touchesGoal = (transaction.categories || []).some((c) =>
+      goals.value.some((g) => g.name === c.category),
+    );
+    if (touchesGoal && familyStore.selectedEntityId) {
+      void loadGoals(familyStore.selectedEntityId, true).then(() => {
+        if (familyStore.selectedEntityId) {
+          goals.value = listGoals(familyStore.selectedEntityId);
+          savingsTotal.value = monthlySavingsTotal(familyStore.selectedEntityId, currentMonth.value);
+        }
+      });
+    }
   } catch (error: unknown) {
     const err = error as Error;
     showSnackbar(`Error updating transaction: ${err.message}`, 'negative');
@@ -1651,6 +1751,17 @@ async function saveBudget() {
   } finally {
     saving.value = false;
   }
+}
+
+// Options for the "Funded from" dropdown on the category edit row. Excludes
+// the category itself and any Income-group categories (income isn't a real
+// fund to draw from in the transfer model — it's just where positive cash
+// flow is recorded).
+function fundingSourceOptionsFor(cat: BudgetCategory): string[] {
+  return budget.value.categories
+    .filter((c) => c !== cat && c.name && c.group?.toLowerCase() !== 'income')
+    .map((c) => c.name)
+    .sort((a, b) => a.localeCompare(b));
 }
 
 async function addCategory() {
@@ -2091,7 +2202,31 @@ interface GroupCategory {
 }
 
 .budget-page--mobile {
-  padding-bottom: 32px;
+  padding: 12px 8px 32px !important;
+}
+
+.budget-page--mobile :deep(.q-card-section.q-pa-lg) {
+  padding: 16px 12px;
+}
+
+.budget-page--mobile .cat-name-text,
+.budget-page--mobile .cat-amount,
+.budget-page--mobile .income-row__name,
+.budget-page--mobile .income-row__received,
+.budget-page--mobile .income-row__planned {
+  font-size: 15px;
+}
+
+.budget-page--mobile .cat-group-header {
+  font-size: 15px;
+}
+
+.budget-page--mobile .cat-row {
+  padding: 9px 0;
+}
+
+.budget-page--mobile .income-row {
+  padding: 8px 0;
 }
 
 .budget-content-row {
@@ -2200,7 +2335,7 @@ interface GroupCategory {
 
 .income-row__name {
   flex: 1;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 400;
   color: var(--color-text-primary);
 }
@@ -2208,7 +2343,7 @@ interface GroupCategory {
 .income-row__planned {
   width: 120px;
   text-align: right;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--color-text-primary);
 }
@@ -2216,7 +2351,7 @@ interface GroupCategory {
 .income-row__received {
   width: 120px;
   text-align: right;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--color-text-primary);
 }
@@ -2256,16 +2391,27 @@ interface GroupCategory {
   align-items: center;
 }
 
-.group-reorder-arrows {
-  display: inline-flex;
-  flex-direction: column;
-  margin-right: 4px;
-  opacity: 0.4;
+.group-drag-handle {
+  cursor: grab;
+  opacity: 0.3;
   transition: opacity 0.15s;
 }
 
-.cat-table-header:hover .group-reorder-arrows {
-  opacity: 1;
+.cat-table-header:hover .group-drag-handle {
+  opacity: 0.7;
+}
+
+.group-drag-handle:active {
+  cursor: grabbing;
+}
+
+.cat-table-card[draggable="true"] {
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.group-drag-over {
+  box-shadow: 0 0 0 2px var(--q-primary) !important;
+  border-radius: var(--radius-md);
 }
 
 .cat-col-name {
@@ -2298,7 +2444,7 @@ interface GroupCategory {
 }
 
 .cat-group-header {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: #1d4ed8;
   padding: 12px 0 6px;
@@ -2307,17 +2453,17 @@ interface GroupCategory {
 .cat-row {
   display: flex;
   align-items: center;
-  padding: 6px 0;
+  padding: 7px 0;
 }
 
 .cat-name-text {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 400;
   color: var(--color-text-primary);
 }
 
 .cat-amount {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--color-text-primary);
 }

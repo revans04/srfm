@@ -41,6 +41,12 @@ namespace FamilyBudgetApi.Models
         public string? Group { get; set; }
         public double? Carryover { get; set; }
         public bool? Favorite { get; set; }
+
+        // Name of another category that by default funds expenses in this
+        // category. When set, the transaction form will offer to source the
+        // expense from this category (creating a transfer transaction instead
+        // of a standard expense).
+        public string? FundingSourceCategory { get; set; }
     }
 
     public class Transaction

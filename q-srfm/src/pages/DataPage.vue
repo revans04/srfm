@@ -261,132 +261,229 @@
                       />
                     </div>
                   </div>
-                  <div
-                    v-if="everyDollarBudgetEntries.length > 0"
-                    class="row q-mt-md"
-                  >
+                  <div v-if="everyDollarDiffs.length > 0" class="row q-mt-md">
                     <div class="col col-12">
                       <q-card class="bg-white q-pa-md" rounded>
                         <q-card-section>
-                          <div class="text-h6">Budgets ready for import</div>
+                          <div class="text-h6">Review differences</div>
                           <div class="text-caption q-mb-sm">
-                            Uncheck budgets to skip importing (or overwriting) them. {{ everyDollarSelectedBudgetIds.size }} of {{ everyDollarBudgetEntries.length }} selected.
+                            This import is additive only. Nothing on existing budgets will be overwritten or deleted — check the items you want to add.
                           </div>
-                          <q-banner
-                            v-if="everyDollarSelectedOverwriteMonths.length > 0"
-                            type="warning"
-                            class="q-mb-sm"
-                          >
-                            Budgets already exist for months: {{ everyDollarSelectedOverwriteMonths.join(", ") }}. If you continue, they'll be overwritten.
-                          </q-banner>
-                        </q-card-section>
-                        <q-card-section class="q-pt-none">
-                          <div
-                            class="row q-col-gutter-sm q-mb-md"
-                            v-for="entry in everyDollarBudgetEntries"
-                            :key="entry.budgetId"
-                          >
+                          <div class="row q-gutter-md items-center q-mt-sm">
                             <div class="col-auto">
-                              <q-checkbox
+                              <q-input
+                                v-model.number="everyDollarDuplicateWindowDays"
+                                type="number"
+                                label="Duplicate date window (days)"
                                 dense
-                                v-model="everyDollarBudgetSelection[entry.budgetId]"
-                              ></q-checkbox>
-                            </div>
-                            <div class="col">
-                              <div class="text-subtitle2 q-mb-xs">
-                                {{ entry.label }}
-                              </div>
-                              <div class="text-caption">
-                                {{ entry.month || 'Unknown month' }} ·
-                                {{ entry.transactionCount }} transaction
-                                {{ entry.transactionCount === 1 ? '' : 's' }}
-                              </div>
+                                outlined
+                                :min="0"
+                                :disable="importing"
+                                style="max-width: 220px"
+                                @update:model-value="recomputeEveryDollarDiffDuplicates"
+                              />
                             </div>
                           </div>
                         </q-card-section>
+
+                        <q-card-section class="q-pt-none">
+                          <q-expansion-item
+                            v-for="diff in everyDollarDiffs"
+                            :key="diff.month"
+                            :label="diff.month"
+                            :caption="diffSummaryCaption(diff)"
+                            :default-opened="true"
+                            header-class="text-weight-medium"
+                            class="q-mb-sm"
+                            style="border: 1px solid #e0e0e0; border-radius: 8px;"
+                          >
+                            <div class="q-pa-md">
+                              <!-- Budget status banner -->
+                              <q-banner
+                                v-if="diff.existingBudgetId === null"
+                                type="info"
+                                class="q-mb-md"
+                                dense
+                              >
+                                No budget exists for {{ diff.month }} yet.
+                                <template #action>
+                                  <q-checkbox
+                                    v-if="everyDollarDiffSelection[diff.month]"
+                                    v-model="everyDollarDiffSelection[diff.month].createBudget"
+                                    label="Create budget from CSV"
+                                    dense
+                                  />
+                                </template>
+                              </q-banner>
+                              <q-banner v-else class="q-mb-md bg-grey-2" dense>
+                                Budget exists — existing categories, targets and carryover will be left alone.
+                              </q-banner>
+
+                              <!-- Budget-level informational diffs -->
+                              <div v-if="diff.labelDiff || diff.incomeTargetDiff" class="q-mb-md">
+                                <div class="text-subtitle2 q-mb-xs">Budget-level differences (informational only)</div>
+                                <div v-if="diff.labelDiff" class="text-caption q-ml-sm">
+                                  Label: existing <code>{{ diff.labelDiff.existing }}</code> · imported <code>{{ diff.labelDiff.imported }}</code>
+                                </div>
+                                <div v-if="diff.incomeTargetDiff" class="text-caption q-ml-sm">
+                                  Income target: existing <code>{{ formatCurrency(diff.incomeTargetDiff.existing) }}</code> · imported <code>{{ formatCurrency(diff.incomeTargetDiff.imported) }}</code>
+                                </div>
+                              </div>
+
+                              <!-- New categories -->
+                              <div v-if="diff.newCategories.length > 0" class="q-mb-md">
+                                <div class="text-subtitle2 q-mb-xs">
+                                  New categories ({{ diff.newCategories.length }})
+                                </div>
+                                <div
+                                  v-for="cat in diff.newCategories"
+                                  :key="cat.key"
+                                  class="row items-center q-mb-xs"
+                                >
+                                  <q-checkbox
+                                    v-if="everyDollarDiffSelection[diff.month]"
+                                    dense
+                                    v-model="everyDollarDiffSelection[diff.month].addCategoryKeys[cat.key]"
+                                  />
+                                  <div class="q-ml-sm">
+                                    <span class="text-weight-medium">{{ cat.category.name }}</span>
+                                    <span class="text-caption text-grey-7 q-ml-sm">
+                                      {{ cat.category.group || 'Uncategorized' }} ·
+                                      target {{ formatCurrency(cat.category.target || 0) }}
+                                      <span v-if="cat.category.isFund"> · fund</span>
+                                      <span v-if="cat.category.carryover">
+                                        · carryover {{ formatCurrency(cat.category.carryover) }}
+                                      </span>
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <!-- Changed categories (informational only) -->
+                              <div v-if="diff.changedCategories.length > 0" class="q-mb-md">
+                                <div class="text-subtitle2 q-mb-xs">
+                                  Categories with differences ({{ diff.changedCategories.length }}) — informational only
+                                </div>
+                                <div class="text-caption text-grey-7 q-mb-xs">
+                                  These categories already exist on the budget. Existing values will NOT be overwritten.
+                                </div>
+                                <div
+                                  v-for="row in diff.changedCategories"
+                                  :key="row.name"
+                                  class="q-mb-xs q-pa-sm"
+                                  style="border-left: 2px solid #fdd835; background: #fffde7;"
+                                >
+                                  <div class="text-weight-medium">{{ row.name }}</div>
+                                  <div
+                                    v-for="fd in row.differences"
+                                    :key="fd.field"
+                                    class="text-caption q-ml-sm"
+                                  >
+                                    {{ fd.field }}: existing
+                                    <code>{{ formatDiffValue(fd.field, fd.existing) }}</code>
+                                    · imported
+                                    <code>{{ formatDiffValue(fd.field, fd.imported) }}</code>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <!-- New transactions -->
+                              <div class="q-mb-md">
+                                <div class="text-subtitle2 q-mb-xs">
+                                  New transactions ({{ diff.newTransactions.length }})
+                                </div>
+                                <div v-if="diff.newTransactions.length === 0" class="text-caption text-grey-7">
+                                  No new transactions to import for this month.
+                                </div>
+                                <q-markup-table v-else dense flat bordered>
+                                  <thead>
+                                    <tr>
+                                      <th class="text-left" style="width: 40px"></th>
+                                      <th class="text-left">Date</th>
+                                      <th class="text-left">Merchant</th>
+                                      <th class="text-left">Categories</th>
+                                      <th class="text-right">Amount</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr v-for="row in diff.newTransactions" :key="row.key">
+                                      <td>
+                                        <q-checkbox
+                                          v-if="everyDollarDiffSelection[diff.month]"
+                                          dense
+                                          v-model="everyDollarDiffSelection[diff.month].addTxKeys[row.key]"
+                                        />
+                                      </td>
+                                      <td>{{ row.transaction.date }}</td>
+                                      <td>{{ row.transaction.merchant }}</td>
+                                      <td class="text-caption">{{ formatCategories(row.transaction.categories) }}</td>
+                                      <td class="text-right">{{ formatCurrency(row.transaction.amount) }}</td>
+                                    </tr>
+                                  </tbody>
+                                </q-markup-table>
+                              </div>
+
+                              <!-- Duplicate transactions (collapsible) -->
+                              <div v-if="diff.duplicateTransactions.length > 0">
+                                <q-btn
+                                  flat
+                                  dense
+                                  size="sm"
+                                  :label="`${everyDollarDiffSelection[diff.month]?.showDuplicates ? 'Hide' : 'Show'} duplicates (${diff.duplicateTransactions.length})`"
+                                  icon="visibility"
+                                  @click="toggleShowDuplicates(diff.month)"
+                                />
+                                <div v-if="everyDollarDiffSelection[diff.month]?.showDuplicates" class="q-mt-sm">
+                                  <div class="text-caption text-grey-7 q-mb-xs">
+                                    These CSV rows appear to match an existing transaction (date + amount + similar merchant). Check any you want to import anyway.
+                                  </div>
+                                  <q-markup-table dense flat bordered>
+                                    <thead>
+                                      <tr>
+                                        <th class="text-left" style="width: 40px"></th>
+                                        <th class="text-left">Date</th>
+                                        <th class="text-left">Merchant</th>
+                                        <th class="text-right">Amount</th>
+                                        <th class="text-left">Matched existing</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      <tr v-for="row in diff.duplicateTransactions" :key="row.key">
+                                        <td>
+                                          <q-checkbox
+                                            v-if="everyDollarDiffSelection[diff.month]"
+                                            dense
+                                            v-model="everyDollarDiffSelection[diff.month].addTxKeys[row.key]"
+                                          />
+                                        </td>
+                                        <td>{{ row.transaction.date }}</td>
+                                        <td>{{ row.transaction.merchant }}</td>
+                                        <td class="text-right">{{ formatCurrency(row.transaction.amount) }}</td>
+                                        <td class="text-caption text-grey-8">{{ row.matchedExistingSummary }}</td>
+                                      </tr>
+                                    </tbody>
+                                  </q-markup-table>
+                                </div>
+                              </div>
+                            </div>
+                          </q-expansion-item>
+                        </q-card-section>
+
                         <q-card-actions align="right">
                           <q-btn
+                            flat
+                            label="Cancel"
+                            @click="resetEveryDollarDiffState"
+                            :disable="importing"
+                          />
+                          <q-btn
                             color="primary"
-                            label="Import Selected Budgets"
-                            @click="confirmEveryDollarCsvImport"
-                            :disabled="importing || everyDollarSelectedBudgetIds.size === 0"
+                            label="Apply selected changes"
+                            @click="applyEveryDollarDiff"
+                            :disable="importing || !hasAnyEveryDollarSelections"
                           />
                         </q-card-actions>
                       </q-card>
-                    </div>
-                  </div>
-                </div>
-                <div v-else-if="importType === 'everyDollarBudget'">
-                  <q-input
-                    v-model="everyDollarJson"
-                    type="textarea"
-                    autogrow
-                    :input-style="{ maxHeight: '500px', overflowY: 'auto' }"
-                    label="Paste EveryDollar Budget JSON"
-                    :disable="importing"
-                    outlined
-                  />
-                  <q-input
-                    v-model.number="duplicateDays"
-                    type="number"
-                    label="Days to check for duplicates"
-                    :min="0"
-                    :disable="importing"
-                    outlined
-                    class="q-mt-md"
-                  />
-                  <div class="row q-mt-md">
-                    <div class="col">
-                      <q-btn
-                        color="primary"
-                        @click="previewEveryDollarTransactions"
-                        :disabled="importing || !everyDollarJson"
-                      >
-                        Preview Transactions
-                      </q-btn>
-                    </div>
-                  </div>
-                  <div v-if="everyDollarTransactions.length > 0" class="q-mt-lg">
-                    <h3>Parsed Transactions for {{ recommendedMonth }}</h3>
-                    <div class="row q-mb-md items-center">
-                      <div class="col-12 col-md-4 q-mb-sm q-mb-md-0">
-                        <q-input
-                          v-model="everyDollarFilter"
-                          label="Filter"
-                          dense
-                          outlined
-                        />
-                      </div>
-                      <div class="col-6 col-md-3">
-                        <q-checkbox v-model="selectAllEveryDollar" label="Select All" />
-                      </div>
-                      <div class="col-6 col-md-3">
-                        <q-checkbox v-model="showOnlyUnmatched" label="Only unmatched" />
-                      </div>
-                    </div>
-                    <q-table
-                      :rows="displayedEveryDollarTransactions"
-                      :columns="everyDollarTransactionColumns"
-                      row-key="rowId"
-                      flat
-                      bordered
-                      selection="multiple"
-                      v-model:selected="selectedEveryDollarTransactions"
-                      :table-row-class-fn="transactionRowClass"
-                      :pagination="{ rowsPerPage: 0 }"
-                      :rows-per-page-options="[0]"
-                      :filter="everyDollarFilter"
-                    ></q-table>
-                    <div class="row q-mt-md">
-                      <div class="col">
-                        <q-btn
-                          color="primary"
-                          @click="importEveryDollarTransactions"
-                          :disabled="importing || selectedEveryDollarTransactions.length === 0"
-                        >
-                          Import Transactions
-                        </q-btn>
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -613,7 +710,6 @@ const importTypes = [
   { label: "Entities", value: "entities" },
   { label: "Budget/Transactions", value: "budgetTransactions" },
   { label: "EveryDollar Budgets/Transactions CSV", value: "everyDollarCsv" },
-  { label: "EveryDollar Budget JSON", value: "everyDollarBudget" },
   { label: "Bank/Card Transactions", value: "bankTransactions" },
   { label: "Accounts/Snapshots", value: "accountsAndSnapshots" },
 ];
@@ -639,8 +735,6 @@ const entitiesFile = ref<File | null>(null);
 const accountsSnapshotsFile = ref<File | null>(null);
 const everyDollarBudgetCsvFile = ref<File | null>(null);
 const everyDollarTransactionsCsvFile = ref<File | null>(null);
-const everyDollarJson = ref('');
-const everyDollarBudgetSelection = reactive<Record<string, boolean>>({});
 
 watch(importType, (val) => {
   if (val !== 'everyDollarCsv') {
@@ -649,82 +743,13 @@ watch(importType, (val) => {
     pendingImportData.value = null;
     overwriteMonths.value = [];
     showOverwriteDialog.value = false;
-    clearEveryDollarBudgetSelection();
+    resetEveryDollarDiffState();
   }
 });
 
-const recommendedMonth = ref('');
-
-const everyDollarBudgetEntries = computed(() => {
-  const budgets = pendingImportData.value?.budgetsById;
-  if (!budgets || budgets.size === 0) {
-    return [];
-  }
-  return Array.from(budgets.entries()).map(([budgetId, budget]) => ({
-    budgetId,
-    label: budget.label || `Imported EveryDollar ${budget.month}`,
-    month: budget.month,
-    transactionCount: budget.transactions?.length || 0,
-    selected: everyDollarBudgetSelection[budgetId] ?? true,
-  }));
-});
-
-const everyDollarSelectedBudgetIds = computed(() => {
-  const ids = new Set<string>();
-  everyDollarBudgetEntries.value.forEach((entry) => {
-    if (entry.selected) {
-      ids.add(entry.budgetId);
-    }
-  });
-  return ids;
-});
-
-const everyDollarSelectedMonths = computed(() => {
-  const months = new Set<string>();
-  const budgetsById = pendingImportData.value?.budgetsById;
-  if (!budgetsById) {
-    return [];
-  }
-  everyDollarSelectedBudgetIds.value.forEach((budgetId) => {
-    const budget = budgetsById.get(budgetId);
-    if (budget?.month) {
-      months.add(budget.month);
-    }
-  });
-  return Array.from(months.values());
-});
-
-const everyDollarSelectedOverwriteMonths = computed(() => {
-  const monthMap = pendingImportData.value?.everyDollarMonthToExistingId ?? new Map();
-  return everyDollarSelectedMonths.value.filter((month) => monthMap.has(month));
-});
-
-function resetEveryDollarBudgetSelection(budgetIds: string[]) {
-  clearEveryDollarBudgetSelection();
-  budgetIds.forEach((id) => {
-    everyDollarBudgetSelection[id] = true;
-  });
-}
-
-function clearEveryDollarBudgetSelection() {
-  Object.keys(everyDollarBudgetSelection).forEach((key) => {
-    delete everyDollarBudgetSelection[key];
-  });
-}
-
-interface EveryDollarTransactionRow {
-  rowId: string;
-  date: string;
-  month?: string;
-  merchant: string;
-  group: string;
-  item: string;
-  amount: string;
-  rawAmount: number;
-  isDuplicate: boolean;
-  txKey?: string; // logical transaction key for grouping splits
-  splits?: Array<{ category: string; group: string; amount: number }>; // optional split detail for preview/import
-}
+// ---------------------------------------------------------------------------
+// EveryDollar CSV import — types and diff state
+// ---------------------------------------------------------------------------
 
 interface EveryDollarMonthData {
   categories: Map<string, BudgetCategory>;
@@ -733,56 +758,154 @@ interface EveryDollarMonthData {
   month: string;
 }
 
-const everyDollarTransactions = ref<EveryDollarTransactionRow[]>([]);
-const selectedEveryDollarTransactions = ref<EveryDollarTransactionRow[]>([]);
-const everyDollarFilter = ref('');
-const duplicateDays = ref(2);
-const showOnlyUnmatched = ref(false);
-const displayedEveryDollarTransactions = computed(() => {
-  const rows = everyDollarTransactions.value.filter(
-    (tx) => !showOnlyUnmatched.value || !tx.isDuplicate
-  );
-  // Default sort: by Month then Date (ascending)
-  rows.sort((a, b) => {
-    const am = a.month || '';
-    const bm = b.month || '';
-    if (am !== bm) return am.localeCompare(bm);
-    return (a.date || '').localeCompare(b.date || '');
-  });
-  return rows;
-});
-const selectAllEveryDollar = computed({
-  get: () =>
-    selectedEveryDollarTransactions.value.length ===
-      displayedEveryDollarTransactions.value.length &&
-    displayedEveryDollarTransactions.value.length > 0,
-  set: (val: boolean) => {
-    selectedEveryDollarTransactions.value = val
-      ? [...displayedEveryDollarTransactions.value]
-      : [];
-  },
-});
-watch(everyDollarTransactions, () => {
-  selectedEveryDollarTransactions.value = [];
-});
-watch(showOnlyUnmatched, (val) => {
-  if (val) {
-    selectedEveryDollarTransactions.value = selectedEveryDollarTransactions.value.filter(
-      (tx) => !tx.isDuplicate
-    );
-  }
-});
-const everyDollarTransactionColumns: QTableColumn[] = [
-  { name: 'date', label: 'Date', field: 'date', align: 'left' as const, sortable: true },
-  { name: 'month', label: 'Month', field: 'month', align: 'left' as const, sortable: true },
-  { name: 'merchant', label: 'Merchant', field: 'merchant', align: 'left' as const, sortable: true },
-  { name: 'group', label: 'Group', field: 'group', align: 'left' as const, sortable: true },
-  { name: 'item', label: 'Category', field: 'item', align: 'left' as const, sortable: true },
-  { name: 'amount', label: 'Amount', field: 'amount', align: 'right' as const, sortable: true },
-];
+interface EveryDollarCategoryFieldDiff {
+  field: 'target' | 'carryover' | 'isFund' | 'group';
+  existing: string | number | boolean | undefined;
+  imported: string | number | boolean | undefined;
+}
 
-function transactionRowClass(row: EveryDollarTransactionRow) {
-  return row.isDuplicate ? 'bg-yellow-2 text-weight-bold' : '';
+interface EveryDollarCategoryDiffRow {
+  name: string;
+  group: string;
+  isFund: boolean;
+  differences: EveryDollarCategoryFieldDiff[];
+}
+
+interface EveryDollarNewCategory {
+  key: string;
+  category: BudgetCategory;
+}
+
+interface EveryDollarTxPreviewRow {
+  key: string;
+  transaction: Transaction;
+  matchedExistingId?: string;
+  matchedExistingSummary?: string;
+}
+
+interface EveryDollarBudgetDiff {
+  month: string;
+  existingBudgetId: string | null;
+  existingBudget: Budget | null;
+  importedLabel: string;
+  importedIncomeTarget: number;
+  labelDiff: { existing: string; imported: string } | null;
+  incomeTargetDiff: { existing: number; imported: number } | null;
+  newCategories: EveryDollarNewCategory[];
+  changedCategories: EveryDollarCategoryDiffRow[];
+  newTransactions: EveryDollarTxPreviewRow[];
+  duplicateTransactions: EveryDollarTxPreviewRow[];
+}
+
+interface EveryDollarDiffSelectionEntry {
+  createBudget: boolean;
+  addCategoryKeys: Record<string, boolean>;
+  addTxKeys: Record<string, boolean>;
+  showDuplicates: boolean;
+  expanded: boolean;
+}
+
+const everyDollarDiffs = ref<EveryDollarBudgetDiff[]>([]);
+const everyDollarDiffSelection = reactive<Record<string, EveryDollarDiffSelectionEntry>>({});
+const everyDollarDuplicateWindowDays = ref(3);
+
+function clearEveryDollarDiffSelection() {
+  Object.keys(everyDollarDiffSelection).forEach((key) => {
+    delete everyDollarDiffSelection[key];
+  });
+}
+
+function resetEveryDollarDiffState() {
+  everyDollarDiffs.value = [];
+  clearEveryDollarDiffSelection();
+}
+
+function initializeDiffSelection(diffs: EveryDollarBudgetDiff[]) {
+  clearEveryDollarDiffSelection();
+  diffs.forEach((diff) => {
+    const addCategoryKeys: Record<string, boolean> = {};
+    diff.newCategories.forEach((c) => {
+      addCategoryKeys[c.key] = true;
+    });
+    const addTxKeys: Record<string, boolean> = {};
+    diff.newTransactions.forEach((t) => {
+      addTxKeys[t.key] = true;
+    });
+    everyDollarDiffSelection[diff.month] = {
+      createBudget: diff.existingBudgetId === null,
+      addCategoryKeys,
+      addTxKeys,
+      showDuplicates: false,
+      expanded: true,
+    };
+  });
+}
+
+function normalizeMerchant(name: string | undefined): string {
+  if (!name) return '';
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function merchantsLookSimilar(a: string, b: string): boolean {
+  const na = normalizeMerchant(a);
+  const nb = normalizeMerchant(b);
+  if (!na || !nb) return na === nb;
+  if (na === nb) return true;
+  if (na.includes(nb) || nb.includes(na)) return true;
+  // Token overlap: share at least one non-trivial token (len >= 4)
+  const ta = new Set(na.split(' ').filter((t) => t.length >= 4));
+  const tb = new Set(nb.split(' ').filter((t) => t.length >= 4));
+  for (const t of ta) {
+    if (tb.has(t)) return true;
+  }
+  return false;
+}
+
+function roundCents(n: number): number {
+  return Math.round(Math.abs(n) * 100);
+}
+
+function transactionTotal(tx: Transaction): number {
+  if (Array.isArray(tx.categories) && tx.categories.length > 0) {
+    return tx.categories.reduce((sum, c) => sum + Math.abs(c.amount), 0);
+  }
+  return Math.abs(tx.amount);
+}
+
+function sameDay(a: string | undefined, b: string | undefined): boolean {
+  if (!a || !b) return false;
+  return a.slice(0, 10) === b.slice(0, 10);
+}
+
+function dateWithinDays(a: string | undefined, b: string | undefined, days: number): boolean {
+  if (!a || !b) return false;
+  const ta = new Date(a).getTime();
+  const tb = new Date(b).getTime();
+  if (Number.isNaN(ta) || Number.isNaN(tb)) return false;
+  return Math.abs(ta - tb) <= days * 86400000;
+}
+
+function findDuplicateExisting(
+  candidate: Transaction,
+  existing: Transaction[],
+  windowDays: number,
+): Transaction | null {
+  const candidateCents = roundCents(transactionTotal(candidate));
+  const candidateMerchant = candidate.merchant || '';
+  for (const ex of existing) {
+    if (ex.deleted) continue;
+    if (roundCents(transactionTotal(ex)) !== candidateCents) continue;
+    const dateMatch = windowDays <= 0
+      ? sameDay(ex.date, candidate.date)
+      : dateWithinDays(ex.date, candidate.date, windowDays);
+    if (!dateMatch) continue;
+    if (!merchantsLookSimilar(ex.merchant || '', candidateMerchant)) continue;
+    return ex;
+  }
+  return null;
 }
 
 async function fetchBudgetsForAccessibleInfos(infos: BudgetInfo[]): Promise<Budget[]> {
@@ -2104,331 +2227,280 @@ async function importEveryDollarCsv() {
       throw new Error('No budget months could be determined from the provided CSV files.');
     }
 
+    // ------------------------------------------------------------------
+    // Compute a diff between the parsed CSV data and existing budgets.
+    // The import is additive-only — never delete, never overwrite.
+    // ------------------------------------------------------------------
     const existingInfos = await dataAccess.loadAccessibleBudgets(user.uid, selectedEntityId.value);
-    const monthToExistingId = new Map<string, string>();
+    const monthToExistingInfo = new Map<string, BudgetInfo>();
     existingInfos.forEach((info) => {
       if (info.month && info.budgetId) {
-        monthToExistingId.set(info.month, info.budgetId);
+        monthToExistingInfo.set(info.month, info);
       }
     });
 
-    const budgetsById = new Map<string, Budget>();
-    const existingBudgetIds = new Set<string>();
-
+    // Make sure we have FULL existing budgets (with categories/transactions)
+    // for any month that will be diffed against.
+    const monthsToDiff: string[] = [];
     budgetKeysWithBudgetCsvRows.forEach((key) => {
       const data = budgetData.get(key);
-      if (!data) {
-        return;
+      if (data?.month) monthsToDiff.push(data.month);
+    });
+    const fullExistingByMonth = new Map<string, Budget>();
+    for (const month of monthsToDiff) {
+      const info = monthToExistingInfo.get(month);
+      if (!info?.budgetId) continue;
+      let full = budgetStore.budgets.get(info.budgetId) || null;
+      const needsFetch =
+        !full ||
+        !Array.isArray(full.categories) ||
+        full.categories.length === 0 ||
+        !Array.isArray(full.transactions);
+      if (needsFetch) {
+        try {
+          const fetched = await dataAccess.getBudget(info.budgetId);
+          if (fetched) {
+            if (!fetched.budgetId) fetched.budgetId = info.budgetId;
+            budgetStore.updateBudget(info.budgetId, fetched);
+            full = fetched;
+          }
+        } catch (err) {
+          console.warn(`Failed to load existing budget ${info.budgetId} for diff`, err);
+        }
       }
+      if (full) fullExistingByMonth.set(month, full);
+    }
+
+    const diffs: EveryDollarBudgetDiff[] = [];
+    const sortedKeys = Array.from(budgetKeysWithBudgetCsvRows).sort((a, b) => {
+      const ma = budgetData.get(a)?.month || '';
+      const mb = budgetData.get(b)?.month || '';
+      return ma.localeCompare(mb);
+    });
+
+    sortedKeys.forEach((key) => {
+      const data = budgetData.get(key);
+      if (!data) return;
       const month = data.month;
       if (!month) {
         console.warn('Skipping EveryDollar budget entry without a month for key', key);
         return;
       }
 
-      const existingId = monthToExistingId.get(month);
-      const targetId = existingId || uuidv4();
-
-      data.transactions.forEach((tx) => {
-        tx.budgetId = targetId;
-        tx.budgetMonth = month;
-      });
-
-      const categories = Array.from(data.categories.values()).sort((a, b) => {
+      const importedCategories = Array.from(data.categories.values()).sort((a, b) => {
         const groupCompare = (a.group || '').localeCompare(b.group || '', undefined, {
           sensitivity: 'base',
         });
-        if (groupCompare !== 0) {
-          return groupCompare;
-        }
+        if (groupCompare !== 0) return groupCompare;
         return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
       });
 
-      const budget: Budget = {
-        budgetId: targetId,
-        familyId: familyId.value!,
-        entityId: selectedEntityId.value,
-        label: `Imported EveryDollar ${month}`,
-        month,
-        budgetMonth: month,
-        incomeTarget: data.incomeTarget,
-        categories,
-        transactions: data.transactions.slice(),
-        merchants: [],
-      };
+      const existing = fullExistingByMonth.get(month) || null;
+      const existingInfo = monthToExistingInfo.get(month) || null;
+      const existingCategoryByName = new Map<string, BudgetCategory>();
+      (existing?.categories || []).forEach((cat) => {
+        const name = (cat.name || '').trim();
+        if (name) existingCategoryByName.set(name.toLowerCase(), cat);
+      });
 
-      budgetsById.set(targetId, budget);
-      if (existingId) {
-        existingBudgetIds.add(existingId);
-      }
+      const newCategories: EveryDollarNewCategory[] = [];
+      const changedCategories: EveryDollarCategoryDiffRow[] = [];
+
+      importedCategories.forEach((imported) => {
+        const importedName = (imported.name || '').trim();
+        if (!importedName) return;
+        const match = existingCategoryByName.get(importedName.toLowerCase());
+        if (!match) {
+          newCategories.push({
+            key: `cat::${month}::${importedName.toLowerCase()}`,
+            category: { ...imported },
+          });
+          return;
+        }
+        // Existing — compare fields for informational display
+        const diffs: EveryDollarCategoryFieldDiff[] = [];
+        if (Number(match.target || 0) !== Number(imported.target || 0)) {
+          diffs.push({ field: 'target', existing: match.target || 0, imported: imported.target || 0 });
+        }
+        const existingCarry = Number(match.carryover ?? 0);
+        const importedCarry = Number(imported.carryover ?? 0);
+        if (existingCarry !== importedCarry) {
+          diffs.push({ field: 'carryover', existing: existingCarry, imported: importedCarry });
+        }
+        if (Boolean(match.isFund) !== Boolean(imported.isFund)) {
+          diffs.push({ field: 'isFund', existing: Boolean(match.isFund), imported: Boolean(imported.isFund) });
+        }
+        if ((match.group || '') !== (imported.group || '')) {
+          diffs.push({ field: 'group', existing: match.group || '', imported: imported.group || '' });
+        }
+        if (diffs.length > 0) {
+          changedCategories.push({
+            name: importedName,
+            group: imported.group || '',
+            isFund: Boolean(imported.isFund),
+            differences: diffs,
+          });
+        }
+      });
+
+      // Transactions: match against existing via (date, amount, similar merchant)
+      const existingTxs = (existing?.transactions || []).filter((t) => !t.deleted);
+      const newTransactions: EveryDollarTxPreviewRow[] = [];
+      const duplicateTransactions: EveryDollarTxPreviewRow[] = [];
+
+      data.transactions.forEach((tx) => {
+        if (existing?.budgetId) tx.budgetId = existing.budgetId;
+        tx.budgetMonth = month;
+        const match = findDuplicateExisting(tx, existingTxs, everyDollarDuplicateWindowDays.value);
+        const row: EveryDollarTxPreviewRow = {
+          key: tx.id || uuidv4(),
+          transaction: tx,
+        };
+        if (match) {
+          row.matchedExistingId = match.id;
+          row.matchedExistingSummary = `${match.date} · ${match.merchant || '(no merchant)'} · ${formatCurrency(transactionTotal(match))}`;
+          duplicateTransactions.push(row);
+        } else {
+          newTransactions.push(row);
+        }
+      });
+
+      const importedLabel = `Imported EveryDollar ${month}`;
+      const labelDiff =
+        existing && existing.label !== importedLabel
+          ? { existing: existing.label, imported: importedLabel }
+          : null;
+      const incomeTargetDiff =
+        existing && Number(existing.incomeTarget || 0) !== Number(data.incomeTarget || 0)
+          ? { existing: Number(existing.incomeTarget || 0), imported: Number(data.incomeTarget || 0) }
+          : null;
+
+      diffs.push({
+        month,
+        existingBudgetId: existingInfo?.budgetId || null,
+        existingBudget: existing,
+        importedLabel,
+        importedIncomeTarget: data.incomeTarget,
+        labelDiff,
+        incomeTargetDiff,
+        newCategories,
+        changedCategories,
+        newTransactions,
+        duplicateTransactions,
+      });
     });
 
-    if (budgetsById.size === 0) {
-      throw new Error('No budgets were generated from the provided CSV files.');
+    if (diffs.length === 0) {
+      throw new Error('No budget months could be determined from the provided CSV files.');
     }
 
-    pendingImportData.value = {
-      budgetsById,
-      budgetIdMap: new Map(),
-      entitiesById: new Map(),
-      existingBudgetIds,
-      everyDollarMonthToExistingId: monthToExistingId,
-    };
-
-    resetEveryDollarBudgetSelection(Array.from(budgetsById.keys()));
+    everyDollarDiffs.value = diffs;
+    initializeDiffSelection(diffs);
     overwriteMonths.value = [];
     showOverwriteDialog.value = false;
   } catch (error: any) {
     console.error('Error importing EveryDollar CSV files:', error);
     importError.value = `Failed to import EveryDollar CSVs: ${error.message}`;
-    pendingImportData.value = null;
-    clearEveryDollarBudgetSelection();
+    resetEveryDollarDiffState();
   } finally {
     importing.value = false;
   }
 
 }
 
-async function confirmEveryDollarCsvImport() {
-  importError.value = null;
-  importSuccess.value = null;
-  const pending = pendingImportData.value;
-  if (!pending?.budgetsById || pending.budgetsById.size === 0) {
-    importError.value = 'No EveryDollar budget data is ready for import.';
-    return;
+// ---------------------------------------------------------------------------
+// EveryDollar diff helpers (UI + apply)
+// ---------------------------------------------------------------------------
+
+function diffSummaryCaption(diff: EveryDollarBudgetDiff): string {
+  const parts: string[] = [];
+  if (diff.existingBudgetId === null) parts.push('new budget');
+  parts.push(`${diff.newCategories.length} new categor${diff.newCategories.length === 1 ? 'y' : 'ies'}`);
+  parts.push(`${diff.newTransactions.length} new tx`);
+  if (diff.duplicateTransactions.length > 0) {
+    parts.push(`${diff.duplicateTransactions.length} duplicate${diff.duplicateTransactions.length === 1 ? '' : 's'}`);
   }
-
-  const selectedIds = everyDollarSelectedBudgetIds.value;
-  if (selectedIds.size === 0) {
-    importError.value = 'Please select at least one budget to import.';
-    return;
+  if (diff.changedCategories.length > 0) {
+    parts.push(`${diff.changedCategories.length} cat differ${diff.changedCategories.length === 1 ? 's' : ''}`);
   }
+  return parts.join(' · ');
+}
 
-  pending.selectedBudgetIds = new Set(selectedIds);
+function formatDiffValue(field: string, value: string | number | boolean | undefined): string {
+  if (value === undefined || value === null) return '—';
+  if (field === 'target' || field === 'carryover') {
+    return formatCurrency(Number(value) || 0);
+  }
+  if (field === 'isFund') {
+    return value ? 'fund' : 'not fund';
+  }
+  return String(value);
+}
 
-  const selectedMonths = new Set<string>();
-  selectedIds.forEach((budgetId) => {
-    const budget = pending.budgetsById.get(budgetId);
-    if (budget?.month) {
-      selectedMonths.add(budget.month);
-    }
+function toggleShowDuplicates(month: string) {
+  const entry = everyDollarDiffSelection[month];
+  if (entry) entry.showDuplicates = !entry.showDuplicates;
+}
+
+function recomputeEveryDollarDiffDuplicates() {
+  const windowDays = Math.max(0, Number(everyDollarDuplicateWindowDays.value) || 0);
+  everyDollarDiffs.value = everyDollarDiffs.value.map((diff) => {
+    const existingTxs = (diff.existingBudget?.transactions || []).filter((t) => !t.deleted);
+    const allParsed: EveryDollarTxPreviewRow[] = [
+      ...diff.newTransactions,
+      ...diff.duplicateTransactions,
+    ];
+    const newTransactions: EveryDollarTxPreviewRow[] = [];
+    const duplicateTransactions: EveryDollarTxPreviewRow[] = [];
+    allParsed.forEach((row) => {
+      const match = findDuplicateExisting(row.transaction, existingTxs, windowDays);
+      if (match) {
+        duplicateTransactions.push({
+          key: row.key,
+          transaction: row.transaction,
+          matchedExistingId: match.id,
+          matchedExistingSummary: `${match.date} · ${match.merchant || '(no merchant)'} · ${formatCurrency(transactionTotal(match))}`,
+        });
+      } else {
+        newTransactions.push({ key: row.key, transaction: row.transaction });
+      }
+    });
+    return { ...diff, newTransactions, duplicateTransactions };
   });
 
-  const existingMonthMap = pending.everyDollarMonthToExistingId ?? new Map();
-  const overlappingMonths = Array.from(selectedMonths).filter((month) =>
-    existingMonthMap.has(month),
-  );
-  overwriteMonths.value = overlappingMonths;
-
-  if (overwriteMonths.value.length > 0) {
-    showOverwriteDialog.value = true;
-    return;
-  }
-
-  await proceedWithImport();
+  // Re-initialize selection so new transactions default to selected and
+  // duplicates default to unselected, while preserving createBudget state.
+  everyDollarDiffs.value.forEach((diff) => {
+    const current = everyDollarDiffSelection[diff.month];
+    const addTxKeys: Record<string, boolean> = {};
+    diff.newTransactions.forEach((t) => {
+      addTxKeys[t.key] = true;
+    });
+    // Honor any previously-checked duplicates
+    diff.duplicateTransactions.forEach((t) => {
+      addTxKeys[t.key] = current?.addTxKeys[t.key] ?? false;
+    });
+    if (current) {
+      current.addTxKeys = addTxKeys;
+    }
+  });
 }
 
-async function previewEveryDollarTransactions() {
-  importError.value = null;
-  importSuccess.value = null;
-  everyDollarTransactions.value = [];
-  try {
-    importing.value = true;
-    if (!everyDollarJson.value.trim()) {
-      importError.value = 'No JSON provided';
-      return;
-    }
-    const data = JSON.parse(everyDollarJson.value);
-    const txRows: EveryDollarTransactionRow[] = [];
-
-    const user = auth.currentUser;
-    if (!user) {
-      importError.value = 'User not authenticated';
-      return;
-    }
-    if (!selectedEntityId.value) {
-      importError.value = 'Entity selection is required';
-      return;
-    }
-    if (
-      budgetStore.budgets.size === 0 ||
-      !Array.from(budgetStore.budgets.values()).some((b) => b.entityId === selectedEntityId.value)
-    ) {
-      await budgetStore.loadBudgets(user.uid, selectedEntityId.value);
-    }
-
-    const budgets = Array.from(budgetStore.budgets.values()).filter(
-      (b) => b.entityId === selectedEntityId.value,
-    );
-    const categoryMap = new Map<string, string>();
-    const existingTxs: { date: string; amount: number }[] = [];
-    for (const b of budgets) {
-      b.categories.forEach((c) => categoryMap.set(c.name.toLowerCase(), c.group));
-      let txs = b.transactions;
-      if ((!txs || txs.length === 0) && b.budgetId) {
-        try {
-          txs = await dataAccess.getTransactions(b.budgetId);
-          b.transactions = txs;
-        } catch (err) {
-          console.error('Failed to load transactions for duplicate check', err);
-          txs = [];
-        }
-      }
-      (txs || []).forEach((t) => {
-        if (t.deleted) return;
-        const total = Array.isArray(t.categories) && t.categories.length > 0
-          ? t.categories.reduce((sum, c) => sum + Math.abs(c.amount), 0)
-          : Math.abs(t.amount);
-        existingTxs.push({ date: t.date, amount: total });
-      });
-    }
-    console.log('existingTxs', existingTxs);
-    const dupWindowMs = duplicateDays.value * 86400000;
-    const isDupTx = (dateStr: string, amount: number) =>
-      existingTxs.some((t) => {
-        const tAmt = Math.round(Math.abs(t.amount) * 100);
-        const aAmt = Math.round(Math.abs(amount) * 100);
-        if (tAmt !== aAmt) return false;
-        const diff = Math.abs(new Date(dateStr).getTime() - new Date(t.date).getTime());
-        return diff <= dupWindowMs;
-      });
-
-    if (Array.isArray(data)) {
-      recommendedMonth.value = data[0]?.date ? toBudgetMonth(data[0].date) : '';
-      const unique = new Set<string>();
-      data.forEach((entry: any) => {
-        const grp = entry.group || {};
-        const item = grp.item || {};
-        if (item.type === 'income') return;
-        const key = `${entry.date}_${entry.amount}_${item.id}`;
-        if (unique.has(key)) return;
-        unique.add(key);
-        const label = item.label || '';
-        const amountNum = (entry.amount || 0) / 100;
-        const total = amountNum;
-        const groupName = categoryMap.get(label.toLowerCase()) || grp.label || '';
-        const isDup = isDupTx(entry.date || '', Math.abs(total));
-        txRows.push({
-          rowId: uuidv4(),
-          date: entry.date || '',
-          month: entry.date ? toBudgetMonth(entry.date) : '',
-          merchant: entry.merchant || '',
-          group: groupName,
-          item: label,
-          amount: formatCurrency(Math.abs(total)),
-          rawAmount: total,
-          isDuplicate: isDup,
-          txKey: entry.id || `${entry.date || ''}_${entry.merchant || ''}_${Math.round((entry.amount || 0) / 100)}`,
-          splits: [{ category: label, amount: Math.abs(total), group: groupName }],
-        });
-      });
-    } else if (Array.isArray((data as any).transactions)) {
-      const txData = data as any;
-      recommendedMonth.value = txData.startDate
-        ? toBudgetMonth(txData.startDate)
-        : txData.transactions[0]?.date
-        ? toBudgetMonth(txData.transactions[0].date)
-        : '';
-      const txAgg = new Map<string, { date: string; merchant: string; splits: { category: string; group: string; amount: number }[]; total: number }>();
-      txData.transactions.forEach((tx: any) => {
-        if (tx.deletedAt) return;
-        (tx.allocations || []).forEach((a: any) => {
-          if (typeof a.amount !== 'number' || typeof a.date !== 'string') return;
-          const txId = a.transactionId || tx.id || `${a.date}_${a.merchant || tx.merchant || ''}`;
-          let rec = txAgg.get(txId);
-          if (!rec) {
-            rec = { date: a.date, merchant: a.merchant || tx.merchant || '', splits: [], total: 0 };
-            txAgg.set(txId, rec);
-          }
-          const label = a.label || '';
-          const groupName = categoryMap.get(label.toLowerCase()) || '';
-          const amountNum = a.amount / 100;
-          rec.splits.push({ category: label, group: groupName, amount: Math.abs(amountNum) });
-          rec.total += amountNum;
-        });
-      });
-      txAgg.forEach((rec, txId) => {
-        const cats = rec.splits.map((s) => s.category).filter(Boolean);
-        const item = cats.length > 1 ? `Split (${cats.join(', ')})` : cats[0] || '';
-        const isDup = isDupTx(rec.date, Math.abs(rec.total));
-        txRows.push({
-          rowId: `${txId}_${uuidv4()}`,
-          date: rec.date,
-          month: toBudgetMonth(rec.date),
-          merchant: rec.merchant,
-          group: rec.splits[0]?.group || '',
-          item,
-          amount: formatCurrency(Math.abs(rec.total)),
-          rawAmount: rec.total,
-          isDuplicate: isDup,
-          txKey: txId,
-          splits: rec.splits,
-        });
-      });
-    } else if (Array.isArray((data as any).groups)) {
-      recommendedMonth.value = (data as any).date ? toBudgetMonth((data as any).date) : '';
-      const txMap = new Map<string, { date: string; merchant: string; splits: { group: string; item: string; amount: number }[] }>();
-      const seenAlloc = new Set<string>();
-      (data as any).groups.forEach((group: any) => {
-        const groupLabel = group.label || '';
-        (group.budgetItems || []).forEach((item: any) => {
-          const allocations = Array.isArray(item.allocations) ? item.allocations : [];
-          allocations.forEach((a: any) => {
-            if (typeof a.amount !== 'number' || typeof a.date !== 'string') return;
-            const allocKey = `${a.transactionId || a.id}_${a.date}_${a.amount}`;
-            if (seenAlloc.has(allocKey)) return;
-            seenAlloc.add(allocKey);
-            const txId = a.transactionId || `${a.date}_${a.merchant || ''}_${a.amount}`;
-            let tx = txMap.get(txId);
-            if (!tx) {
-              tx = { date: a.date, merchant: a.merchant || '', splits: [] };
-              txMap.set(txId, tx);
-            }
-            tx.splits.push({ group: groupLabel, item: item.label || '', amount: a.amount });
-          });
-        });
-      });
-      txMap.forEach((tx, txId) => {
-        const splits = tx.splits.map((s) => ({ category: s.item, group: s.group, amount: Math.abs(s.amount / 100) }));
-        const total = tx.splits.reduce((sum, s) => sum + s.amount / 100, 0);
-        const cats = splits.map((s) => s.category).filter(Boolean);
-        const item = cats.length > 1 ? `Split (${cats.join(', ')})` : cats[0] || '';
-        const isDup = isDupTx(tx.date, Math.abs(total));
-        txRows.push({
-          rowId: `${txId}_${uuidv4()}`,
-          date: tx.date,
-          month: toBudgetMonth(tx.date),
-          merchant: tx.merchant,
-          group: splits[0]?.group || '',
-          item,
-          amount: formatCurrency(Math.abs(total)),
-          rawAmount: total,
-          isDuplicate: isDup,
-          txKey: txId,
-          splits,
-        });
-      });
-    }
-    console.log('txRows', txRows);
-
-    const monthsInData = txRows.map((row) => row.month || '').filter((m): m is string => !!m);
-    await ensureBudgetsLoadedForMonths(monthsInData, user.uid);
-
-    everyDollarTransactions.value = txRows;
-    if (txRows.length === 0) {
-      importSuccess.value = 'No transactions found.';
-    }
-  } catch (err: any) {
-    console.error('Error parsing EveryDollar budget:', err);
-    importError.value = `Failed to parse EveryDollar budget: ${err.message}`;
-  } finally {
-    importing.value = false;
+const hasAnyEveryDollarSelections = computed(() => {
+  for (const diff of everyDollarDiffs.value) {
+    const selection = everyDollarDiffSelection[diff.month];
+    if (!selection) continue;
+    if (diff.existingBudgetId === null && selection.createBudget) return true;
+    if (Object.values(selection.addCategoryKeys).some(Boolean)) return true;
+    if (Object.values(selection.addTxKeys).some(Boolean)) return true;
   }
-}
+  return false;
+});
 
-async function importEveryDollarTransactions() {
+async function applyEveryDollarDiff() {
   importError.value = null;
   importSuccess.value = null;
+
   const user = auth.currentUser;
   if (!user) {
     showSnackbar('User not authenticated', 'negative');
@@ -2439,294 +2511,239 @@ async function importEveryDollarTransactions() {
     return;
   }
   if (!selectedEntityId.value) {
-    importError.value = 'Entity selection is required';
+    showSnackbar('Entity selection is required', 'negative');
     return;
   }
 
-  const rowsToImport = selectedEveryDollarTransactions.value;
-  if (rowsToImport.length === 0) {
-    importError.value = 'No transactions selected';
-    return;
-  }
+  importing.value = true;
+  $q.loading.show({
+    message: 'Applying changes...',
+    spinner: QSpinner,
+    spinnerColor: 'primary',
+    spinnerSize: 50,
+    customClass: 'q-ml-sm flex items-center justify-center',
+  });
+
+  // Track which budgets were touched so we can recalculate carryover once at the end.
+  const affectedByBudgetId = new Map<string, { month: string; categories: Set<string> }>();
+  const recordImpact = (budgetId: string | undefined | null, month: string, categoryName: string) => {
+    if (!budgetId) return;
+    let entry = affectedByBudgetId.get(budgetId);
+    if (!entry) {
+      entry = { month, categories: new Set() };
+      affectedByBudgetId.set(budgetId, entry);
+    }
+    entry.categories.add(categoryName);
+  };
+
+  let totalCategoriesAdded = 0;
+  let totalTxAdded = 0;
+  let totalBudgetsCreated = 0;
 
   try {
-    importing.value = true;
+    // Sort diffs by month ascending so cascades run in order
+    const orderedDiffs = [...everyDollarDiffs.value].sort((a, b) => a.month.localeCompare(b.month));
 
-    // Group rows by their budget month (derived from date)
-    const byMonth = new Map<string, typeof rowsToImport>();
-    for (const row of rowsToImport) {
-      try {
-        const month = toBudgetMonth(row.date);
-        if (!byMonth.has(month)) byMonth.set(month, []);
-        byMonth.get(month)!.push(row);
-      } catch (err) {
-        console.warn('Skipping EveryDollar transaction with invalid date', row, err);
-      }
-    }
+    for (const diff of orderedDiffs) {
+      const selection = everyDollarDiffSelection[diff.month];
+      if (!selection) continue;
 
-    const monthsBeingImported = Array.from(byMonth.keys());
-    if (monthsBeingImported.length === 0) {
-      importError.value = 'Unable to determine budget months for the selected transactions';
-      showSnackbar(importError.value, 'negative');
-      return;
-    }
-
-    let accessibleBudgetsForImport = await ensureBudgetsLoadedForMonths(monthsBeingImported, user.uid);
-    const monthToBudget = new Map<string, Budget>();
-    const monthsToImportSet = new Set(monthsBeingImported);
-    const accessibleLookup = new Map<string, BudgetInfo>();
-    accessibleBudgetsForImport.forEach((info) => {
-      if (info.month && monthsToImportSet.has(info.month)) {
-        accessibleLookup.set(info.month, info);
-      }
-    });
-
-    const loadFullBudget = async (month: string): Promise<Budget | null> => {
-      if (!monthsToImportSet.has(month)) {
-        return null;
-      }
-      if (monthToBudget.has(month)) {
-        return monthToBudget.get(month)!;
-      }
-
-      const storeBudget = Array.from(budgetStore.budgets.values()).find(
-        (b) => b.entityId === selectedEntityId.value && b.month === month && !!b.budgetId,
+      const selectedCategoryKeys = new Set(
+        Object.entries(selection.addCategoryKeys)
+          .filter(([, v]) => v)
+          .map(([k]) => k),
       );
-
-      let budgetId = storeBudget?.budgetId;
-      if (!budgetId) {
-        const info = accessibleLookup.get(month);
-        if (info?.budgetId) {
-          budgetId = info.budgetId;
-        }
-      }
-
-      if (!budgetId) {
-        const refreshed = await ensureBudgetsLoadedForMonths([month], user.uid, accessibleBudgetsForImport);
-        if (refreshed.length > 0) {
-          const merged = new Map<string, BudgetInfo>();
-          [...accessibleBudgetsForImport, ...refreshed].forEach((info) => {
-            if (info.month) merged.set(info.month, info);
-          });
-          accessibleBudgetsForImport = Array.from(merged.values());
-          merged.forEach((info, key) => {
-            if (monthsToImportSet.has(key)) {
-              accessibleLookup.set(key, info);
-            }
-          });
-          const info = accessibleLookup.get(month);
-          if (info?.budgetId) {
-            budgetId = info.budgetId;
-          }
-        }
-      }
-
-      if (!budgetId) {
-        return null;
-      }
-
-      const hasCategories =
-        Array.isArray(storeBudget?.categories) && ((storeBudget?.categories?.length ?? 0) > 0);
-      const hasTransactions = Array.isArray(storeBudget?.transactions);
-      const needsFetch = !storeBudget || !hasCategories || !hasTransactions;
-      const fullBudget = !needsFetch && storeBudget ? storeBudget : await dataAccess.getBudget(budgetId);
-
-      if (fullBudget) {
-        if (!fullBudget.budgetId) fullBudget.budgetId = budgetId;
-        monthToBudget.set(month, fullBudget);
-        budgetStore.updateBudget(budgetId, fullBudget);
-        return fullBudget;
-      }
-
-      return null;
-    };
-
-    const missingMonths: string[] = [];
-    let totalImported = 0;
-    const carryoverImpacts = new Map<string, { month: string; categories: Set<string> }>();
-    const parseBudgetMonth = (input: string) => {
-      const [yearStr, monthStr] = input.split('-');
-      const year = Number(yearStr);
-      const month = Number(monthStr);
-      if (Number.isFinite(year) && Number.isFinite(month)) {
-        return new Date(Date.UTC(year, month - 1, 1));
-      }
-      const parsed = new Date(input);
-      return isNaN(parsed.getTime()) ? new Date(0) : parsed;
-    };
-
-    // Save transactions per month into existing budgets only
-    for (const [month, rows] of byMonth) {
-      const budget = await loadFullBudget(month);
-      if (!budget || !budget.budgetId) {
-        missingMonths.push(month);
-        continue;
-      }
-
-      // Ensure any missing categories from EveryDollar rows exist in the target budget
-      const existingCatNames = new Set(
-        (budget.categories || []).map((c) => (c.name || '').trim().toLowerCase()),
+      const selectedTxKeys = new Set(
+        Object.entries(selection.addTxKeys)
+          .filter(([, v]) => v)
+          .map(([k]) => k),
       );
-      const categoriesToAddMap = new Map<string, { name: string }>();
-      const candidateCategories = (row: EveryDollarTransactionRow) => {
-        if (Array.isArray(row.splits) && row.splits.length > 0) {
-          return row.splits.map((s) => (s.category || '').trim());
-        }
-        return [(row.item || '').trim()];
-      };
+      const hasNothing =
+        selectedCategoryKeys.size === 0 &&
+        selectedTxKeys.size === 0 &&
+        !(diff.existingBudgetId === null && selection.createBudget);
+      if (hasNothing) continue;
 
-      for (const row of rows) {
-        for (const name of candidateCategories(row)) {
-          if (!name) continue;
-          const key = name.toLowerCase();
-          if (!existingCatNames.has(key) && !categoriesToAddMap.has(key)) {
-            categoriesToAddMap.set(key, { name });
+      let targetBudget: Budget | null = diff.existingBudget;
+      let targetBudgetId: string | null = diff.existingBudgetId;
+
+      // -----------------------------------------------------------------
+      // Create budget from CSV when it doesn't exist yet
+      // -----------------------------------------------------------------
+      if (targetBudgetId === null) {
+        if (!selection.createBudget) continue;
+        const newBudgetId = uuidv4();
+        const chosenCategories: BudgetCategory[] = [];
+        diff.newCategories.forEach((c) => {
+          if (selectedCategoryKeys.has(c.key)) {
+            chosenCategories.push({ ...c.category });
           }
+        });
+        // Ensure Income category exists (common requirement)
+        const hasIncome = chosenCategories.some((c) => (c.name || '').trim().toLowerCase() === 'income');
+        if (!hasIncome) {
+          chosenCategories.push({ name: 'Income', target: 0, isFund: false, group: 'Income' });
         }
-      }
 
-      if (categoriesToAddMap.size > 0) {
-        const newCats: BudgetCategory[] = Array.from(categoriesToAddMap.values()).map((c) => ({
-          name: c.name,
-          target: 0,
-          isFund: false,
-          group: 'Uncategorized',
-          carryover: 0,
-        }));
-        budget.categories = [...(budget.categories || []), ...newCats];
-        // Persist category additions before posting transactions
-        console.log('updating budget with new categories', budget);
-        await dataAccess.saveBudget(budget.budgetId, budget);
-        budgetStore.updateBudget(budget.budgetId, budget);
-
-        newCats.forEach((c) => existingCatNames.add(c.name.toLowerCase()));
-      }
-
-      const fundLookup = new Map<string, string>();
-      budget.categories?.forEach((cat) => {
-        const trimmed = cat.name?.trim();
-        if (trimmed && cat.isFund) {
-          fundLookup.set(trimmed.toLowerCase(), trimmed);
-        }
-      });
-      const recordFundImpact = (rawName: string) => {
-        const trimmed = (rawName || '').trim();
-        if (!trimmed) return;
-        const canonical = fundLookup.get(trimmed.toLowerCase());
-        if (!canonical || !budget.budgetId) return;
-        let entry = carryoverImpacts.get(budget.budgetId);
-        if (!entry) {
-          entry = { month, categories: new Set<string>() };
-          carryoverImpacts.set(budget.budgetId, entry);
-        }
-        entry.categories.add(canonical);
-      };
-
-      // Rows are aggregated at transaction level; build transactions directly
-      const findCategoryName = (name: string) => {
-        const trimmed = name.trim();
-        if (!trimmed) return trimmed;
-        const match = budget.categories?.find((cat) => cat.name?.trim().toLowerCase() === trimmed.toLowerCase());
-        return match?.name || trimmed;
-      };
-
-      const txs: Transaction[] = rows.map((r) => {
-        const splits = Array.isArray(r.splits) && r.splits.length > 0
-          ? r.splits.map((s) => ({ category: findCategoryName(s.category || ''), amount: Math.abs(s.amount) }))
-          : [{ category: findCategoryName(r.item || ''), amount: Math.abs(r.rawAmount) }];
-        splits.forEach((split) => recordFundImpact(split.category));
-        const total = Array.isArray(r.splits) && r.splits.length > 0
-          ? r.splits.reduce((sum, s) => sum + (r.rawAmount >= 0 ? s.amount : -s.amount), 0)
-          : r.rawAmount;
-        const tx: Transaction = {
-          id: uuidv4(),
-          date: r.date,
-          merchant: r.merchant,
-          categories: splits,
-          amount: Math.abs(total),
-          notes: '',
-          recurring: false,
-          recurringInterval: 'Monthly',
-          userId: user.uid,
-          isIncome: total > 0,
-          taxMetadata: [],
-          budgetId: budget.budgetId,
-          budgetMonth: month,
+        const newBudget: Budget = {
+          budgetId: newBudgetId,
+          familyId: familyId.value,
           entityId: selectedEntityId.value,
+          label: diff.importedLabel,
+          month: diff.month,
+          budgetMonth: diff.month,
+          incomeTarget: diff.importedIncomeTarget,
+          categories: chosenCategories,
+          transactions: [],
+          merchants: [],
         };
-        return tx;
+
+        await dataAccess.saveBudget(newBudgetId, newBudget, { skipCarryoverRecalc: true });
+        budgetStore.updateBudget(newBudgetId, newBudget);
+        targetBudget = newBudget;
+        targetBudgetId = newBudgetId;
+        totalBudgetsCreated += 1;
+        totalCategoriesAdded += chosenCategories.length;
+        chosenCategories.forEach((c) => {
+          if (c.isFund && c.name) recordImpact(newBudgetId, diff.month, c.name);
+        });
+      } else {
+        // -----------------------------------------------------------------
+        // Add new categories to existing budget (never replace existing)
+        // -----------------------------------------------------------------
+        if (!targetBudget) {
+          try {
+            const fetched = await dataAccess.getBudget(targetBudgetId);
+            if (fetched) {
+              if (!fetched.budgetId) fetched.budgetId = targetBudgetId;
+              budgetStore.updateBudget(targetBudgetId, fetched);
+              targetBudget = fetched;
+            }
+          } catch (err) {
+            console.error(`Failed to reload budget ${targetBudgetId}`, err);
+          }
+        }
+        if (!targetBudget) {
+          showSnackbar(`Could not load budget for ${diff.month}`, 'negative');
+          continue;
+        }
+
+        const categoriesToAdd: BudgetCategory[] = [];
+        diff.newCategories.forEach((c) => {
+          if (selectedCategoryKeys.has(c.key)) {
+            categoriesToAdd.push({ ...c.category });
+          }
+        });
+
+        if (categoriesToAdd.length > 0) {
+          const updatedBudget: Budget = {
+            ...targetBudget,
+            categories: [...(targetBudget.categories || []), ...categoriesToAdd],
+          };
+          await dataAccess.saveBudget(targetBudgetId, updatedBudget, { skipCarryoverRecalc: true });
+          budgetStore.updateBudget(targetBudgetId, updatedBudget);
+          targetBudget = updatedBudget;
+          totalCategoriesAdded += categoriesToAdd.length;
+          categoriesToAdd.forEach((c) => {
+            if (c.isFund && c.name) recordImpact(targetBudgetId!, diff.month, c.name);
+          });
+        }
+      }
+
+      // -----------------------------------------------------------------
+      // Save selected transactions (from newTransactions + any opted-in duplicates)
+      // -----------------------------------------------------------------
+      const allPreviewRows = [...diff.newTransactions, ...diff.duplicateTransactions];
+      const txsToSave: Transaction[] = [];
+      allPreviewRows.forEach((row) => {
+        if (!selectedTxKeys.has(row.key)) return;
+        // Generate a fresh transaction id so we never collide with the CSV tx_id
+        const tx: Transaction = {
+          ...row.transaction,
+          id: uuidv4(),
+          budgetId: targetBudgetId || undefined,
+          budgetMonth: diff.month,
+          userId: user.uid,
+          familyId: familyId.value,
+          entityId: selectedEntityId.value,
+          status: row.transaction.status || 'U',
+        };
+        // Recompute total from splits to be safe
+        if (Array.isArray(tx.categories) && tx.categories.length > 0) {
+          tx.amount = tx.categories.reduce((s, c) => s + Math.abs(c.amount), 0);
+        }
+        txsToSave.push(tx);
+        // Fund impact tracking
+        (tx.categories || []).forEach((c) => {
+          const cname = (c.category || '').trim();
+          if (!cname) return;
+          const matchCat = targetBudget?.categories.find(
+            (bc) => bc.name && bc.name.toLowerCase() === cname.toLowerCase(),
+          );
+          if (matchCat?.isFund && targetBudgetId) {
+            recordImpact(targetBudgetId, diff.month, matchCat.name || cname);
+          }
+        });
       });
 
-      await dataAccess.batchSaveTransactions(budget.budgetId, budget, txs, { skipCarryoverRecalc: true });
-      totalImported += txs.length;
+      if (txsToSave.length > 0 && targetBudgetId && targetBudget) {
+        await dataAccess.batchSaveTransactions(targetBudgetId, targetBudget, txsToSave, {
+          skipCarryoverRecalc: true,
+        });
+        totalTxAdded += txsToSave.length;
+      }
     }
 
-    if (carryoverImpacts.size > 0) {
-      const allCategories = new Set<string>();
+    // -------------------------------------------------------------------
+    // Carryover recalculation: run once from the LAST affected budget
+    // forward, so imported carryover on earlier months is preserved and
+    // only future (existing) budgets beyond the import range get updated.
+    // -------------------------------------------------------------------
+    if (affectedByBudgetId.size > 0) {
       let latestBudgetId: string | null = null;
-      let latestTime = Number.NEGATIVE_INFINITY;
-
-      carryoverImpacts.forEach((value, budgetId) => {
+      let latestMonth = '';
+      const allCategories = new Set<string>();
+      affectedByBudgetId.forEach((value, budgetId) => {
         value.categories.forEach((name) => allCategories.add(name));
-        const ts = parseBudgetMonth(value.month).getTime();
-        if (ts > latestTime) {
-          latestTime = ts;
+        if (value.month > latestMonth) {
+          latestMonth = value.month;
           latestBudgetId = budgetId;
         }
       });
-
-      // Recalculate from the LAST imported budget forward so that imported
-      // carryover values are preserved. Only future budgets beyond the import
-      // range get recalculated.
       if (latestBudgetId && allCategories.size > 0) {
         try {
           await dataAccess.recalculateCarryover(latestBudgetId, Array.from(allCategories));
-        } catch (error) {
-          console.error('Failed to recalculate carryover after EveryDollar import', error);
+        } catch (err) {
+          console.error('Failed to recalculate carryover after EveryDollar diff apply', err);
           showSnackbar(
-            'Transactions imported, but carryover recalculation failed. Please refresh and verify fund balances.',
+            'Changes applied, but carryover recalculation failed. Please refresh and verify fund balances.',
             'warning',
           );
         }
       }
     }
 
-    if (totalImported > 0) {
-      const earliestMonth = monthsBeingImported.slice().sort()[0];
-      if (earliestMonth) {
-        const monthsToRefresh = new Set<string>(monthsBeingImported);
-        const existingBudgets = Array.from(budgetStore.budgets.values()).filter(
-          (b) => b.entityId === selectedEntityId.value && b.month >= earliestMonth,
-        );
-        existingBudgets.forEach((b) => monthsToRefresh.add(b.month));
-        await ensureBudgetsLoadedForMonths(
-          Array.from(monthsToRefresh),
-          user.uid,
-          accessibleBudgetsForImport,
-          true,
-        );
-      }
-
-      importSuccess.value = `Imported ${totalImported} transaction(s)`;
+    const parts: string[] = [];
+    if (totalBudgetsCreated > 0) parts.push(`${totalBudgetsCreated} budget${totalBudgetsCreated === 1 ? '' : 's'} created`);
+    if (totalCategoriesAdded > 0) parts.push(`${totalCategoriesAdded} categor${totalCategoriesAdded === 1 ? 'y' : 'ies'} added`);
+    if (totalTxAdded > 0) parts.push(`${totalTxAdded} transaction${totalTxAdded === 1 ? '' : 's'} added`);
+    if (parts.length === 0) {
+      showSnackbar('No changes selected.', 'info');
+    } else {
+      importSuccess.value = parts.join(', ');
       showSnackbar(importSuccess.value, 'success');
-      // Reset EveryDollar form state after successful import
-      everyDollarJson.value = '';
-      duplicateDays.value = 0;
-      everyDollarTransactions.value = [];
-      selectedEveryDollarTransactions.value = [];
-      everyDollarFilter.value = '';
-      showOnlyUnmatched.value = false;
-      recommendedMonth.value = '';
     }
-    if (missingMonths.length > 0) {
-      importError.value = `No existing budget found for month(s): ${Array.from(new Set(missingMonths)).sort().join(', ')}`;
-      showSnackbar(importError.value, 'warning');
-    }
+
+    resetEveryDollarDiffState();
+    everyDollarBudgetCsvFile.value = null;
+    everyDollarTransactionsCsvFile.value = null;
+    await loadAllData();
   } catch (err: any) {
-    console.error('Error importing EveryDollar transactions:', err);
-    importError.value = `Failed to import EveryDollar transactions: ${err.message}`;
+    console.error('Error applying EveryDollar diff:', err);
+    importError.value = `Failed to apply changes: ${err.message}`;
     showSnackbar(importError.value, 'negative');
   } finally {
+    $q.loading.hide();
     importing.value = false;
   }
 }
@@ -3463,7 +3480,7 @@ async function proceedWithImport() {
   } finally {
     $q.loading.hide();
     importRunning.value = false;
-    clearEveryDollarBudgetSelection();
+    resetEveryDollarDiffState();
     previewData.value = { entities: [], categories: [], transactions: [], accountsAndSnapshots: [] };
     previewErrors.value = [];
     selectedEntityId.value = "";

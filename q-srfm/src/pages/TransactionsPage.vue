@@ -374,7 +374,7 @@
                       <q-input v-model="entry.merchant" label="Merchant" dense :rules="requiredField" />
                     </q-item-section>
                     <q-item-section>
-                      <q-select v-model="entry.category" :options="categoryOptions" label="Category" dense :rules="requiredField" />
+                      <q-select v-model="entry.category" :options="categoryOptionsFor(entry)" label="Category" dense :rules="requiredField" />
                     </q-item-section>
                   </q-item>
                 </q-list>
@@ -733,10 +733,36 @@ const entityOptions = computed(() => (familyStore.family?.entities || []).map((e
 const categoryOptions = computed(() => {
   const cats = new Set<string>(['Income']);
   Array.from(budgetStore.budgets.values()).forEach((b) => {
-    b.categories.forEach((cat) => cats.add(cat.name));
+    (b.categories || []).forEach((cat) => cats.add(cat.name));
   });
   return Array.from(cats).sort();
 });
+
+function categoryOptionsFor(entry: { amount: number; date: string }): string[] {
+  if (entry.amount > 0) {
+    return ['Income'];
+  }
+  const budgetMonth = (entry.date || '').slice(0, 7);
+  const targetBudget = Array.from(budgetStore.budgets.values()).find(
+    (b) => b.entityId === selectedEntityId.value && b.month === budgetMonth,
+  );
+  if (targetBudget && targetBudget.categories && targetBudget.categories.length > 0) {
+    return targetBudget.categories
+      .map((c) => c.name)
+      .filter((n) => n && n !== 'Income')
+      .sort();
+  }
+  // Fallback: all categories across all loaded budgets for this entity
+  const cats = new Set<string>();
+  Array.from(budgetStore.budgets.values())
+    .filter((b) => !selectedEntityId.value || b.entityId === selectedEntityId.value)
+    .forEach((b) => {
+      (b.categories || []).forEach((cat) => {
+        if (cat.name && cat.name !== 'Income') cats.add(cat.name);
+      });
+    });
+  return Array.from(cats).sort();
+}
 
 const requiredField = [(v: string) => !!v || 'This field is required'];
 
@@ -899,8 +925,6 @@ watch(
     registerBeginningBalanceInput.value = '0';
     registerTargetEndingInput.value = '0';
     selectedRegisterIds.value = [];
-    filters.value.start = null;
-    filters.value.end = null;
     // Load statement history for the selected account
     const fid = familyStore.family?.id;
     if (fid && accountId) {
@@ -1159,7 +1183,7 @@ function onRegisterRowClick(row: LedgerRow) {
   }
 }
 
-function openRegisterBatchDialog() {
+async function openRegisterBatchDialog() {
   if (
     selectedRegisterIds.value.length === 0 ||
     !selectedRegisterIds.value.every((id) => {
@@ -1179,6 +1203,29 @@ function openRegisterBatchDialog() {
       category: '',
     };
   });
+
+  // Ensure we have full category data for budgets covering the selected entries'
+  // months only. loadAccessibleBudgets returns thin summaries without categories.
+  const neededMonths = new Set(
+    batchEntries.value.map((e) => (e.date || '').slice(0, 7)).filter(Boolean),
+  );
+  const budgetsToLoad = Array.from(budgetStore.budgets.values()).filter(
+    (b) =>
+      (!selectedEntityId.value || b.entityId === selectedEntityId.value) &&
+      neededMonths.has(b.month) &&
+      (!b.categories || b.categories.length === 0),
+  );
+  await Promise.all(
+    budgetsToLoad.map(async (b) => {
+      try {
+        const full = await dataAccess.getBudget(b.budgetId);
+        if (full) budgetStore.updateBudget(b.budgetId, full);
+      } catch (err) {
+        console.error('Failed to load full budget', b.budgetId, err);
+      }
+    }),
+  );
+
   showRegisterBatchDialog.value = true;
 }
 
