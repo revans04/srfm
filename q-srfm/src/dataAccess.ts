@@ -427,6 +427,35 @@ export class DataAccess {
     }
   }
 
+  /**
+   * Soft-delete a transaction when only the budget id is known (e.g. from the
+   * goal details panel, where the transaction may belong to a budget that
+   * isn't currently loaded in the store). Falls back to a hard DELETE because
+   * we don't have the original transaction body to PUT back with deleted=true.
+   *
+   * If the budget IS loaded, also removes the transaction from the in-memory
+   * store so the UI reflects the change without a full reload.
+   */
+  async deleteTransactionById(budgetId: string, transactionId: string): Promise<void> {
+    const headers = await this.getAuthHeaders();
+    const budgetStore = useBudgetStore();
+
+    const response = await fetch(`${this.apiBaseUrl}/budget/${budgetId}/transactions/${transactionId}`, {
+      method: 'DELETE',
+      headers,
+    });
+    if (!response.ok) throw new Error(`Failed to delete transaction: ${response.statusText}`);
+
+    const loaded = budgetStore.getBudget(budgetId);
+    if (loaded) {
+      const next: Budget = {
+        ...loaded,
+        transactions: (loaded.transactions || []).filter((t) => t.id !== transactionId),
+      };
+      budgetStore.updateBudget(budgetId, next);
+    }
+  }
+
   calculateCarryOver(budget: Budget): Record<string, number> {
     return calculateCarryOver(budget);
   }

@@ -213,7 +213,6 @@
               </div>
             </q-card-section>
           </q-card>
-          <SavingsConversionPrompt v-if="!isMobile && legacySavingsCategories.length" :categories="legacySavingsCategories" @convert="onConvertLegacy" class="q-mt-md" />
 
           <!-- Favorites Section -->
           <q-card v-if="!isEditing && favoriteItems.length" id="favorites-section" class="q-mt-md">
@@ -313,7 +312,7 @@
                         <q-icon v-if="item.isFund" size="16px" class="q-mr-xs" color="primary" name="savings" />
                         <span class="cat-name-text">{{ item.name }}</span>
                         <q-icon
-                          v-if="legacySavingsCategories.find((c) => c.name === item.name)"
+                          v-if="item.isFund"
                           name="change_circle"
                           size="16px"
                           class="q-ml-xs cursor-pointer"
@@ -610,7 +609,6 @@ import EntitySelector from '../components/EntitySelector.vue';
 import GoalsGroupCard from '../components/goals/GoalsGroupCard.vue';
 import GoalDialog from '../components/goals/GoalDialog.vue';
 import ContributeDialog from '../components/goals/ContributeDialog.vue';
-import SavingsConversionPrompt from '../components/goals/SavingsConversionPrompt.vue';
 import GoalDetailsPanel from '../components/goals/GoalDetailsPanel.vue';
 import MonthSelector from '../components/MonthSelector.vue';
 import BudgetTransactionItem from '../components/BudgetTransactionItem.vue';
@@ -688,17 +686,6 @@ const goalDialog = ref(false);
 const contributeDialog = ref(false);
 const selectedGoal = ref<Goal | null>(null);
 const convertingCategory = ref<BudgetCategory | null>(null);
-const legacySavingsCategories = computed(() => {
-  const unique = new Map<string, BudgetCategory>();
-  for (const b of budgetStore.budgets.values()) {
-    for (const c of b.categories) {
-      if (c.isFund && c.group && c.group.toLowerCase().includes('savings') && !unique.has(c.name)) {
-        unique.set(c.name, c);
-      }
-    }
-  }
-  return Array.from(unique.values());
-});
 const ownerUid = ref<string | null>(null);
 // Prefer the actual budget's id if present; otherwise fall back to derived id for new budgets
 const budgetId = computed(() => {
@@ -1082,7 +1069,12 @@ const catTransactions = computed(() => {
               transactionType: t.transactionType,
               categories: t.categories,
             });
-            if (t.isIncome) {
+            if (t.transactionType === 'transfer') {
+              // Transfers store signed splits: positive = inflow to this
+              // category (reduces spent / adds to available), negative = outflow.
+              catTransactions[i].spent -= tc.amount;
+              catTransactions[i].remaining += tc.amount;
+            } else if (t.isIncome) {
               catTransactions[i].spent -= tc.amount;
               catTransactions[i].remaining += tc.amount;
             } else {

@@ -153,15 +153,20 @@ export interface Goal {
 }
 
 export interface GoalContribution {
-  goalId: string;
-  month: string; // YYYY-MM
+  goalId?: string;
+  txId?: string; // Underlying transaction id (present when derived from backend)
+  budgetId?: string; // Budget that owns the underlying transaction
+  txDate?: string; // ISO date of the underlying transaction
+  merchant?: string;
+  month?: string; // YYYY-MM derived from txDate
   amount: number;
   note?: string;
 }
 
 export interface GoalSpend {
-  goalId: string;
+  goalId?: string;
   txId: string;
+  budgetId?: string;
   amount: number;
   txDate: string; // ISO date
   merchant?: string;

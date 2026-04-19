@@ -128,12 +128,17 @@ export function useGoals() {
   }
 
   /**
-   * Actual contributions to a goal in a given month, computed from transfer
-   * transactions in the loaded budgets. A contribution is any positive
-   * transaction_category amount whose category name matches the goal. If the
+   * Actual contributions to a goal in a given month, computed from
+   * transactions in the loaded budgets touching the goal's category.
+   * Classification rules:
+   *  - Transfers: positive split = contribution, negative split = withdrawal.
+   *  - Standard income: contribution.
+   *  - Standard expense: withdrawal (excluded from this total).
+   *
+   * Returns net contributions (contributions minus withdrawals). If the
    * relevant month's budget isn't loaded, the cache may not be populated; the
-   * caller should ensure the budget is loaded or fall back to
-   * loadGoalDetails which hits the backend directly.
+   * caller should ensure the budget is loaded or fall back to loadGoalDetails
+   * which hits the backend directly.
    */
   function contributionsForMonth(goalId: string, month: string): number {
     const goal = goals.value.find((g) => g.id === goalId);
@@ -145,8 +150,16 @@ export function useGoals() {
       for (const t of b.transactions) {
         if (t.deleted) continue;
         for (const tc of t.categories || []) {
-          if (tc.category === goal.name && (tc.amount || 0) > 0) {
-            total += tc.amount;
+          if (tc.category !== goal.name) continue;
+          const amt = tc.amount || 0;
+          if (t.transactionType === 'transfer') {
+            // signed split: positive = contribution, negative = withdrawal
+            total += amt;
+          } else if (t.isIncome) {
+            total += amt;
+          } else {
+            // standard expense — withdrawal from the goal
+            total -= amt;
           }
         }
       }

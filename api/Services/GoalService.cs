@@ -169,13 +169,26 @@ VALUES (@bid, @name, @target, true, @group, 0) RETURNING id";
                 _logger.LogInformation("Fetching goals for entity {EntityId}", entityId);
                 await using var conn = await _db.GetOpenConnectionAsync();
 
+                // Classify each transaction_category row by transaction type:
+                //  - Transfers: signed splits (positive=contribution, negative=withdrawal)
+                //  - Standard income (is_income=true): contribution
+                //  - Standard expense (is_income=false): withdrawal
                 const string sql = @"SELECT g.id, g.entity_id, g.name, g.total_target, g.monthly_target, g.target_date, g.archived,
-                                            COALESCE(SUM(CASE WHEN tc.amount > 0 THEN tc.amount ELSE 0 END),0) AS saved,
-                                            COALESCE(SUM(CASE WHEN tc.amount < 0 THEN -tc.amount ELSE 0 END),0) AS spent
+                                            COALESCE(SUM(CASE
+                                                WHEN COALESCE(t.transaction_type,'standard') = 'transfer' AND tc.amount > 0 THEN tc.amount
+                                                WHEN COALESCE(t.transaction_type,'standard') <> 'transfer' AND COALESCE(t.is_income,FALSE) = TRUE THEN tc.amount
+                                                ELSE 0
+                                            END),0) AS saved,
+                                            COALESCE(SUM(CASE
+                                                WHEN COALESCE(t.transaction_type,'standard') = 'transfer' AND tc.amount < 0 THEN -tc.amount
+                                                WHEN COALESCE(t.transaction_type,'standard') <> 'transfer' AND COALESCE(t.is_income,FALSE) = FALSE THEN tc.amount
+                                                ELSE 0
+                                            END),0) AS spent
                                      FROM goals g
                                      LEFT JOIN goals_budget_categories gbc ON gbc.goal_id = g.id
                                      LEFT JOIN budget_categories bc ON bc.id = gbc.budget_cat_id
                                      LEFT JOIN transactions t ON t.budget_id = bc.budget_id
+                                       AND COALESCE(t.deleted, FALSE) = FALSE
                                      LEFT JOIN transaction_categories tc ON tc.transaction_id = t.id AND tc.category_name = bc.name
                                      WHERE g.entity_id=@eid
                                      GROUP BY g.id, g.entity_id, g.name, g.total_target, g.monthly_target, g.target_date, g.archived";
@@ -222,59 +235,69 @@ VALUES (@bid, @name, @target, true, @group, 0) RETURNING id";
                     throw new ArgumentException($"Invalid goal ID: {goalId}");
                 }
 
-                const string sql = @"SELECT t.id, t.date, t.merchant, tc.amount
+                const string sql = @"SELECT t.id, t.date, t.merchant, tc.amount, t.budget_id,
+                                                  COALESCE(t.is_income, FALSE) AS is_income,
+                                                  COALESCE(t.transaction_type, 'standard') AS tx_type
                                            FROM transactions t
                                            JOIN transaction_categories tc ON tc.transaction_id = t.id
                                            JOIN budget_categories bc ON bc.budget_id = t.budget_id AND bc.name = tc.category_name
                                            JOIN goals_budget_categories gbc ON gbc.budget_cat_id = bc.id
                                            WHERE gbc.goal_id=@gid
-                                           ORDER BY t.date";
+                                             AND COALESCE(t.deleted, FALSE) = FALSE
+                                           ORDER BY t.date DESC";
                 await using var cmd = new NpgsqlCommand(sql, conn);
                 cmd.Parameters.AddWithValue("gid", gid);
                 await using var reader = await cmd.ExecuteReaderAsync();
 
-                var contribByMonth = new Dictionary<string, double>();
                 while (await reader.ReadAsync())
                 {
                     var txId = reader.IsDBNull(0) ? string.Empty : reader.GetString(0);
                     var txDate = reader.IsDBNull(1) ? (DateTime?)null : reader.GetDateTime(1);
                     var merchant = reader.IsDBNull(2) ? string.Empty : reader.GetString(2);
                     var amount = reader.IsDBNull(3) ? 0 : (double)reader.GetDecimal(3);
+                    var budgetId = reader.IsDBNull(4) ? string.Empty : reader.GetString(4);
+                    var isIncome = !reader.IsDBNull(5) && reader.GetBoolean(5);
+                    var txType = reader.IsDBNull(6) ? "standard" : reader.GetString(6);
 
-                    if (amount > 0)
+                    // Classify the row:
+                    //  - Transfer: signed split (positive = contribution, negative = withdrawal)
+                    //  - Standard income: contribution
+                    //  - Standard expense: withdrawal
+                    bool isContribution;
+                    if (txType == "transfer")
                     {
-                        var month = txDate?.ToString("yyyy-MM") ?? string.Empty;
-                        if (contribByMonth.ContainsKey(month))
-                        {
-                            contribByMonth[month] += amount;
-                        }
-                        else
-                        {
-                            contribByMonth[month] = amount;
-                        }
+                        if (amount == 0) continue;
+                        isContribution = amount > 0;
                     }
-                    else if (amount < 0)
+                    else
+                    {
+                        isContribution = isIncome;
+                    }
+
+                    if (isContribution)
+                    {
+                        details.Contributions.Add(new GoalContribution
+                        {
+                            TxId = txId,
+                            TxDate = txDate?.ToString("yyyy-MM-dd"),
+                            Merchant = merchant,
+                            Month = txDate?.ToString("yyyy-MM"),
+                            BudgetId = budgetId,
+                            Amount = Math.Abs(amount)
+                        });
+                    }
+                    else
                     {
                         details.Spend.Add(new GoalSpend
                         {
                             TxId = txId,
                             TxDate = txDate?.ToString("yyyy-MM-dd"),
                             Merchant = merchant,
+                            BudgetId = budgetId,
                             Amount = Math.Abs(amount)
                         });
                     }
                 }
-
-                foreach (var kvp in contribByMonth)
-                {
-                    details.Contributions.Add(new GoalContribution
-                    {
-                        Month = kvp.Key,
-                        Amount = kvp.Value
-                    });
-                }
-
-                details.Contributions.Sort((a, b) => string.CompareOrdinal(a.Month, b.Month));
             }
             catch (Exception ex)
             {

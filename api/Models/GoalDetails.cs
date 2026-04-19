@@ -4,7 +4,11 @@ namespace FamilyBudgetApi.Models
 {
     public class GoalContribution
     {
+        public string? TxId { get; set; }
+        public string? TxDate { get; set; }
+        public string? Merchant { get; set; }
         public string? Month { get; set; }
+        public string? BudgetId { get; set; }
         public double Amount { get; set; }
     }
 
@@ -13,6 +17,7 @@ namespace FamilyBudgetApi.Models
         public string? TxId { get; set; }
         public string? TxDate { get; set; }
         public string? Merchant { get; set; }
+        public string? BudgetId { get; set; }
         public double Amount { get; set; }
     }
 

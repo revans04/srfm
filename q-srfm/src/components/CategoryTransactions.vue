@@ -169,22 +169,36 @@ const spent = computed(() => {
     for (const transaction of props.transactions) {
       if (transaction.deleted) continue;
       const hasCategory = transaction.categories.some((c) => c.category === props.category.name);
-      if (hasCategory) {
+      if (!hasCategory) continue;
+
+      if (transaction.transactionType === 'transfer') {
+        // Transfers store signed splits: the "From" category gets a negative
+        // amount, the "To" category gets a positive amount.
+        //  - Non-income categories track outflow as positive `spent`, so the
+        //    From side adds to spent (-(-x)=+x) and the To side reduces it.
+        //  - Income categories track inflow as positive `spent` (received), so
+        //    the To side adds and the From side subtracts.
         if (isIncome.value) {
           transaction.categories.forEach((c) => {
-            spentTotal += c.amount;
+            if (c.category === props.category.name) spentTotal += c.amount;
           });
         } else {
-          if (transaction.isIncome) {
-            transaction.categories.forEach((c) => {
-              if (c.category === props.category.name) spentTotal -= c.amount;
-            });
-          } else {
-            transaction.categories.forEach((c) => {
-              if (c.category === props.category.name) spentTotal += c.amount;
-            });
-          }
+          transaction.categories.forEach((c) => {
+            if (c.category === props.category.name) spentTotal -= c.amount;
+          });
         }
+      } else if (isIncome.value) {
+        transaction.categories.forEach((c) => {
+          spentTotal += c.amount;
+        });
+      } else if (transaction.isIncome) {
+        transaction.categories.forEach((c) => {
+          if (c.category === props.category.name) spentTotal -= c.amount;
+        });
+      } else {
+        transaction.categories.forEach((c) => {
+          if (c.category === props.category.name) spentTotal += c.amount;
+        });
       }
     }
   }
@@ -454,6 +468,7 @@ onMounted(() => {
 .category-transactions-scroll {
   flex: 1;
   min-height: 0;
+  overflow-y: auto;
 }
 
 .category-transactions-scroll__area,
@@ -494,8 +509,11 @@ onMounted(() => {
 }
 
 @media (max-width: 1023px) {
+  /* On mobile the card lives inside a maximized dialog; keep it filling the
+     dialog so its background/border extend to the bottom, and let the
+     transactions list scroll internally instead of overflowing the card. */
   .category-details-card {
-    height: auto;
+    height: 100%;
   }
 }
 </style>

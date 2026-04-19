@@ -1,7 +1,7 @@
 <!-- components/TransactionDialog.vue -->
 <template>
   <q-dialog v-model="localShowDialog" :width="!isMobile ? '550px' : undefined" :fullscreen="isMobile" @update:modelValue="handleDialogClose">
-    <q-card class="transaction-dialog">
+    <q-card class="transaction-dialog" :class="{ 'transaction-dialog--mobile': isMobile }">
       <q-card-section class="transaction-dialog__header row items-start justify-between no-wrap">
         <div class="transaction-dialog__title-group">
           <div class="text-h6 transaction-dialog__title">{{ dialogTitle }}</div>
@@ -24,20 +24,25 @@
       </q-card-section>
 
       <q-card-section class="transaction-dialog__actions">
-        <div class="row items-center justify-between">
-          <div class="row items-center q-gutter-sm">
-            <q-btn flat color="primary" label="Cancel" :disable="isBusy" @click="handleCancel" />
-            <q-btn
-              v-if="canDelete"
-              outline
-              color="negative"
-              label="Delete"
-              icon="delete_outline"
-              :loading="isBusy"
-              @click="showDeleteConfirm = true"
-            />
-          </div>
-          <q-btn unelevated color="primary" label="Save Transaction" :loading="isBusy" @click="handleSaveClick" />
+        <q-btn
+          class="transaction-dialog__save"
+          unelevated
+          color="primary"
+          :label="isMobile ? 'Save' : 'Save Transaction'"
+          :loading="isBusy"
+          @click="handleSaveClick"
+        />
+        <div class="transaction-dialog__secondary">
+          <q-btn flat color="grey-7" label="Cancel" :disable="isBusy" @click="handleCancel" />
+          <q-btn
+            v-if="canDelete"
+            flat
+            color="negative"
+            label="Delete"
+            icon="delete_outline"
+            :loading="isBusy"
+            @click="showDeleteConfirm = true"
+          />
         </div>
       </q-card-section>
     </q-card>
@@ -189,5 +194,47 @@ function handleCancel() {
   border-top: 1px solid var(--q-color-grey-3);
   padding: 12px 16px;
   z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.transaction-dialog__save {
+  min-width: 180px;
+}
+
+.transaction-dialog__secondary {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Mobile fullscreen layout: body fills, actions stack primary on top */
+.transaction-dialog--mobile {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.transaction-dialog--mobile .transaction-dialog__body {
+  flex: 1 1 auto;
+  max-height: none;
+}
+
+.transaction-dialog--mobile .transaction-dialog__actions {
+  flex-direction: column-reverse;
+  align-items: stretch;
+  gap: 4px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+}
+
+.transaction-dialog--mobile .transaction-dialog__save {
+  width: 100%;
+  min-width: 0;
+}
+
+.transaction-dialog--mobile .transaction-dialog__secondary {
+  justify-content: space-between;
 }
 </style>
