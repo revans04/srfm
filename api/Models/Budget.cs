@@ -30,15 +30,26 @@ namespace FamilyBudgetApi.Models
 
         public List<Merchant> Merchants { get; set; } = new();
 
-        public List<string>? GroupOrder { get; set; }
+        // Snapshot of the entity-level group taxonomy this budget belongs to.
+        // Returned on every Budget GET so the frontend has both per-category
+        // membership (`BudgetCategory.GroupId`) and the entity's groups.
+        public List<BudgetGroup> Groups { get; set; } = new();
     }
 
     public class BudgetCategory
     {
+        // bigint PK on budget_categories (nullable for new/in-flight rows).
+        public long? Id { get; set; }
         public string? Name { get; set; }
         public double Target { get; set; }
         public bool IsFund { get; set; }
-        public string? Group { get; set; }
+        // FK to budget_groups.id. Required server-side once a row is persisted;
+        // nullable here so newly-typed groups can be resolved from `GroupName`.
+        public string? GroupId { get; set; }
+        // Display name hydrated on read (also accepted on write to upsert a
+        // new group when `GroupId` is unknown).
+        public string? GroupName { get; set; }
+        public int SortOrder { get; set; }
         public double? Carryover { get; set; }
         public bool? Favorite { get; set; }
 

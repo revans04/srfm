@@ -61,10 +61,14 @@ VALUES (@id,@entity_id,@name,@total_target,@monthly_target,@target_date,@archive
                     }
                 }
 
+                // Resolve the entity's "Savings" group once — all the budget_categories
+                // rows we insert/update for this goal share it.
+                var savingsGroupId = await BudgetService.EnsureGroupAsync(conn, null, entityId, "Savings", "savings");
+
                 const string findCatSql = "SELECT id FROM budget_categories WHERE budget_id=@bid AND name=@name";
-                const string updateCatSql = "UPDATE budget_categories SET target=@target, is_fund=true, \"group\"=@group WHERE id=@id";
-                const string insertCatSql = @"INSERT INTO budget_categories (budget_id, name, target, is_fund, ""group"", carryover)
-VALUES (@bid, @name, @target, true, @group, 0) RETURNING id";
+                const string updateCatSql = "UPDATE budget_categories SET target=@target, is_fund=true, group_id=@group_id WHERE id=@id";
+                const string insertCatSql = @"INSERT INTO budget_categories (budget_id, name, target, is_fund, group_id, sort_order, carryover)
+VALUES (@bid, @name, @target, true, @group_id, 0, 0) RETURNING id";
                 const string deleteAssocSql = "DELETE FROM goals_budget_categories WHERE budget_cat_id=@catId";
                 const string insertAssocSql = @"INSERT INTO goals_budget_categories (goal_id, budget_cat_id) VALUES (@goal_id, @budget_cat_id)";
 
@@ -85,7 +89,7 @@ VALUES (@bid, @name, @target, true, @group, 0) RETURNING id";
                             await using var updCmd = new NpgsqlCommand(updateCatSql, conn);
                             updCmd.Parameters.AddWithValue("id", budgetCatId);
                             updCmd.Parameters.AddWithValue("target", (decimal)goal.MonthlyTarget);
-                            updCmd.Parameters.AddWithValue("group", "Savings");
+                            updCmd.Parameters.AddWithValue("group_id", savingsGroupId);
                             await updCmd.ExecuteNonQueryAsync();
                         }
                         else
@@ -94,7 +98,7 @@ VALUES (@bid, @name, @target, true, @group, 0) RETURNING id";
                             insCmd.Parameters.AddWithValue("bid", bid);
                             insCmd.Parameters.AddWithValue("name", (object?)goal.Name ?? DBNull.Value);
                             insCmd.Parameters.AddWithValue("target", (decimal)goal.MonthlyTarget);
-                            insCmd.Parameters.AddWithValue("group", "Savings");
+                            insCmd.Parameters.AddWithValue("group_id", savingsGroupId);
                             var newId = await insCmd.ExecuteScalarAsync();
                             budgetCatId = newId is long l ? l : Convert.ToInt64(newId);
                         }

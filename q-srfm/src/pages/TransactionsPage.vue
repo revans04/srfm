@@ -730,14 +730,6 @@ async function confirmUnmatch() {
 
 const entityOptions = computed(() => (familyStore.family?.entities || []).map((e) => ({ id: e.id, name: e.name })));
 
-const categoryOptions = computed(() => {
-  const cats = new Set<string>(['Income']);
-  Array.from(budgetStore.budgets.values()).forEach((b) => {
-    (b.categories || []).forEach((cat) => cats.add(cat.name));
-  });
-  return Array.from(cats).sort();
-});
-
 function categoryOptionsFor(entry: { amount: number; date: string }): string[] {
   if (entry.amount > 0) {
     return ['Income'];
@@ -1179,7 +1171,7 @@ function removeChip(key: string) {
 function onRegisterRowClick(row: LedgerRow) {
   if (row.status === 'U') {
     selectedRegisterIds.value = [row.id];
-    openRegisterBatchDialog();
+    void openRegisterBatchDialog();
   }
 }
 
@@ -1260,7 +1252,7 @@ async function executeRegisterBatchMatch() {
           name: entry.category,
           target: 0,
           isFund: false,
-          group: 'Ungrouped',
+          groupName: '(Ungrouped)',
         });
         await dataAccess.saveBudget(targetBudget.budgetId, targetBudget);
         budgetStore.updateBudget(targetBudget.budgetId, targetBudget);

@@ -94,7 +94,7 @@
                 <q-input v-model="category.name" label="Category" required density="compact"></q-input>
               </div>
               <div class="col q-px-sm col-12 col-sm-3">
-                <q-input v-model="category.group" label="Group" required density="compact"></q-input>
+                <q-input v-model="category.groupName" label="Group" required density="compact"></q-input>
               </div>
               <div class="col q-px-sm col-12 col-sm-3">
                 <Currency-Input v-model.number="category.target" label="Target" class="text-right" density="compact" required></Currency-Input>
@@ -116,7 +116,7 @@
               <q-input v-model="newCategory.name" label="Category" required density="compact"></q-input>
             </div>
             <div class="col q-px-sm col-12 col-sm-3">
-              <q-input v-model="newCategory.group" label="Group (e.g., Utilities)" density="compact"></q-input>
+              <q-input v-model="newCategory.groupName" label="Group (e.g., Utilities)" density="compact"></q-input>
             </div>
             <div class="col q-px-sm col-12 col-sm-2">
               <Currency-Input v-model.number="newCategory.target" label="Target" class="text-right" density="compact" required></Currency-Input>
@@ -211,7 +211,7 @@ const newCategory = ref<BudgetCategory>({
   name: '',
   target: 0,
   isFund: false,
-  group: '',
+  groupName: '',
 });
 
 const entityTypeOptions = Object.values(EntityType).map((value) => ({
@@ -224,19 +224,25 @@ const availableTaxForms = computed(() => {
   return forms.filter((form) => form.applicableEntityTypes.includes(entityType.value));
 });
 
+// Template categories live on the entity before they're persisted to a real
+// budget, so groupId/kind aren't resolved yet. Validation falls back to the
+// inferred kind (lowercased name match) which lines up with what the
+// backend's SaveBudget will infer when it upserts the budget_groups row.
 const isFormValid = computed(() => {
   let retValue = entityName.value !== null && entityType.value !== null;
-  retValue = retValue && budget.value.categories.filter((f) => f.group.toLowerCase() == 'income').length > 0;
-  return retValue && budget.value.categories.every((cat) => cat.name && cat.group && cat.target >= 0);
+  retValue =
+    retValue &&
+    budget.value.categories.filter((f) => (f.groupName ?? '').toLowerCase() === 'income').length > 0;
+  return retValue && budget.value.categories.every((cat) => cat.name && cat.groupName && cat.target >= 0);
 });
 
 const getBudgetInfo = computed(() => {
   const incomeTotal = budget.value.categories
-    .filter((category) => category.group?.toLowerCase() === 'income')
+    .filter((category) => (category.groupName ?? '').toLowerCase() === 'income')
     .reduce((sum, category) => sum + (Number(category.target) || 0), 0);
 
   const nonIncomeTotal = budget.value.categories
-    .filter((category) => category.group?.toLowerCase() !== 'income')
+    .filter((category) => (category.groupName ?? '').toLowerCase() !== 'income')
     .reduce((sum, category) => sum + (Number(category.target) || 0), 0);
   return `Income: ${formatCurrency(incomeTotal)} Remaining: ${formatCurrency(incomeTotal - nonIncomeTotal)} `;
 });
@@ -336,9 +342,9 @@ function importCategories() {
 }
 
 function addCategory() {
-  if (newCategory.value.name && newCategory.value.target >= 0 && newCategory.value.group) {
+  if (newCategory.value.name && newCategory.value.target >= 0 && newCategory.value.groupName) {
     budget.value.categories.push({ ...newCategory.value });
-    newCategory.value = { name: '', target: 0, isFund: false, group: '' };
+    newCategory.value = { name: '', target: 0, isFund: false, groupName: '' };
   }
 }
 
@@ -415,7 +421,7 @@ function resetForm() {
   entityEmail.value = auth.currentUser?.email || '';
   entityTaxFormIds.value = [];
   budget.value.categories = [];
-  newCategory.value = { name: '', target: 0, isFund: false, group: '' };
+  newCategory.value = { name: '', target: 0, isFund: false, groupName: '' };
 }
 
 function showSnackbar(text: string, color: string) {

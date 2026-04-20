@@ -151,7 +151,18 @@
                     <q-input v-model="cat.name" label="Category" required dense />
                   </div>
                   <div class="col-12 col-sm-3 q-pa-xs">
-                    <q-input v-model="cat.group" label="Group (e.g., Utilities)" dense />
+                    <q-select
+                      :model-value="cat.groupName ?? ''"
+                      :options="groupNameOptions"
+                      label="Group"
+                      dense
+                      use-input
+                      hide-selected
+                      fill-input
+                      input-debounce="0"
+                      new-value-mode="add-unique"
+                      @update:model-value="(val) => onCategoryGroupChange(cat, val)"
+                    />
                   </div>
                   <div class="col-6 col-sm-2 q-pa-xs">
                     <CurrencyInput v-model.number="cat.target" label="Target" class="text-right" dense required />
@@ -265,7 +276,7 @@
 
           <!-- Category Tables -->
           <div v-if="!isEditing && catTransactions" id="groups-section" class="q-mt-md">
-            <template v-for="(g, gIdx) in groups" :key="g.group">
+            <template v-for="(g, gIdx) in groups" :key="g.id">
               <q-card
                 class="cat-table-card q-mb-md"
                 :class="{ 'group-drag-over': dragOverIndex === gIdx }"
@@ -280,7 +291,24 @@
                   <div class="cat-table-header">
                     <span class="col-header cat-col-name row items-center no-wrap">
                       <q-icon name="drag_indicator" size="18px" class="group-drag-handle q-mr-xs" />
-                      {{ g.group || 'Ungrouped' }}
+                      <q-input
+                        v-if="groupRename.id === g.id"
+                        v-model="groupRename.value"
+                        dense
+                        autofocus
+                        @keydown.enter="saveGroupRename"
+                        @keydown.esc="cancelGroupRename"
+                        @blur="saveGroupRename"
+                        class="group-rename-input"
+                      />
+                      <span
+                        v-else
+                        class="group-name-text"
+                        @dblclick.stop="startGroupRename(g)"
+                      >
+                        {{ g.name || '(Ungrouped)' }}
+                        <q-tooltip>Double-click to rename. Renames apply to every month for this entity.</q-tooltip>
+                      </span>
                     </span>
                     <span v-if="!isMobile" class="col-header cat-col-progress">Progress</span>
                     <span v-if="!isMobile" class="col-header cat-col-planned">Planned</span>
@@ -289,10 +317,17 @@
                   <div class="cat-divider" />
                   <div
                     v-for="(item, idx) in catTransactions
-                      .filter((c) => c.group == g.group)
+                      .filter((c) => c.groupId === g.id)
                       .slice()
-                      .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()))"
+                      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.toLowerCase().localeCompare(b.name.toLowerCase()))"
                     :key="idx"
+                    :class="{ 'cat-drag-over': catDragOver?.groupId === g.id && catDragOver?.idx === idx }"
+                    draggable="true"
+                    @dragstart.stop="onCategoryDragStart(g.id, idx, item, $event)"
+                    @dragover.prevent.stop="onCategoryDragOver(g.id, idx)"
+                    @dragleave.stop="onCategoryDragLeave"
+                    @drop.prevent.stop="onCategoryDrop(g.id, idx)"
+                    @dragend.stop="onCategoryDragEnd"
                   >
                     <div class="cat-row cursor-pointer" @click="handleRowClick(item)">
                       <span
@@ -613,8 +648,9 @@ import GoalDetailsPanel from '../components/goals/GoalDetailsPanel.vue';
 import MonthSelector from '../components/MonthSelector.vue';
 import BudgetTransactionItem from '../components/BudgetTransactionItem.vue';
 import GuidedTip from '../components/GuidedTip.vue';
-import type { Transaction, Budget, IncomeTarget, BudgetCategoryTrx, BudgetCategory, Goal } from '../types';
+import type { Transaction, Budget, IncomeTarget, BudgetCategoryTrx, BudgetCategory, Goal, BudgetGroupKind } from '../types';
 import { EntityType } from '../types';
+import { isIncomeCategory, categoryGroupName } from '../utils/groups';
 import version from '../version';
 import { toDollars, toCents, formatCurrency, todayISO, currentMonthISO } from '../utils/helpers';
 import { useAuthStore } from '../store/auth';
@@ -714,6 +750,8 @@ watch(
     if (familyStore.selectedEntityId) {
       goals.value = listGoals(familyStore.selectedEntityId);
       savingsTotal.value = monthlySavingsTotal(familyStore.selectedEntityId, currentMonth.value);
+      // Hydrate the entity's group taxonomy for templates/drag-reorder/etc.
+      void familyStore.loadGroups(familyStore.selectedEntityId);
     } else {
       savingsTotal.value = 0;
       goals.value = [];
@@ -740,14 +778,10 @@ function onContribute(goal: Goal) {
 }
 
 // --- Group drag-and-drop reordering ---
+// Order is persisted on `budget_groups.sort_order` per entity. Reordering
+// here therefore propagates to every month for the entity automatically.
 const dragFromIndex = ref<number | null>(null);
 const dragOverIndex = ref<number | null>(null);
-
-function ensureGroupOrder() {
-  if (!budget.value.groupOrder || budget.value.groupOrder.length === 0) {
-    budget.value.groupOrder = groups.value.map((g) => g.group);
-  }
-}
 
 function onGroupDragStart(idx: number, e: DragEvent) {
   dragFromIndex.value = idx;
@@ -773,19 +807,25 @@ async function onGroupDrop(toIdx: number) {
   dragFromIndex.value = null;
   if (fromIdx === null || fromIdx === toIdx) return;
 
-  ensureGroupOrder();
-  const order = budget.value.groupOrder;
-  if (!order) return;
+  const entityId = familyStore.selectedEntityId;
+  if (!entityId) return;
 
-  const [moved] = order.splice(fromIdx, 1);
-  order.splice(toIdx, 0, moved);
+  // Build the new id ordering by reordering the visible (non-income) groups
+  // shown on this page, then appending the rest of the entity's groups (income,
+  // archived) in their existing order so the full taxonomy stays sorted.
+  const visibleIds = groups.value.map((g) => g.id);
+  const [movedId] = visibleIds.splice(fromIdx, 1);
+  visibleIds.splice(toIdx, 0, movedId);
+
+  const allOrdered = [
+    ...visibleIds,
+    ...familyStore.currentGroups
+      .filter((g) => !visibleIds.includes(g.id))
+      .map((g) => g.id),
+  ];
 
   try {
-    if (budgetId.value) {
-      budget.value.budgetId = budgetId.value;
-      await dataAccess.saveBudget(budgetId.value, budget.value);
-      budgetStore.updateBudget(budgetId.value, { ...budget.value });
-    }
+    await familyStore.reorderGroups(entityId, allOrdered);
   } catch (err) {
     console.error('Failed to save group order', err);
   }
@@ -794,6 +834,161 @@ async function onGroupDrop(toIdx: number) {
 function onGroupDragEnd() {
   dragFromIndex.value = null;
   dragOverIndex.value = null;
+}
+
+// --- Inline group rename ---
+// Double-click a group header in the BudgetPage to rename. Persists via
+// familyStore.renameGroup, which writes the new name to budget_groups for
+// the entity — so the rename takes effect across every month immediately
+// (no per-month edit needed).
+const groupRename = ref<{ id: string; value: string }>({ id: '', value: '' });
+
+function startGroupRename(g: { id: string; name: string }) {
+  groupRename.value = { id: g.id, value: g.name };
+}
+
+function cancelGroupRename() {
+  groupRename.value = { id: '', value: '' };
+}
+
+async function saveGroupRename() {
+  const { id, value } = groupRename.value;
+  if (!id) return;
+  const trimmed = (value ?? '').trim();
+  const entityId = familyStore.selectedEntityId;
+  if (!entityId) {
+    cancelGroupRename();
+    return;
+  }
+  const original = familyStore.getGroup(entityId, id);
+  // No-op if blank or unchanged.
+  if (!trimmed || (original && trimmed === original.name)) {
+    cancelGroupRename();
+    return;
+  }
+  // Reject collisions with another existing group on the same entity.
+  const collision = familyStore
+    .currentGroups
+    .find((g) => g.id !== id && g.name.toLowerCase() === trimmed.toLowerCase());
+  if (collision) {
+    showSnackbar(`A group named "${collision.name}" already exists on this entity.`, 'negative');
+    cancelGroupRename();
+    return;
+  }
+  try {
+    await familyStore.renameGroup(entityId, id, trimmed);
+    showSnackbar('Group renamed.', 'success');
+  } catch (err) {
+    console.error('Failed to rename group', err);
+    showSnackbar('Failed to rename group.', 'negative');
+  } finally {
+    cancelGroupRename();
+  }
+}
+
+// --- Per-category drag-and-drop reordering ---
+// Within a group, plus cross-group drag (drop on a different group's category
+// row reassigns the dragged category to that group). Persisted via the new
+// PUT /api/budget/{budgetId}/categories/order endpoint.
+const catDragFrom = ref<{ groupId: string; idx: number; item: BudgetCategoryTrx } | null>(null);
+const catDragOver = ref<{ groupId: string; idx: number } | null>(null);
+
+function onCategoryDragStart(groupId: string, idx: number, item: BudgetCategoryTrx, e: DragEvent) {
+  catDragFrom.value = { groupId, idx, item };
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', `cat::${item.name}`);
+  }
+}
+
+function onCategoryDragOver(groupId: string, idx: number) {
+  if (!catDragFrom.value) return;
+  // Don't show drop target on yourself.
+  if (catDragFrom.value.groupId === groupId && catDragFrom.value.idx === idx) return;
+  catDragOver.value = { groupId, idx };
+}
+
+function onCategoryDragLeave() {
+  catDragOver.value = null;
+}
+
+function onCategoryDragEnd() {
+  catDragFrom.value = null;
+  catDragOver.value = null;
+}
+
+async function onCategoryDrop(toGroupId: string, toIdx: number) {
+  const from = catDragFrom.value;
+  catDragOver.value = null;
+  catDragFrom.value = null;
+  if (!from) return;
+  if (from.groupId === toGroupId && from.idx === toIdx) return;
+  if (!budgetId.value) return;
+
+  // Build the new ordering for the affected groups, then send a single
+  // payload with every (id, group_id, sort_order) we want to apply. The
+  // backend ReorderCategories executes them transactionally.
+  type Row = { id: number; groupId: string; sortOrder: number };
+  const rowsByGroup = new Map<string, BudgetCategoryTrx[]>();
+  for (const c of catTransactions.value) {
+    const gid = c.groupId ?? '';
+    let bucket = rowsByGroup.get(gid);
+    if (!bucket) {
+      bucket = [];
+      rowsByGroup.set(gid, bucket);
+    }
+    bucket.push(c);
+  }
+  // Sort each bucket by current order so we splice in a stable way.
+  for (const list of rowsByGroup.values()) {
+    list.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name));
+  }
+
+  const fromList = rowsByGroup.get(from.groupId) || [];
+  const fromIndexInList = fromList.findIndex((c) => c.name === from.item.name);
+  if (fromIndexInList === -1) return;
+  const [moved] = fromList.splice(fromIndexInList, 1);
+
+  let toList = rowsByGroup.get(toGroupId);
+  if (!toList) {
+    toList = [];
+    rowsByGroup.set(toGroupId, toList);
+  }
+  // Clamp toIdx for cross-group inserts (the original drop index assumed the
+  // to-group still had the dragged row; for cross-group it doesn't).
+  const insertIdx = Math.min(Math.max(toIdx, 0), toList.length);
+  toList.splice(insertIdx, 0, { ...moved, groupId: toGroupId });
+
+  // Build the payload: only categories whose group or order changed need
+  // to be updated, but to keep the math simple we recompute every row in
+  // the two affected groups.
+  const payload: Row[] = [];
+  const affected = new Set([from.groupId, toGroupId]);
+  for (const gid of affected) {
+    const list = rowsByGroup.get(gid) || [];
+    list.forEach((c, i) => {
+      if (typeof c.id !== 'number') return; // skip in-flight new rows without a PK
+      payload.push({ id: c.id, groupId: gid, sortOrder: i });
+    });
+  }
+  if (payload.length === 0) return;
+
+  // Optimistically reflect the change in the in-memory budget so the table
+  // reorders immediately, then persist.
+  budget.value.categories = budget.value.categories.map((cat) => {
+    if (typeof cat.id !== 'number') return cat;
+    const updated = payload.find((p) => p.id === cat.id);
+    if (!updated) return cat;
+    return { ...cat, groupId: updated.groupId, sortOrder: updated.sortOrder };
+  });
+  if (budgetId.value) budgetStore.updateBudget(budgetId.value, { ...budget.value });
+
+  try {
+    await dataAccess.reorderCategories(budgetId.value, payload);
+  } catch (err) {
+    console.error('Failed to save category order', err);
+    showSnackbar('Failed to save category order', 'negative');
+  }
 }
 
 async function toggleFavorite(item: BudgetCategoryTrx) {
@@ -998,8 +1193,9 @@ function matchesSelectedEntity(b: Budget) {
 }
 
 const budgetedExpenses = computed(() => {
+  const groupList = familyStore.currentGroups;
   const totalPlanned = budget.value.categories
-    .filter((cat) => cat.name !== 'Income' && cat.group !== 'Income')
+    .filter((cat) => !isIncomeCategory(cat, groupList))
     .reduce((sum, cat) => sum + (cat.target || 0), 0);
   return totalPlanned;
 });
@@ -1035,9 +1231,10 @@ async function returnToCurrentMonth() {
 
 const catTransactions = computed(() => {
   const catTransactions: BudgetCategoryTrx[] = [];
+  const groupList = familyStore.currentGroups;
   if (budget.value && budget.value.categories) {
     budget.value.categories.forEach((c) => {
-      if (c.group !== 'Income') {
+      if (!isIncomeCategory(c, groupList)) {
         catTransactions.push({
           ...c,
           spent: 0,
@@ -1091,7 +1288,11 @@ const catTransactions = computed(() => {
 
   if (debouncedSearch.value !== '') {
     const srch = debouncedSearch.value.toLowerCase();
-    return catTransactions.filter((t) => t.group.toLowerCase().includes(srch) || t.name.toLowerCase().includes(srch));
+    const groupList = familyStore.currentGroups;
+    return catTransactions.filter((t) => {
+      const gName = categoryGroupName(t, groupList).toLowerCase();
+      return gName.includes(srch) || t.name.toLowerCase().includes(srch);
+    });
   }
   return catTransactions;
 });
@@ -1105,44 +1306,58 @@ const favoriteItems = computed(() =>
 );
 
 
-const groups = computed(() => {
-  const g: GroupCategory[] = [];
-  catTransactions.value.forEach((c) => {
-    let grp = g.find((f) => f.group === c.group);
-    if (!grp) {
-      grp = { group: c.group, cat: [] };
-      g.push(grp);
-    }
-    grp.cat.push(c.name);
-  });
-  const order = budget.value?.groupOrder;
-  if (order && order.length > 0) {
-    g.sort((a, b) => {
-      const idxA = order.indexOf(a.group);
-      const idxB = order.indexOf(b.group);
-      const posA = idxA === -1 ? Number.MAX_SAFE_INTEGER : idxA;
-      const posB = idxB === -1 ? Number.MAX_SAFE_INTEGER : idxB;
-      return posA - posB;
-    });
-  } else {
-    // Fallback: push ungrouped to end, preserve insertion order
-    g.sort((a, b) => {
-      if (!a.group && b.group) return 1;
-      if (a.group && !b.group) return -1;
-      return 0;
-    });
+// Visible (non-income) groups for this budget, sourced from the entity's
+// canonical taxonomy (`familyStore.currentGroups`) and filtered to those that
+// have at least one category present in the current budget. Order comes from
+// the entity-scoped `sortOrder` on each BudgetGroup.
+const groups = computed<GroupCategory[]>(() => {
+  const groupList = familyStore.currentGroups;
+  if (!groupList.length) return [];
+  const presentGroupIds = new Set<string>();
+  for (const c of catTransactions.value) {
+    if (c.groupId) presentGroupIds.add(c.groupId);
   }
-  return g;
+  return groupList
+    .filter((g) => g.kind !== 'income' && !g.archived && presentGroupIds.has(g.id))
+    .slice()
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
+    .map((g) => ({
+      id: g.id,
+      name: g.name,
+      kind: g.kind,
+      cat: catTransactions.value.filter((c) => c.groupId === g.id).map((c) => c.name),
+    }));
 });
+
+// Names of every non-income group available on the entity. Used by the inline
+// category-row group select so users can pick existing groups or type a new
+// one (which the backend upserts on save).
+const groupNameOptions = computed<string[]>(() =>
+  familyStore.currentGroups
+    .filter((g) => !g.archived)
+    .map((g) => g.name)
+    .sort((a, b) => a.localeCompare(b)),
+);
+
+function onCategoryGroupChange(cat: BudgetCategory, value: string | null) {
+  const trimmed = (value ?? '').trim();
+  cat.groupName = trimmed;
+  // Clear groupId so SaveBudget routes through EnsureGroupAsync(name) — that
+  // handles both "switch to existing group by name" and "create new group".
+  // SaveBudget upserts and writes the resolved group_id.
+  const existing = familyStore.getGroupByName(familyStore.selectedEntityId, trimmed);
+  cat.groupId = existing?.id;
+}
 
 const incomeItems = computed(() => {
   const incTrx: IncomeTarget[] = [];
+  const groupList = familyStore.currentGroups;
   if (budget.value && budget.value.categories) {
     budget.value.categories.forEach((c) => {
-      if (c.group.toLowerCase() == 'income') {
+      if (isIncomeCategory(c, groupList)) {
         incTrx.push({
           name: c.name,
-          group: c.group,
+          group: categoryGroupName(c, groupList),
           planned: c.target,
           received: 0,
         });
@@ -1471,6 +1686,9 @@ onMounted(async () => {
       entities: familyStore.family?.entities?.length || 0,
       selectedEntityId: familyStore.selectedEntityId,
     });
+    if (familyStore.selectedEntityId) {
+      await familyStore.loadGroups(familyStore.selectedEntityId);
+    }
     log('Loading budgets');
     await loadBudgets();
   } catch (error: unknown) {
@@ -1750,8 +1968,9 @@ async function saveBudget() {
 // fund to draw from in the transfer model — it's just where positive cash
 // flow is recorded).
 function fundingSourceOptionsFor(cat: BudgetCategory): string[] {
+  const groupList = familyStore.currentGroups;
   return budget.value.categories
-    .filter((c) => c !== cat && c.name && c.group?.toLowerCase() !== 'income')
+    .filter((c) => c !== cat && c.name && !isIncomeCategory(c, groupList))
     .map((c) => c.name)
     .sort((a, b) => a.localeCompare(b));
 }
@@ -1761,7 +1980,7 @@ async function addCategory() {
     name: '',
     target: 0,
     isFund: false,
-    group: '',
+    groupName: '',
   };
   budget.value.categories.push(newCat);
   const include = await new Promise<boolean>((resolve) => {
@@ -1781,11 +2000,15 @@ async function addCategory() {
 }
 
 function addIncomeCategory() {
+  // Resolve the entity's existing income group; the migration guarantees one
+  // per entity so this should always be present.
+  const incomeGroup = familyStore.currentGroups.find((g) => g.kind === 'income');
   budget.value.categories.push({
     name: 'Income',
     target: 0,
     isFund: false,
-    group: 'Income',
+    groupId: incomeGroup?.id,
+    groupName: incomeGroup?.name ?? 'Income',
   });
   showSnackbar('Added new income category');
 }
@@ -1808,7 +2031,16 @@ async function applyFutureCategories() {
     const templateCats = entity.templateBudget?.categories || [];
     for (const cat of futureCategories.value) {
       if (!templateCats.some((c) => c.name === cat.name)) {
-        templateCats.push({ name: cat.name, target: cat.target, isFund: cat.isFund, group: cat.group });
+        // Persist the resolved group name on the template; the backend's
+        // SaveBudget will upsert a budget_groups row per entity for it.
+        const groupList = familyStore.currentGroups;
+        templateCats.push({
+          name: cat.name,
+          target: cat.target,
+          isFund: cat.isFund,
+          groupId: cat.groupId,
+          groupName: cat.groupName ?? categoryGroupName(cat, groupList),
+        });
       }
     }
     entity.templateBudget = { categories: templateCats };
@@ -2155,7 +2387,9 @@ function showSnackbar(text: string, color = 'success', retry?: () => void) {
 }
 
 interface GroupCategory {
-  group: string;
+  id: string;
+  name: string;
+  kind: BudgetGroupKind;
   cat: string[];
 }
 </script>
@@ -2404,6 +2638,23 @@ interface GroupCategory {
 .group-drag-over {
   box-shadow: 0 0 0 2px var(--q-primary) !important;
   border-radius: var(--radius-md);
+}
+
+/* Per-category drop indicator: a top border so it's clear where the row will land. */
+.cat-drag-over {
+  border-top: 2px solid var(--q-primary);
+}
+
+.group-name-text {
+  cursor: text;
+  user-select: text;
+}
+.group-name-text:hover {
+  text-decoration: underline dotted;
+}
+.group-rename-input {
+  min-width: 140px;
+  max-width: 280px;
 }
 
 .cat-col-name {

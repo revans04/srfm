@@ -1165,11 +1165,13 @@ async function executeBatchMatch() {
 
       // Check if category exists in budget; if not, add it
       if (!targetBudget.categories.some((cat) => cat.name === entry.category)) {
+        // SaveBudget upserts a budget_groups row by name on save (kind=expense
+        // for the "(Ungrouped)" bucket).
         targetBudget.categories.push({
           name: entry.category,
           target: 0,
           isFund: false,
-          group: 'Ungrouped',
+          groupName: '(Ungrouped)',
         });
         await dataAccess.saveBudget(budgetId, targetBudget);
         budgetStore.updateBudget(budgetId, targetBudget);

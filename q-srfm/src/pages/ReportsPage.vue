@@ -329,8 +329,10 @@ import {
 } from "chart.js";
 import type { TooltipItem } from "chart.js";
 import { useBudgetStore } from "../store/budget";
+import { useFamilyStore } from "../store/family";
 import "chartjs-adapter-date-fns";
 import { timestampToDate, currentMonthISO } from "../utils/helpers";
+import { isIncomeCategory, categoryGroupName } from "../utils/groups";
 
 // Register Chart.js components
 ChartJS.register(
@@ -351,6 +353,7 @@ const DoughnutChart = Doughnut;
 const LineChart = Line;
 
 const budgetStore = useBudgetStore();
+const familyStore = useFamilyStore();
 
 const tab = ref("monthly");
 const budgetOptions = ref<Array<Budget & { displayMonth: string }>>([]);
@@ -919,19 +922,22 @@ async function updateReportData() {
       })
       .filter((budget): budget is Budget => budget !== null);
 
+    // Resolve group identity per category through the entity's group
+    // taxonomy. Categories carry `groupId` (FK) plus a `groupName` snapshot.
+    // The income filter goes through `kind`, not string matching.
+    const groupList = familyStore.currentGroups;
     const categoryToGroup = new Map<string, string>();
     const categoryGroupMap = new Map<string, string>();
     const groupSet = new Set<string>();
     const categorySet = new Set<string>();
     budgets.forEach((budget) => {
       budget.categories.forEach((cat) => {
-        categoryGroupMap.set(cat.name, cat.group);
-        if (cat.group && cat.group.toLowerCase() !== "income") {
-          groupSet.add(cat.group);
-          if (cat.name.toLowerCase() !== "income") {
-            categorySet.add(cat.name);
-            categoryToGroup.set(cat.name, cat.group);
-          }
+        const gName = categoryGroupName(cat, groupList);
+        categoryGroupMap.set(cat.name, gName);
+        if (gName && !isIncomeCategory(cat, groupList)) {
+          groupSet.add(gName);
+          categorySet.add(cat.name);
+          categoryToGroup.set(cat.name, gName);
         }
       });
     });
@@ -945,10 +951,11 @@ async function updateReportData() {
       let actualTotal = 0;
 
       budget.categories.forEach((category) => {
+        const gName = categoryGroupName(category, groupList);
         if (
-          category.group &&
-          category.group.toLowerCase() !== "income" &&
-          !excludedGroups.value.includes(category.group) &&
+          gName &&
+          !isIncomeCategory(category, groupList) &&
+          !excludedGroups.value.includes(gName) &&
           !excludedCategories.value.includes(category.name)
         ) {
           plannedTotal += category.target || 0;
@@ -962,8 +969,6 @@ async function updateReportData() {
             const groupName = categoryToGroup.get(cat.category);
             if (
               groupName &&
-              groupName.toLowerCase() !== "income" &&
-              cat.category.toLowerCase() !== "income" &&
               !excludedGroups.value.includes(groupName) &&
               !excludedCategories.value.includes(cat.category)
             ) {
@@ -983,16 +988,16 @@ async function updateReportData() {
     const groupMap = new Map<string, { planned: number; actual: number }>();
     budgets.forEach((budget) => {
       budget.categories.forEach((category) => {
+        const gName = categoryGroupName(category, groupList);
         if (
-          category.group &&
-          category.group.toLowerCase() !== "income" &&
-          !excludedGroups.value.includes(category.group) &&
+          gName &&
+          !isIncomeCategory(category, groupList) &&
+          !excludedGroups.value.includes(gName) &&
           !excludedCategories.value.includes(category.name)
         ) {
-          const groupName = category.group;
-          const group = groupMap.get(groupName) || { planned: 0, actual: 0 };
+          const group = groupMap.get(gName) || { planned: 0, actual: 0 };
           group.planned += category.target || 0;
-          groupMap.set(groupName, group);
+          groupMap.set(gName, group);
         }
       });
 

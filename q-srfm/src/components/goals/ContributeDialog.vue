@@ -28,6 +28,9 @@
 import { ref, computed, watch } from 'vue';
 import CurrencyInput from '../CurrencyInput.vue';
 import type { Goal } from '../../types';
+import { useFamilyStore } from '../../store/family';
+import { useBudgetStore } from '../../store/budget';
+import { isIncomeCategory } from '../../utils/groups';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -40,18 +43,37 @@ const emit = defineEmits<{
   (e: 'save', payload: { amount: number; note?: string; sourceCategory: string }): void;
 }>();
 
+const familyStore = useFamilyStore();
+const budgetStore = useBudgetStore();
+
 const model = ref(props.modelValue);
 const amount = ref<number>(0);
 const note = ref('');
-const sourceCategory = ref<string>('Income');
+const sourceCategory = ref<string>('');
+
+// Default source = the first category (alpha) in any income-kind group on the
+// entity. Falls back to whatever's in categoryOptions if no income-kind
+// category can be located.
+const defaultSourceName = computed<string>(() => {
+  const groupList = familyStore.currentGroups;
+  for (const b of budgetStore.budgets.values()) {
+    if (props.goal?.entityId && b.entityId !== props.goal.entityId) continue;
+    for (const cat of b.categories) {
+      if (isIncomeCategory(cat, groupList) && cat.name !== props.goal?.name) {
+        return cat.name;
+      }
+    }
+  }
+  return props.categoryOptions?.find((c) => c !== props.goal?.name) ?? '';
+});
 
 const sourceOptions = computed(() => {
-  const opts = props.categoryOptions && props.categoryOptions.length > 0 ? [...props.categoryOptions] : ['Income'];
-  // Exclude the goal's own fund category from its own source options
+  const opts = props.categoryOptions && props.categoryOptions.length > 0 ? [...props.categoryOptions] : [];
   const goalName = props.goal?.name;
   const filtered = goalName ? opts.filter((c) => c !== goalName) : opts;
-  // Guarantee Income is present and first if available
-  if (!filtered.includes('Income')) filtered.unshift('Income');
+  if (defaultSourceName.value && !filtered.includes(defaultSourceName.value)) {
+    filtered.unshift(defaultSourceName.value);
+  }
   return filtered;
 });
 
@@ -72,11 +94,10 @@ watch(
   { immediate: true },
 );
 
-// Default the source to Income whenever the dialog opens, unless Income is unavailable
+// Default the source whenever the dialog opens.
 watch(model, (v) => {
   if (v) {
-    const defaultSrc = sourceOptions.value.includes('Income') ? 'Income' : (sourceOptions.value[0] || 'Income');
-    sourceCategory.value = defaultSrc;
+    sourceCategory.value = defaultSourceName.value || sourceOptions.value[0] || '';
   }
 });
 

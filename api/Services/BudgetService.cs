@@ -197,13 +197,19 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
         }
 
         var sqlCats = hasGoalTable
-            ? @"SELECT name, target, is_fund, ""group"", carryover, favorite, funding_source_category
-                                FROM budget_categories
-                                WHERE budget_id=@id
-                                  AND NOT EXISTS (SELECT 1 FROM goals_budget_categories gbc WHERE gbc.budget_cat_id = budget_categories.id)"
-            : @"SELECT name, target, is_fund, ""group"", carryover, favorite, funding_source_category
-                                FROM budget_categories
-                                WHERE budget_id=@id";
+            ? @"SELECT bc.id, bc.name, bc.target, bc.is_fund, bc.group_id, bg.name AS group_name,
+                       bc.sort_order, bc.carryover, bc.favorite, bc.funding_source_category
+                  FROM budget_categories bc
+                  LEFT JOIN budget_groups bg ON bg.id = bc.group_id
+                 WHERE bc.budget_id=@id
+                   AND NOT EXISTS (SELECT 1 FROM goals_budget_categories gbc WHERE gbc.budget_cat_id = bc.id)
+                 ORDER BY COALESCE(bg.sort_order, 2147483647), bc.sort_order, bc.name"
+            : @"SELECT bc.id, bc.name, bc.target, bc.is_fund, bc.group_id, bg.name AS group_name,
+                       bc.sort_order, bc.carryover, bc.favorite, bc.funding_source_category
+                  FROM budget_categories bc
+                  LEFT JOIN budget_groups bg ON bg.id = bc.group_id
+                 WHERE bc.budget_id=@id
+                 ORDER BY COALESCE(bg.sort_order, 2147483647), bc.sort_order, bc.name";
         await using (var catCmd = new NpgsqlCommand(sqlCats, conn))
         {
             catCmd.Parameters.AddWithValue("id", budget.BudgetId);
@@ -212,13 +218,44 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
             {
                 budget.Categories.Add(new BudgetCategory
                 {
-                    Name = catReader.IsDBNull(0) ? null : catReader.GetString(0),
-                    Target = catReader.IsDBNull(1) ? 0 : (double)catReader.GetDecimal(1),
-                    IsFund = catReader.IsDBNull(2) ? false : catReader.GetBoolean(2),
-                    Group = catReader.IsDBNull(3) ? null : catReader.GetString(3),
-                    Carryover = catReader.IsDBNull(4) ? null : (double?)catReader.GetDecimal(4),
-                    Favorite = catReader.IsDBNull(5) ? (bool?)null : catReader.GetBoolean(5),
-                    FundingSourceCategory = catReader.IsDBNull(6) ? null : catReader.GetString(6)
+                    Id = catReader.IsDBNull(0) ? (long?)null : catReader.GetInt64(0),
+                    Name = catReader.IsDBNull(1) ? null : catReader.GetString(1),
+                    Target = catReader.IsDBNull(2) ? 0 : (double)catReader.GetDecimal(2),
+                    IsFund = catReader.IsDBNull(3) ? false : catReader.GetBoolean(3),
+                    GroupId = catReader.IsDBNull(4) ? null : catReader.GetGuid(4).ToString(),
+                    GroupName = catReader.IsDBNull(5) ? null : catReader.GetString(5),
+                    SortOrder = catReader.IsDBNull(6) ? 0 : catReader.GetInt32(6),
+                    Carryover = catReader.IsDBNull(7) ? null : (double?)catReader.GetDecimal(7),
+                    Favorite = catReader.IsDBNull(8) ? (bool?)null : catReader.GetBoolean(8),
+                    FundingSourceCategory = catReader.IsDBNull(9) ? null : catReader.GetString(9)
+                });
+            }
+        }
+
+        // Hydrate the entity-level group taxonomy snapshot. The frontend
+        // uses this to render the group taxonomy without a second round-trip.
+        if (!string.IsNullOrWhiteSpace(budget.EntityId) && Guid.TryParse(budget.EntityId, out var entityIdGuid))
+        {
+            const string sqlGroups = @"SELECT id, name, sort_order, archived, kind, color, icon, collapsed_default
+                                       FROM budget_groups
+                                       WHERE entity_id=@eid
+                                       ORDER BY sort_order, name";
+            await using var grpCmd = new NpgsqlCommand(sqlGroups, conn);
+            grpCmd.Parameters.AddWithValue("eid", entityIdGuid);
+            await using var grpReader = await grpCmd.ExecuteReaderAsync();
+            while (await grpReader.ReadAsync())
+            {
+                budget.Groups.Add(new BudgetGroup
+                {
+                    Id = grpReader.GetGuid(0).ToString(),
+                    EntityId = budget.EntityId!,
+                    Name = grpReader.IsDBNull(1) ? string.Empty : grpReader.GetString(1),
+                    SortOrder = grpReader.IsDBNull(2) ? 0 : grpReader.GetInt32(2),
+                    Archived = !grpReader.IsDBNull(3) && grpReader.GetBoolean(3),
+                    Kind = grpReader.IsDBNull(4) ? "expense" : grpReader.GetString(4),
+                    Color = grpReader.IsDBNull(5) ? null : grpReader.GetString(5),
+                    Icon = grpReader.IsDBNull(6) ? null : grpReader.GetString(6),
+                    CollapsedDefault = !grpReader.IsDBNull(7) && grpReader.GetBoolean(7),
                 });
             }
         }
@@ -247,7 +284,7 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
         if (budgetIds.Length == 0) return new List<Budget>();
 
         await using var conn = await _db.GetOpenConnectionAsync();
-        const string sql = "SELECT id, family_id, entity_id, month, label, income_target, original_budget_id, group_order FROM budgets WHERE id = ANY(@ids)";
+        const string sql = "SELECT id, family_id, entity_id, month, label, income_target, original_budget_id FROM budgets WHERE id = ANY(@ids)";
         var budgets = new List<Budget>();
 
         await using (var cmd = new NpgsqlCommand(sql, conn))
@@ -265,7 +302,6 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
                     Label = reader.IsDBNull(4) ? null : reader.GetString(4),
                     IncomeTarget = reader.IsDBNull(5) ? 0 : (double)reader.GetDecimal(5),
                     OriginalBudgetId = reader.IsDBNull(6) ? null : reader.GetString(6),
-                    GroupOrder = reader.IsDBNull(7) ? null : reader.GetFieldValue<string[]>(7)?.ToList(),
                     Transactions = new List<Transaction>(),
                     Categories = new List<BudgetCategory>(),
                     Merchants = new List<Merchant>()
@@ -296,7 +332,7 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
     {
         _logger.LogInformation("Fetching budget {BudgetId}", budgetId);
         await using var conn = await _db.GetOpenConnectionAsync();
-        const string sqlBudget = "SELECT id, family_id, entity_id, month, label, income_target, original_budget_id, group_order FROM budgets WHERE id=@id";
+        const string sqlBudget = "SELECT id, family_id, entity_id, month, label, income_target, original_budget_id FROM budgets WHERE id=@id";
         await using var cmd = new NpgsqlCommand(sqlBudget, conn);
         cmd.Parameters.AddWithValue("id", budgetId);
         await using var reader = await cmd.ExecuteReaderAsync();
@@ -315,7 +351,6 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
             Label = reader.IsDBNull(4) ? null : reader.GetString(4),
             IncomeTarget = reader.IsDBNull(5) ? 0 : (double)reader.GetDecimal(5),
             OriginalBudgetId = reader.IsDBNull(6) ? null : reader.GetString(6),
-            GroupOrder = reader.IsDBNull(7) ? null : reader.GetFieldValue<string[]>(7)?.ToList(),
             Transactions = new List<Transaction>(),
             Categories = new List<BudgetCategory>(),
             Merchants = new List<Merchant>()
@@ -336,9 +371,9 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
         _logger.LogInformation("Saving budget {BudgetId}", budgetId);
         await using var conn = await _db.GetOpenConnectionAsync();
         await using var dbTx = await conn.BeginTransactionAsync();
-        const string sql = @"INSERT INTO budgets (id, family_id, entity_id, month, label, income_target, original_budget_id, group_order, created_at, updated_at)
-VALUES (@id,@family_id,@entity_id,@month,@label,@income_target,@original_budget_id,@group_order, now(), now())
-ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.entity_id, month=EXCLUDED.month, label=EXCLUDED.label, income_target=EXCLUDED.income_target, original_budget_id=EXCLUDED.original_budget_id, group_order=EXCLUDED.group_order, updated_at=now();";
+        const string sql = @"INSERT INTO budgets (id, family_id, entity_id, month, label, income_target, original_budget_id, created_at, updated_at)
+VALUES (@id,@family_id,@entity_id,@month,@label,@income_target,@original_budget_id, now(), now())
+ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.entity_id, month=EXCLUDED.month, label=EXCLUDED.label, income_target=EXCLUDED.income_target, original_budget_id=EXCLUDED.original_budget_id, updated_at=now();";
         await using var cmd = new NpgsqlCommand(sql, conn, dbTx);
         cmd.Parameters.AddWithValue("id", budgetId);
         cmd.Parameters.AddWithValue("family_id", Guid.Parse(budget.FamilyId));
@@ -347,8 +382,41 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
         cmd.Parameters.AddWithValue("label", (object?)budget.Label ?? DBNull.Value);
         cmd.Parameters.AddWithValue("income_target", (decimal)budget.IncomeTarget);
         cmd.Parameters.AddWithValue("original_budget_id", (object?)budget.OriginalBudgetId ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("group_order", budget.GroupOrder != null ? (object)budget.GroupOrder.ToArray() : DBNull.Value);
         await cmd.ExecuteNonQueryAsync();
+
+        // Resolve a group_id for every incoming category. Categories may carry
+        // either an explicit GroupId (already known) or just a GroupName (newly
+        // typed in the UI) — in the latter case we upsert a budget_groups row
+        // for the entity and capture its id. Falls back to an "(Ungrouped)"
+        // group when neither is provided.
+        Guid? entityGuid = null;
+        if (!string.IsNullOrWhiteSpace(budget.EntityId) && Guid.TryParse(budget.EntityId, out var parsedEntity))
+            entityGuid = parsedEntity;
+
+        var resolvedGroupIds = new Dictionary<int, Guid>();
+        if (budget.Categories != null && budget.Categories.Count > 0)
+        {
+            for (var i = 0; i < budget.Categories.Count; i++)
+            {
+                var cat = budget.Categories[i];
+                Guid? gid = null;
+                if (!string.IsNullOrWhiteSpace(cat.GroupId) && Guid.TryParse(cat.GroupId, out var parsedGid))
+                    gid = parsedGid;
+
+                if (gid == null && entityGuid.HasValue && !string.IsNullOrWhiteSpace(cat.GroupName))
+                {
+                    gid = await EnsureGroupAsync(conn, dbTx, entityGuid.Value, cat.GroupName!.Trim(), inferKind(cat.GroupName!));
+                }
+
+                if (gid == null && entityGuid.HasValue)
+                {
+                    gid = await EnsureGroupAsync(conn, dbTx, entityGuid.Value, "(Ungrouped)", "expense");
+                }
+
+                if (gid.HasValue)
+                    resolvedGroupIds[i] = gid.Value;
+            }
+        }
 
         // Replace existing categories and insert current ones
         const string delCatSql = "DELETE FROM budget_categories WHERE budget_id=@bid";
@@ -360,22 +428,48 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
 
         if (budget.Categories != null && budget.Categories.Count > 0)
         {
+            // Per-category sort_order is taken from the array index when the
+            // payload doesn't explicitly carry one. Within a group, dense
+            // 0..N-1 ordering is recomputed on save.
+            var perGroupCounter = new Dictionary<Guid, int>();
             const string insCatSql = @"INSERT INTO budget_categories
-                (budget_id, name, target, is_fund, ""group"", carryover, favorite, funding_source_category)
-                VALUES (@budget_id, @name, @target, @is_fund, @group, @carryover, @favorite, @funding_source_category)";
-            foreach (var cat in budget.Categories)
+                (budget_id, name, target, is_fund, group_id, sort_order, carryover, favorite, funding_source_category)
+                VALUES (@budget_id, @name, @target, @is_fund, @group_id, @sort_order, @carryover, @favorite, @funding_source_category)";
+            for (var i = 0; i < budget.Categories.Count; i++)
             {
+                var cat = budget.Categories[i];
+                if (!resolvedGroupIds.TryGetValue(i, out var gid))
+                {
+                    // Skip categories with no resolvable group (no entity_id + no upsert path).
+                    _logger.LogWarning("Skipping category '{Name}' on budget {BudgetId}: no group_id resolvable", cat.Name, budgetId);
+                    continue;
+                }
+
+                if (!perGroupCounter.TryGetValue(gid, out var nextOrder))
+                    nextOrder = 0;
+                var sortOrder = cat.SortOrder > 0 ? cat.SortOrder : nextOrder;
+                perGroupCounter[gid] = Math.Max(nextOrder, sortOrder) + 1;
+
                 await using var catCmd = new NpgsqlCommand(insCatSql, conn, dbTx);
                 catCmd.Parameters.AddWithValue("budget_id", budgetId);
                 catCmd.Parameters.AddWithValue("name", (object?)cat.Name ?? DBNull.Value);
                 catCmd.Parameters.AddWithValue("target", (decimal)cat.Target);
                 catCmd.Parameters.AddWithValue("is_fund", cat.IsFund);
-                catCmd.Parameters.AddWithValue("group", (object?)cat.Group ?? DBNull.Value);
+                catCmd.Parameters.AddWithValue("group_id", gid);
+                catCmd.Parameters.AddWithValue("sort_order", sortOrder);
                 catCmd.Parameters.AddWithValue("carryover", cat.Carryover.HasValue ? (object)(decimal)cat.Carryover.Value : DBNull.Value);
                 catCmd.Parameters.AddWithValue("favorite", cat.Favorite ?? false);
                 catCmd.Parameters.AddWithValue("funding_source_category", (object?)cat.FundingSourceCategory ?? DBNull.Value);
                 await catCmd.ExecuteNonQueryAsync();
             }
+        }
+
+        static string inferKind(string name)
+        {
+            var n = name.Trim().ToLowerInvariant();
+            if (n == "income") return "income";
+            if (n == "savings") return "savings";
+            return "expense";
         }
 
         await dbTx.CommitAsync();
@@ -484,6 +578,49 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
         parameter.Value = value.HasValue ? value.Value : (object)DBNull.Value;
     }
 
+    /// <summary>
+    /// Look up (or create on miss) a budget_groups row for the given entity by
+    /// case-sensitive name match. Returns the resolved group id. Used by
+    /// SaveBudget/GoalService to upsert groups inline when categories are
+    /// persisted with only a group name.
+    /// </summary>
+    internal static async Task<Guid> EnsureGroupAsync(
+        NpgsqlConnection conn,
+        NpgsqlTransaction? tx,
+        Guid entityId,
+        string name,
+        string kind = "expense")
+    {
+        var trimmed = name?.Trim() ?? string.Empty;
+        if (string.IsNullOrEmpty(trimmed))
+            throw new ArgumentException("Group name cannot be empty", nameof(name));
+
+        // Try existing first to avoid bumping updated_at on every save.
+        const string lookupSql = "SELECT id FROM budget_groups WHERE entity_id=@eid AND name=@name LIMIT 1";
+        await using (var lookup = new NpgsqlCommand(lookupSql, conn, tx))
+        {
+            lookup.Parameters.AddWithValue("eid", entityId);
+            lookup.Parameters.AddWithValue("name", trimmed);
+            var existing = await lookup.ExecuteScalarAsync();
+            if (existing is Guid g) return g;
+        }
+
+        // Compute next sort_order at the end of the entity's group list.
+        const string upsertSql = @"
+            INSERT INTO budget_groups (entity_id, name, kind, sort_order)
+            VALUES (@eid, @name, @kind,
+                    COALESCE((SELECT max(sort_order) + 1 FROM budget_groups WHERE entity_id=@eid), 0))
+            ON CONFLICT (entity_id, name) DO UPDATE SET updated_at=now()
+            RETURNING id";
+        await using var insert = new NpgsqlCommand(upsertSql, conn, tx);
+        insert.Parameters.AddWithValue("eid", entityId);
+        insert.Parameters.AddWithValue("name", trimmed);
+        insert.Parameters.AddWithValue("kind", kind);
+        var idObj = await insert.ExecuteScalarAsync();
+        if (idObj is Guid id) return id;
+        throw new InvalidOperationException($"Failed to upsert budget_group '{trimmed}' for entity {entityId}");
+    }
+
     private void AddCategoryCommands(NpgsqlBatch batch, string txId, List<TransactionCategory>? categories)
     {
         const string delSql = "DELETE FROM transaction_categories WHERE transaction_id=@id";
@@ -589,7 +726,9 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
                     Name = cat.Name,
                     Target = cat.Target,
                     IsFund = cat.IsFund,
-                    Group = cat.Group,
+                    GroupId = cat.GroupId,
+                    GroupName = cat.GroupName,
+                    SortOrder = cat.SortOrder,
                     Carryover = cat.Carryover,
                     Favorite = cat.Favorite
                 });
@@ -614,8 +753,12 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
                 if (!existing.Favorite.HasValue && cat.Favorite.HasValue)
                     existing.Favorite = cat.Favorite;
 
-                if (string.IsNullOrWhiteSpace(existing.Group) && !string.IsNullOrWhiteSpace(cat.Group))
-                    existing.Group = cat.Group;
+                // Both budgets share an entity_id (enforced earlier in MergeBudgets),
+                // so a missing GroupId on the target should fall back to the source's.
+                if (string.IsNullOrWhiteSpace(existing.GroupId) && !string.IsNullOrWhiteSpace(cat.GroupId))
+                    existing.GroupId = cat.GroupId;
+                if (string.IsNullOrWhiteSpace(existing.GroupName) && !string.IsNullOrWhiteSpace(cat.GroupName))
+                    existing.GroupName = cat.GroupName;
 
                 if (!existing.IsFund && cat.IsFund)
                     existing.IsFund = true;
@@ -627,7 +770,9 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
                     Name = cat.Name,
                     Target = cat.Target,
                     IsFund = cat.IsFund,
-                    Group = cat.Group,
+                    GroupId = cat.GroupId,
+                    GroupName = cat.GroupName,
+                    SortOrder = cat.SortOrder,
                     Carryover = cat.Carryover,
                     Favorite = cat.Favorite
                 };

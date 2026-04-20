@@ -40,11 +40,14 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { useBudgetStore } from '../../store/budget';
+import { useFamilyStore } from '../../store/family';
 import { dataAccess } from '../../dataAccess';
 import type { Budget } from '../../types';
+import { isIncomeCategory } from '../../utils/groups';
 
 const props = defineProps<{ budgetId: string }>();
 const budgetStore = useBudgetStore();
+const familyStore = useFamilyStore();
 const budget = ref<Budget | undefined>(undefined);
 const loading = ref(false);
 
@@ -79,16 +82,20 @@ async function loadBudget() {
 const plannedExpenses = computed(() => {
   const b = budget.value;
   if (!b) return 0;
+  const groupList = familyStore.currentGroups;
   return (b.categories || [])
-    .filter((c) => c.name !== 'Income' && c.group !== 'Income')
+    .filter((c) => !isIncomeCategory(c, groupList))
     .reduce((sum, c) => sum + (c.target || 0), 0);
 });
 
 const actualIncome = computed(() => {
   const b = budget.value;
   if (!b) return 0;
-  // Sum category splits that belong to income categories
-  const incomeCats = new Set((b.categories || []).filter((c) => c.group === 'Income' || c.name === 'Income').map((c) => c.name));
+  // Sum category splits that belong to income categories.
+  const groupList = familyStore.currentGroups;
+  const incomeCats = new Set(
+    (b.categories || []).filter((c) => isIncomeCategory(c, groupList)).map((c) => c.name),
+  );
   let total = 0;
   (b.transactions || []).forEach((t) => {
     if (t.deleted) return;

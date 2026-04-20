@@ -122,7 +122,9 @@ export async function createBudgetForMonth(
       merchants: sourceBudget.merchants || [],
       transactions: [],
       budgetId,
-      groupOrder: sourceBudget.groupOrder ? [...sourceBudget.groupOrder] : undefined,
+      // Group ordering lives on `budget_groups` (entity-scoped) now, not per
+      // budget. The source budget's category-level `groupId`/`sortOrder`
+      // already carries forward via the spread above.
     };
 
     const recurringTransactions: Transaction[] = [];
@@ -225,8 +227,10 @@ export async function createBudgetForMonth(
     month,
     incomeTarget: 0,
     categories: [
-      { name: 'Income', target: 0, isFund: false, group: 'Income' },
-      { name: 'Miscellaneous', target: 0, isFund: false, group: 'Expenses' },
+      // Backend will upsert "Income" / "Expenses" budget_groups for this entity
+      // on first save (kind inferred from name).
+      { name: 'Income', target: 0, isFund: false, groupName: 'Income' },
+      { name: 'Miscellaneous', target: 0, isFund: false, groupName: 'Expenses' },
     ],
     transactions: [],
     label: `Default Budget for ${month}`,

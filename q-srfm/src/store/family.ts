@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
-import type { Family, Entity } from '../types';
+import { computed, ref } from 'vue';
+import type { Family, Entity, BudgetGroup, BudgetGroupKind } from '../types';
 import { EntityType } from '../types';
 import { dataAccess } from '../dataAccess';
 import { useAuthStore } from './auth';
@@ -9,6 +9,90 @@ export const useFamilyStore = defineStore('family', () => {
   const auth = useAuthStore();
   const family = ref<Family>();
   const selectedEntityId = ref<string>(''); // Track selected entity for filtering
+
+  // Group taxonomy is entity-scoped. Cached per entity to avoid refetching
+  // on every BudgetPage navigation.
+  const groupsByEntity = ref<Record<string, BudgetGroup[]>>({});
+
+  const currentGroups = computed<BudgetGroup[]>(() => {
+    const eid = selectedEntityId.value;
+    if (!eid) return [];
+    return groupsByEntity.value[eid] || [];
+  });
+
+  function setGroupsForEntity(entityId: string, groups: BudgetGroup[]) {
+    if (!entityId) return;
+    const sorted = [...groups].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
+    groupsByEntity.value = { ...groupsByEntity.value, [entityId]: sorted };
+  }
+
+  async function loadGroups(entityId: string, options: { force?: boolean } = {}) {
+    if (!entityId) return [];
+    if (!options.force && groupsByEntity.value[entityId]) {
+      return groupsByEntity.value[entityId];
+    }
+    const groups = await dataAccess.getGroups(entityId);
+    setGroupsForEntity(entityId, groups);
+    return groupsByEntity.value[entityId] || [];
+  }
+
+  async function createGroup(
+    entityId: string,
+    payload: { name: string; kind?: BudgetGroupKind; color?: string; icon?: string },
+  ) {
+    const created = await dataAccess.createGroup(entityId, payload);
+    const next = [...(groupsByEntity.value[entityId] || []), created];
+    setGroupsForEntity(entityId, next);
+    return created;
+  }
+
+  async function renameGroup(entityId: string, groupId: string, name: string) {
+    const updated = await dataAccess.updateGroup(entityId, groupId, { name });
+    const list = (groupsByEntity.value[entityId] || []).map((g) => (g.id === groupId ? updated : g));
+    setGroupsForEntity(entityId, list);
+    return updated;
+  }
+
+  async function updateGroup(
+    entityId: string,
+    groupId: string,
+    payload: Partial<Pick<BudgetGroup, 'name' | 'kind' | 'color' | 'icon' | 'collapsedDefault' | 'archived' | 'sortOrder'>>,
+  ) {
+    const updated = await dataAccess.updateGroup(entityId, groupId, payload);
+    const list = (groupsByEntity.value[entityId] || []).map((g) => (g.id === groupId ? updated : g));
+    setGroupsForEntity(entityId, list);
+    return updated;
+  }
+
+  async function reorderGroups(entityId: string, groupIds: string[]) {
+    await dataAccess.reorderGroups(entityId, groupIds);
+    const orderMap = new Map<string, number>(groupIds.map((id, i) => [id, i]));
+    const reordered = (groupsByEntity.value[entityId] || []).map((g) => {
+      const next = orderMap.get(g.id);
+      return { ...g, sortOrder: next ?? g.sortOrder };
+    });
+    setGroupsForEntity(entityId, reordered);
+  }
+
+  async function archiveGroup(entityId: string, groupId: string) {
+    await updateGroup(entityId, groupId, { archived: true });
+  }
+
+  async function deleteGroup(entityId: string, groupId: string) {
+    await dataAccess.deleteGroup(entityId, groupId);
+    const list = (groupsByEntity.value[entityId] || []).filter((g) => g.id !== groupId);
+    setGroupsForEntity(entityId, list);
+  }
+
+  function getGroup(entityId: string, groupId: string): BudgetGroup | undefined {
+    return (groupsByEntity.value[entityId] || []).find((g) => g.id === groupId);
+  }
+
+  function getGroupByName(entityId: string, name: string): BudgetGroup | undefined {
+    const needle = name?.trim().toLowerCase();
+    if (!needle) return undefined;
+    return (groupsByEntity.value[entityId] || []).find((g) => g.name.toLowerCase() === needle);
+  }
 
   async function loadFamily(userId: string = '', options: { force?: boolean } = {}) {
     try {
@@ -158,5 +242,18 @@ export const useFamilyStore = defineStore('family', () => {
     addEntityMember,
     removeEntityMember,
     selectEntity,
+    // Groups
+    currentGroups,
+    groupsByEntity,
+    setGroupsForEntity,
+    loadGroups,
+    createGroup,
+    renameGroup,
+    updateGroup,
+    reorderGroups,
+    archiveGroup,
+    deleteGroup,
+    getGroup,
+    getGroupByName,
   };
 });

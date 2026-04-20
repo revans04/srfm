@@ -348,7 +348,7 @@
                                   <div class="q-ml-sm">
                                     <span class="text-weight-medium">{{ cat.category.name }}</span>
                                     <span class="text-caption text-grey-7 q-ml-sm">
-                                      {{ cat.category.group || 'Uncategorized' }} ·
+                                      {{ cat.category.groupName || 'Uncategorized' }} ·
                                       target {{ formatCurrency(cat.category.target || 0) }}
                                       <span v-if="cat.category.isFund"> · fund</span>
                                       <span v-if="cat.category.carryover">
@@ -632,7 +632,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unnecessary-type-assertion */
 import { ref, onMounted, computed, watch, reactive } from "vue";
 import { useQuasar, QSpinner } from 'quasar';
-import type { QTableColumn } from 'quasar';
 import { auth } from "../firebase/init";
 import { dataAccess } from "../dataAccess";
 import Papa from "papaparse";
@@ -954,59 +953,6 @@ async function fetchBudgetsForAccessibleInfos(infos: BudgetInfo[]): Promise<Budg
   }
 
   return loadedBudgets;
-}
-
-async function ensureBudgetsLoadedForMonths(
-  months: string[],
-  userId?: string,
-  presetAccessible?: BudgetInfo[],
-  forceReload = false,
-): Promise<BudgetInfo[]> {
-  const targetUserId = userId || auth.currentUser?.uid;
-  if (!targetUserId || !selectedEntityId.value) {
-    return [];
-  }
-
-  const normalizedMonths = Array.from(new Set(months.filter((m): m is string => !!m)));
-  if (normalizedMonths.length === 0) {
-    return [];
-  }
-
-  const monthSet = new Set(normalizedMonths);
-  const budgetsForEntity = Array.from(budgetStore.budgets.values()).filter(
-    (b) => b.entityId === selectedEntityId.value && monthSet.has(b.month),
-  );
-
-  const monthsToFetch = forceReload
-    ? normalizedMonths
-    : normalizedMonths.filter((month) => {
-        const existing = budgetsForEntity.find((b) => b.month === month);
-        if (!existing) {
-          return true;
-        }
-        const hasCategories = Array.isArray(existing.categories) && existing.categories.length > 0;
-        const hasTransactions = Array.isArray(existing.transactions) && existing.transactions.length > 0;
-        return !(hasCategories && hasTransactions);
-      });
-
-  let accessible = presetAccessible || null;
-  if (!accessible || forceReload) {
-    accessible = await dataAccess.loadAccessibleBudgets(targetUserId, selectedEntityId.value);
-  }
-
-  const relevantAccessible = accessible.filter((info) => info.month && monthSet.has(info.month));
-
-  if (monthsToFetch.length > 0) {
-    const infosToFetch = monthsToFetch
-      .map((month) => relevantAccessible.find((b) => b.month === month && b.budgetId))
-      .filter((info): info is BudgetInfo => !!info && !!info.budgetId);
-
-    if (infosToFetch.length > 0) {
-      await fetchBudgetsForAccessibleInfos(infosToFetch);
-    }
-  }
-
-  return relevantAccessible;
 }
 
 // Bank/Card Transactions Import
@@ -1491,7 +1437,7 @@ async function handleBudgetTransactionImport() {
       }
       budget.categories.push({
         name: row.category,
-        group: row.group || "",
+        groupName: row.group || "",
         isFund: row.isfund === "true" || row.isfund === "1",
         target: parseFloat(row.target) || 0,
         carryover: parseFloat(row.carryover) || 0,
@@ -1737,7 +1683,9 @@ async function handleBudgetTransactionImport() {
       budgetmonth: budget.budgetMonth,
       incomeTarget: budget.incomeTarget || 0,
       category: category.name,
-      group: category.group || "",
+      // CSV interop format keeps `group` as a column header (it's the
+      // human-readable name).
+      group: category.groupName || "",
       isfund: (category as any).isFund ?? (category as any).isfund,
       target: category.target || 0,
       carryover: category.carryover || 0,
@@ -2097,7 +2045,7 @@ async function importEveryDollarCsv() {
 
       const category: BudgetCategory = {
         name: itemLabel,
-        group: groupLabel,
+        groupName: groupLabel,
         isFund,
         target: targetAmount,
       };
@@ -2288,7 +2236,7 @@ async function importEveryDollarCsv() {
       }
 
       const importedCategories = Array.from(data.categories.values()).sort((a, b) => {
-        const groupCompare = (a.group || '').localeCompare(b.group || '', undefined, {
+        const groupCompare = (a.groupName || '').localeCompare(b.groupName || '', undefined, {
           sensitivity: 'base',
         });
         if (groupCompare !== 0) return groupCompare;
@@ -2330,13 +2278,17 @@ async function importEveryDollarCsv() {
         if (Boolean(match.isFund) !== Boolean(imported.isFund)) {
           diffs.push({ field: 'isFund', existing: Boolean(match.isFund), imported: Boolean(imported.isFund) });
         }
-        if ((match.group || '') !== (imported.group || '')) {
-          diffs.push({ field: 'group', existing: match.group || '', imported: imported.group || '' });
+        if ((match.groupName || '') !== (imported.groupName || '')) {
+          diffs.push({
+            field: 'group',
+            existing: match.groupName || '',
+            imported: imported.groupName || '',
+          });
         }
         if (diffs.length > 0) {
           changedCategories.push({
             name: importedName,
-            group: imported.group || '',
+            group: imported.groupName || '',
             isFund: Boolean(imported.isFund),
             differences: diffs,
           });
@@ -2582,7 +2534,7 @@ async function applyEveryDollarDiff() {
         // Ensure Income category exists (common requirement)
         const hasIncome = chosenCategories.some((c) => (c.name || '').trim().toLowerCase() === 'income');
         if (!hasIncome) {
-          chosenCategories.push({ name: 'Income', target: 0, isFund: false, group: 'Income' });
+          chosenCategories.push({ name: 'Income', target: 0, isFund: false, groupName: 'Income' });
         }
 
         const newBudget: Budget = {
@@ -2997,13 +2949,13 @@ async function confirmImport() {
               name: category.category,
               target: category.target,
               isFund: category.isfund === "true" || category.isfund === "1" || category.isfund === true,
-              group: category.group || "",
+              groupName: category.group || "",
               carryover: category.carryover || 0,
             });
           } else {
             existingCategory.target = category.target;
             existingCategory.isFund = category.isfund === "true" || category.isfund === "1" || category.isfund === true;
-            existingCategory.group = category.group || "";
+            existingCategory.groupName = category.group || "";
             existingCategory.carryover = category.carryover || 0;
           }
         });
@@ -3524,7 +3476,7 @@ async function exportDataToCSV() {
             budgetid: budget.budgetId ?? budget.month,
             budgetmonth: budget.month,
             category: category.name,
-            group: category.group || "",
+            group: category.groupName || "",
             isfund: category.isFund ? "true" : "false",
             target: category.target || 0,
             carryover: category.carryover || 0,

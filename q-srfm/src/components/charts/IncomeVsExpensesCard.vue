@@ -25,7 +25,9 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { useBudgetStore } from '../../store/budget';
+import { useFamilyStore } from '../../store/family';
 import type { Budget } from '../../types';
+import { isIncomeCategory } from '../../utils/groups';
 import { Line } from 'vue-chartjs';
 import { Chart as ChartJS, LineElement, PointElement, LinearScale, TimeScale, TimeSeriesScale, Tooltip, Legend, Filler } from 'chart.js';
 import 'chartjs-adapter-date-fns';
@@ -64,6 +66,7 @@ const expenseColor = resolveTokenColor('negative', '#DC2626');
 
 const props = defineProps<{ entityId?: string }>();
 const budgetStore = useBudgetStore();
+const familyStore = useFamilyStore();
 const loading = ref(false);
 
 const series = ref<{ labels: Date[]; income: number[]; expenses: number[] }>({ labels: [], income: [], expenses: [] });
@@ -89,7 +92,10 @@ function loadSeries() {
     for (const b of budgets) {
       labels.push(monthToDate(b.month));
       // income
-      const incomeCats = new Set((b.categories || []).filter((c) => (c.group || '').toLowerCase() === 'income' || c.name.toLowerCase() === 'income').map((c) => c.name));
+      const groupList = familyStore.currentGroups;
+      const incomeCats = new Set(
+        (b.categories || []).filter((c) => isIncomeCategory(c, groupList)).map((c) => c.name),
+      );
       let incomeSum = 0;
       let expenseSum = 0;
       (b.transactions || []).forEach((t) => {

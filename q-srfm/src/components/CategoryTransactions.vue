@@ -137,6 +137,7 @@ import { toDollars, toCents, formatCurrency } from '../utils/helpers';
 import { useBudgetStore } from '../store/budget';
 import { useGoals } from '../composables/useGoals';
 import { useFamilyStore } from '../store/family';
+import { isIncomeCategory } from '../utils/groups';
 
 const props = defineProps<{
   category: BudgetCategory;
@@ -210,7 +211,7 @@ const carryOverAndTarget = computed(() => {
 });
 
 const available = computed(() => {
-  if (props.category.group === 'Income') {
+  if (isIncome.value) {
     const avail = (Number(spent.value) || 0) - carryOverAndTarget.value;
     if (avail > 0) return 0;
     return avail;
@@ -225,9 +226,7 @@ const progressPercentage = computed(() => {
   return Math.min(Math.max(rawPercentage, 0), 100);
 });
 
-const isIncome = computed(() => {
-  return props.category.group === 'Income';
-});
+const isIncome = computed(() => isIncomeCategory(props.category, familyStore.currentGroups));
 
 const heroIcon = computed(() => {
   if (props.category.isFund) return 'savings';

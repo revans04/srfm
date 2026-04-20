@@ -17,6 +17,9 @@ import type {
   Goal,
   GoalContribution,
   GoalSpend,
+  BudgetGroup,
+  BudgetGroupKind,
+  CategoryReorderItem,
 } from './types';
 import { useBudgetStore } from './store/budget';
 import { Timestamp } from 'firebase/firestore';
@@ -131,10 +134,13 @@ export class DataAccess {
       ? (b.categories as unknown[]).map((c) => {
           const cat = c as Record<string, unknown>;
           return {
+            id: typeof cat.id === 'number' ? cat.id : undefined,
             name: typeof cat.name === 'string' ? cat.name : '',
             target: Number(cat.target ?? 0),
             isFund: Boolean(cat.isFund ?? false),
-            group: typeof cat.group === 'string' ? cat.group : '',
+            groupId: typeof cat.groupId === 'string' ? cat.groupId : undefined,
+            groupName: typeof cat.groupName === 'string' ? cat.groupName : undefined,
+            sortOrder: typeof cat.sortOrder === 'number' ? cat.sortOrder : 0,
             carryover: typeof cat.carryover === 'number' ? cat.carryover : undefined,
             favorite:
               typeof cat.favorite === 'boolean'
@@ -149,6 +155,8 @@ export class DataAccess {
       : [];
 
     const transactions = Array.isArray(b.transactions) ? (b.transactions as unknown[]).map((t) => this.mapTransaction(t, budgetId)) : [];
+
+    const groups = Array.isArray(b.groups) ? (b.groups as unknown[]).map((g) => this.mapGroup(g)) : [];
 
     return {
       budgetId,
@@ -169,9 +177,25 @@ export class DataAccess {
             };
           })
         : [],
-      groupOrder: Array.isArray(b.groupOrder)
-        ? (b.groupOrder as unknown[]).filter((g): g is string => typeof g === 'string')
-        : undefined,
+      groups,
+    };
+  }
+
+  private mapGroup(raw: unknown): BudgetGroup {
+    const g = (raw ?? {}) as Record<string, unknown>;
+    const kindRaw = typeof g.kind === 'string' ? g.kind : 'expense';
+    const kind: BudgetGroupKind =
+      kindRaw === 'income' || kindRaw === 'savings' ? kindRaw : 'expense';
+    return {
+      id: typeof g.id === 'string' ? g.id : '',
+      entityId: typeof g.entityId === 'string' ? g.entityId : '',
+      name: typeof g.name === 'string' ? g.name : '',
+      sortOrder: typeof g.sortOrder === 'number' ? g.sortOrder : 0,
+      archived: Boolean(g.archived ?? false),
+      kind,
+      color: typeof g.color === 'string' ? g.color : undefined,
+      icon: typeof g.icon === 'string' ? g.icon : undefined,
+      collapsedDefault: typeof g.collapsedDefault === 'boolean' ? g.collapsedDefault : undefined,
     };
   }
 
@@ -1094,6 +1118,79 @@ export class DataAccess {
     const json = await response.json();
     console.log('Received goal details', goalId, json);
     return json;
+  }
+
+  // ===== Budget Group Functions =====
+
+  async getGroups(entityId: string): Promise<BudgetGroup[]> {
+    if (!entityId) return [];
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(`${this.apiBaseUrl}/entities/${entityId}/groups`, { headers });
+    if (!response.ok) throw new Error(`Failed to load groups: ${response.statusText}`);
+    const raw: unknown[] = await response.json();
+    return raw.map((r) => this.mapGroup(r));
+  }
+
+  async createGroup(
+    entityId: string,
+    payload: { name: string; kind?: BudgetGroupKind; color?: string; icon?: string },
+  ): Promise<BudgetGroup> {
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(`${this.apiBaseUrl}/entities/${entityId}/groups`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ ...payload, kind: payload.kind ?? 'expense' }),
+    });
+    if (!response.ok) throw new Error(`Failed to create group: ${response.statusText}`);
+    return this.mapGroup(await response.json());
+  }
+
+  async updateGroup(
+    entityId: string,
+    groupId: string,
+    payload: Partial<Pick<BudgetGroup, 'name' | 'kind' | 'color' | 'icon' | 'collapsedDefault' | 'archived' | 'sortOrder'>>,
+  ): Promise<BudgetGroup> {
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(`${this.apiBaseUrl}/entities/${entityId}/groups/${groupId}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) throw new Error(`Failed to update group: ${response.statusText}`);
+    return this.mapGroup(await response.json());
+  }
+
+  async reorderGroups(entityId: string, groupIds: string[]): Promise<void> {
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(`${this.apiBaseUrl}/entities/${entityId}/groups/order`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({ groupIds }),
+    });
+    if (!response.ok) throw new Error(`Failed to reorder groups: ${response.statusText}`);
+  }
+
+  async deleteGroup(entityId: string, groupId: string): Promise<void> {
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(`${this.apiBaseUrl}/entities/${entityId}/groups/${groupId}`, {
+      method: 'DELETE',
+      headers,
+    });
+    if (response.status === 409) {
+      const msg = await response.text();
+      throw new Error(msg || 'Group still has categories — reassign or delete those first.');
+    }
+    if (!response.ok) throw new Error(`Failed to delete group: ${response.statusText}`);
+  }
+
+  async reorderCategories(budgetId: string, categories: CategoryReorderItem[]): Promise<void> {
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(`${this.apiBaseUrl}/budget/${budgetId}/categories/order`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({ categories }),
+    });
+    if (!response.ok) throw new Error(`Failed to reorder categories: ${response.statusText}`);
   }
 
   // Entity Functions

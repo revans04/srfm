@@ -64,8 +64,10 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { useBudgetStore } from '../../store/budget';
+import { useFamilyStore } from '../../store/family';
 import { dataAccess } from '../../dataAccess';
 import type { Budget } from '../../types';
+import { isIncomeCategory, categoryGroupName } from '../../utils/groups';
 import { Doughnut } from 'vue-chartjs';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import type { TooltipItem } from 'chart.js';
@@ -75,6 +77,7 @@ const DoughnutChart = Doughnut;
 
 const props = defineProps<{ budgetId: string }>();
 const budgetStore = useBudgetStore();
+const familyStore = useFamilyStore();
 const budget = ref<Budget | null>(null);
 const loading = ref(false);
 const showMerchantDialog = ref(false);
@@ -162,9 +165,10 @@ const categoryGrouping = computed(() => {
   const map = new Map<string, string>();
   const b = budget.value;
   if (!b) return map;
+  const groupList = familyStore.currentGroups;
   (b.categories || []).forEach((c) => {
-    if (c.name.toLowerCase() !== 'income' && (c.group || '').toLowerCase() !== 'income') {
-      map.set(c.name, c.group || 'Other');
+    if (!isIncomeCategory(c, groupList)) {
+      map.set(c.name, categoryGroupName(c, groupList) || 'Other');
     }
   });
   return map;

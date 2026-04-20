@@ -94,11 +94,39 @@ export interface ImportedTransactionDoc {
   createdAt?: Timestamp;
 }
 
+export type BudgetGroupKind = 'income' | 'expense' | 'savings';
+
+export interface BudgetGroup {
+  id: string;
+  entityId: string;
+  name: string;
+  sortOrder: number;
+  archived: boolean;
+  kind: BudgetGroupKind;
+  color?: string;
+  icon?: string;
+  collapsedDefault?: boolean;
+}
+
+export interface CategoryReorderItem {
+  id: number;        // bigint PK on budget_categories
+  groupId: string;   // target group (for cross-group drags)
+  sortOrder: number; // 0-based position within the group
+}
+
 export interface BudgetCategory {
+  /** bigint PK on budget_categories. Absent until persisted. */
+  id?: number;
   name: string;
   target: number;
   isFund: boolean;
-  group: string;
+  /** FK to a BudgetGroup. Required server-side; absent only for in-flight new categories. */
+  groupId?: string;
+  /** Hydrated display name from the joined BudgetGroup. Frontend writes this on
+   *  newly-typed groups so the backend upserts a BudgetGroup before insert. */
+  groupName?: string;
+  /** 0-based ordering within the group on the budget. */
+  sortOrder?: number;
   carryover?: number;
   favorite?: boolean;
   /**
@@ -123,7 +151,10 @@ export interface Budget {
   transactions: Transaction[];
   originalBudgetId?: string;
   merchants: Array<{ name: string; usageCount: number }>;
-  groupOrder?: string[];
+  /** Snapshot of the entity's group taxonomy at load time. Renames/reorders
+   *  apply to the entity, so this list is the same for every budget in an
+   *  entity until a write through useFamilyStore. */
+  groups?: BudgetGroup[];
 }
 
 export interface BudgetInfo extends Budget {

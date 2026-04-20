@@ -289,6 +289,7 @@ import { useMerchantStore } from '../store/merchants';
 import { useBudgetStore } from '../store/budget';
 import { useGoals } from '../composables/useGoals';
 import { useFamilyStore } from '../store/family';
+import { isIncomeCategory } from '../utils/groups';
 import { createBudgetForMonth } from '../utils/budget';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -409,8 +410,24 @@ if (locTrnsx.transactionType === 'transfer' && locTrnsx.categories?.length === 2
   if (pos) transferDest.value = pos.category;
 }
 
+// Names of every income-kind category in the loaded budget. Used to filter
+// `categoryOptions` (which is just a flat string list) into "income" vs
+// "non-income" buckets without relying on string equality with the literal
+// "Income" — categories named "Bonus", "Side Hustle" etc. that live in an
+// income-kind group are now correctly treated as income.
+const incomeCategoryNames = computed<Set<string>>(() => {
+  const names = new Set<string>();
+  const groupList = familyStore.currentGroups;
+  for (const cat of budget.value?.categories || []) {
+    if (isIncomeCategory(cat, groupList)) names.add(cat.name);
+  }
+  return names;
+});
+
 const allNonIncomeCategories = computed(() =>
-  props.categoryOptions.filter((c) => c !== 'Income').sort((a, b) => a.localeCompare(b)),
+  props.categoryOptions
+    .filter((c) => !incomeCategoryNames.value.has(c))
+    .sort((a, b) => a.localeCompare(b)),
 );
 
 const transferSourceOptions = computed(() => {
@@ -466,14 +483,13 @@ const availableMonths = computed(() => {
 });
 
 const remainingCategories = computed(() => {
-  const categoryNames = new Set(locTrnsx.categories.map((entry) => entry.category));
+  const alreadyChosen = new Set(locTrnsx.categories.map((entry) => entry.category));
+  const incomeNames = incomeCategoryNames.value;
   return props.categoryOptions
     .filter((str) => {
-      if (locTrnsx.isIncome) {
-        return str === 'Income' && !categoryNames.has(str);
-      } else {
-        return str !== 'Income' && !categoryNames.has(str);
-      }
+      if (alreadyChosen.has(str)) return false;
+      // Income transactions only show income-kind categories; expense txs hide them.
+      return locTrnsx.isIncome ? incomeNames.has(str) : !incomeNames.has(str);
     })
     .sort((a, b) => a.localeCompare(b));
 });

@@ -90,7 +90,8 @@ Dependency direction:
 
 ## 5. Data & State Ownership Rules
 Server ownership:
-- Source of truth: Supabase/Postgres tables (`families`, `family_members`, `entities`, `budgets`, `budget_categories`, `transactions`, `transaction_categories`, `goals`, `goals_budget_categories`, `accounts`, `snapshots`, `imported_*`, etc.).
+- Source of truth: Supabase/Postgres tables (`families`, `family_members`, `entities`, `budgets`, `budget_groups`, `budget_categories`, `transactions`, `transaction_categories`, `goals`, `goals_budget_categories`, `accounts`, `snapshots`, `imported_*`, etc.).
+- **Group taxonomy is entity-scoped:** every category group lives in `budget_groups (entity_id, name UNIQUE, sort_order, kind)` with `kind IN ('income','expense','savings')`. `budget_categories.group_id` FKs to it; `budget_categories.sort_order` orders categories within a group. Renaming or reordering a group applies to every month for the entity automatically. Income detection uses `kind === 'income'`, never string equality on the group name. Frontend helpers in `q-srfm/src/utils/groups.ts` (`isIncomeCategory`, `categoryGroupKind`, `categoryGroupName`) wrap the lookup.
 - Firestore remains source for auth-related user verification metadata in `AuthController`.
 
 Client ownership:
@@ -268,6 +269,7 @@ Migration-sensitive zones:
 - Firestore/Supabase seam in `AuthController` and Firebase profile setup.
 - Statement/account import paths with partial implementations (`NotImplementedException`).
 - Optional-table feature flags (`budget_edit_history`, `goals_budget_categories`) that allow mixed schema states.
+- `BudgetService.EnsureGroupAsync(conn, tx, entityId, name, kind)` is the canonical inline upsert for a group by name within an entity. `SaveBudget` and `GoalService` use it so that callers can persist a `BudgetCategory` carrying only `groupName` (no `groupId`) and the backend resolves/creates the row.
 - `q-srfm/src/pages/SetupWizardPage.vue`: uses Vuetify-era CSS selectors and variables in a Quasar app; needs migration to Quasar-native styling before feature expansion.
 
 Known UI/UX violations requiring remediation (from March 2026 review):
