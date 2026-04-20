@@ -12,9 +12,9 @@
       <div class="col">
         <div class="progress-section">
           <div class="progress-label">
-            <span>{{ formatCurrency(saved) }}</span>
-            saved of
-            {{ formatCurrency(target) }}
+            <span class="text-weight-bold">{{ formatCurrency(available) }}</span>
+            available
+            <template v-if="target > 0">of {{ formatCurrency(target) }}</template>
           </div>
           <q-linear-progress
             :value="progress"
@@ -23,6 +23,12 @@
             track-color="grey-3"
             rounded
           />
+          <div class="progress-breakdown text-caption text-grey-7 q-mt-xs">
+            {{ formatCurrency(saved) }} contributed
+            <span v-if="withdrawn > 0">
+              · {{ formatCurrency(withdrawn) }} withdrawn
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -160,11 +166,21 @@ const { listContributions, listGoalSpends, loadGoalDetails, loadGoals, getGoal }
 const contribRows = computed(() => listContributions(props.goal.id));
 const spendRows = computed(() => listGoalSpends(props.goal.id));
 
-// Pull the live goal from the cache so savedToDate updates after a delete.
+// Pull the live goal from the cache so rollups update after a delete.
 const liveGoal = computed(() => getGoal(props.goal.id) || props.goal);
+// `saved` and `withdrawn` are the gross deposit/withdrawal sums maintained
+// by GoalService. `available` is the current net balance (deposits minus
+// withdrawals) — this is what the user is asking "how much is in this goal".
+// Progress is measured against the net balance, so spending from a goal
+// rolls the progress bar back, which matches user mental model.
 const saved = computed(() => liveGoal.value.savedToDate || 0);
+const withdrawn = computed(() => liveGoal.value.spentToDate || 0);
+const available = computed(() => Math.max(saved.value - withdrawn.value, 0));
 const target = computed(() => liveGoal.value.totalTarget || 0);
-const progress = computed(() => (target.value ? saved.value / target.value : 0));
+const progress = computed(() => {
+  if (!target.value) return available.value > 0 ? 1 : 0;
+  return Math.min(available.value / target.value, 1);
+});
 
 const showDeleteDialog = ref(false);
 const deletingTxId = ref<string | null>(null);
