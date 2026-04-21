@@ -1,0 +1,148 @@
+/* =========================================================
+   Steady Rise — Colors & Type
+   Source of truth: steady_rise_ui_rules.md + quasar.variables.scss
+   Philosophy: "Color communicates state, not style."
+                "Hierarchy over chrome."
+   ========================================================= */
+
+:root {
+  /* ---- Brand / Interaction ---- */
+  --sr-primary:        #1D4ED8;  /* rules token `primary` — primary actions, links, active */
+  --sr-primary-hover:  #1E40AF;
+  --sr-primary-soft:   #EEF2FF;  /* selected / hover surface */
+  --sr-secondary:      #3B5BDB;  /* quiet accent, rare — deeper indigo, AA on white */
+  --sr-accent:         #0F766E;  /* very limited highlight — muted teal (ties to mascot green) */
+
+  /* ---- Semantic (state) ---- */
+  --sr-positive:       #16A34A;  /* income received, under budget */
+  --sr-warning:        #E65100;  /* over-budget, needs attention — warm orange, AA on white */
+  --sr-negative:       #DC2626;  /* over budget, destructive */
+  --sr-info:           #2563EB;
+
+  /* ---- Neutrals & surfaces (90% of UI) ---- */
+  --sr-page:           #F5F7FB;  /* app background (blue-gray) */
+  --sr-surface:        #FFFFFF;  /* cards, tables */
+  --sr-surface-subtle: #EEF2FF;  /* hover / selected rows */
+  --sr-surface-muted:  #E2E8F0;
+  --sr-outline-soft:   rgba(148, 163, 184, 0.24);
+  --sr-divider:        #E2E8F0;
+
+  /* ---- Text ---- */
+  --sr-fg-1:           #0F172A;  /* primary body */
+  --sr-fg-2:           #475569;  /* muted (grey-7) */
+  --sr-fg-3:           #64748B;  /* metadata */
+  --sr-fg-4:           #94A3B8;  /* captions / disabled */
+  --sr-fg-on-primary:  #FFFFFF;
+
+  /* ---- Elevation ---- */
+  --sr-shadow-subtle:  0 6px 16px rgba(15, 23, 42, 0.06);
+  --sr-shadow-soft:    0 18px 36px rgba(15, 23, 42, 0.08);
+
+  /* ---- Radius ---- */
+  --sr-radius-sm:      8px;
+  --sr-radius-md:      12px;   /* inputs, small cards */
+  --sr-radius-lg:      18px;   /* cards */
+  --sr-radius-pill:    999px;  /* buttons, chips */
+
+  /* ---- Spacing scale (4/8/12/16/24/32) ---- */
+  --sr-space-xs:   4px;
+  --sr-space-sm:   8px;
+  --sr-space-md:  12px;
+  --sr-space-lg:  16px;
+  --sr-space-xl:  24px;
+  --sr-space-2xl: 32px;
+
+  /* ---- Type foundation ---- */
+  --sr-font-sans:  'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --sr-font-num:   'Inter', ui-monospace, 'SF Mono', Menlo, monospace;
+  --sr-font-feat:  "tnum" on, "cv02" on, "cv11" on; /* tabular numbers */
+
+  /* ---- Type scale (aligned to Quasar utility classes) ---- */
+  --sr-h1-size: 28px;  --sr-h1-weight: 600;  --sr-h1-lh: 1.2;   /* text-h4  — page titles */
+  --sr-h2-size: 22px;  --sr-h2-weight: 600;  --sr-h2-lh: 1.25;  /* text-h5  — section headers */
+  --sr-h3-size: 18px;  --sr-h3-weight: 600;  --sr-h3-lh: 1.3;   /* text-subtitle1 — card titles */
+  --sr-body-size: 14px; --sr-body-weight: 400; --sr-body-lh: 1.5;/* text-body2 */
+  --sr-label-size: 12px; --sr-label-weight: 500; --sr-label-lh: 1.4;/* caption + medium */
+  --sr-caption-size: 11px; --sr-caption-weight: 400; --sr-caption-lh: 1.4;
+}
+
+/* =========================================================
+   Base body + semantic element styles
+   ========================================================= */
+html, body {
+  background: var(--sr-page);
+  color: var(--sr-fg-1);
+  font-family: var(--sr-font-sans);
+  font-feature-settings: "cv02","cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 14px;
+  line-height: var(--sr-body-lh);
+}
+
+@media (max-width: 430px) {
+  /* Mobile: prevent iOS zoom-on-focus */
+  html, body { font-size: 16px; }
+}
+
+h1, .sr-h1 {
+  font-size: var(--sr-h1-size);
+  font-weight: var(--sr-h1-weight);
+  line-height: var(--sr-h1-lh);
+  color: var(--sr-fg-1);
+  margin: 0;
+}
+
+h2, .sr-h2 {
+  font-size: var(--sr-h2-size);
+  font-weight: var(--sr-h2-weight);
+  line-height: var(--sr-h2-lh);
+  margin: 0;
+}
+
+h3, .sr-h3 {
+  font-size: var(--sr-h3-size);
+  font-weight: var(--sr-h3-weight);
+  line-height: var(--sr-h3-lh);
+  margin: 0;
+}
+
+p, .sr-body {
+  font-size: var(--sr-body-size);
+  font-weight: var(--sr-body-weight);
+  line-height: var(--sr-body-lh);
+  color: var(--sr-fg-1);
+}
+
+.sr-label {
+  font-size: var(--sr-label-size);
+  font-weight: var(--sr-label-weight);
+  line-height: var(--sr-label-lh);
+  color: var(--sr-fg-2);
+  letter-spacing: 0.01em;
+}
+
+.sr-caption {
+  font-size: var(--sr-caption-size);
+  font-weight: var(--sr-caption-weight);
+  line-height: var(--sr-caption-lh);
+  color: var(--sr-fg-3);
+}
+
+/* Numeric: tabular, right-aligned by default in tables */
+.sr-num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" on;
+}
+
+.sr-num-right {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* Colored text helpers (semantic only) */
+.sr-text-positive { color: var(--sr-positive); }
+.sr-text-negative { color: var(--sr-negative); }
+.sr-text-warning  { color: var(--sr-warning);  }
+.sr-text-muted    { color: var(--sr-fg-2);     }
+.sr-text-subtle   { color: var(--sr-fg-3);     }

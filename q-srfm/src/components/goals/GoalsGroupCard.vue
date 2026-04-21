@@ -4,7 +4,9 @@
       <div class="row items-center">
         <div class="col text-bold">Savings Goals</div>
         <div class="col-auto">
-          <q-btn flat dense round icon="add" @click="$emit('add')" />
+          <q-btn flat dense round icon="add" @click="$emit('add')">
+            <q-tooltip>Add goal</q-tooltip>
+          </q-btn>
         </div>
       </div>
       <div v-for="goal in goals" :key="goal.id" class="q-mt-sm">
@@ -30,8 +32,9 @@
           </div>
         </div>
       </div>
-      <div v-if="goals.length === 0" class="text-caption text-grey">
+      <div v-if="goals.length === 0" class="text-body2 text-grey-7">
         No goals yet.
+        <q-btn flat dense no-caps color="primary" label="Set your first goal →" class="q-ml-xs" @click="$emit('add')" />
       </div>
     </q-card-section>
   </q-card>

@@ -42,7 +42,7 @@ describe('calculateCarryOver', () => {
     test('returns empty object when no fund categories exist', () => {
         const budget = makeBudget({
             categories: [
-                { name: 'Groceries', target: 500, isFund: false, group: 'Expenses' },
+                { name: 'Groceries', target: 500, isFund: false, groupName: 'Expenses' },
             ],
         });
         const result = calculateCarryOver(budget);
@@ -51,7 +51,7 @@ describe('calculateCarryOver', () => {
     test('fund with no transactions carries target + previous carryover', () => {
         const budget = makeBudget({
             categories: [
-                { name: 'Emergency', target: 200, isFund: true, group: 'Savings', carryover: 300 },
+                { name: 'Emergency', target: 200, isFund: true, groupName: 'Savings', carryover: 300 },
             ],
             transactions: [],
         });
@@ -62,7 +62,7 @@ describe('calculateCarryOver', () => {
     test('fund with spending reduces carryover', () => {
         const budget = makeBudget({
             categories: [
-                { name: 'Car Fund', target: 100, isFund: true, group: 'Savings', carryover: 400 },
+                { name: 'Car Fund', target: 100, isFund: true, groupName: 'Savings', carryover: 400 },
             ],
             transactions: [
                 makeTransaction({
@@ -80,7 +80,7 @@ describe('calculateCarryOver', () => {
     test('fund with income adds to carryover', () => {
         const budget = makeBudget({
             categories: [
-                { name: 'Side Hustle', target: 0, isFund: true, group: 'Savings', carryover: 100 },
+                { name: 'Side Hustle', target: 0, isFund: true, groupName: 'Savings', carryover: 100 },
             ],
             transactions: [
                 makeTransaction({
@@ -98,7 +98,7 @@ describe('calculateCarryOver', () => {
     test('carryover floors at zero (never negative)', () => {
         const budget = makeBudget({
             categories: [
-                { name: 'Vacation', target: 50, isFund: true, group: 'Savings', carryover: 20 },
+                { name: 'Vacation', target: 50, isFund: true, groupName: 'Savings', carryover: 20 },
             ],
             transactions: [
                 makeTransaction({
@@ -116,7 +116,7 @@ describe('calculateCarryOver', () => {
     test('handles zero carryover (undefined) gracefully', () => {
         const budget = makeBudget({
             categories: [
-                { name: 'New Fund', target: 100, isFund: true, group: 'Savings' },
+                { name: 'New Fund', target: 100, isFund: true, groupName: 'Savings' },
                 // carryover is undefined
             ],
             transactions: [],
@@ -128,7 +128,7 @@ describe('calculateCarryOver', () => {
     test('deleted transactions are excluded', () => {
         const budget = makeBudget({
             categories: [
-                { name: 'Fund A', target: 100, isFund: true, group: 'Savings', carryover: 0 },
+                { name: 'Fund A', target: 100, isFund: true, groupName: 'Savings', carryover: 0 },
             ],
             transactions: [
                 makeTransaction({
@@ -147,9 +147,9 @@ describe('calculateCarryOver', () => {
     test('multiple fund categories calculated independently', () => {
         const budget = makeBudget({
             categories: [
-                { name: 'Fund A', target: 100, isFund: true, group: 'Savings', carryover: 50 },
-                { name: 'Fund B', target: 200, isFund: true, group: 'Savings', carryover: 0 },
-                { name: 'Groceries', target: 500, isFund: false, group: 'Expenses' },
+                { name: 'Fund A', target: 100, isFund: true, groupName: 'Savings', carryover: 50 },
+                { name: 'Fund B', target: 200, isFund: true, groupName: 'Savings', carryover: 0 },
+                { name: 'Groceries', target: 500, isFund: false, groupName: 'Expenses' },
             ],
             transactions: [
                 makeTransaction({
@@ -177,8 +177,8 @@ describe('calculateCarryOver', () => {
     test('split transactions allocate correctly per category', () => {
         const budget = makeBudget({
             categories: [
-                { name: 'Fund A', target: 100, isFund: true, group: 'Savings', carryover: 0 },
-                { name: 'Fund B', target: 100, isFund: true, group: 'Savings', carryover: 0 },
+                { name: 'Fund A', target: 100, isFund: true, groupName: 'Savings', carryover: 0 },
+                { name: 'Fund B', target: 100, isFund: true, groupName: 'Savings', carryover: 0 },
             ],
             transactions: [
                 makeTransaction({
@@ -201,7 +201,7 @@ describe('calculateCarryOver', () => {
     test('negative amounts are treated as absolute values', () => {
         const budget = makeBudget({
             categories: [
-                { name: 'Fund', target: 100, isFund: true, group: 'Savings', carryover: 0 },
+                { name: 'Fund', target: 100, isFund: true, groupName: 'Savings', carryover: 0 },
             ],
             transactions: [
                 makeTransaction({
@@ -219,7 +219,7 @@ describe('calculateCarryOver', () => {
     test('both income and spending in same category', () => {
         const budget = makeBudget({
             categories: [
-                { name: 'Fund', target: 100, isFund: true, group: 'Savings', carryover: 200 },
+                { name: 'Fund', target: 100, isFund: true, groupName: 'Savings', carryover: 200 },
             ],
             transactions: [
                 makeTransaction({
@@ -243,7 +243,7 @@ describe('calculateCarryOver', () => {
     test('handles budget with no transactions array', () => {
         const budget = makeBudget({
             categories: [
-                { name: 'Fund', target: 100, isFund: true, group: 'Savings', carryover: 50 },
+                { name: 'Fund', target: 100, isFund: true, groupName: 'Savings', carryover: 50 },
             ],
         });
         budget.transactions = undefined;
@@ -262,7 +262,7 @@ describe('cascadeCarryover', () => {
                 budgetId: 'b-1',
                 month: '2025-01',
                 categories: [
-                    { name: 'Fund', target: 100, isFund: true, group: 'Savings', carryover: 0 },
+                    { name: 'Fund', target: 100, isFund: true, groupName: 'Savings', carryover: 0 },
                 ],
                 transactions: [
                     makeTransaction({
@@ -277,7 +277,7 @@ describe('cascadeCarryover', () => {
                 budgetId: 'b-2',
                 month: '2025-02',
                 categories: [
-                    { name: 'Fund', target: 100, isFund: true, group: 'Savings', carryover: 0 },
+                    { name: 'Fund', target: 100, isFund: true, groupName: 'Savings', carryover: 0 },
                 ],
                 transactions: [
                     makeTransaction({
@@ -292,7 +292,7 @@ describe('cascadeCarryover', () => {
                 budgetId: 'b-3',
                 month: '2025-03',
                 categories: [
-                    { name: 'Fund', target: 100, isFund: true, group: 'Savings', carryover: 0 },
+                    { name: 'Fund', target: 100, isFund: true, groupName: 'Savings', carryover: 0 },
                 ],
                 transactions: [],
             }),
@@ -309,7 +309,7 @@ describe('cascadeCarryover', () => {
                 budgetId: 'b-1',
                 month: '2025-01',
                 categories: [
-                    { name: 'Fund', target: 100, isFund: true, group: 'Savings', carryover: 999 },
+                    { name: 'Fund', target: 100, isFund: true, groupName: 'Savings', carryover: 999 },
                 ],
                 transactions: [],
             }),
@@ -317,7 +317,7 @@ describe('cascadeCarryover', () => {
                 budgetId: 'b-2',
                 month: '2025-02',
                 categories: [
-                    { name: 'Fund', target: 100, isFund: true, group: 'Savings', carryover: 0 },
+                    { name: 'Fund', target: 100, isFund: true, groupName: 'Savings', carryover: 0 },
                 ],
                 transactions: [],
             }),
@@ -333,14 +333,14 @@ describe('cascadeCarryover', () => {
             makeBudget({
                 month: '2025-01',
                 categories: [
-                    { name: 'Fund', target: 100, isFund: true, group: 'Savings', carryover: 50 },
+                    { name: 'Fund', target: 100, isFund: true, groupName: 'Savings', carryover: 50 },
                 ],
                 transactions: [],
             }),
             makeBudget({
                 month: '2025-02',
                 categories: [
-                    { name: 'Fund', target: 100, isFund: true, group: 'Savings', carryover: 0 },
+                    { name: 'Fund', target: 100, isFund: true, groupName: 'Savings', carryover: 0 },
                 ],
                 transactions: [],
             }),
@@ -354,14 +354,14 @@ describe('cascadeCarryover', () => {
             makeBudget({
                 month: '2025-01',
                 categories: [
-                    { name: 'Fund', target: 100, isFund: true, group: 'Savings', carryover: 500 },
+                    { name: 'Fund', target: 100, isFund: true, groupName: 'Savings', carryover: 500 },
                 ],
                 transactions: [],
             }),
             makeBudget({
                 month: '2025-02',
                 categories: [
-                    { name: 'Fund', target: 100, isFund: true, group: 'Savings', carryover: 200 },
+                    { name: 'Fund', target: 100, isFund: true, groupName: 'Savings', carryover: 200 },
                 ],
                 transactions: [
                     makeTransaction({
@@ -375,7 +375,7 @@ describe('cascadeCarryover', () => {
             makeBudget({
                 month: '2025-03',
                 categories: [
-                    { name: 'Fund', target: 100, isFund: true, group: 'Savings', carryover: 0 },
+                    { name: 'Fund', target: 100, isFund: true, groupName: 'Savings', carryover: 0 },
                 ],
                 transactions: [],
             }),
@@ -393,16 +393,16 @@ describe('cascadeCarryover', () => {
             makeBudget({
                 month: '2025-01',
                 categories: [
-                    { name: 'Fund', target: 100, isFund: true, group: 'Savings', carryover: 50 },
-                    { name: 'Groceries', target: 500, isFund: false, group: 'Expenses', carryover: 999 },
+                    { name: 'Fund', target: 100, isFund: true, groupName: 'Savings', carryover: 50 },
+                    { name: 'Groceries', target: 500, isFund: false, groupName: 'Expenses', carryover: 999 },
                 ],
                 transactions: [],
             }),
             makeBudget({
                 month: '2025-02',
                 categories: [
-                    { name: 'Fund', target: 100, isFund: true, group: 'Savings', carryover: 0 },
-                    { name: 'Groceries', target: 500, isFund: false, group: 'Expenses', carryover: 123 },
+                    { name: 'Fund', target: 100, isFund: true, groupName: 'Savings', carryover: 0 },
+                    { name: 'Groceries', target: 500, isFund: false, groupName: 'Expenses', carryover: 123 },
                 ],
                 transactions: [],
             }),
@@ -418,7 +418,7 @@ describe('cascadeCarryover', () => {
             makeBudget({
                 month: '2025-01',
                 categories: [
-                    { name: 'Fund', target: 50, isFund: true, group: 'Savings', carryover: 0 },
+                    { name: 'Fund', target: 50, isFund: true, groupName: 'Savings', carryover: 0 },
                 ],
                 transactions: [
                     makeTransaction({
@@ -432,14 +432,14 @@ describe('cascadeCarryover', () => {
             makeBudget({
                 month: '2025-02',
                 categories: [
-                    { name: 'Fund', target: 50, isFund: true, group: 'Savings', carryover: 0 },
+                    { name: 'Fund', target: 50, isFund: true, groupName: 'Savings', carryover: 0 },
                 ],
                 transactions: [],
             }),
             makeBudget({
                 month: '2025-03',
                 categories: [
-                    { name: 'Fund', target: 50, isFund: true, group: 'Savings', carryover: 0 },
+                    { name: 'Fund', target: 50, isFund: true, groupName: 'Savings', carryover: 0 },
                 ],
                 transactions: [],
             }),
@@ -455,8 +455,8 @@ describe('cascadeCarryover', () => {
             makeBudget({
                 month: '2025-01',
                 categories: [
-                    { name: 'Fund A', target: 100, isFund: true, group: 'Savings', carryover: 0 },
-                    { name: 'Fund B', target: 200, isFund: true, group: 'Savings', carryover: 100 },
+                    { name: 'Fund A', target: 100, isFund: true, groupName: 'Savings', carryover: 0 },
+                    { name: 'Fund B', target: 200, isFund: true, groupName: 'Savings', carryover: 100 },
                 ],
                 transactions: [
                     makeTransaction({
@@ -470,8 +470,8 @@ describe('cascadeCarryover', () => {
             makeBudget({
                 month: '2025-02',
                 categories: [
-                    { name: 'Fund A', target: 100, isFund: true, group: 'Savings', carryover: 0 },
-                    { name: 'Fund B', target: 200, isFund: true, group: 'Savings', carryover: 0 },
+                    { name: 'Fund A', target: 100, isFund: true, groupName: 'Savings', carryover: 0 },
+                    { name: 'Fund B', target: 200, isFund: true, groupName: 'Savings', carryover: 0 },
                 ],
                 transactions: [],
             }),

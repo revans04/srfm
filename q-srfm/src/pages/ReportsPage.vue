@@ -1,119 +1,136 @@
 <!-- ReportsView.vue -->
 <template>
   <q-page class="bg-grey-1 q-pa-lg">
-    <h1 class="page-title">Budget Reporting</h1>
+    <h1 class="page-title q-mb-sm">Budget Reporting</h1>
 
-    <GuidedTip tip-id="reports-page">
+    <GuidedTip tip-id="reports-page" class="q-mb-md">
       Compare your planned budget to actual spending across months.
     </GuidedTip>
 
     <!-- Tabs -->
-    <q-tabs v-model="tab" color="primary">
+    <q-tabs v-model="tab" color="primary" class="q-mb-lg" align="left">
       <q-tab name="monthly" label="Monthly Overview" />
       <q-tab name="register" label="Register Report" />
       <q-tab name="year-over-year" label="Year-over-Year" />
       <q-tab name="net-worth" label="Net Worth" />
     </q-tabs>
 
-    <q-tab-panels v-model="tab">
+    <q-tab-panels v-model="tab" class="bg-transparent">
       <!-- Monthly Overview -->
-      <q-tab-panel name="monthly">
-        <!-- Budget Selection -->
-        <div class="row q-mt-md" >
-          <div class="col col-12 col-md-6">
-            <q-select
-              v-model="selectedBudgets"
-              :options="budgetOptions"
-              option-label="displayMonth"
-              option-value="budgetId"
-              emit-value
-              map-options
-              label="Select Budgets"
-              multiple
-              variant="outlined"
-              chips
-              closable-chips
-              @update:modelValue="updateReportData"
-            ></q-select>
-          </div>
-        </div>
+      <q-tab-panel name="monthly" class="q-pa-none">
+        <!-- Filters -->
+        <q-card class="q-mb-lg">
+          <q-card-section>
+            <div class="text-subtitle1 text-weight-medium">Filters</div>
+          </q-card-section>
+          <q-card-section class="q-pt-none">
+            <div class="row q-col-gutter-md">
+              <div class="col col-12 col-md-6">
+                <q-select
+                  v-model="selectedBudgets"
+                  :options="budgetOptions"
+                  option-label="displayMonth"
+                  option-value="budgetId"
+                  emit-value
+                  map-options
+                  label="Select Budgets"
+                  multiple
+                  outlined
+                  chips
+                  closable-chips
+                  @update:modelValue="updateReportData"
+                ></q-select>
+              </div>
+            </div>
+            <div class="row q-col-gutter-md q-mt-sm">
+              <div class="col col-12 col-md-6">
+                <q-select
+                  v-model="excludedGroups"
+                  :options="groupOptions"
+                  label="Exclude Groups"
+                  multiple
+                  outlined
+                  chips
+                  closable-chips
+                  @update:modelValue="updateReportData"
+                ></q-select>
+              </div>
+              <div class="col col-12 col-md-6">
+                <q-select
+                  v-model="excludedCategories"
+                  :options="categoryOptions"
+                  label="Exclude Categories"
+                  multiple
+                  outlined
+                  chips
+                  closable-chips
+                  @update:modelValue="updateReportData"
+                ></q-select>
+              </div>
+            </div>
+          </q-card-section>
+        </q-card>
 
-        <div class="row q-mt-md">
-          <div class="col col-12 col-md-6">
-            <q-select
-              v-model="excludedGroups"
-              :options="groupOptions"
-              label="Exclude Groups"
-              multiple
-              variant="outlined"
-              chips
-              closable-chips
-              @update:modelValue="updateReportData"
-            ></q-select>
-          </div>
-          <div class="col col-12 col-md-6">
-            <q-select
-              v-model="excludedCategories"
-              :options="categoryOptions"
-              label="Exclude Categories"
-              multiple
-              variant="outlined"
-              chips
-              closable-chips
-              @update:modelValue="updateReportData"
-            ></q-select>
-          </div>
-        </div>
-
-        <div class="row q-mt-md" >
+        <div class="row q-col-gutter-md">
           <div class="col col-12 col-md-6">
             <q-card>
-              <q-card-section class="text-center">
+              <q-card-section>
+                <div class="text-subtitle1 text-weight-medium">Spending by Group</div>
+                <div class="text-caption text-grey-7">Share of actual spending across groups</div>
+              </q-card-section>
+              <q-card-section class="text-center q-pt-none">
                 <!-- Donut Chart -->
                 <div style="max-width: 300px; margin: 0 auto">
                   <DoughnutChart v-if="budgetGroups.length" :data="chartData" :options="chartOptions" />
-                  <p v-else>No expense data available</p>
+                  <p v-else class="text-grey-7 q-mb-none">No expense data available</p>
                 </div>
               </q-card-section>
             </q-card>
             <!-- Table for Group, Planned, Actual -->
-            <q-markup-table class="q-mt-md">
-              <thead>
-                <tr>
-                  <th>Group</th>
-                  <th>Planned</th>
-                  <th>Actual</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="(group, index) in budgetGroups"
-                  :key="group.name"
-                  @click="openGroup(group.name)"
-                  style="cursor: pointer"
-                >
-                  <td class="font-weight-bold" :style="{ color: groupColors[index % groupColors.length] }">
-                    {{ group.name }}
-                  </td>
-                  <td>
-                    ${{
-                      group.planned.toLocaleString("en-US", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })
-                    }}
-                  </td>
-                  <td>
-                    ${{
-                      group.actual.toLocaleString("en-US", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })
-                    }}
-                  </td>
-                </tr>
-              </tbody>
-            </q-markup-table>
+            <q-card class="q-mt-md">
+              <q-card-section>
+                <div class="text-subtitle1 text-weight-medium">Group totals</div>
+              </q-card-section>
+              <q-card-section class="q-pt-none">
+                <q-markup-table flat>
+                  <thead>
+                    <tr>
+                      <th class="text-left">Group</th>
+                      <th class="text-right">Planned</th>
+                      <th class="text-right">Actual</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="(group, index) in budgetGroups"
+                      :key="group.name"
+                      @click="openGroup(group.name)"
+                      style="cursor: pointer"
+                    >
+                      <td class="text-weight-medium" :style="{ color: groupColors[index % groupColors.length] }">
+                        {{ group.name }}
+                      </td>
+                      <td class="text-right">
+                        ${{
+                          group.planned.toLocaleString("en-US", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })
+                        }}
+                      </td>
+                      <td class="text-right">
+                        ${{
+                          group.actual.toLocaleString("en-US", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })
+                        }}
+                      </td>
+                    </tr>
+                  </tbody>
+                </q-markup-table>
+              </q-card-section>
+            </q-card>
             <q-dialog v-model="showGroupDialog" max-width="600px">
               <q-card>
                 <q-card-section>{{ selectedGroup }} Transactions</q-card-section>
@@ -129,7 +146,7 @@
                     </thead>
                     <tbody>
                       <tr v-for="tx in selectedGroupTransactions" :key="tx.id">
-                        <td>{{ tx.date }}</td>
+                        <td>{{ formatDate(tx.date) }}</td>
                         <td>{{ tx.merchant }}</td>
                         <td>{{ tx.category }}</td>
                         <td class="text-right">${{ tx.amount.toFixed(2) }}</td>
@@ -154,38 +171,49 @@
           </div>
           <div class="col col-12 col-md-6">
             <q-card>
-              <q-card-section class="text-center">
+              <q-card-section>
+                <div class="text-subtitle1 text-weight-medium">Planned vs Actual by Month</div>
+                <div class="text-caption text-grey-7">Trend across the selected budgets</div>
+              </q-card-section>
+              <q-card-section class="text-center q-pt-none">
                 <div style="height: 300px">
                   <LineChart v-if="monthlyBudgetData?.labels?.length > 0" :data="monthlyBudgetData" :options="monthlyBudgetChartOptions" />
-                  <p v-else>No budget data available</p>
+                  <p v-else class="text-grey-7 q-mb-none">No budget data available</p>
                 </div>
               </q-card-section>
             </q-card>
-            <q-markup-table class="q-mt-md">
-              <thead>
-                <tr>
-                  <th>Month</th>
-                  <th>Planned</th>
-                  <th>Actual</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="item in monthlyTotals" :key="item.month">
-                  <td>{{ item.month }}</td>
-                  <td>${{ item.planned.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</td>
-                  <td>${{ item.actual.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</td>
-                </tr>
-              </tbody>
-            </q-markup-table>
+            <q-card class="q-mt-md">
+              <q-card-section>
+                <div class="text-subtitle1 text-weight-medium">Monthly totals</div>
+              </q-card-section>
+              <q-card-section class="q-pt-none">
+                <q-markup-table flat>
+                  <thead>
+                    <tr>
+                      <th class="text-left">Month</th>
+                      <th class="text-right">Planned</th>
+                      <th class="text-right">Actual</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="item in monthlyTotals" :key="item.month">
+                      <td>{{ item.month }}</td>
+                      <td class="text-right">${{ item.planned.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</td>
+                      <td class="text-right">${{ item.actual.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</td>
+                    </tr>
+                  </tbody>
+                </q-markup-table>
+              </q-card-section>
+            </q-card>
           </div>
         </div>
 
-        <div class="row q-mt-md">
+        <div class="row q-mt-lg">
           <div class="col col-12">
             <q-card>
               <q-card-section>
-                <div class="text-h6">Category Averages</div>
-                <div class="text-caption">Average per selected budget</div>
+                <div class="text-subtitle1 text-weight-medium">Category Averages</div>
+                <div class="text-caption text-grey-7">Average per selected budget</div>
               </q-card-section>
               <q-card-section>
                 <q-markup-table v-if="categoryAverages.length">
@@ -240,7 +268,7 @@
                     </thead>
                     <tbody>
                       <tr v-for="tx in selectedCategoryTransactions" :key="tx.id">
-                        <td>{{ tx.date }}</td>
+                        <td>{{ formatDate(tx.date) }}</td>
                         <td>{{ tx.merchant }}</td>
                         <td class="text-right">
                           ${{ tx.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
@@ -259,49 +287,48 @@
       </q-tab-panel>
 
       <!-- Year-over-Year -->
-      <q-tab-panel name="year-over-year">
-        <div class="row q-mt-md" >
-          <div class="col">
-            <q-card>
-              <q-card-section>
-                <p>Year-over-Year reporting coming soon!</p>
-              </q-card-section>
-            </q-card>
-          </div>
-        </div>
+      <q-tab-panel name="year-over-year" class="q-pa-none">
+        <q-card>
+          <q-card-section>
+            <div class="text-subtitle1 text-weight-medium">Year-over-Year</div>
+          </q-card-section>
+          <q-card-section class="q-pt-none">
+            <p class="text-grey-7 q-mb-none">Year-over-Year reporting is coming soon.</p>
+          </q-card-section>
+        </q-card>
       </q-tab-panel>
 
       <!-- Net Worth -->
-      <q-tab-panel name="net-worth">
-        <div class="row q-mt-md" >
-          <!-- Net Worth Over Time with Trend Line -->
-          <div class="col col-12">
-            <q-card>
-              <q-card-section>Net Worth Over Time</q-card-section>
-              <q-card-section>
-                <div style="height: 400px">
-                  <q-circular-progress v-if="isLoadingSnapshots" indeterminate color="primary" />
-                  <LineChart v-else-if="netWorthData?.labels?.length > 0" :data="netWorthData" :options="netWorthChartOptions" />
-                  <p v-else>No net worth data available</p>
-                </div>
-              </q-card-section>
-            </q-card>
-          </div>
+      <q-tab-panel name="net-worth" class="q-pa-none">
+        <!-- Net Worth Over Time with Trend Line -->
+        <q-card class="q-mb-md">
+          <q-card-section>
+            <div class="text-subtitle1 text-weight-medium">Net Worth Over Time</div>
+            <div class="text-caption text-grey-7">History with a 12-month linear-regression trend</div>
+          </q-card-section>
+          <q-card-section class="q-pt-none">
+            <div style="height: 400px">
+              <q-circular-progress v-if="isLoadingSnapshots" indeterminate color="primary" />
+              <LineChart v-else-if="netWorthData?.labels?.length > 0" :data="netWorthData" :options="netWorthChartOptions" />
+              <p v-else class="text-grey-7 q-mb-none">No net worth data available</p>
+            </div>
+          </q-card-section>
+        </q-card>
 
-          <!-- Cash, Investments, Properties, Debt Over Time -->
-          <div class="col col-12">
-            <q-card>
-              <q-card-section>Assets and Liabilities Over Time</q-card-section>
-              <q-card-section>
-                <div style="height: 400px">
-                  <q-circular-progress v-if="isLoadingSnapshots" indeterminate color="primary" />
-                  <LineChart v-else-if="assetDebtData?.labels?.length > 0" :data="assetDebtData" :options="assetDebtChartOptions" />
-                  <p v-else>No asset/debt data available</p>
-                </div>
-              </q-card-section>
-            </q-card>
-          </div>
-        </div>
+        <!-- Cash, Investments, Properties, Debt Over Time -->
+        <q-card>
+          <q-card-section>
+            <div class="text-subtitle1 text-weight-medium">Assets and Liabilities Over Time</div>
+            <div class="text-caption text-grey-7">Stacked by account type across snapshots</div>
+          </q-card-section>
+          <q-card-section class="q-pt-none">
+            <div style="height: 400px">
+              <q-circular-progress v-if="isLoadingSnapshots" indeterminate color="primary" />
+              <LineChart v-else-if="assetDebtData?.labels?.length > 0" :data="assetDebtData" :options="assetDebtChartOptions" />
+              <p v-else class="text-grey-7 q-mb-none">No asset/debt data available</p>
+            </div>
+          </q-card-section>
+        </q-card>
       </q-tab-panel>
     </q-tab-panels>
   </q-page>
@@ -331,7 +358,7 @@ import type { TooltipItem } from "chart.js";
 import { useBudgetStore } from "../store/budget";
 import { useFamilyStore } from "../store/family";
 import "chartjs-adapter-date-fns";
-import { timestampToDate, currentMonthISO } from "../utils/helpers";
+import { timestampToDate, currentMonthISO, formatDate } from "../utils/helpers";
 import { isIncomeCategory, categoryGroupName } from "../utils/groups";
 
 // Register Chart.js components
@@ -354,6 +381,29 @@ const LineChart = Line;
 
 const budgetStore = useBudgetStore();
 const familyStore = useFamilyStore();
+
+// Chart palette — mirrors the pattern in components/charts/SpendingByCategoryCard.vue.
+// Reads Quasar CSS vars so chart colors stay in sync with quasar.variables.scss.
+function resolveTokenColor(token: string, fallback: string) {
+  if (typeof window === 'undefined') return fallback;
+  const value = getComputedStyle(document.documentElement).getPropertyValue(`--q-${token}`);
+  return value ? value.trim() : fallback;
+}
+function hexToRgba(hex: string, alpha: number) {
+  const h = hex.replace('#', '');
+  const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+const chartPrimary = resolveTokenColor('primary', '#1D4ED8');
+const chartSecondary = resolveTokenColor('secondary', '#3B5BDB');
+const chartPositive = resolveTokenColor('positive', '#16A34A');
+const chartWarning = resolveTokenColor('warning', '#E65100');
+const chartNegative = resolveTokenColor('negative', '#DC2626');
+const chartInfo = resolveTokenColor('info', '#2563EB');
+const chartMuted = '#64748B'; // slate-500 — neutral for annotations / trend lines
 
 const tab = ref("monthly");
 const budgetOptions = ref<Array<Budget & { displayMonth: string }>>([]);
@@ -389,17 +439,18 @@ const selectedCategoryTotal = computed(() => {
 });
 const loadedBudgetIds = new Set<string>();
 
-// Colors for each group
+// Budget-group palette — brand tokens + slate accents, same shape as
+// SpendingByCategoryCard so both charts feel like one system.
 const groupColors = ref([
-  "#4CAF50", // Green
-  "#FF9800", // Orange
-  "#F44336", // Red
-  "#2196F3", // Blue
-  "#9C27B0", // Purple
-  "#00BCD4", // Cyan
-  "#FFEB3B", // Yellow
-  "#E91E63", // Pink
-  "#8BC34A", // Light Green
+  chartPrimary,
+  chartSecondary,
+  chartPositive,
+  chartWarning,
+  chartNegative,
+  chartInfo,
+  '#475569', // slate-600
+  chartMuted, // slate-500
+  '#0F172A', // slate-900
 ]);
 
 // Chart data for the donut chart
@@ -493,16 +544,16 @@ const netWorthData = computed(() => {
         {
           label: "Net Worth",
           data: netWorthValues,
-          borderColor: "#2196F3",
-          backgroundColor: "#2196F3",
+          borderColor: chartPrimary,
+          backgroundColor: chartPrimary,
           fill: false,
           pointRadius: 4,
         },
         {
           label: "Trend Line",
           data: trendData,
-          borderColor: "#F44336",
-          backgroundColor: "#F44336",
+          borderColor: chartMuted,
+          backgroundColor: chartMuted,
           borderDash: [5, 5],
           fill: false,
           pointRadius: 0,
@@ -616,32 +667,32 @@ const assetDebtData = computed(() => {
         {
           label: "Cash",
           data: cashValues,
-          backgroundColor: "rgba(76, 175, 80, 0.5)",
-          borderColor: "#4CAF50",
+          backgroundColor: hexToRgba(chartPositive, 0.5),
+          borderColor: chartPositive,
           fill: true,
           stack: "assets",
         },
         {
           label: "Investments",
           data: investmentValues,
-          backgroundColor: "rgba(33, 150, 243, 0.5)",
-          borderColor: "#2196F3",
+          backgroundColor: hexToRgba(chartPrimary, 0.5),
+          borderColor: chartPrimary,
           fill: true,
           stack: "assets",
         },
         {
           label: "Debt",
           data: debtValues,
-          backgroundColor: "rgba(244, 67, 54, 0.5)",
-          borderColor: "#F44336",
+          backgroundColor: hexToRgba(chartNegative, 0.5),
+          borderColor: chartNegative,
           fill: true,
           stack: "liabilities",
         },
         {
           label: "Properties",
           data: propertyValues,
-          backgroundColor: "rgba(255, 152, 0, 0.5)",
-          borderColor: "#FF9800",
+          backgroundColor: hexToRgba(chartInfo, 0.5),
+          borderColor: chartInfo,
           fill: true,
           stack: "assets",
         },
@@ -714,18 +765,19 @@ const monthlyBudgetData = computed(() => {
       {
         label: "Planned",
         data: monthlyTotals.value.map((t) => t.planned),
-        borderColor: "rgb(22, 163, 74)",
-        backgroundColor: "rgb(22, 163, 74)",
+        borderColor: chartSecondary,
+        backgroundColor: chartSecondary,
+        borderDash: [5, 5],
         fill: false,
-        pointRadius: 5,
+        pointRadius: 3,
       },
       {
         label: "Actual",
         data: monthlyTotals.value.map((t) => t.actual),
-        borderColor: "rgb(220, 38, 38)",
-        backgroundColor: "rgb(220, 38, 38)",
+        borderColor: chartPrimary,
+        backgroundColor: chartPrimary,
         fill: false,
-        pointRadius: 4,
+        pointRadius: 5,
       },
     ],
   };
@@ -831,11 +883,16 @@ onMounted(async () => {
         displayMonth: formatBudgetMonth(budget.month),
       }));
 
-    // Default to current month
+    // Default to year-to-date: every budget in the current year up to and
+    // including the current month. Falls back to the most recent budget if
+    // no YTD budgets exist yet.
     const currentMonth = currentMonthISO();
-    const currentBudget = budgetOptions.value.find((b) => b.month === currentMonth);
-    if (currentBudget && currentBudget.budgetId) {
-      selectedBudgets.value = [currentBudget.budgetId];
+    const currentYearPrefix = `${currentMonth.slice(0, 4)}-`;
+    const ytdBudgets = budgetOptions.value.filter(
+      (b) => b.month.startsWith(currentYearPrefix) && b.month <= currentMonth && b.budgetId,
+    );
+    if (ytdBudgets.length) {
+      selectedBudgets.value = ytdBudgets.map((b) => b.budgetId);
     } else if (budgetOptions.value.length > 0 && budgetOptions.value[0].budgetId) {
       selectedBudgets.value = [budgetOptions.value[0].budgetId];
     }
@@ -972,7 +1029,10 @@ async function updateReportData() {
               !excludedGroups.value.includes(groupName) &&
               !excludedCategories.value.includes(cat.category)
             ) {
-              const sign = transaction.isIncome ? 1 : -1;
+              // Expense groups: expenses add to "spent" (+), refunds (income
+              // splits in an expense group) reduce it (-). Keeps Actual in the
+              // same sign domain as Planned so they're directly comparable.
+              const sign = transaction.isIncome ? -1 : 1;
               actualTotal += (cat.amount || 0) * sign;
             }
           });
@@ -1013,7 +1073,10 @@ async function updateReportData() {
               !excludedGroups.value.includes(groupName) &&
               !excludedCategories.value.includes(cat.category)
             ) {
-              const sign = transaction.isIncome ? 1 : -1;
+              // See monthly aggregation above — same sign convention so Actual
+              // stays comparable to Planned. Group-detail dialog also benefits:
+              // expense rows read as positive amounts spent.
+              const sign = transaction.isIncome ? -1 : 1;
               const group = groupMap.get(groupName) || { planned: 0, actual: 0 };
               group.actual += (cat.amount || 0) * sign;
               groupMap.set(groupName, group);
@@ -1124,22 +1187,5 @@ function openCategory(name: string) {
 </script>
 
 <style scoped>
-.text-h6 {
-  font-size: 1rem;
-  font-weight: 500;
-}
-
-.text-h5 {
-  font-size: 1.5rem;
-  font-weight: 500;
-}
-
-.v-table th {
-  font-weight: bold;
-  background-color: #f5f5f5;
-}
-
-.v-table td {
-  padding: 8px;
-}
+/* No page-scoped styles — relies on global tokens and Quasar utilities. */
 </style>

@@ -286,8 +286,8 @@ function formatDate(iso: string) {
     const localDate = new Date(year, month - 1, day);
     return localDate.toLocaleDateString('en-US', {
       year: 'numeric',
-      month: 'numeric',
-      day: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
     });
   }
 
@@ -296,8 +296,8 @@ function formatDate(iso: string) {
 
   return d.toLocaleDateString('en-US', {
     year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
   });
 }
 

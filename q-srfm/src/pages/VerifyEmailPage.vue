@@ -1,12 +1,17 @@
 <template>
-  <q-page>
+  <q-page class="bg-grey-1 q-pa-lg">
+    <h1 class="page-title q-mb-md">Email Verification</h1>
     <div class="row justify-center">
       <div class="col col-12 col-md-6">
         <q-card>
-          <q-card-section><h1 class="text-h5">Email Verification</h1></q-card-section>
-          <q-card-section v-if="loading">Verifying...</q-card-section>
+          <q-card-section v-if="loading" class="row items-center q-gutter-sm">
+            <q-spinner size="20px" color="primary" />
+            <span>Verifying…</span>
+          </q-card-section>
           <q-card-section v-else-if="error">{{ error }}</q-card-section>
-          <q-card-section v-else>Email verified successfully! You can now <router-link to="/login">log in</router-link>.</q-card-section>
+          <q-card-section v-else>
+            Email verified. You can now <router-link to="/login">log in</router-link>.
+          </q-card-section>
         </q-card>
       </div>
     </div>

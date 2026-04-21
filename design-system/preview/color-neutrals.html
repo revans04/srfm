@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+  body { margin:0; padding:20px; background:var(--sr-surface); font-family:var(--sr-font-sans); color:var(--sr-fg-1); }
+  .swatch { border-radius:10px; padding:14px; display:flex; flex-direction:column; gap:4px; justify-content:space-between; min-height:80px; border:1px solid var(--sr-outline-soft); }
+  .swatch .hex { font-family:ui-monospace,Menlo,monospace; font-size:11px; opacity:.85; }
+  .swatch .name { font-weight:600; font-size:13px; }
+  .swatch .use { font-size:11px; opacity:.85; }
+  .grid { display:grid; gap:10px; }
+  .row { display:flex; gap:12px; align-items:center; }
+  .label { font-size:11px; color:var(--sr-fg-3); text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; font-weight:500; }
+  .box { background:var(--sr-surface); }
+  .material-icons { font-family:'Material Icons'; font-style:normal; font-weight:normal; display:inline-block; line-height:1; vertical-align:middle; }
+  button.sr-btn { font-family:inherit; font-weight:600; font-size:14px; border-radius:999px; padding:8px 18px; border:none; cursor:pointer; letter-spacing:.01em; }
+  .sr-btn-primary { background:var(--sr-primary); color:#fff; }
+  .sr-btn-primary:hover { background:var(--sr-primary-hover); }
+  .sr-btn-outline { background:#fff; color:var(--sr-primary); border:1px solid var(--sr-primary); }
+  .sr-btn-flat { background:transparent; color:var(--sr-primary); }
+  .sr-btn-negative { background:#fff; color:var(--sr-negative); border:1px solid var(--sr-negative); }
+  .sr-btn-negative-solid { background:var(--sr-negative); color:#fff; }
+  .sr-btn-disabled { background:#e2e8f0; color:#94a3b8; cursor:not-allowed; }
+  .sr-chip { display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:4px 12px; font-size:12px; font-weight:500; background:rgba(37,99,235,.08); color:var(--sr-fg-1); }
+  .sr-chip.active { background:var(--sr-primary); color:#fff; }
+  .sr-chip.outline { background:#fff; border:1px solid var(--sr-primary); color:var(--sr-primary); }
+  .sr-input { font:inherit; font-size:14px; padding:10px 12px; border-radius:12px; border:1px solid #cbd5e1; background:#fff; width:100%; box-sizing:border-box; }
+  .sr-input:focus { outline:none; border-color:var(--sr-primary); box-shadow:0 0 0 3px rgba(29,78,216,.12); }
+  .sr-input-label { display:block; font-size:12px; color:var(--sr-fg-2); margin-bottom:4px; font-weight:500; }
+  .card-surface { background:#fff; border-radius:18px; box-shadow:var(--sr-shadow-subtle); padding:18px; }
+  table { border-collapse:collapse; width:100%; font-size:13px; }
+  th { text-align:left; font-weight:500; color:var(--sr-fg-2); font-size:11px; letter-spacing:.04em; text-transform:uppercase; padding:8px 10px; border-bottom:1px solid var(--sr-divider); }
+  td { padding:10px; border-bottom:1px solid var(--sr-divider); font-variant-numeric:tabular-nums; }
+  tr:hover td { background:var(--sr-surface-subtle); }
+</style></head><body>
+<div class="grid" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr;">
+  <div class="swatch" style="background:var(--sr-page); color:#0F172A;"><div class="name">page</div><div class="use">App background</div><div class="hex">#F5F7FB</div></div>
+  <div class="swatch" style="background:var(--sr-surface); color:#0F172A; border:1px solid var(--sr-divider);"><div class="name">surface</div><div class="use">Cards, tables</div><div class="hex">#FFFFFF</div></div>
+  <div class="swatch" style="background:var(--sr-surface-subtle); color:#0F172A;"><div class="name">surface-subtle</div><div class="use">Hover / selected</div><div class="hex">#EEF2FF</div></div>
+  <div class="swatch" style="background:var(--sr-divider); color:#0F172A;"><div class="name">divider</div><div class="use">Row separators</div><div class="hex">#E2E8F0</div></div>
+  <div class="swatch" style="background:var(--sr-fg-1); color:#fff;"><div class="name">fg-1</div><div class="use">Body text</div><div class="hex">#0F172A</div></div>
+</div></body></html>

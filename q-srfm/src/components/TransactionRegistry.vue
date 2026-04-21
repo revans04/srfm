@@ -11,7 +11,7 @@
           emit-value
           map-options
           label="Select Statement"
-          variant="outlined"
+          outlined
         ></q-select>
       </div>
       <div class="col col-auto">
@@ -38,7 +38,7 @@
             <span
               :class="{
                 'text-positive': currentBalance === latestTransactionBalance,
-                'text-negative': currentBalance !== latestTransactionBalance,
+                'text-warning': currentBalance !== latestTransactionBalance,
               }"
             >
               {{ formatCurrency(currentBalance) }}
@@ -78,7 +78,7 @@
               emit-value
               map-options
               placeholder="Account"
-              variant="outlined"
+              outlined
               clearable
               @update:modelValue="loadTransactions"
             ></q-select>
@@ -86,19 +86,19 @@
           <div class="col col-12 col-md-4">
             <q-input
               append-inner-icon="search"
-              density="compact"
+              dense
               label="Search"
-              variant="outlined"
+              outlined
               single-line
               v-model="search"
               @input="applyFilters"
             ></q-input>
           </div>
           <div class="col col-auto">
-            <q-checkbox v-model="filterMatched" label="Show Only Unmatched" density="compact" @input="applyFilters"></q-checkbox>
+            <q-checkbox v-model="filterMatched" label="Show Only Unmatched" dense @input="applyFilters"></q-checkbox>
           </div>
-          <div class="col col-auto d-flex align-center">
-            <q-btn color="primary" variant="plain" @click="refreshData" :loading="loading">
+          <div class="col col-auto row items-center">
+            <q-btn color="primary" flat @click="refreshData" :loading="loading">
               <q-icon start name="refresh"></q-icon>
               Refresh
             </q-btn>
@@ -106,13 +106,13 @@
         </div>
         <div class="row">
           <div class="col col-12 col-md-2">
-            <q-input v-model="filterMerchant" label="Merchant" variant="outlined" density="compact" @input="applyFilters"></q-input>
+            <q-input v-model="filterMerchant" label="Merchant" outlined dense @input="applyFilters"></q-input>
           </div>
           <div class="col col-12 col-md-2">
-            <q-input v-model="filterAmount" label="Amount" type="number" variant="outlined" density="compact" @input="applyFilters"></q-input>
+            <q-input v-model="filterAmount" label="Amount" type="number" outlined dense @input="applyFilters"></q-input>
           </div>
           <div class="col col-12 col-md-3">
-            <q-input v-model="filterImportedMerchant" label="Imported Merchant" variant="outlined" density="compact" @input="applyFilters"></q-input>
+            <q-input v-model="filterImportedMerchant" label="Imported Merchant" outlined dense @input="applyFilters"></q-input>
           </div>
           <div class="col col-12 col-md-5">
             <div class="row">
@@ -121,8 +121,8 @@
                   v-model="filterStartDate"
                   label="Start Date"
                   type="date"
-                  variant="outlined"
-                  density="compact"
+                  outlined
+                  dense
                   :clearable="true"
                   @input="applyFilters"
                 ></q-input>
@@ -132,8 +132,8 @@
                   v-model="filterEndDate"
                   label="End Date"
                   type="date"
-                  variant="outlined"
-                  density="compact"
+                  outlined
+                  dense
                   :clearable="true"
                   @input="applyFilters"
                 ></q-input>
@@ -149,7 +149,7 @@
         <div class="row dense">
           <div class="col">Transaction Registry</div>
           <div class="col col-auto">
-            <q-btn variant="plain" @click="downloadCsv" :disabled="displayTransactions.length === 0">
+            <q-btn flat @click="downloadCsv" :disabled="displayTransactions.length === 0">
               <q-icon name="download"></q-icon>
               <q-tooltip activator="parent" location="top">Download CSV</q-tooltip>
             </q-btn>
@@ -206,7 +206,7 @@
       <q-table
         :columns="columns"
         :rows="displayTransactions"
-        class="elevation-1"
+        class="shadow-1"
         :pagination="{ rowsPerPage: 0 }"
         hide-bottom
         selection="multiple"
@@ -234,8 +234,8 @@
         <template #body-cell-actions="{ row }">
           <q-btn
             v-if="row.status === 'C'"
-            density="compact"
-            variant="plain"
+            dense
+            flat
             color="warning"
             @click.stop="confirmAction(row, 'Disconnect')"
             title="Disconnect Transaction"
@@ -244,8 +244,8 @@
           </q-btn>
           <q-btn
             v-if="row.status != 'C' && row.id"
-            density="compact"
-            variant="plain"
+            dense
+            flat
             color="negative"
             @click.stop="confirmAction(row, 'Ignore')"
             title="Ignore Imported Transaction"
@@ -254,8 +254,8 @@
           </q-btn>
           <q-btn
             v-if="row.status != 'C' && row.id"
-            density="compact"
-            variant="plain"
+            dense
+            flat
             color="negative"
             @click.stop="confirmAction(row, 'Delete')"
             title="Delete Imported Transaction"
@@ -281,8 +281,8 @@
         </q-card-section>
         <q-card-actions>
           <q-space></q-space>
-          <q-btn color="grey" variant="text" @click="showActionDialog = false">Cancel</q-btn>
-          <q-btn color="warning" variant="flat" @click="executeAction">{{ transactionAction }}</q-btn>
+          <q-btn color="grey" flat @click="showActionDialog = false">Cancel</q-btn>
+          <q-btn color="warning" flat @click="executeAction">{{ transactionAction }}</q-btn>
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -306,8 +306,8 @@
                   emit-value
                   map-options
                   label="Select Entity"
-                  variant="outlined"
-                  density="compact"
+                  outlined
+                  dense
                   :rules="requiredField"
                 ></q-select>
               </div>
@@ -315,7 +315,7 @@
             <q-list bordered class="q-mt-md">
               <q-item v-for="entry in batchEntries" :key="entry.id">
                 <q-item-section>
-                  <div class="text-caption">{{ entry.date }} - {{ formatCurrency(entry.amount) }}</div>
+                  <div class="text-caption">{{ formatDate(entry.date) }} — {{ formatCurrency(entry.amount) }}</div>
                 </q-item-section>
                 <q-item-section>
                   <q-input v-model="entry.merchant" label="Merchant" dense :rules="requiredField" />
@@ -329,8 +329,8 @@
         </q-card-section>
         <q-card-actions>
           <q-space></q-space>
-          <q-btn color="grey" variant="text" @click="showBatchMatchDialog = false">Cancel</q-btn>
-          <q-btn color="primary" variant="flat" @click="executeBatchMatch" :loading="saving">Match</q-btn>
+          <q-btn color="grey" flat @click="showBatchMatchDialog = false">Cancel</q-btn>
+          <q-btn color="primary" flat @click="executeBatchMatch" :loading="saving">Match</q-btn>
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -345,30 +345,30 @@
           <q-form ref="statementForm">
             <div class="row">
               <div class="col">
-                <q-input v-model="newStatement.startDate" label="Start Date" type="date" variant="outlined" density="compact" :rules="requiredField"></q-input>
+                <q-input v-model="newStatement.startDate" label="Start Date" type="date" outlined dense :rules="requiredField"></q-input>
               </div>
               <div class="col">
                 <q-input
                   v-model.number="newStatement.startingBalance"
                   label="Starting Balance"
                   type="number"
-                  variant="outlined"
-                  density="compact"
+                  outlined
+                  dense
                   :rules="requiredField"
                 ></q-input>
               </div>
             </div>
             <div class="row">
               <div class="col">
-                <q-input v-model="newStatement.endDate" label="End Date" type="date" variant="outlined" density="compact" :rules="requiredField"></q-input>
+                <q-input v-model="newStatement.endDate" label="End Date" type="date" outlined dense :rules="requiredField"></q-input>
               </div>
               <div class="col">
                 <q-input
                   v-model.number="newStatement.endingBalance"
                   label="Ending Balance"
                   type="number"
-                  variant="outlined"
-                  density="compact"
+                  outlined
+                  dense
                   :rules="requiredField"
                 ></q-input>
               </div>
@@ -377,8 +377,8 @@
         </q-card-section>
         <q-card-actions>
           <q-space></q-space>
-          <q-btn color="grey" variant="text" @click="closeStatementDialog">Cancel</q-btn>
-          <q-btn color="primary" variant="flat" @click="saveStatement" :loading="saving">Save</q-btn>
+          <q-btn color="grey" flat @click="closeStatementDialog">Cancel</q-btn>
+          <q-btn color="primary" flat @click="saveStatement" :loading="saving">Save</q-btn>
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -394,8 +394,8 @@
         </q-card-section>
         <q-card-actions>
           <q-space></q-space>
-          <q-btn color="grey" variant="text" @click="showBatchActionDialog = false">Cancel</q-btn>
-          <q-btn color="warning" variant="flat" @click="executeBatchAction" :loading="saving">{{ batchAction }}</q-btn>
+          <q-btn color="grey" flat @click="showBatchActionDialog = false">Cancel</q-btn>
+          <q-btn color="warning" flat @click="executeBatchAction" :loading="saving">{{ batchAction }}</q-btn>
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -424,8 +424,8 @@
                   v-model.number="adjustmentAmount"
                   label="Adjustment Amount"
                   type="number"
-                  variant="outlined"
-                  density="compact"
+                  outlined
+                  dense
                   :rules="adjustmentRules"
                   hint="Positive to increase balance, negative to decrease"
                   persistent-hint
@@ -434,11 +434,11 @@
             </div>
             <div class="row">
               <div class="col">
-                <q-input v-model="adjustmentDate" label="Adjustment Date" type="date" variant="outlined" density="compact" :rules="requiredField"></q-input>
+                <q-input v-model="adjustmentDate" label="Adjustment Date" type="date" outlined dense :rules="requiredField"></q-input>
               </div>
             </div>
             <q-btn type="submit" color="primary" :loading="saving">Save Adjustment</q-btn>
-            <q-btn color="grey" variant="text" @click="closeBalanceAdjustmentDialog" class="q-ml-sm">Cancel</q-btn>
+            <q-btn color="grey" flat @click="closeBalanceAdjustmentDialog" class="q-ml-sm">Cancel</q-btn>
           </q-form>
         </q-card-section>
       </q-card>
@@ -452,22 +452,22 @@
       <q-card-section>
         <p>
           Select transactions to reconcile for
-          {{ selectedStatement.startDate }} - {{ selectedStatement.endDate }}
+          {{ formatDate(selectedStatement.startDate) }} — {{ formatDate(selectedStatement.endDate) }}
         </p>
         <div class="q-mt-lg">
           <p>Starting Balance: {{ formatCurrency(selectedStatement.startingBalance) }}</p>
           <p>Selected Total: {{ formatCurrency(selectedTransactionsTotal) }}</p>
           <p>Calculated Ending Balance: {{ formatCurrency(calculatedEndingBalance) }}</p>
-          <p :class="{ 'text-negative': !reconcileMatches }">Statement Ending Balance: {{ formatCurrency(selectedStatement.endingBalance) }}</p>
-          <q-banner type="warning" v-if="!reconcileMatches" class="q-mt-sm" dense>
+          <p :class="{ 'text-warning': !reconcileMatches }">Statement Ending Balance: {{ formatCurrency(selectedStatement.endingBalance) }}</p>
+          <q-banner v-if="!reconcileMatches" class="bg-warning text-white q-mt-sm" dense>
             Calculated ending balance does not match statement ending balance.
           </q-banner>
         </div>
       </q-card-section>
       <q-card-actions>
         <q-space></q-space>
-        <q-btn color="grey" variant="text" @click="cancelReconcile">Cancel</q-btn>
-        <q-btn color="primary" variant="flat" @click="markStatementReconciled" :loading="saving">Reconcile</q-btn>
+        <q-btn color="grey" flat @click="cancelReconcile">Cancel</q-btn>
+        <q-btn color="primary" flat @click="markStatementReconciled" :loading="saving">Reconcile</q-btn>
       </q-card-actions>
     </q-card>
 
@@ -489,7 +489,7 @@ import { useStatementStore } from '../store/statements';
 import { createBudgetForMonth } from '../utils/budget';
 import { useUIStore } from '../store/ui';
 import type { Transaction, ImportedTransaction, Budget, Account, ImportedTransactionDoc, Statement, StatementFinalizePayload } from '../types';
-import { formatCurrency, todayISO, getImportedTransactionDate } from '../utils/helpers';
+import { formatCurrency, formatDate, todayISO, getImportedTransactionDate } from '../utils/helpers';
 import { splitImportedId } from '../utils/imported';
 import { QForm } from 'quasar';
 import { v4 as uuidv4 } from 'uuid';

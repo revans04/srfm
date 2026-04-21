@@ -1,0 +1,318 @@
+# CLAUDE.md
+
+> This file is auto-loaded by Claude Code and similar coding agents at the start of every chat in this repo. Keep it **skimmable** — bullets, not prose. Deep references live in `AGENTS.md`, `steady_rise_ui_rules.md`, and `docs/design_system.md`.
+
+---
+
+## System Purpose
+
+SRFM (SteadyRise Family Money) is a multi-tenant household finance system — replaces EveryDollar, Mint, Quicken, Excel for families tracking budgets, transactions, accounts, net worth.
+
+Two personas (UI must serve both):
+- **Family budget managers** (majority) — non-experts from EveryDollar/Mint/spreadsheets. Guided, plain-language, mobile-first.
+- **Accountants/bookkeepers** (minority) — power users from Quicken/Excel. Dense data, reconciliation, detailed reporting.
+
+Stack:
+- Backend: .NET 8 + `Npgsql` direct SQL in `/api`. Supabase/Postgres = source of truth. Firebase auth.
+- Frontend: Quasar + Vue 3 + Pinia SPA in `/q-srfm`.
+- Flow: UI → stores/composables → `q-srfm/src/dataAccess.ts` → REST → controllers → services → Postgres.
+
+Migration state is mixed — most domain CRUD is Supabase; auth/email verification still Firestore (`AuthController`); `StatementService` write paths and parts of account import are `NotImplementedException`.
+
+---
+
+## Design System — READ BEFORE TOUCHING UI
+
+The authoritative design system for SRFM lives at **`design-system/`**. Canonical files:
+
+- **`design-system/README.md`** — full brand, content, visual, and iconography foundations.
+- **`design-system/colors_and_type.css`** — CSS custom properties for every token. Matches `q-srfm/src/css/quasar.variables.scss` and `app.scss`.
+- **`design-system/assets/`** — the turtle mascot (full / sm / icon).
+- **`design-system/ui_kits/srfm-app/`** — React/JSX reference mocks for sidebar, Dashboard, Budget, Transactions, Inspector. **Reference only** — Quasar is Vue; do not import.
+- **`design-system/preview/`** — small standalone HTML cards documenting the system (colors, type, spacing, buttons, chips, etc.). Open directly for a visual reference.
+- **`design-system/SKILL.md`** — agent-invokable skill entrypoint (`srfm-design`).
+
+Long-form v0.1 rules (typography scale, ledger appendix, form/modal standards) live in **`steady_rise_ui_rules.md`**. Team-facing implementation standard in **`docs/design_system.md`**.
+
+### Mode — pick one per page
+
+- **Coaching** (comfortable density, encouraging): Dashboard, Budget, Goals.
+- **Auditing** (compact, precise): Transactions, Registers, Account Register.
+- Never mix modes inside one page.
+
+### The rules that most often get violated
+
+1. **Color = state, not style.** `$primary` (`#2563EB`) for interactive elements only. Neutrals carry ~90% of the UI.
+2. **`$warning` (`#E65100`) is "over budget" and "needs attention." `$negative` (`#DC2626`) is destructive + error only.** Never use red for over-budget.
+3. **Dates display as `mm/dd/yyyy`.** Storage stays ISO `YYYY-MM-DD` for sortability; convert at the input/display boundary.
+4. **Cards summarize, tables audit.** Never wrap a ledger/register in a decorative card.
+5. **Tabular numerals on every numeric column.** Right-aligned.
+6. **Icons: Google Material only, by name.** No inline SVG, no emoji in chrome.
+7. **Inter only.** One type scale. 14px body min on desktop; 16px on mobile viewports (prevents iOS zoom-on-focus).
+8. **Spacing is 4 / 8 / 12 / 16 / 24 / 32 only.** Map to Quasar `q-pa-*` / `q-ma-*`. Arbitrary values are rejected.
+9. **Dialogs are last resort; prefer inspector drawer on desktop, full-screen dialog on mobile.**
+10. **One primary action per surface.** Secondaries = outline / flat. Destructive = separated, always confirmed.
+
+### Token reference
+
+| Token | Hex | Usage |
+|-------|-----|-------|
+| `primary` | `#2563EB` | Primary actions, links, active states |
+| `secondary` | `#0F766E` | Rare secondary emphasis |
+| `accent` | `#6366F1` | Very limited highlights |
+| `positive` | `#16A34A` | Income received, completed goals |
+| `warning` | `#E65100` | Over budget, needs attention |
+| `negative` | `#DC2626` | Destructive, error |
+| `info` | `#0284C7` | Informational messaging |
+| `grey-1` | `#F8FAFC` | Page background |
+| `grey-3` | `#E2E8F0` | Borders / dividers |
+| `grey-7` | `#475569` | Muted text |
+| `grey-9` | `#0F172A` | Primary text |
+
+Reference by token name (`color="primary"`, `text-warning`, `--color-surface-card`) — never hard-code hex.
+
+### Before you commit UI changes
+
+Grep for these — they indicate regressions against the system:
+
+```bash
+rg "text-negative"                 q-srfm/src/   # should only appear on destructive/error, not "over budget"
+rg 'mask="####-##-##"'             q-srfm/src/   # old ISO date mask — replace with ##/##/####
+rg "#F59E0B|#f59e0b"               q-srfm/src/   # old warning hex — should be #E65100
+rg "🎉|Great job|All good"         q-srfm/src/   # celebration copy — violates "calm, not cheerleading"
+```
+
+### When adding a new page or component
+
+1. Pick the **mode**: Coaching or Auditing. Never mix inside one page.
+2. Commit to existing primitives in `q-srfm/src/components/` before adding new ones.
+3. Use tokens (`color="primary"`, `text-warning`, `--color-surface-card`) — never hard-code hex.
+4. Verify at **375px viewport** before calling it done. 44×44px tap targets. Responsive table pattern (card view or scroll with affordance) — never just column truncation.
+5. Every accounting term (Cleared / Reconciled / Uncleared / Budget Register / Account Register) must ship with a `q-tooltip`. See README "Tooltips — the knowledge bridge" for fixed copy.
+
+### Mobile-first requirements
+
+- Mobile is ~50% of usage — primarily on-the-go transaction entry. Users from EveryDollar/Mint expect a polished mobile-native experience.
+- Evaluate every UI change at **375–430px** before considering it complete.
+- 44×44px tap targets. Correct input types (`number`, `date`, `tel`).
+- Prefer bottom sheets or full-screen modals over inline panels on mobile.
+- Base font ≥ 16px on mobile (iOS auto-zoom prevention).
+- No `user-scalable=no` / `maximum-scale=1` in viewport meta (WCAG 2.1 AA violation).
+- Sidebar drawer must **not** auto-open on mobile navigation — known critical bug. Bottom tab bar is primary mobile nav.
+- Tables use responsive patterns (card views, expandable rows, scroll with affordance) — never column truncation alone.
+
+### UX and terminology
+
+- Accounting terms (Reconciled, Cleared, Uncleared, Budget Register, Account Register) ship with `q-tooltip`. **Labels remain unchanged; tooltips bridge the gap.**
+- Empty states always include guidance and actionable next steps — never just "No data."
+- Destructive actions require a confirmation dialog that names the affected item and states the impact. Use `color="negative"`, never plain text links or unlabeled icons.
+- Budget page unmatched-transaction trash icons perform **soft delete** (restorable from "Deleted" tab). Style muted/outlined + tooltip explaining restore.
+- All write operations provide visible success feedback via `$q.notify`.
+- Page titles are semantic `h1`. Maintain heading hierarchy.
+- Transactions page has no subtitle.
+- Default post-login landing is the **Budget page**, not Dashboard.
+
+### Onboarding
+
+- `SetupWizardPage` handles initial family → entities → accounts. **Do not expand** it with budget/goal steps.
+- Instead, implement a **guided tour system**: auto-triggered contextual prompts + persistent "Getting Started" checklist (sidebar/settings).
+- `SetupWizardPage` is Vuetify-era and must migrate to Quasar-native styling before feature expansion.
+
+---
+
+## Core Invariants (Must Not Be Broken)
+
+- Firebase Bearer token is the auth primitive. `AuthorizeFirebase` populates `HttpContext.Items["UserId"]` and `HttpContext.Items["Email"]`.
+- `family_members` membership is the primary authorization relation for family-scoped resources.
+- Budget carryover applies only to `BudgetCategory.IsFund == true` and clamps negative to zero.
+- Every persisted transaction has ≥ 1 category split (`Income` / `Uncategorized` fallback). Transaction category rows are replaced on write.
+- `entity_id` is a first-class partition key for budgets/goals; stay consistent on merge/derive.
+- Goal-linked budget categories are hidden from regular budget/category queries via `goals_budget_categories` exclusion in `BudgetService.LoadBudgetDetails`.
+- Account enums: `Bank / CreditCard / Investment / Property / Loan`, `Asset / Liability`. Keep frontend aligned with API/DB.
+- Month ordering is lexicographic `YYYY-MM`.
+
+---
+
+## Data & State Ownership
+
+**Server = source of truth.** Supabase/Postgres: `families`, `family_members`, `entities`, `budgets`, `budget_groups`, `budget_categories`, `transactions`, `transaction_categories`, `goals`, `goals_budget_categories`, `accounts`, `snapshots`, `imported_*`. Firestore remains source for auth verification metadata in `AuthController`.
+
+**Group taxonomy is entity-scoped.** Every category group lives in `budget_groups (entity_id, name UNIQUE, sort_order, kind)` with `kind IN ('income','expense','savings')`. `budget_categories.group_id` FKs to it; `budget_categories.sort_order` orders within a group. Renaming/reordering applies to every month automatically. **Income detection uses `kind === 'income'`, never string equality on group name.** Helpers in `q-srfm/src/utils/groups.ts`: `isIncomeCategory`, `categoryGroupKind`, `categoryGroupName`.
+
+**Client:**
+- `useBudgetStore` owns in-memory budget cache by `budgetId` — intentionally **not** persisted (localStorage quota).
+- `useFamilyStore` owns current family + `selectedEntityId`. Most pages assume it's set.
+- `dataAccess` normalizes shapes before state enters stores.
+- `store/entities.ts` duplicates the family store and is unused — don't add references.
+
+---
+
+## API Contracts
+
+- Protected endpoints: `Authorization: Bearer <Firebase ID Token>`.
+- IDs mostly UUIDs; some API fields use strings (`budget.id`).
+- `src/dataAccess.ts` is the single contract surface — all API changes flow through it first.
+
+Known drift (preserve awareness, don't paper over):
+- Frontend calls `POST /api/statements/finalize`; no matching controller route.
+- `StatementService` write/unreconcile are `NotImplementedException`.
+- `AcceptInvitePage` links to `/signup`; router has no `/signup` route.
+
+Validation assumptions:
+- Some controllers enforce explicit validation (account enums, statement ID match, merge preconditions).
+- Others rely on service/DB failures for invalid IDs (`Guid.Parse`).
+- Don't silently broaden enum/domain values without DB/schema changes.
+
+---
+
+## Security Model
+
+- Client → API: Firebase ID token.
+- API → Postgres: connection string secret.
+- API → Brevo/Stripe/Plaid: configured secrets.
+- `[AuthorizeFirebase]` + resource-level checks (membership/owner) on most sensitive controllers.
+- Family owner-only ops: `FamilyController` compares `family.OwnerUid` with authenticated `uid`.
+
+Known gaps (do not replicate):
+- `BudgetController.GetBudget` does not verify caller access to the requested budget.
+- `GoalController` accepts `entityId` without membership check.
+- `AuthorizeFirebaseAttribute` reads email claim without null guards — malformed tokens can throw.
+- CORS origins are hardcoded allowlist in `Program.cs`.
+- `UseAuthorization()` runs without ASP.NET auth scheme middleware — security relies on the custom filter.
+
+---
+
+## Concurrency & Side Effects
+
+- Handlers are async and mostly stateless.
+- `BudgetService` uses `SemaphoreSlim` to memoize existence check for `budget_edit_history`.
+- `SupabaseLogger` serializes DB log writes with a static lock.
+- `SaveBudget` upsert runs in a DB transaction; transaction rows may persist afterward via separate calls.
+- Batch transaction saves use `NpgsqlBatch` + transaction.
+- Carryover recalc reads sequential budgets and writes in a transaction.
+- Reconciliation updates imported + budget transactions in separate statements without a wrapping DB transaction — eventually consistent within the request.
+- Invite email send is compensating — pending invite is deleted on send failure.
+- Writes are upsert-by-ID; callers usually generate IDs client-side (UUID).
+
+---
+
+## Extension Guidelines
+
+**Adding a feature:**
+- Backend: controller endpoint → matching service → parameterized SQL via `NpgsqlCommand`.
+- Frontend: method in `src/dataAccess.ts` first → wire store/composable/page.
+- Prefer existing `family_id` / `entity_id` / membership-check patterns.
+
+**UI changes (governance):**
+- `design-system/` + `docs/design_system.md` are authoritative. Markers in `docs/design_system.md`:
+  - `[ENFORCED]` — mandatory, no exceptions without explicit human approval.
+  - `[SUGGESTED]` — preferred default; deviations must be intentional and justified.
+  - `[ASSUMPTION/UNCLEAR]` — don't guess silently; call out and request clarification.
+- Reuse Quasar primitives + existing SRFM components before creating new ones.
+- Tokenized styling only — no hard-coded hex, no arbitrary spacing when tokens cover the use case.
+- Preserve accessibility minimums (contrast, keyboard operation, dialog behavior, semantic labels, reduced motion).
+- When touching legacy inconsistent code, move toward canonical direction — don't extend legacy patterns.
+- New token / variant / theming mode requires updating `design-system/` (and `docs/design_system.md`) in the same change.
+
+**Modifying existing logic:**
+- Preserve `YYYY-MM` month strings and carryover semantics.
+- Preserve goal-bound category exclusion.
+- Never persist a split-less transaction.
+- Keep optimistic store updates synchronized with API responses.
+
+**Dependencies:**
+- API: direct SDK usage + lightweight services — no heavy ORMs without a migration plan.
+- Frontend: keep `fetch` in `dataAccess` — no second HTTP client.
+
+**Naming / conventions:**
+- Backend: `*Controller`, `*Service`, PascalCase DTOs.
+- Frontend: `useXStore`, `useX` composables, types in `src/types.ts`.
+- API returns `BadRequest` for operation failures + logs details.
+- Frontend throws on non-OK; pages surface messages.
+
+---
+
+## Anti-Patterns to Avoid
+
+- Bypassing `family_members` / owner checks for new family-scoped endpoints.
+- UI components calling `fetch` directly instead of extending `dataAccess`.
+- Persisting large budget datasets to localStorage.
+- Mixing entity-scoped and non-entity-scoped data in one query without explicit `entity_id` logic.
+- Non-transactional multi-table writes in hot paths where existing code expects atomic behavior.
+- Creating parallel store implementations for the same domain (existing duplication is already a risk).
+- Ignoring design-system tokens; inline styles, direct hex values, arbitrary spacing/radius.
+- Mixing Vuetify-era classes/APIs into Quasar components.
+- **Extending the transfer-as-income pattern.** Recording an income-like transaction in a destination category to represent a fund/goal draw is a known defect that nets category spending to zero in reports. A first-class transfer transaction type is the intended fix — do not replicate the workaround.
+- Desktop-only UI. Any new page, dialog, or form must be usable at 375px without horizontal scroll or broken tap targets.
+- `user-scalable=no` / `maximum-scale=1` in viewport meta (WCAG violation).
+- Empty states without actionable guidance; error states while data is still loading.
+- Destructive actions as plain text links or small unlabeled icons.
+- Placeholder-only form labels that disappear on focus.
+- Base font below 16px on mobile viewports.
+- Sidebar drawer auto-opening on mobile page navigation.
+- Accounting terminology without accompanying tooltips or plain-language help.
+- Celebration copy (`🎉`, "Great job", "All good") — violates "calm, not cheerleading."
+
+---
+
+## Testing Expectations
+
+Baseline:
+- Frontend: Node-based TS tests in `q-srfm/tests/transactions.test.ts` (duplicate/date-window helpers, budget month sorting).
+- Backend: no meaningful automated tests.
+
+Minimum for new changes:
+- Unit tests for pure logic in composables/utils (reconciliation matching, carryover math, sorting/filtering).
+- API behavior changes: targeted endpoint checks + negative authorization cases.
+- Contract changes: verify API endpoint and `dataAccess` caller paths together.
+
+Unclear: no established integration-test harness, no CI-enforced gates visible in repo.
+
+---
+
+## Change Risk Map
+
+**High-risk zones:**
+- `api/Services/BudgetService.cs` — central financial state, carryover propagation, reconciliation, import updates.
+- `api/Controllers/FamilyController.cs` + `api/Services/FamilyService.cs` — tenancy and ownership boundaries.
+- `api/Filters/AuthorizeFirebaseAttribute.cs` — auth context foundation for most protected routes.
+- `q-srfm/src/dataAccess.ts` — single frontend contract adapter; drift breaks multiple pages.
+- `q-srfm/src/pages/TransactionsPage.vue` + `q-srfm/src/components/TransactionRegistry.vue` — reconciliation workflows depend on interrelated assumptions.
+
+**Migration-sensitive:**
+- Firestore/Supabase seam in `AuthController` + Firebase profile setup.
+- Statement/account import paths with `NotImplementedException`.
+- Feature-flagged optional tables (`budget_edit_history`, `goals_budget_categories`).
+- `BudgetService.EnsureGroupAsync(conn, tx, entityId, name, kind)` — canonical inline upsert for a group by name within an entity. Callers can persist a `BudgetCategory` carrying only `groupName`; backend resolves/creates.
+- `q-srfm/src/pages/SetupWizardPage.vue` — Vuetify-era CSS; migrate before expanding.
+
+**Known UI/UX violations requiring remediation (March 2026 review):**
+- Viewport meta `user-scalable=no` / `maximum-scale=1` — WCAG, one-line fix.
+- Sidebar auto-open on mobile navigation — critical bug in `MainLayout.vue`.
+- 14px base font on mobile — needs 16px minimum.
+- Missing heading hierarchy (Dashboard H4 only, no H1) across all pages.
+- Transactions + Accounts pages — tables not responsive on mobile.
+- Bottom tab bar missing Reports, Data Mgmt, Settings.
+- Accounts — no delete confirmation.
+- Data Mgmt — loading race renders error before fetch completes.
+
+**Cross-system contracts:**
+- DTO shapes in `api/Models/*` → frontend TS types and data mappers.
+- Route names + payload shapes in `BudgetController`, `FamilyController`, `AccountController`, `GoalController`.
+
+---
+
+## Agent Skill
+
+If you support Skills, invoke `srfm-design` (declared in `design-system/SKILL.md`). It pulls the README, tokens, and UI kit into context so you don't have to re-learn the system each turn.
+
+---
+
+## See Also
+
+- **`AGENTS.md`** — longer-form architecture, invariants, security model, extension rules (source for this file's non-UI sections).
+- **`steady_rise_ui_rules.md`** — v0.1 deep UI rules: typography scale, ledger appendix, form/modal standards, buttons/actions detail.
+- **`design-system/`** — canonical brand, tokens, iconography, and UI-kit reference.
+- **`docs/design_system.md`** — team-facing implementation standard; complements `design-system/`.
+- **`UI_UX_Review_SteadyRise.md`** — March 2026 review findings driving current remediation items.
+- **`README.md`** — local dev + deployment.

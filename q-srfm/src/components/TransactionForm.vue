@@ -124,7 +124,7 @@
             input-debounce="0"
             @filter="onTransferDestFilter"
           />
-          <q-banner v-if="transferSource && transferDest && transferSource === transferDest" type="negative">
+          <q-banner v-if="transferSource && transferDest && transferSource === transferDest" class="bg-negative text-white">
             Source and destination must be different categories.
           </q-banner>
         </div>
@@ -196,7 +196,12 @@
       </div>
 
       <div class="transaction-form__field" v-if="availableMonths.length === 0">
-        <q-banner type="warning" class="q-ma-none">No budgets available. Please create a budget in the Dashboard.</q-banner>
+        <q-banner class="bg-warning text-white q-ma-none">
+          No budgets available.
+          <template #action>
+            <q-btn flat color="white" label="Go to Dashboard" to="/dashboard" />
+          </template>
+        </q-banner>
       </div>
 
       <div v-if="transactionMode !== 'transfer'" class="transaction-form__field">
@@ -269,7 +274,7 @@
           <q-input v-model="locTrnsx.status" label="Status" stack-label dense borderless readonly />
         </div>
         <div class="transaction-form__field q-pt-none">
-          <q-btn variant="text" color="warning" :loading="isLoading" @click="resetMatch">Reset Match</q-btn>
+          <q-btn flat color="warning" :loading="isLoading" @click="resetMatch">Reset Match</q-btn>
         </div>
       </div>
     </q-form>
@@ -618,7 +623,7 @@ async function resetMatch() {
       emit('save', savedTransaction);
       showSnackbar('Transaction match reset successfully', 'success');
     } else {
-      showSnackbar('Could not reset match, Budget does not exist!', 'negative');
+      showSnackbar('Could not reset match — budget does not exist.', 'negative');
     }
   } catch (error: unknown) {
     const err = error as Error;
@@ -789,7 +794,7 @@ async function save() {
           promptRecurringPropagation(savedTransaction);
         }
       } else {
-        showSnackbar('Could not save Transaction, Budget does not exist!', 'negative');
+        showSnackbar('Could not save transaction — budget does not exist.', 'negative');
       }
     } catch (error: unknown) {
       const err = error as Error;

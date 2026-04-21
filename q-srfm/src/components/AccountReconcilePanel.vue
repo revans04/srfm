@@ -19,7 +19,7 @@
             />
           </div>
           <div class="col-6 col-md-2">
-            <q-input v-model="startDate" dense outlined label="Start Date" mask="####-##-##">
+            <q-input v-model="startDateInput" dense outlined label="Start Date" mask="##/##/####" placeholder="mm/dd/yyyy">
               <template #append>
                 <q-icon name="event" class="cursor-pointer">
                   <q-popup-proxy transition-show="scale" transition-hide="scale">
@@ -30,7 +30,7 @@
             </q-input>
           </div>
           <div class="col-6 col-md-2">
-            <q-input v-model="endDate" dense outlined label="End Date" mask="####-##-##">
+            <q-input v-model="endDateInput" dense outlined label="End Date" mask="##/##/####" placeholder="mm/dd/yyyy">
               <template #append>
                 <q-icon name="event" class="cursor-pointer">
                   <q-popup-proxy transition-show="scale" transition-hide="scale">
@@ -150,6 +150,26 @@ const selectedAccountId = ref<string>('');
 const accountSearch = ref('');
 const startDate = ref('');
 const endDate = ref('');
+
+// Dates are stored ISO (YYYY-MM-DD) for lexicographic compare + API payload;
+// displayed as mm/dd/yyyy per design system. See docs/design_system.md.
+function makeDateDisplayRef(getIso: () => string, setIso: (v: string) => void) {
+  return computed<string>({
+    get() {
+      const iso = getIso();
+      if (!iso) return '';
+      const [yyyy, mm, dd] = iso.split('-');
+      return yyyy && mm && dd ? `${mm}/${dd}/${yyyy}` : '';
+    },
+    set(v: string) {
+      if (!v || v.length < 10) { setIso(''); return; }
+      const [mm, dd, yyyy] = v.split('/');
+      if (mm && dd && yyyy && yyyy.length === 4) setIso(`${yyyy}-${mm}-${dd}`);
+    },
+  });
+}
+const startDateInput = makeDateDisplayRef(() => startDate.value, (v) => { startDate.value = v; });
+const endDateInput = makeDateDisplayRef(() => endDate.value, (v) => { endDate.value = v; });
 const beginningBalanceInput = ref('0');
 const targetEndingInput = ref('0');
 const selectedIds = ref<string[]>([]);
@@ -352,9 +372,9 @@ function resetSelectionIfNeeded() {
 
 function formatDisplayDate(iso: string): string {
   if (!iso) return '';
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  const [yyyy, mm, dd] = iso.slice(0, 10).split('-');
+  if (!yyyy || !mm || !dd) return iso;
+  return `${mm}/${dd}/${yyyy}`;
 }
 
 async function finalize() {

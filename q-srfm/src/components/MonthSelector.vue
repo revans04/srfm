@@ -15,13 +15,17 @@
     <q-card class="month-selector-menu">
       <div class="row items-center q-px-sm q-py-xs border-bottom">
         <div class="col-auto">
-          <q-btn flat dense icon="chevron_left" @click.stop="shiftMonths(-6)" />
+          <q-btn flat dense icon="chevron_left" @click.stop="shiftMonths(-6)">
+            <q-tooltip>Previous 6 months</q-tooltip>
+          </q-btn>
         </div>
         <div class="col text-center text-caption text-grey-7">
           {{ displayYear }}
         </div>
         <div class="col-auto">
-          <q-btn flat dense icon="chevron_right" @click.stop="shiftMonths(6)" />
+          <q-btn flat dense icon="chevron_right" @click.stop="shiftMonths(6)">
+            <q-tooltip>Next 6 months</q-tooltip>
+          </q-btn>
         </div>
       </div>
       <div class="month-grid">

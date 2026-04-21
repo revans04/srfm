@@ -10,7 +10,7 @@
     <!-- Loading handled via $q.loading -->
 
     <!-- Family Prompt -->
-    <q-banner v-if="!familyId" type="warning" class="q-mb-lg"> Please create or join a family to manage accounts. </q-banner>
+    <q-banner v-if="!familyId" class="bg-warning text-white q-mb-lg"> Please create or join a family to manage accounts. </q-banner>
 
     <!-- Tabs -->
     <div v-else>
@@ -87,7 +87,7 @@
               <q-table
                 :columns="snapshotColumns"
                 :rows="snapshotsWithSelection"
-                class="elevation-1"
+                class="shadow-1"
                 v-model:pagination="snapshotPagination"
                 row-key="id"
                 @row-click="viewSnapshotDetails"
@@ -114,12 +114,15 @@
                 </template>
                 <template #body-cell-actions="props">
                   <q-td :props="props">
-                    <q-btn flat dense color="negative" icon="delete_outline" @click.stop="confirmDeleteSnapshot(props.row.id)" />
+                    <q-btn flat dense color="negative" icon="delete_outline" @click.stop="confirmDeleteSnapshot(props.row.id)">
+                      <q-tooltip>Delete snapshot</q-tooltip>
+                    </q-btn>
                   </q-td>
                 </template>
               </q-table>
-              <div class="q-mt-lg">
-                <p>Net worth trend chart coming soon!</p>
+              <div class="q-mt-lg text-body2 text-grey-7">
+                Looking for the trend chart?
+                <router-link to="/reports" class="text-primary">See Net Worth on Reports →</router-link>
               </div>
             </q-card-section>
           </q-card>
@@ -149,7 +152,7 @@
         <q-card-section>Capture Net Worth Snapshot</q-card-section>
         <q-card-section>
           <q-form @submit.prevent="saveSnapshot">
-            <q-input v-model="newSnapshot.date" label="Snapshot Date" type="date" variant="outlined" density="compact" required></q-input>
+            <q-input v-model="newSnapshot.date" label="Snapshot Date" type="date" outlined dense required></q-input>
             <q-table :columns="snapshotAccountColumns" :rows="newSnapshot.accounts" hide-bottom :pagination="{ rowsPerPage: 100 }">
               <template #body-cell-name="props">
                 <q-td :props="props">
@@ -174,7 +177,7 @@
               </template>
             </q-table>
             <q-btn type="submit" color="primary" :loading="saving" class="q-mt-lg"> Save Snapshot </q-btn>
-            <q-btn color="grey" variant="text" @click="showSnapshotDialog = false" class="q-ml-sm"> Cancel </q-btn>
+            <q-btn color="grey" flat @click="showSnapshotDialog = false" class="q-ml-sm"> Cancel </q-btn>
           </q-form>
         </q-card-section>
       </q-card>
@@ -207,8 +210,8 @@
         <q-card-section class="q-pt-lg"> Are you sure you want to delete this snapshot? </q-card-section>
         <q-card-actions>
           <q-space></q-space>
-          <q-btn color="grey" variant="text" @click="showDeleteSnapshotDialog = false"> Cancel </q-btn>
-          <q-btn color="negative" variant="flat" @click="executeDeleteSnapshot"> Delete </q-btn>
+          <q-btn color="grey" flat @click="showDeleteSnapshotDialog = false"> Cancel </q-btn>
+          <q-btn color="negative" flat @click="executeDeleteSnapshot"> Delete </q-btn>
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -222,8 +225,8 @@
         <q-card-section class="q-pt-lg"> Are you sure you want to delete {{ selectedSnapshots.length }} selected snapshot(s)? </q-card-section>
         <q-card-actions>
           <q-space></q-space>
-          <q-btn color="grey" variant="text" @click="showBatchDeleteSnapshotDialog = false"> Cancel </q-btn>
-          <q-btn color="negative" variant="flat" @click="executeBatchDeleteSnapshots"> Delete </q-btn>
+          <q-btn color="grey" flat @click="showBatchDeleteSnapshotDialog = false"> Cancel </q-btn>
+          <q-btn color="negative" flat @click="executeBatchDeleteSnapshots"> Delete </q-btn>
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -245,7 +248,7 @@
           </div>
         </q-card-section>
         <q-card-actions class="justify-end">
-          <q-btn color="primary" variant="text" @click="showSnapshotDetailsDialog = false">Close</q-btn>
+          <q-btn color="primary" flat @click="showSnapshotDetailsDialog = false">Close</q-btn>
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -261,7 +264,7 @@
         </q-card-section>
         <q-card-actions>
           <q-space></q-space>
-          <q-btn color="grey" variant="text" @click="showUpdateBudgetTransactionsDialog = false"> No </q-btn>
+          <q-btn color="grey" flat @click="showUpdateBudgetTransactionsDialog = false"> No </q-btn>
           <q-btn color="primary" @click="confirmUpdateBudgetTransactions"> Yes </q-btn>
         </q-card-actions>
       </q-card>

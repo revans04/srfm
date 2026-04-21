@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440">
+<title>Steady Rise — App UI Kit</title>
+<link rel="icon" href="../../assets/logo-icon.png">
+<link rel="stylesheet" href="../../colors_and_type.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: var(--sr-page); color: var(--sr-fg-1); font-family: var(--sr-font-sans); }
+  * { box-sizing: border-box; }
+  button { font-family: inherit; }
+  .material-icons { font-family: 'Material Icons'; font-style: normal; font-weight: normal; display: inline-block; line-height: 1; vertical-align: middle; user-select: none; }
+  @keyframes srFade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes srSlideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  a { color: inherit; }
+</style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="Primitives.jsx"></script>
+<script type="text/babel" src="AppShell.jsx"></script>
+<script type="text/babel" src="DashboardPage.jsx"></script>
+<script type="text/babel" src="BudgetPage.jsx"></script>
+<script type="text/babel" src="TransactionsPage.jsx"></script>
+<script type="text/babel" src="Inspector.jsx"></script>
+
+<script type="text/babel">
+function EmptyPage({ title, caption }) {
+  return (
+    <div style={{ padding: '28px 40px', maxWidth: 1200, margin: '0 auto' }}>
+      <h1 style={{ margin: '0 0 10px', fontSize: 28, fontWeight: 700, letterSpacing: '-0.015em' }}>{title}</h1>
+      <div style={{
+        background: '#fff', borderRadius: 18, padding: 40, marginTop: 20,
+        boxShadow: 'var(--sr-shadow-subtle)', textAlign: 'center', color: 'var(--sr-fg-3)',
+      }}>
+        <Icon name="construction" size={28} color="var(--sr-fg-3)" />
+        <div style={{ marginTop: 10, fontSize: 14 }}>{caption || 'This page is not part of the kit — see the live app for the full implementation.'}</div>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [nav, setNav] = React.useState(() => {
+    try { return localStorage.getItem('srfm-kit-nav') || 'transactions'; } catch { return 'transactions'; }
+  });
+  const [inspectorTxn, setInspectorTxn] = React.useState(null);
+
+  React.useEffect(() => { try { localStorage.setItem('srfm-kit-nav', nav); } catch {} }, [nav]);
+
+  const onNavigate = (key) => { setNav(key); setInspectorTxn(null); };
+
+  let page;
+  if (nav === 'dashboard') page = <DashboardPage />;
+  else if (nav === 'budget') page = <BudgetPage />;
+  else if (nav === 'transactions') page = (
+    <TransactionsPage
+      selectedId={inspectorTxn?.id}
+      onSelect={setInspectorTxn}
+    />
+  );
+  else page = <EmptyPage title={{
+    accounts: 'Accounts', reports: 'Reports', data: 'Data Mgmt', settings: 'Settings',
+  }[nav] || 'Page'} />;
+
+  return (
+    <>
+      <AppShell active={nav} onNavigate={onNavigate}>{page}</AppShell>
+      {inspectorTxn && <Inspector txn={inspectorTxn} onClose={() => setInspectorTxn(null)} />}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

@@ -29,6 +29,7 @@
 
     <!-- Main Content -->
     <div v-else>
+      <h1 class="page-title q-mb-sm">Budget</h1>
       <GuidedTip tip-id="budget-page">
         This is your monthly budget. Set planned amounts for each category and track actual spending.
       </GuidedTip>
@@ -43,15 +44,36 @@
             </div>
           </div>
           <div class="row items-center q-gutter-xs">
-            <q-btn v-if="!isEditing" unelevated no-caps class="btn-edit" @click="isEditing = true">
-              <q-icon name="edit" size="14px" class="q-mr-xs" />Edit
-            </q-btn>
-            <q-btn v-else unelevated no-caps class="btn-edit" @click="isEditing = false">
-              <q-icon name="close" size="14px" class="q-mr-xs" />Close
-            </q-btn>
-            <q-btn v-if="!isEditing" unelevated no-caps class="btn-delete" @click="confirmDeleteBudget">
-              <q-icon name="delete_outline" size="14px" class="q-mr-xs" />Delete
-            </q-btn>
+            <q-btn
+              v-if="!isEditing"
+              outline
+              dense
+              no-caps
+              color="primary"
+              icon="edit"
+              label="Edit"
+              @click="isEditing = true"
+            />
+            <q-btn
+              v-else
+              outline
+              dense
+              no-caps
+              color="primary"
+              icon="close"
+              label="Close"
+              @click="isEditing = false"
+            />
+            <q-btn
+              v-if="!isEditing"
+              outline
+              dense
+              no-caps
+              color="negative"
+              icon="delete_outline"
+              label="Delete"
+              @click="confirmDeleteBudget"
+            />
           </div>
         </div>
 
@@ -69,7 +91,7 @@
           <div class="col">
             <div class="budget-stat-card">
               <div class="budget-stat-card__label">Left to Budget</div>
-              <div class="budget-stat-card__value" :class="remainingToBudget >= 0 ? 'text-positive' : 'text-negative'">
+              <div class="budget-stat-card__value" :class="remainingToBudget >= 0 ? 'text-positive' : 'text-warning'">
                 {{ formatCurrency(Math.abs(remainingToBudget)) }}
               </div>
             </div>
@@ -109,8 +131,10 @@
         </q-input>
       </section>
 
-      <q-page-sticky v-if="!isMobile" position="bottom-right" :offset="[24, 24]" style="z-index: 1000">
-        <q-btn round color="primary" icon="add" @click="addTransaction" />
+      <q-page-sticky v-if="!isMobile" position="bottom-right" :offset="[24, 24]" class="budget-fab">
+        <q-btn round color="primary" icon="add" @click="addTransaction">
+          <q-tooltip>Add transaction</q-tooltip>
+        </q-btn>
       </q-page-sticky>
 
       <div class="row budget-content-row">
@@ -124,7 +148,7 @@
                 <!-- Merchants Section -->
                 <div class="row q-mt-lg">
                   <div class="col-12">
-                    <h3 class="text-h6">Merchants</h3>
+                    <h3 class="text-h5">Merchants</h3>
                     <q-chip v-for="(merchant, index) in budget.merchants" :key="merchant.name" removable @remove="removeMerchant(index)" class="q-ma-xs">
                       {{ merchant.name }} ({{ merchant.usageCount }})
                     </q-chip>
@@ -143,7 +167,7 @@
                 <!-- Categories Section -->
                 <div class="row q-mt-lg">
                   <div class="col-12">
-                    <h3 class="text-h6">Categories</h3>
+                    <h3 class="text-h5">Categories</h3>
                   </div>
                 </div>
                 <div v-for="(cat, index) in budget.categories" :key="index" class="row items-center q-col-gutter-sm q-mb-sm">
@@ -174,7 +198,9 @@
                     <q-checkbox v-model="cat.isFund" label="Is Fund?" dense />
                   </div>
                   <div class="col-6 col-sm-1 q-pa-xs">
-                    <q-btn flat icon="close" color="negative" @click="removeCategory(index)" />
+                    <q-btn flat icon="close" color="negative" @click="removeCategory(index)">
+                      <q-tooltip>Remove category</q-tooltip>
+                    </q-btn>
                   </div>
                   <div class="col-12 col-sm-6 q-pa-xs">
                     <q-select
@@ -262,7 +288,7 @@
                     </div>
                   </span>
                   <span v-if="!isMobile" class="cat-col-planned cat-amount">{{ formatCurrency(item.target) }}</span>
-                  <span class="cat-col-remaining cat-amount" :class="{ 'text-negative': item.remaining < 0 }">
+                  <span class="cat-col-remaining cat-amount" :class="{ 'text-warning': item.remaining < 0 }">
                     {{ formatCurrency(item.remaining) }}
                   </span>
                 </div>
@@ -396,7 +422,7 @@
                           @blur="saveInlineEdit"
                         />
                       </span>
-                      <span class="cat-col-remaining cat-amount" :class="{ 'text-negative': item.remaining < 0 }">
+                      <span class="cat-col-remaining cat-amount" :class="{ 'text-warning': item.remaining < 0 }">
                         {{ formatCurrency(item.remaining) }}
                       </span>
                     </div>
@@ -406,7 +432,10 @@
             </template>
             <div v-if="groups.length === 0">
               <q-card>
-                <q-card-section>No categories defined for this budget.</q-card-section>
+                <q-card-section class="text-body2 text-grey-7">
+                  No categories defined for this budget.
+                  <q-btn flat dense no-caps color="primary" label="Add categories →" class="q-ml-xs" @click="isEditing = true" />
+                </q-card-section>
               </q-card>
             </div>
           </div>
@@ -2427,6 +2456,10 @@ interface GroupCategory {
   min-height: 100%;
 }
 
+.budget-fab {
+  z-index: 1000;
+}
+
 .budget-page--mobile {
   padding: 12px 8px 32px !important;
 }
@@ -2497,22 +2530,6 @@ interface GroupCategory {
   font-weight: 400;
   color: var(--color-text-muted);
   margin-top: 2px;
-}
-
-.btn-edit {
-  background: #eef2ff !important;
-  color: #1d4ed8 !important;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 6px 16px;
-}
-
-.btn-delete {
-  background: #fce7e7 !important;
-  color: #dc2626 !important;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 6px 16px;
 }
 
 .budget-search :deep(.q-field__control) {
@@ -2726,7 +2743,7 @@ interface GroupCategory {
 }
 
 .cat-progress--partial {
-  background: #f59e0b;
+  background: #1D4ED8;  /* was #f59e0b — progress uses primary while in-flight */
 }
 
 .cat-progress--full {
@@ -2734,7 +2751,7 @@ interface GroupCategory {
 }
 
 .cat-progress--over {
-  background: #dc2626;
+  background: #E65100;  /* was #dc2626 — over-budget is warning, not error */
 }
 
 .budget-tx-toggle :deep(.q-btn-group) {

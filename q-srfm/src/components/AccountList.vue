@@ -29,6 +29,7 @@
             </q-item-section>
             <q-item-section side>
               <q-item-label class="text-weight-bold">{{ formatCurrency(account.balance || 0) }}</q-item-label>
+              <q-item-label caption>Updated {{ formatLastUpdated(account) }}</q-item-label>
             </q-item-section>
           </template>
           <q-card flat>
@@ -85,8 +86,12 @@
         </template>
         <template v-slot:body-cell-actions="props">
           <q-td :props="props">
-            <q-btn flat round dense color="primary" icon="edit" size="sm" @click="$emit('edit', props.row)" :disabled="props.row.userId && props.row.userId !== userId" />
-            <q-btn flat round dense color="negative" icon="delete_outline" size="sm" @click="$emit('delete', props.row.id)" :disabled="props.row.userId && props.row.userId !== userId" />
+            <q-btn flat round dense color="primary" icon="edit" size="sm" @click="$emit('edit', props.row)" :disabled="props.row.userId && props.row.userId !== userId">
+              <q-tooltip>Edit account</q-tooltip>
+            </q-btn>
+            <q-btn flat round dense color="negative" icon="delete_outline" size="sm" @click="$emit('delete', props.row.id)" :disabled="props.row.userId && props.row.userId !== userId">
+              <q-tooltip>Delete account</q-tooltip>
+            </q-btn>
           </q-td>
         </template>
       </q-table>
@@ -102,7 +107,7 @@
 import { computed, defineProps } from 'vue';
 import { useQuasar } from 'quasar';
 import type { Account, ImportedTransaction } from '../types';
-import { formatCurrency } from '../utils/helpers';
+import { formatCurrency, formatTimestamp, timestampToMillis } from '../utils/helpers';
 import { auth } from '../firebase/init';
 
 const $q = useQuasar();
@@ -115,6 +120,48 @@ const props = defineProps<{
 }>();
 
 const userId = computed(() => auth.currentUser?.uid || '');
+
+/**
+ * "Last updated" semantics by account type:
+ *  - Bank / CreditCard: most recent imported transaction date for the account
+ *    (postedDate, falling back to transactionDate). If no imports yet, falls
+ *    back to the account's own `updatedAt`.
+ *  - Investment / Property / Loan: the account's `updatedAt` (the user
+ *    maintains these manually so the record-edit time is the right signal).
+ */
+const lastUpdatedMillisByAccountId = computed<Map<string, number>>(() => {
+  const map = new Map<string, number>();
+  if (props.type === 'Bank' || props.type === 'CreditCard') {
+    for (const tx of props.importedTransactions || []) {
+      if (!tx.accountId || tx.deleted) continue;
+      const dateStr = tx.postedDate || tx.transactionDate;
+      if (!dateStr) continue;
+      const d = new Date(dateStr);
+      const ms = d.getTime();
+      if (Number.isNaN(ms)) continue;
+      const existing = map.get(tx.accountId) ?? 0;
+      if (ms > existing) map.set(tx.accountId, ms);
+    }
+  }
+  // Fill in / override with account.updatedAt for any account missing import data.
+  for (const acc of props.accounts) {
+    if (!map.has(acc.id)) {
+      const ms = timestampToMillis(acc.updatedAt);
+      if (ms > 0) map.set(acc.id, ms);
+    }
+  }
+  return map;
+});
+
+function formatLastUpdated(account: Account): string {
+  const ms = lastUpdatedMillisByAccountId.value.get(account.id);
+  if (!ms) return '—';
+  return formatTimestamp(new Date(ms));
+}
+
+function lastUpdatedSortValue(account: Account): number {
+  return lastUpdatedMillisByAccountId.value.get(account.id) ?? 0;
+}
 
 const typeLabel = computed(() => {
   const labels: Record<string, string> = {
@@ -147,6 +194,14 @@ const columns = computed(() => [
   ...(props.type === 'Loan' || props.type === 'CreditCard'
     ? [{ name: 'interestRate', label: 'Rate', field: (row: Account) => row.details?.interestRate, align: 'right' as const }]
     : []),
+  {
+    name: 'lastUpdated',
+    label: 'Last Updated',
+    field: lastUpdatedSortValue,
+    align: 'left' as const,
+    sortable: true,
+    format: (_v: number, row: Account) => formatLastUpdated(row),
+  },
   { name: 'owner', label: 'Owner', field: 'userId', align: 'center' as const },
   { name: 'actions', label: '', field: 'actions', align: 'right' as const },
 ]);

@@ -13,8 +13,8 @@
 // Tip: Use the "Theme Builder" on Quasar's documentation website.
 
 $primary   : #1D4ED8;
-$secondary : #60A5FA;
-$accent    : #0EA5E9;
+$secondary : #3B5BDB;   // was #60A5FA — deeper indigo, passes AA with white text
+$accent    : #0F766E;   // was #0EA5E9 — muted teal, ties to mascot, avoids semantic collision
 
 $dark      : #0F172A;
 $dark-page : #020617;
@@ -22,4 +22,4 @@ $dark-page : #020617;
 $positive  : #16A34A;
 $negative  : #DC2626;
 $info      : #2563EB;
-$warning   : #F59E0B;
+$warning   : #E65100;   // was #F59E0B — warmer, AA on white, used for over-budget attention

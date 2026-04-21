@@ -1,13 +1,13 @@
 <!-- src/components/EntityForm.vue -->
 <template>
-  <q-card density="compact">
+  <q-card>
     <q-card-section>{{ isEditing ? 'Edit Entity' : 'Create Entity' }}</q-card-section>
     <q-card-section>
       <q-form @submit.prevent="save">
         <!-- Entity Details -->
         <div class="row dense">
           <div class="col col-12 col-sm-6">
-            <q-input v-model="entityName" label="Entity Name" required density="compact" :rules="[(v: string) => !!v || 'Entity Name is required']"></q-input>
+            <q-input v-model="entityName" label="Entity Name" required dense :rules="[(v: string) => !!v || 'Entity Name is required']"></q-input>
           </div>
           <div class="col col-12 col-sm-6">
             <q-select
@@ -19,12 +19,12 @@
               emit-value
               map-options
               required
-              density="compact"
+              dense
               :rules="[(v: string) => !!v || 'Entity Type is required']"
             ></q-select>
           </div>
           <div class="col col-12">
-            <q-input v-model="entityEmail" label="Owner Email" density="compact" disabled></q-input>
+            <q-input v-model="entityEmail" label="Owner Email" dense disabled></q-input>
           </div>
           <div class="col col-12">
             <q-select
@@ -38,7 +38,7 @@
               multiple
               chips
               closable-chips
-              density="compact"
+              dense
               hint="Select tax forms applicable to this entity (federal and state)"
               persistent-hint
             ></q-select>
@@ -46,7 +46,7 @@
         </div>
         <br />
         <div class="row">
-          <div class="col text-subtitle-1 font-weight-bold col-8">
+          <div class="col text-subtitle1 text-weight-bold col-8">
             Budget Template
             <div v-if="isFormValid">{{ getBudgetInfo }}</div>
           </div>
@@ -85,25 +85,27 @@
           </div>
         </div>
         <!-- Budget Template Categories -->
-        <div class="text-subtitle-1 font-weight-bold"></div>
+        <div class="text-subtitle1 text-weight-bold"></div>
         <br />
         <q-list>
           <q-item v-for="(category, index) in budget.categories" :key="index">
             <div class="row dense">
               <div class="col q-px-sm col-12 col-sm-3">
-                <q-input v-model="category.name" label="Category" required density="compact"></q-input>
+                <q-input v-model="category.name" label="Category" required dense></q-input>
               </div>
               <div class="col q-px-sm col-12 col-sm-3">
-                <q-input v-model="category.groupName" label="Group" required density="compact"></q-input>
+                <q-input v-model="category.groupName" label="Group" required dense></q-input>
               </div>
               <div class="col q-px-sm col-12 col-sm-3">
-                <Currency-Input v-model.number="category.target" label="Target" class="text-right" density="compact" required></Currency-Input>
+                <Currency-Input v-model.number="category.target" label="Target" class="text-right" dense required></Currency-Input>
               </div>
               <div class="col q-px-sm col-12 col-sm-2">
-                <q-checkbox v-model="category.isFund" label="Is Fund?" density="compact"></q-checkbox>
+                <q-checkbox v-model="category.isFund" label="Is Fund?" dense></q-checkbox>
               </div>
               <div class="col q-px-sm col-12 col-sm-1">
-                <q-btn icon="delete_outline" flat round dense @click="removeCategory(index)" color="negative" />
+                <q-btn icon="delete_outline" flat round dense @click="removeCategory(index)" color="negative">
+                  <q-tooltip>Remove category</q-tooltip>
+                </q-btn>
               </div>
             </div>
           </q-item>
@@ -113,16 +115,16 @@
         <q-form @submit.prevent="addCategory">
           <div class="row dense">
             <div class="col q-px-sm col-12 col-sm-3">
-              <q-input v-model="newCategory.name" label="Category" required density="compact"></q-input>
+              <q-input v-model="newCategory.name" label="Category" required dense></q-input>
             </div>
             <div class="col q-px-sm col-12 col-sm-3">
-              <q-input v-model="newCategory.groupName" label="Group (e.g., Utilities)" density="compact"></q-input>
+              <q-input v-model="newCategory.groupName" label="Group (e.g., Utilities)" dense></q-input>
             </div>
             <div class="col q-px-sm col-12 col-sm-2">
-              <Currency-Input v-model.number="newCategory.target" label="Target" class="text-right" density="compact" required></Currency-Input>
+              <Currency-Input v-model.number="newCategory.target" label="Target" class="text-right" dense required></Currency-Input>
             </div>
             <div class="col q-px-sm col-12 col-sm-2">
-              <q-checkbox v-model="newCategory.isFund" label="Is Fund?" density="compact"></q-checkbox>
+              <q-checkbox v-model="newCategory.isFund" label="Is Fund?" dense></q-checkbox>
             </div>
             <div class="col q-px-sm col-12 col-sm-2">
               <q-btn type="submit" color="primary">Add Category</q-btn>

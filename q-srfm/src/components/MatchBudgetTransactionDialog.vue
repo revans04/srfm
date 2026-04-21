@@ -34,13 +34,13 @@
             <h3>Select Bank Transaction to Match</h3>
             <div class="row q-mb-sm">
               <div class="col col-12 col-md-4">
-                <q-input v-model="searchAmount" label="Amount" type="number" variant="outlined"></q-input>
+                <q-input v-model="searchAmount" label="Amount" type="number" outlined></q-input>
               </div>
               <div class="col col-12 col-md-4">
-                <q-input v-model="searchMerchant" label="Merchant" variant="outlined"></q-input>
+                <q-input v-model="searchMerchant" label="Merchant" outlined></q-input>
               </div>
               <div class="col col-12 col-md-4">
-                <q-input v-model="searchDateRange" label="Date Range (days)" type="number" variant="outlined"></q-input>
+                <q-input v-model="searchDateRange" label="Date Range (days)" type="number" outlined></q-input>
               </div>
             </div>
             <q-table

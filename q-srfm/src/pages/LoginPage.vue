@@ -3,9 +3,9 @@
   <q-page class="fill-height">
     <div class="row justify-center">
       <div class="col-xs-12 col-sm-8 col-md-4">
-        <q-card class="elevation-12">
+        <q-card class="shadow-3">
           <q-toolbar class="bg-primary text-white" flat>
-            <q-toolbar-title><h1 class="text-h6" style="margin:0;font-weight:inherit;color:inherit;">Steady Rise Login</h1></q-toolbar-title>
+            <q-toolbar-title><h1 class="login-title">Steady Rise Login</h1></q-toolbar-title>
           </q-toolbar>
           <q-card-section>
             <p class="text-center">Sign in with your Google account to manage your finances.</p>
@@ -21,7 +21,7 @@
             />
           </q-card-actions>
           <q-card-section v-if="error">
-            <q-banner type="negative" dense>{{ error }}</q-banner>
+            <q-banner class="bg-negative text-white" dense>{{ error }}</q-banner>
           </q-card-section>
         </q-card>
       </div>
@@ -116,5 +116,12 @@ const loginWithPopup = async () => {
 <style scoped>
 .fill-height {
   height: 100vh;
+}
+
+.login-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: inherit;
 }
 </style>

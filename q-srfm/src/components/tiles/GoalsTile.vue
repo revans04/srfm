@@ -2,7 +2,9 @@
   <q-card class="dashboard-tile">
     <q-card-section class="row items-center justify-between q-px-md q-py-sm">
       <div class="text-subtitle2 q-mb-none">Goals</div>
-      <q-btn dense flat icon="add" color="primary" @click="$emit('create')" title="Create Goal" />
+      <q-btn dense flat icon="add" color="primary" @click="$emit('create')">
+        <q-tooltip>Create goal</q-tooltip>
+      </q-btn>
     </q-card-section>
     <q-card-section class="q-pt-xs q-px-md q-pb-md">
       <div v-if="goals.length">
@@ -52,14 +54,3 @@ function formatCurrency(amount: number): string {
 }
 </script>
 
-<style scoped>
-.dashboard-tile {
-  min-height: 150px;
-  border-radius: var(--radius-md);
-  background-color: var(--color-surface-card);
-}
-.text-subtitle2 {
-  font-weight: 600;
-  letter-spacing: 0.3px;
-}
-</style>

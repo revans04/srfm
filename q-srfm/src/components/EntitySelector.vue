@@ -4,7 +4,7 @@
       {{ currentEntityName }}
       <q-btn flat dense round icon="expand_more" size="sm">
         <q-menu v-model="menuOpen" anchor="bottom left" self="top left" :offset="[0, 4]" @show="onMenuShow" @hide="onMenuHide">
-          <q-list class="entity-menu" style="background-color: white">
+          <q-list class="entity-menu bg-white">
             <q-item v-for="option in entityOptions" :key="option.id" clickable @click="selectEntity(option.id)">
               <q-item-section>{{ option.name }}</q-item-section>
             </q-item>

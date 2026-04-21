@@ -1,34 +1,78 @@
 # SRFM (q-srfm)
 
-A Quasar Project
+The Quasar (Vite) SPA for SteadyRise Family Money. See the [root README](../README.md) for the full stack overview (API + web + deploy).
 
-## Install the dependencies
+## Prerequisites
+
+- Node.js 20.x
+- Yarn 1.22+ (or npm — either works, yarn is what CI uses)
+
+## Install dependencies
+
 ```bash
-yarn
+yarn          # or: npm install
 ```
 
-### Start the app in development mode (hot-code reloading, error reporting, etc.)
+The `postinstall` script runs `quasar prepare` automatically.
+
+## Run the app locally
+
 ```bash
-quasar dev
+yarn dev      # or: npm run dev
+# equivalently: npx quasar dev
 ```
 
+The Vite dev server starts (default http://localhost:9000). API calls are routed to `http://localhost:8080/api` per `.env.development`.
 
-### Lint the files
+> **Don't run bare `quasar dev`** — that uses the globally installed `@quasar/cli`, which only ships a small set of commands (`create`, `info`, `upgrade`, `serve`). `dev` and `build` live in the project-local `@quasar/app-vite` package and are exposed via `npm run …` / `npx quasar …`. Running the global directly errors with `Unknown command "dev"`.
+
+## Build for production
+
+```bash
+yarn build    # or: npm run build
+```
+
+Output lands in `dist/spa/`. To preview the built bundle locally:
+
+```bash
+npx quasar serve dist/spa --history --port 4000
+```
+
+`quasar serve` (built into the global CLI) is a **production preview only** — it serves static files from `dist/spa/` with Vue Router history-mode fallback. It is **not** a substitute for `quasar dev`; serving without a build produces broken pages (raw EJS template placeholders like `<% if ... %>` leak through as viewport/meta errors).
+
+## Lint & format
+
 ```bash
 yarn lint
-```
-
-
-### Format the files
-```bash
 yarn format
 ```
 
+## Test
 
-### Build the app for production
 ```bash
-quasar build
+yarn test
 ```
 
-### Customize the configuration
+Runs `tsc -p tsconfig.tests.json`, the test prep script, and Node's built-in test runner against compiled output in `dist-tests/`.
+
+## Deploy
+
+From this directory:
+
+```bash
+npm run update-version-and-deploy            # default bump: patch
+npm run update-version-and-deploy -- minor   # or minor / major
+```
+
+Bumps the version, writes `VITE_APP_VERSION`, builds, and deploys to Firebase Hosting (site `budget-buddy-a6b6c`). See the [root README](../README.md#deployments) for the full deploy flow and Cloud Run API deploy.
+
+## Troubleshooting
+
+- **`quasar dev` → "Unknown command 'dev'"** — you're hitting the global v1 CLI launcher. Use `npm run dev` or `npx quasar dev`.
+- **Blank page with `"1<%"` / `"if"` / `"}"` console errors** — `quasar serve` was run without (or before) `quasar build`. Build first, or just use `npm run dev`.
+- **Port 9000 already in use** — kill the stale process: `lsof -iTCP -sTCP:LISTEN -P | grep 9000` then `kill -9 <pid>`.
+- **Stale `.quasar/` cache after a refactor** — `rm -rf .quasar node_modules/.cache` and re-run `npm run dev`.
+
+## Customize the configuration
+
 See [Configuring quasar.config.js](https://v2.quasar.dev/quasar-cli-vite/quasar-config-js).

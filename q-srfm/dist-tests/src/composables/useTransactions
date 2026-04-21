@@ -1,0 +1,437 @@
+import { ref, computed, watch } from 'vue';
+import { storeToRefs } from 'pinia';
+import { useUIStore } from '../store/ui';
+import { useBudgetStore } from '../store/budget';
+import { useFamilyStore } from '../store/family';
+import { dataAccess } from '../dataAccess';
+import { auth } from '../firebase/init';
+export function withinDateWindow(date1, date2, windowDays) {
+    const d1 = new Date(date1).getTime();
+    const d2 = new Date(date2).getTime();
+    const diff = Math.abs(d1 - d2);
+    return diff <= windowDays * 86400000;
+}
+function amountsMatch(a, b) {
+    if (a == null || b == null)
+        return false;
+    return Math.abs(Number(a) - Number(b)) == 0;
+}
+// function normalizeMerchant(value?: string | null): string {
+//   return (value || '')
+//     .toLowerCase()
+//     .normalize('NFD')
+//     .replace(/[\u0300-\u036f]/g, '')
+//     .replace(/[^a-z0-9]/g, '');
+// }
+// function merchantsMatchStrict(a?: string | null, b?: string | null): boolean {
+//   const na = normalizeMerchant(a);
+//   const nb = normalizeMerchant(b);
+//   return Boolean(na && nb && na === nb);
+// }
+// function merchantSimilar(a?: string | null, b?: string | null): boolean {
+//   const na = normalizeMerchant(a);
+//   const nb = normalizeMerchant(b);
+//   if (!na || !nb) return true;
+//   return na.includes(nb) || nb.includes(na);
+// }
+// function accountMatches(a: BudgetTransaction, b: BudgetTransaction): boolean {
+//   if (!a.accountNumber || !b.accountNumber) return false;
+//   if (a.accountNumber !== b.accountNumber) return false;
+//   if (a.accountSource && b.accountSource && a.accountSource !== b.accountSource) return false;
+//   return true;
+// }
+export function isDuplicate(tx, list) {
+    return list.some((other) => {
+        if (other.id === tx.id)
+            return false;
+        // Must be the same transaction type (income vs expense vs transfer)
+        if (other.isIncome !== tx.isIncome)
+            return false;
+        if ((other.transactionType || 'standard') !== (tx.transactionType || 'standard'))
+            return false;
+        if (!amountsMatch(other.amount, tx.amount))
+            return false;
+        // Same merchant (case-insensitive)
+        const txMerchant = (tx.merchant || tx.importedMerchant || '').toLowerCase().trim();
+        const otherMerchant = (other.merchant || other.importedMerchant || '').toLowerCase().trim();
+        if (!txMerchant || !otherMerchant || txMerchant !== otherMerchant)
+            return false;
+        // Within 2 days of each other
+        if (!withinDateWindow(other.date, tx.date, 2))
+            return false;
+        return true;
+    });
+}
+export function link(tx, linkId) {
+    tx.linkId = linkId;
+}
+export function unlink(tx) {
+    delete tx.linkId;
+}
+export function useTransactions() {
+    const budgetStore = useBudgetStore();
+    const familyStore = useFamilyStore();
+    const { selectedBudgetIds } = storeToRefs(useUIStore());
+    const rows = ref([]);
+    const registerRows = ref([]);
+    const loading = ref(false);
+    const loadingRegister = ref(false);
+    const importedMap = ref({});
+    const filters = ref({
+        search: '',
+        importedMerchant: '',
+        cleared: false,
+        reconciled: false,
+        duplicatesOnly: false,
+        minAmt: null,
+        maxAmt: null,
+        start: null,
+        end: null,
+        accountId: null,
+        unmatchedOnly: false,
+    });
+    function mapTxToRow(tx, budget) {
+        const categoryNames = tx.categories?.map((c) => c.category || '').filter(Boolean) || [];
+        const category = categoryNames.length > 1 ? 'Split' : categoryNames[0] || '';
+        const entityName = familyStore.family?.entities?.find((e) => e.id === (tx.entityId || budget.entityId))?.name ||
+            'N/A';
+        let notes = tx.notes || '';
+        if (categoryNames.length > 1) {
+            const noteCats = categoryNames.join(', ');
+            notes = notes ? `${notes} (${noteCats})` : noteCats;
+        }
+        return {
+            id: tx.id,
+            date: tx.date,
+            payee: tx.merchant || '',
+            category,
+            entityName,
+            budgetId: budget.budgetId || '',
+            amount: Number(tx.amount || 0),
+            status: tx.status === 'C' ? 'C' : tx.status === 'R' ? 'R' : 'U',
+            importedMerchant: tx.importedMerchant || '',
+            linkId: tx.accountNumber ? `${tx.accountSource || ''}:${tx.accountNumber}` : undefined,
+            notes,
+            transaction: tx,
+        };
+    }
+    const normalizeImportedStatus = (status) => {
+        if (!status)
+            return 'U';
+        const value = status.trim().toUpperCase();
+        switch (value) {
+            case 'M':
+            case 'MATCHED':
+                return 'C';
+            case 'C':
+            case 'CLEARED':
+                return 'C';
+            case 'R':
+            case 'RECONCILED':
+                return 'R';
+            case 'I':
+            case 'IGNORED':
+                return 'U';
+            case 'U':
+            case 'UNCLEARED':
+            case 'UNMATCHED':
+            case 'P':
+            case 'PENDING':
+            case 'N':
+            case 'NEW':
+                return 'U';
+            default:
+                return 'U';
+        }
+    };
+    function mapImportedToRow(tx) {
+        const normalizeNum = (n) => (n || '').replace(/\D/g, '');
+        const account = familyStore.family?.accounts?.find((a) => {
+            if (tx.accountId && String(a.id) === String(tx.accountId))
+                return true;
+            if (tx.accountNumber) {
+                const numberMatch = normalizeNum(a.accountNumber) === normalizeNum(tx.accountNumber);
+                if (!numberMatch)
+                    return false;
+                return tx.accountSource
+                    ? (a.institution || '').toLowerCase() === tx.accountSource.toLowerCase()
+                    : true;
+            }
+            return false;
+        });
+        const accountName = tx.accountName || account?.name || '';
+        const entityName = tx.accountNumber
+            ? `${accountName} (${tx.accountNumber})`
+            : accountName;
+        const derivedStatus = tx.ignored
+            ? 'I'
+            : tx.status === 'R'
+                ? 'R'
+                : tx.matched
+                    ? 'M'
+                    : normalizeImportedStatus(tx.status);
+        return {
+            id: tx.id,
+            date: tx.transactionDate || tx.postedDate || '',
+            payee: tx.payee,
+            category: '',
+            entityName,
+            budgetId: '',
+            amount: (tx.creditAmount ?? 0) - (tx.debitAmount ?? 0),
+            status: derivedStatus,
+            linkId: tx.accountNumber ? `${tx.accountSource || ''}:${tx.accountNumber}` : undefined,
+            notes: '',
+            accountId: account?.id ? String(account.id) : tx.accountId ? String(tx.accountId) : undefined,
+            matched: tx.matched,
+        };
+    }
+    async function hydrateBudgets(budgetIds) {
+        const out = [];
+        const budgets = await Promise.all(budgetIds.map(async (id) => {
+            try {
+                let full = budgetStore.getBudget(id);
+                if (!full || !full.transactions || full.transactions.length === 0) {
+                    const fetched = await dataAccess.getBudget(id);
+                    if (fetched) {
+                        budgetStore.updateBudget(id, fetched);
+                        full = fetched;
+                    }
+                }
+                return full ?? null;
+            }
+            catch (err) {
+                console.error('Failed to hydrate budget', id, err);
+                return null;
+            }
+        }));
+        budgets.forEach((full) => {
+            if (!full)
+                return;
+            const transactions = (full.transactions || []).filter((t) => !t.deleted);
+            const budgetTransactions = transactions;
+            const duplicateIds = new Set();
+            for (const tx of budgetTransactions) {
+                if (isDuplicate(tx, budgetTransactions)) {
+                    duplicateIds.add(tx.id);
+                }
+            }
+            const mapped = budgetTransactions.map((t) => {
+                const row = mapTxToRow(t, full);
+                row.isDuplicate = duplicateIds.has(t.id);
+                return row;
+            });
+            out.push(...mapped);
+        });
+        out.sort((a, b) => b.date.localeCompare(a.date));
+        return out;
+    }
+    async function loadInitial(budgetIdOrIds) {
+        loading.value = true;
+        try {
+            const ids = Array.isArray(budgetIdOrIds) ? budgetIdOrIds : [budgetIdOrIds];
+            rows.value = await hydrateBudgets(ids);
+        }
+        finally {
+            loading.value = false;
+        }
+    }
+    async function fetchImportedByAccount(accountId) {
+        const pageSize = 200;
+        const collected = [];
+        let offset = 0;
+        while (true) {
+            const batch = await dataAccess.getImportedTransactionsByAccountId(accountId, offset, pageSize);
+            collected.push(...batch);
+            if (batch.length < pageSize) {
+                break;
+            }
+            offset += batch.length;
+        }
+        return collected;
+    }
+    async function loadImportedTransactions(reset = false) {
+        if (loadingRegister.value && !reset)
+            return;
+        if (reset) {
+            registerRows.value = [];
+            importedMap.value = {};
+        }
+        loadingRegister.value = true;
+        try {
+            if (!familyStore.family?.accounts || familyStore.family.accounts.length === 0) {
+                const fid = familyStore.family?.id;
+                if (fid) {
+                    try {
+                        const accounts = await dataAccess.getAccounts(fid);
+                        if (familyStore.family)
+                            familyStore.family.accounts = accounts;
+                    }
+                    catch {
+                        /* ignore */
+                    }
+                }
+            }
+            let imported;
+            if (filters.value.accountId) {
+                imported = await fetchImportedByAccount(filters.value.accountId);
+            }
+            else {
+                imported = await dataAccess.getImportedTransactions();
+            }
+            imported.forEach((t) => {
+                if (!t.deleted)
+                    importedMap.value[t.id] = t;
+            });
+            const mapped = imported
+                .filter((t) => !t.deleted)
+                .map((t) => mapImportedToRow(t));
+            // Enrich matched rows with category from linked budget transactions
+            if (filters.value.accountId) {
+                try {
+                    const budgetTxs = await dataAccess.getBudgetTransactionsMatchedToImported(filters.value.accountId);
+                    const categoryByMerchant = new Map();
+                    for (const { transaction: btx } of budgetTxs) {
+                        if (!btx.importedMerchant)
+                            continue;
+                        const cats = (btx.categories || []).map((c) => c.category).filter(Boolean).join(', ');
+                        if (cats)
+                            categoryByMerchant.set(btx.importedMerchant, cats);
+                    }
+                    for (const row of mapped) {
+                        if (row.status === 'M' || row.status === 'R' || row.matched) {
+                            const imp = importedMap.value[row.id];
+                            if (!imp)
+                                continue;
+                            const cat = categoryByMerchant.get(imp.payee);
+                            if (cat)
+                                row.category = cat;
+                        }
+                    }
+                }
+                catch {
+                    /* non-critical — categories just stay empty */
+                }
+            }
+            registerRows.value = mapped.sort((a, b) => b.date.localeCompare(a.date));
+        }
+        finally {
+            loadingRegister.value = false;
+        }
+    }
+    function scrollToDate(iso) {
+        // Placeholder hook should the UI add programmatic scrolling in the future.
+        console.log('scrollToDate', iso);
+    }
+    const filtered = computed(() => {
+        const f = filters.value;
+        return rows.value.filter((r) => {
+            if (f.search) {
+                const s = f.search.toLowerCase();
+                if (!(r.payee.toLowerCase().includes(s) ||
+                    r.category.toLowerCase().includes(s) ||
+                    r.entityName.toLowerCase().includes(s)))
+                    return false;
+            }
+            if (f.importedMerchant &&
+                !r.importedMerchant?.toLowerCase().includes(f.importedMerchant.toLowerCase()))
+                return false;
+            const statusFilters = [];
+            if (f.cleared)
+                statusFilters.push('C');
+            if (f.reconciled)
+                statusFilters.push('R');
+            if (statusFilters.length && !statusFilters.includes(normalizeImportedStatus(r.status)))
+                return false;
+            if (f.duplicatesOnly && !r.isDuplicate)
+                return false;
+            if (f.unmatchedOnly && r.linkId)
+                return false;
+            if (f.minAmt != null && r.amount < f.minAmt)
+                return false;
+            if (f.maxAmt != null && r.amount > f.maxAmt)
+                return false;
+            if (f.start && r.date < f.start)
+                return false;
+            if (f.end && r.date > f.end)
+                return false;
+            return true;
+        });
+    });
+    const filteredRegister = computed(() => {
+        const f = filters.value;
+        return registerRows.value.filter((r) => {
+            if (f.search) {
+                const s = f.search.toLowerCase();
+                if (!r.payee.toLowerCase().includes(s) && !r.entityName.toLowerCase().includes(s))
+                    return false;
+            }
+            if (f.accountId && r.accountId !== f.accountId)
+                return false;
+            if (f.start && r.date < f.start)
+                return false;
+            if (f.end && r.date > f.end)
+                return false;
+            const statusFilters = [];
+            if (f.cleared)
+                statusFilters.push('C');
+            if (f.reconciled)
+                statusFilters.push('R');
+            if (statusFilters.length && !statusFilters.includes(normalizeImportedStatus(r.status)))
+                return false;
+            if (f.unmatchedOnly && (r.matched || r.status === 'I'))
+                return false;
+            if (f.duplicatesOnly && !r.isDuplicate)
+                return false;
+            if (f.minAmt != null && Math.abs(r.amount) < f.minAmt)
+                return false;
+            if (f.maxAmt != null && Math.abs(r.amount) > f.maxAmt)
+                return false;
+            if (f.importedMerchant && !r.importedMerchant?.toLowerCase().includes(f.importedMerchant.toLowerCase()))
+                return false;
+            return true;
+        });
+    });
+    watch(() => filters.value.accountId, async () => {
+        registerRows.value = [];
+        await loadImportedTransactions(true);
+    });
+    const api = {
+        // budget tab
+        transactions: filtered,
+        filters,
+        loading,
+        // register tab
+        registerRows: filteredRegister,
+        loadingRegister,
+        // utilities
+        scrollToDate,
+        // also expose init for callers that want explicit control
+        loadInitial,
+        loadImportedTransactions,
+        getImportedTx: (id) => importedMap.value[id],
+    };
+    // Load budgets initially so selection and options are available
+    void (async () => {
+        try {
+            const user = auth.currentUser;
+            if (!user)
+                return;
+            await familyStore.loadFamily(user.uid);
+            await budgetStore.loadBudgets(user.uid, familyStore.selectedEntityId);
+        }
+        catch {
+            /* ignore */
+        }
+    })();
+    // When the user's selection of budgets changes, hydrate those budgets explicitly
+    watch(() => selectedBudgetIds.value?.slice().join(','), async () => {
+        const ids = selectedBudgetIds.value.filter(Boolean);
+        if (ids.length > 0) {
+            await loadInitial(ids);
+        }
+        else {
+            rows.value = [];
+        }
+    }, { immediate: true });
+    return api;
+}

@@ -4,7 +4,7 @@
     <q-header v-if="isMobile && !isLoginRoute" class="mobile-header">
       <div class="row items-center justify-center no-wrap q-px-md q-py-sm">
         <img
-          src="../assets/family-funds-sm.png"
+          src="../assets/logo-sm.png"
           alt="Steady Rise Financial Management logo"
           height="32"
           class="q-mr-sm"
@@ -24,7 +24,7 @@
       <div class="column justify-between fit app-drawer__content">
         <div class="col app-drawer__scrollable">
           <div class="app-drawer__brand">
-            <img src="../assets/family-funds-sm.png" alt="Steady Rise Financial Management" />
+            <img src="../assets/logo-sm.png" alt="Steady Rise Financial Management" />
             <span class="app-drawer__brand-name">Steady Rise</span>
           </div>
           <q-list class="app-drawer__nav">

@@ -39,8 +39,8 @@
               emit-value
               map-options
               label="Sort By"
-              variant="outlined"
-              density="compact"
+              outlined
+              dense
               @update:model-value="sortSmartMatches"
             />
           </div>
@@ -56,7 +56,7 @@
           </div>
         </div>
 
-        <q-banner v-if="!lookedForSmartMatches" type="info" class="q-mt-lg"> Click Find Smart Matches to look for transaction matches. </q-banner>
+        <q-banner v-if="!lookedForSmartMatches" class="bg-info text-white q-mt-lg"> Click Find Smart Matches to look for transaction matches. </q-banner>
 
         <div v-else>
           <q-table
@@ -92,7 +92,7 @@
             </template>
           </q-table>
 
-          <q-banner v-else type="info" class="q-mt-lg"> No smart matches found. Check Remaining Transactions for potential conflicts. </q-banner>
+          <q-banner v-else class="bg-info text-white q-mt-lg"> No smart matches found. Check Remaining Transactions for potential conflicts. </q-banner>
 
           <!-- Remaining Transactions -->
           <div class="row q-mt-lg" v-if="filteredImportedTransactions.length > 0">
@@ -128,13 +128,13 @@
               <!-- Search Filters -->
               <div class="row q-mt-lg">
                 <div class="col col-12 col-md-4">
-                  <q-input v-model="searchAmount" label="Amount" type="number" variant="outlined" readonly></q-input>
+                  <q-input v-model="searchAmount" label="Amount" type="number" outlined readonly></q-input>
                 </div>
                 <div class="col col-12 col-md-4">
-                  <q-input v-model="searchMerchant" label="Merchant" variant="outlined" @input="searchBudgetTransactions"></q-input>
+                  <q-input v-model="searchMerchant" label="Merchant" outlined @input="searchBudgetTransactions"></q-input>
                 </div>
                 <div class="col col-12 col-md-4">
-                  <q-input v-model="searchDateRange" label="Date Range (days)" type="number" variant="outlined" @input="searchBudgetTransactions"></q-input>
+                  <q-input v-model="searchDateRange" label="Date Range (days)" type="number" outlined @input="searchBudgetTransactions"></q-input>
                 </div>
               </div>
 
@@ -149,7 +149,7 @@
 
               <!-- Split Transaction Form -->
               <q-form v-if="showSplitForm" ref="splitForm" @submit.prevent="saveSplitTransaction" class="q-mt-lg">
-                <div class="row align-center" v-for="(split, index) in transactionSplits" :key="index">
+                <div class="row items-center" v-for="(split, index) in transactionSplits" :key="index">
                   <div class="col col-12 col-md-3">
                     <q-select
                       v-model="split.entityId"
@@ -159,8 +159,8 @@
                       emit-value
                       map-options
                       label="Entity"
-                      variant="outlined"
-                      density="compact"
+                      outlined
+                      dense
                       :rules="[(v: string) => !!v || 'Entity is required']"
                     ></q-select>
                   </div>
@@ -169,8 +169,8 @@
                       v-model="split.category"
                       :options="props.categoryOptions"
                       label="Category"
-                      variant="outlined"
-                      density="compact"
+                      outlined
+                      dense
                       :rules="[(v: string) => !!v || 'Category is required']"
                     ></q-select>
                   </div>
@@ -208,11 +208,11 @@
                     </template>
                   </q-table>
                   <div v-else-if="!showSplitForm" class="q-mt-lg">
-                    <q-banner type="info" class="q-mb-lg"> No potential matches found. Adjust the search criteria or add a new transaction. </q-banner>
+                    <q-banner class="bg-info text-white q-mb-lg"> No potential matches found. Adjust the search criteria or add a new transaction. </q-banner>
                     <q-btn color="primary" @click="addNewTransaction" :disabled="props.matching"> Add New Transaction </q-btn>
                   </div>
                 </div>
-                <q-banner v-if="remainingSplitAmount !== 0" :type="remainingSplitAmount < 0 ? 'error' : 'warning'" class="q-mb-lg">
+                <q-banner v-if="remainingSplitAmount !== 0" :class="['q-mb-lg', remainingSplitAmount < 0 ? 'bg-negative' : 'bg-warning', 'text-white']">
                   <div v-if="remainingSplitAmount > 0">Remaining ${{ toDollars(toCents(remainingSplitAmount)) }}</div>
                   <div v-else>Over allocated ${{ toDollars(toCents(Math.abs(remainingSplitAmount))) }}</div>
                 </q-banner>
@@ -233,8 +233,8 @@
                     emit-value
                     map-options
                     label="Sort By"
-                    variant="outlined"
-                    density="compact"
+                    outlined
+                    dense
                     @update:model-value="sortPotentialMatches"
                   ></q-select>
                 </div>
@@ -272,14 +272,14 @@
                 </template>
               </q-table>
               <div v-else-if="!showSplitForm" class="q-mt-lg">
-                <q-banner type="info" class="q-mb-lg"> No potential matches found. Adjust the search criteria or add a new transaction. </q-banner>
+                <q-banner class="bg-info text-white q-mb-lg"> No potential matches found. Adjust the search criteria or add a new transaction. </q-banner>
                 <q-btn color="primary" @click="addNewTransaction" :disabled="props.matching"> Add New Transaction </q-btn>
               </div>
             </div>
           </div>
           <div class="row q-mt-sm" v-else>
             <div class="col">
-              <q-banner type="positive"> All bank transactions have been matched or ignored. </q-banner>
+              <q-banner class="bg-positive text-white"> All bank transactions have been matched or ignored. </q-banner>
             </div>
           </div>
 

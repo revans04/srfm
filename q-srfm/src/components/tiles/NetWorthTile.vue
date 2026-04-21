@@ -2,7 +2,9 @@
   <q-card class="dashboard-tile">
     <q-card-section class="row items-center justify-between q-px-md q-py-sm">
       <div class="text-subtitle2 q-mb-none">Net Worth</div>
-      <q-btn dense flat icon="refresh" color="primary" :loading="loading" @click="loadNetWorth" />
+      <q-btn dense flat icon="refresh" color="primary" :loading="loading" @click="loadNetWorth">
+        <q-tooltip>Refresh net worth</q-tooltip>
+      </q-btn>
     </q-card-section>
     <q-card-section class="q-pt-xs q-px-md q-pb-md">
       <div v-if="loading" class="row items-center justify-center q-pa-md">
@@ -11,7 +13,8 @@
       <div v-else>
         <div v-if="value !== null" class="text-h5">{{ money(value) }}</div>
         <div v-else class="text-body2 text-grey-7">
-          No snapshots yet. Import accounts or capture a snapshot to see net worth.
+          No snapshots yet.
+          <router-link to="/accounts" class="text-primary">Capture a snapshot →</router-link>
         </div>
       </div>
     </q-card-section>
@@ -80,14 +83,3 @@ watch(
 );
 </script>
 
-<style scoped>
-.dashboard-tile {
-  min-height: 150px;
-  border-radius: var(--radius-md);
-  background-color: var(--color-surface-card);
-}
-.text-subtitle2 {
-  font-weight: 600;
-  letter-spacing: 0.3px;
-}
-</style>

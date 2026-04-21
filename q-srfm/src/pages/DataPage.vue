@@ -53,7 +53,7 @@
                 </div>
                 <div class="row" v-else-if="importType !== 'bankTransactions' && importType !== 'accountsAndSnapshots'">
                   <div class="col col-12">
-                    <q-banner type="info" class="q-mb-lg">
+                    <q-banner class="bg-info text-white q-mb-lg">
                       No entities found. Please create a new entity or import entities before importing budgets or transactions.
                     </q-banner>
                     <q-btn color="primary" @click="openCreateEntityDialog" class="q-mr-lg">Create Entity</q-btn>
@@ -62,10 +62,10 @@
                 </div>
 
                 <!-- File Input for Imports -->
-                <q-banner v-if="importError" type="negative" class="q-mb-lg">
+                <q-banner v-if="importError" class="bg-negative text-white q-mb-lg">
                   {{ importError }}
                 </q-banner>
-                <q-banner v-if="importSuccess" type="positive" class="q-mb-lg">
+                <q-banner v-if="importSuccess" class="bg-positive text-white q-mb-lg">
                   {{ importSuccess }}
                 </q-banner>
                 <div v-if="importType === 'bankTransactions'">
@@ -85,7 +85,7 @@
                         :disabled="importing || availableAccounts.length === 0"
                         class="q-mb-lg"
                       ></q-select>
-                      <q-banner v-if="dataLoaded && availableAccounts.length === 0" type="warning" class="q-mb-lg">
+                      <q-banner v-if="dataLoaded && availableAccounts.length === 0" class="bg-warning text-white q-mb-lg">
                         No bank or credit card accounts found. Please create an account in the Accounts section before importing transactions.
                       </q-banner>
                     </div>
@@ -301,8 +301,7 @@
                               <!-- Budget status banner -->
                               <q-banner
                                 v-if="diff.existingBudgetId === null"
-                                type="info"
-                                class="q-mb-md"
+                                class="bg-info text-white q-mb-md"
                                 dense
                               >
                                 No budget exists for {{ diff.month }} yet.
@@ -414,7 +413,7 @@
                                           v-model="everyDollarDiffSelection[diff.month].addTxKeys[row.key]"
                                         />
                                       </td>
-                                      <td>{{ row.transaction.date }}</td>
+                                      <td>{{ formatDate(row.transaction.date) }}</td>
                                       <td>{{ row.transaction.merchant }}</td>
                                       <td class="text-caption">{{ formatCategories(row.transaction.categories) }}</td>
                                       <td class="text-right">{{ formatCurrency(row.transaction.amount) }}</td>
@@ -456,7 +455,7 @@
                                             v-model="everyDollarDiffSelection[diff.month].addTxKeys[row.key]"
                                           />
                                         </td>
-                                        <td>{{ row.transaction.date }}</td>
+                                        <td>{{ formatDate(row.transaction.date) }}</td>
                                         <td>{{ row.transaction.merchant }}</td>
                                         <td class="text-right">{{ formatCurrency(row.transaction.amount) }}</td>
                                         <td class="text-caption text-grey-8">{{ row.matchedExistingSummary }}</td>
@@ -559,7 +558,7 @@
                           ></q-table>
                         </q-tab-panel>
                       </q-tab-panels>
-                      <q-banner v-if="previewErrors.length > 0" type="negative" class="q-mt-lg">
+                      <q-banner v-if="previewErrors.length > 0" class="bg-negative text-white q-mt-lg">
                         <ul>
                           <li v-for="(error, index) in previewErrors" :key="index">
                             {{ error }}
@@ -658,6 +657,7 @@ import {
   parseAmount,
   todayISO,
   formatCurrency,
+  formatDate,
 } from "../utils/helpers";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
@@ -3418,7 +3418,7 @@ async function proceedWithImport() {
       return dateB.getTime() - dateA.getTime();
     })[0];
 
-    showSnackbar("Data imported successfully!");
+    showSnackbar("Data imported successfully");
     await loadAllData();
 
     if (mostRecentMonth) {

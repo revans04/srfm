@@ -139,6 +139,6 @@ async function saveGoal(data: Partial<Goal>) {
 
 <style scoped>
 .dashboard-nudge {
-  border-radius: 10px;
+  border-radius: var(--radius-md);
 }
 </style>

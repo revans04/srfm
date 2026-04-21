@@ -8,7 +8,7 @@
     inputmode="numeric"
     type="text"
     v-bind="$attrs"
-    density="compact"
+    dense
   />
 </template>
 

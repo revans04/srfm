@@ -2,7 +2,9 @@
   <q-card class="dashboard-tile">
     <q-card-section class="row items-center justify-between q-px-md q-py-sm">
       <div class="text-subtitle2 q-mb-none">Budget Progress</div>
-      <q-btn dense flat icon="refresh" color="primary" :loading="loading" @click="loadBudget" />
+      <q-btn dense flat icon="refresh" color="primary" :loading="loading" @click="loadBudget">
+        <q-tooltip>Refresh budget progress</q-tooltip>
+      </q-btn>
     </q-card-section>
     <q-card-section class="q-pt-xs q-px-md q-pb-md">
       <div v-if="loading" class="row items-center justify-center q-pa-md">
@@ -128,14 +130,3 @@ watch(
 );
 </script>
 
-<style scoped>
-.dashboard-tile {
-  min-height: 150px;
-  border-radius: var(--radius-md);
-  background-color: var(--color-surface-card);
-}
-.text-subtitle2 {
-  font-weight: 600;
-  letter-spacing: 0.3px;
-}
-</style>

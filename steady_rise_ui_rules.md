@@ -7,6 +7,55 @@ These rules are **opinionated by design**. Consistency and clarity are more impo
 
 ---
 
+## 0. Quick Reference — READ BEFORE TOUCHING UI
+
+The authoritative design system lives at **`design-system/`**. Canonical files:
+
+- **`design-system/README.md`** — full brand, content, visual, and iconography foundations.
+- **`design-system/colors_and_type.css`** — CSS custom properties for every token. Matches `q-srfm/src/css/quasar.variables.scss` and `app.scss`.
+- **`design-system/assets/`** — the turtle mascot (full / sm / icon).
+- **`design-system/ui_kits/srfm-app/`** — React/JSX reference mocks for sidebar, Dashboard, Budget, Transactions, Inspector. **Reference only** — Quasar is Vue; do not import.
+- **`design-system/preview/`** — standalone HTML cards documenting colors, type, spacing, buttons, chips. Open directly in a browser.
+- **`design-system/SKILL.md`** — agent-invokable skill entrypoint (`srfm-design`).
+
+### The rules that most often get violated
+
+1. **Color = state, not style.** `$primary` for interactive elements only. Neutrals carry ~90% of the UI.
+2. **`$warning` (`#E65100`) is "over budget" and "needs attention." `$negative` (`#DC2626`) is destructive + error only.** Never use red for over-budget.
+3. **Dates display as `mm/dd/yyyy`.** Storage stays ISO `YYYY-MM-DD` for sortability; convert at the input/display boundary.
+4. **Cards summarize, tables audit.** Never wrap a ledger/register in a decorative card.
+5. **Tabular numerals on every numeric column.** Right-aligned.
+6. **Icons: Google Material only, by name.** No inline SVG, no emoji in chrome.
+7. **Inter only.** One type scale. 14px body min on desktop; 16px on mobile viewports (prevents iOS zoom-on-focus).
+8. **Spacing is 4 / 8 / 12 / 16 / 24 / 32 only.** Map to Quasar `q-pa-*` / `q-ma-*`. Arbitrary values are rejected.
+9. **Dialogs are last resort; prefer inspector drawer on desktop, full-screen dialog on mobile.**
+10. **One primary action per surface.** Secondaries = outline / flat. Destructive = separated, always confirmed.
+
+### Before you commit UI changes
+
+Grep for these — they indicate regressions against the system:
+
+```bash
+rg "text-negative"                 q-srfm/src/   # should only appear on destructive/error, not "over budget"
+rg 'mask="####-##-##"'             q-srfm/src/   # old ISO date mask — replace with ##/##/####
+rg "#F59E0B|#f59e0b"               q-srfm/src/   # old warning hex — should be #E65100
+rg "🎉|Great job|All good"         q-srfm/src/   # celebration copy — violates "calm, not cheerleading"
+```
+
+### When adding a new page or component
+
+1. Pick the **mode**: Coaching (comfortable density, encouraging — Dashboard/Budget/Goals) or Auditing (compact, precise — Transactions/Registers). Never mix inside one page.
+2. Commit to the existing primitives in `q-srfm/src/components/` before adding new ones.
+3. Use tokens (`color="primary"`, `text-warning`, `--color-surface-card`) — never hard-code hex.
+4. Verify at **375px viewport** before calling it done. 44×44px tap targets. Responsive table pattern (card view or scroll with affordance) — never just column truncation.
+5. Every accounting term (Cleared / Reconciled / Uncleared / Budget Register) must ship with a `q-tooltip`. See README "Tooltips — the knowledge bridge" for fixed copy.
+
+### Agent Skill
+
+If you support Skills, invoke `srfm-design` (declared in `design-system/SKILL.md`). It pulls the README, tokens, and UI kit into context so you don't have to re-learn the system each turn.
+
+---
+
 ## 1. Core Design Principles
 
 ### 1.1 Calm, Not Decorative
@@ -72,7 +121,7 @@ Steady Rise defines an explicit color palette mapped to Quasar’s brand tokens.
 | Meaning | Token | Hex | Usage |
 |-------|------|-----|------|
 | Success | `positive` | `#16A34A` | Income received, completed goals |
-| Warning | `warning` | `#F59E0B` | Needs attention or review |
+| Warning | `warning` | `#E65100` | Over budget, needs attention or review |
 | Error / Destructive | `negative` | `#DC2626` | Over budget, delete actions |
 | Info | `info` | `#0284C7` | Informational messaging |
 
@@ -110,7 +159,7 @@ brand: {
   secondary: '#0F766E',
   accent: '#6366F1',
   positive: '#16A34A',
-  warning: '#F59E0B',
+  warning: '#E65100',
   negative: '#DC2626',
   info: '#0284C7'
 }

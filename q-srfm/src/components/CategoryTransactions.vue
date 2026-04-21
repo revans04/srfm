@@ -34,7 +34,7 @@
       <q-card-section class="summary-grid q-gutter-md">
         <div class="summary-item">
           <div class="summary-label">{{ availableLabel }}</div>
-          <div class="summary-value" :class="{ 'text-negative': available < 0 && !isIncome }">
+          <div class="summary-value" :class="{ 'text-warning': available < 0 && !isIncome }">
             {{ availableDisplay }}
           </div>
         </div>
@@ -118,8 +118,8 @@
         </q-card-section>
         <q-card-actions>
           <q-space></q-space>
-          <q-btn color="grey" variant="text" @click="showDeleteDialog = false">Cancel</q-btn>
-          <q-btn color="negative" variant="flat" @click="executeDelete">Move to Trash</q-btn>
+          <q-btn color="grey" flat @click="showDeleteDialog = false">Cancel</q-btn>
+          <q-btn color="negative" flat @click="executeDelete">Move to Trash</q-btn>
         </q-card-actions>
       </q-card>
     </q-dialog>

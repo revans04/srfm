@@ -3,7 +3,7 @@
   <q-page class="bg-grey-1 q-pa-lg">
     <h1 class="page-title">Settings</h1>
 
-    <q-banner v-if="userEmail && !emailVerified" type="warning" class="q-mb-lg">
+    <q-banner v-if="userEmail && !emailVerified" class="bg-warning text-white q-mb-lg">
       Your email ({{ userEmail }}) is not verified. Please check your inbox or resend the verification email.
       <template v-slot:action>
         <q-btn flat @click="sendVerificationEmail" :loading="resending">Resend</q-btn>
@@ -104,17 +104,26 @@
                 <div class="row dense">
                   <div class="col">
                     {{ entity.name }} ({{ entity.type }}) - Owner: {{ entity.members.find((m) => m.role === "Admin")?.email || "N/A" }}
-                    <q-chip v-if="entity.templateBudget" color="positive" size="small" class="q-ml-sm">Has Template</q-chip>
+                    <q-chip v-if="entity.templateBudget" color="positive" size="sm" class="q-ml-sm">Has Template</q-chip>
                   </div>
                   <div class="col col-auto">
-                    <q-btn flat round dense color="primary" @click="openEditEntityDialog(entity)" icon="edit" />
+                    <q-btn flat round dense color="primary" @click="openEditEntityDialog(entity)" icon="edit">
+                      <q-tooltip>Edit entity</q-tooltip>
+                    </q-btn>
                   </div>
                   <div class="col col-auto">
-                    <q-btn flat round dense @click="confirmDeleteEntity(entity)" color="negative" icon="delete_outline" />
+                    <q-btn flat round dense @click="confirmDeleteEntity(entity)" color="negative" icon="delete_outline">
+                      <q-tooltip>Delete entity</q-tooltip>
+                    </q-btn>
                   </div>
                 </div>
               </q-item>
-              <q-item v-if="!entities.length"> No entities found. Create an entity to start managing budgets. </q-item>
+              <q-item v-if="!entities.length" class="text-grey-7">
+                <q-item-section>
+                  No entities yet.
+                  <q-btn flat dense no-caps color="primary" label="Add your first entity →" class="q-ml-xs" @click="openCreateEntityDialog" />
+                </q-item-section>
+              </q-item>
             </q-list>
           </q-card-section>
         </q-card>
@@ -131,7 +140,7 @@
                   :columns="transactionDocColumns"
                   :rows="importedTransactionDocs"
                   :pagination="{ rowsPerPage: 10 }"
-                  class="elevation-1"
+                  class="shadow-1"
                 >
                   <template #body-cell-createdAt="props">
                     <q-td :props="props">
@@ -146,7 +155,7 @@
                   <template #body-cell-actions="props">
                     <q-td :props="props">
                       <q-btn
-                        density="compact"
+                        dense
                         flat
                         color="negative"
                         @click.stop="confirmDeleteTransactionDoc(props.row)"
@@ -178,7 +187,7 @@
                   :columns="budgetColumns"
                   :rows="budgets"
                   :pagination="{ rowsPerPage: 10 }"
-                  class="elevation-1"
+                  class="shadow-1"
                 >
                   <template #body-cell-entityName="props">
                     <q-td :props="props">
@@ -193,7 +202,7 @@
                   <template #body-cell-actions="props">
                     <q-td :props="props">
                       <q-btn
-                        density="compact"
+                        dense
                         flat
                         color="negative"
                         @click.stop="confirmDeleteBudget(props.row)"
@@ -310,8 +319,8 @@
         </q-card-section>
         <q-card-actions>
           <q-space></q-space>
-          <q-btn color="grey" variant="text" @click="showDeleteDialog = false">Cancel</q-btn>
-          <q-btn color="negative" variant="flat" @click="deleteTransactionDoc">Delete</q-btn>
+          <q-btn color="grey" flat @click="showDeleteDialog = false">Cancel</q-btn>
+          <q-btn color="negative" flat @click="deleteTransactionDoc">Delete</q-btn>
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -328,8 +337,8 @@
         </q-card-section>
         <q-card-actions>
           <q-space></q-space>
-          <q-btn color="grey" variant="text" @click="showDeleteBudgetDialog = false">Cancel</q-btn>
-          <q-btn color="negative" variant="flat" @click="deleteBudget">Delete</q-btn>
+          <q-btn color="grey" flat @click="showDeleteBudgetDialog = false">Cancel</q-btn>
+          <q-btn color="negative" flat @click="deleteBudget">Delete</q-btn>
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -347,8 +356,8 @@
         </q-card-section>
         <q-card-actions>
           <q-space></q-space>
-          <q-btn color="grey" variant="text" @click="showDeleteEntityDialog = false">Cancel</q-btn>
-          <q-btn color="negative" variant="flat" @click="deleteEntity" :disabled="associatedBudgets.length > 0">Delete</q-btn>
+          <q-btn color="grey" flat @click="showDeleteEntityDialog = false">Cancel</q-btn>
+          <q-btn color="negative" flat @click="deleteEntity" :disabled="associatedBudgets.length > 0">Delete</q-btn>
         </q-card-actions>
       </q-card>
     </q-dialog>

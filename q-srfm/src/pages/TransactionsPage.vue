@@ -88,7 +88,7 @@
                 <q-input v-model="filters.importedMerchant" dense outlined label="Merchant" class="register-filters__input register-filters__input--merchant" />
                 <q-input v-model="minAmtInput" type="number" dense outlined label="Min $" class="register-filters__input" />
                 <q-input v-model="maxAmtInput" type="number" dense outlined label="Max $" class="register-filters__input" />
-                <q-input v-model="filters.start" dense outlined label="Start" mask="####-##-##" class="register-filters__input register-filters__input--date">
+                <q-input v-model="startInput" dense outlined label="Start" mask="##/##/####" placeholder="mm/dd/yyyy" class="register-filters__input register-filters__input--date">
                   <template #append>
                     <q-icon name="event" class="cursor-pointer">
                       <q-popup-proxy transition-show="scale" transition-hide="scale">
@@ -97,7 +97,7 @@
                     </q-icon>
                   </template>
                 </q-input>
-                <q-input v-model="filters.end" dense outlined label="End" mask="####-##-##" class="register-filters__input register-filters__input--date">
+                <q-input v-model="endInput" dense outlined label="End" mask="##/##/####" placeholder="mm/dd/yyyy" class="register-filters__input register-filters__input--date">
                   <template #append>
                     <q-icon name="event" class="cursor-pointer">
                       <q-popup-proxy transition-show="scale" transition-hide="scale">
@@ -202,7 +202,7 @@
               <div class="register-filters__secondary">
                 <q-input v-model="minAmtInput" type="number" dense outlined label="Min $" class="register-filters__input" />
                 <q-input v-model="maxAmtInput" type="number" dense outlined label="Max $" class="register-filters__input" />
-                <q-input v-model="filters.start" dense outlined mask="####-##-##" label="Start" debounce="300" class="register-filters__input register-filters__input--date">
+                <q-input v-model="startInput" dense outlined mask="##/##/####" placeholder="mm/dd/yyyy" label="Start" debounce="300" class="register-filters__input register-filters__input--date">
                   <template #append>
                     <q-icon name="event" class="cursor-pointer">
                       <q-popup-proxy transition-show="scale" transition-hide="scale">
@@ -211,7 +211,7 @@
                     </q-icon>
                   </template>
                 </q-input>
-                <q-input v-model="filters.end" dense outlined mask="####-##-##" label="End" debounce="300" class="register-filters__input register-filters__input--date">
+                <q-input v-model="endInput" dense outlined mask="##/##/####" placeholder="mm/dd/yyyy" label="End" debounce="300" class="register-filters__input register-filters__input--date">
                   <template #append>
                     <q-icon name="event" class="cursor-pointer">
                       <q-popup-proxy transition-show="scale" transition-hide="scale">
@@ -278,7 +278,7 @@
                           />
                         </q-item-section>
                         <q-item-section>
-                          <q-item-label class="text-body2">{{ stmt.startDate }} &mdash; {{ stmt.endDate }}</q-item-label>
+                          <q-item-label class="text-body2">{{ formatDate(stmt.startDate) }} &mdash; {{ formatDate(stmt.endDate) }}</q-item-label>
                           <q-item-label caption>
                             {{ formatCurrency(stmt.startingBalance) }} &rarr; {{ formatCurrency(stmt.endingBalance) }}
                           </q-item-label>
@@ -294,7 +294,9 @@
                             label="Unreconcile"
                             @click="promptUnreconcile(stmt)"
                           />
-                          <q-badge v-else color="grey-4" text-color="grey-7" label="Draft" />
+                          <q-badge v-else color="grey-4" text-color="grey-7" label="Draft">
+                            <q-tooltip>Statement not yet reconciled</q-tooltip>
+                          </q-badge>
                         </q-item-section>
                       </q-item>
                     </q-list>
@@ -359,8 +361,8 @@
                       emit-value
                       map-options
                       label="Select Entity"
-                      variant="outlined"
-                      density="compact"
+                      outlined
+                      dense
                       :rules="requiredField"
                     />
                   </div>
@@ -368,7 +370,7 @@
                 <q-list bordered class="q-mt-md">
                   <q-item v-for="entry in batchEntries" :key="entry.id">
                     <q-item-section>
-                      <div class="text-caption">{{ entry.date }} - {{ formatCurrency(entry.amount) }}</div>
+                      <div class="text-caption">{{ formatDate(entry.date) }} — {{ formatCurrency(entry.amount) }}</div>
                     </q-item-section>
                     <q-item-section>
                       <q-input v-model="entry.merchant" label="Merchant" dense :rules="requiredField" />
@@ -382,8 +384,8 @@
             </q-card-section>
             <q-card-actions>
               <q-space />
-              <q-btn color="grey" variant="text" @click="showRegisterBatchDialog = false">Cancel</q-btn>
-              <q-btn color="primary" variant="flat" @click="executeRegisterBatchMatch" :loading="saving">Match</q-btn>
+              <q-btn color="grey" flat @click="showRegisterBatchDialog = false">Cancel</q-btn>
+              <q-btn color="primary" flat @click="executeRegisterBatchMatch" :loading="saving">Match</q-btn>
             </q-card-actions>
           </q-card>
         </q-dialog>
@@ -407,7 +409,7 @@
             </q-card-section>
             <q-card-section v-if="statementToUnreconcile">
               <p>
-                This will revert statement <strong>{{ statementToUnreconcile.startDate }} &mdash; {{ statementToUnreconcile.endDate }}</strong>
+                This will revert statement <strong>{{ formatDate(statementToUnreconcile.startDate) }} &mdash; {{ formatDate(statementToUnreconcile.endDate) }}</strong>
                 and mark its transactions as cleared (not reconciled).
               </p>
               <p>Are you sure?</p>
@@ -464,6 +466,7 @@ import { useFamilyStore } from 'src/store/family';
 import { useUIStore } from 'src/store/ui';
 import { useAuthStore } from 'src/store/auth';
 import { sortBudgetsByMonthDesc, createBudgetForMonth } from 'src/utils/budget';
+import { formatDate } from 'src/utils/helpers';
 import { dataAccess } from 'src/dataAccess';
 import type { Budget, Transaction, StatementFinalizePayload, Statement } from 'src/types';
 import { useStatementStore } from 'src/store/statements';
@@ -540,6 +543,26 @@ onMounted(loadBudgets);
 
 const minAmtInput = ref('');
 const maxAmtInput = ref('');
+
+// Dates are stored ISO (YYYY-MM-DD) for lexicographic comparison against r.date,
+// but displayed to US users as mm/dd/yyyy. See docs/design_system.md.
+function makeDateDisplayRef(getIso: () => string | null, setIso: (v: string | null) => void) {
+  return computed<string>({
+    get() {
+      const iso = getIso();
+      if (!iso) return '';
+      const [yyyy, mm, dd] = iso.split('-');
+      return yyyy && mm && dd ? `${mm}/${dd}/${yyyy}` : '';
+    },
+    set(v: string) {
+      if (!v || v.length < 10) { setIso(null); return; }
+      const [mm, dd, yyyy] = v.split('/');
+      if (mm && dd && yyyy && yyyy.length === 4) setIso(`${yyyy}-${mm}-${dd}`);
+    },
+  });
+}
+const startInput = makeDateDisplayRef(() => filters.value.start, (v) => { filters.value.start = v; });
+const endInput = makeDateDisplayRef(() => filters.value.end, (v) => { filters.value.end = v; });
 
 const showTxDialog = ref(false);
 const editTx = ref<Transaction | null>(null);

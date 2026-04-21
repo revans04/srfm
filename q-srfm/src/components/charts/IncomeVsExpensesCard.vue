@@ -2,7 +2,9 @@
   <q-card class="section-card">
     <q-card-section class="row items-center justify-between q-px-md q-py-sm">
       <div class="text-subtitle2">Income vs. Expenses</div>
-      <q-btn dense flat icon="refresh" :loading="loading" @click="loadSeries" color="primary" />
+      <q-btn dense flat icon="refresh" :loading="loading" @click="loadSeries" color="primary">
+        <q-tooltip>Refresh</q-tooltip>
+      </q-btn>
     </q-card-section>
     <q-card-section class="q-pt-xs q-px-md q-pb-md">
       <div v-if="loading" class="row items-center justify-center q-pa-md">
@@ -14,9 +16,13 @@
         </div>
         <div v-else-if="hasZeroData" class="text-center text-body2 text-grey-7 q-pa-md">
           <q-icon name="info" size="24px" color="info" class="q-mb-sm" /><br />
-          Income and expense data is not yet available for the selected period. Enter transactions in the Budget page to see this chart populate.
+          No income or expense data for this period yet.
+          <router-link to="/budget" class="text-primary">Add transactions →</router-link>
         </div>
-        <div v-else class="text-body2 text-grey-7">No monthly data available yet.</div>
+        <div v-else class="text-body2 text-grey-7">
+          No monthly data yet.
+          <router-link to="/budget" class="text-primary">Open Budget →</router-link>
+        </div>
       </div>
     </q-card-section>
   </q-card>
@@ -61,7 +67,7 @@ function withAlpha(color: string, alpha: number) {
   return color;
 }
 
-const incomeColor = resolveTokenColor('primary', '#2563EB');
+const incomeColor = resolveTokenColor('primary', '#1D4ED8');
 const expenseColor = resolveTokenColor('negative', '#DC2626');
 
 const props = defineProps<{ entityId?: string }>();

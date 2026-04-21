@@ -2,7 +2,9 @@
   <q-card class="section-card">
     <q-card-section class="row items-center justify-between q-px-md q-py-sm">
       <div class="text-subtitle2">Spending by Category</div>
-      <q-btn dense flat icon="refresh" :loading="loading" @click="loadBudget" color="primary" />
+      <q-btn dense flat icon="refresh" :loading="loading" @click="loadBudget" color="primary">
+        <q-tooltip>Refresh</q-tooltip>
+      </q-btn>
     </q-card-section>
     <q-card-section class="q-pt-xs q-px-md q-pb-md">
       <div v-if="loading" class="row items-center justify-center q-pa-md">
@@ -93,12 +95,12 @@ function resolveTokenColor(token: string, fallback: string) {
 }
 
 const colorTokens: ColorToken[] = [
-  { token: 'primary', fallback: '#2563EB' },
-  { token: 'secondary', fallback: '#0F766E' },
+  { token: 'primary', fallback: '#1D4ED8' },
+  { token: 'secondary', fallback: '#3B5BDB' },
   { token: 'positive', fallback: '#16A34A' },
-  { token: 'warning', fallback: '#F59E0B' },
+  { token: 'warning', fallback: '#E65100' },
   { token: 'negative', fallback: '#DC2626' },
-  { token: 'info', fallback: '#0284C7' },
+  { token: 'info', fallback: '#2563EB' },
 ];
 
 const colors = [

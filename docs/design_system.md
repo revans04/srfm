@@ -22,6 +22,7 @@
 - `[ENFORCED]` Shadow tokens are `--shadow-soft` and `--shadow-subtle`.
 - `[SUGGESTED]` Prefer pill buttons/chips consistent with global Quasar overrides in `app.scss`.
 - `[ENFORCED]` Inconsistency: `q-srfm/quasar.config.ts` brand hex values conflict with `q-srfm/src/css/quasar.variables.scss`; canonical direction is `quasar.variables.scss` as source of truth and alignment of `quasar.config.ts`.
+- `[ENFORCED]` Over-budget states use `$warning` (#E65100), never `$negative`. Red is reserved for destructive actions and errors only.
 
 ## 3. Layout System
 - `[ENFORCED]` Use Quasar grid (`row`, `col-*`, `q-col-gutter-*`) and spacing utilities (`q-pa-*`, `q-ma-*`) as the primary layout system.
@@ -103,6 +104,7 @@
 - `[ENFORCED]` Accounting terminology must be accompanied by tooltip help via Quasar `q-tooltip` on hover/tap. **Owner decision: labels remain as-is; tooltips bridge the gap (no renaming).** Specific tooltips: "Reconciled" → "Verified against your bank statement"; "Cleared" → "Transaction has posted to your account"; "Uncleared" → "Transaction hasn't posted yet"; "Budget Register" → "Transactions matched to your budget categories"; "Account Register" → "Transactions imported from your bank account"; "Match Bank Transactions" → "Link imported bank transactions to your budget entries."
 - `[ENFORCED]` The Transactions page subtitle "Monitor budgets and accounts side by side" must be removed entirely. **Owner decision: no subtitle needed — the page title "Transactions" is sufficient.**
 - `[SUGGESTED]` Consider offering a "simplified view" toggle for data-dense pages (Transactions, Reports) that reduces visible columns and hides advanced filters, serving non-expert users who just want to see "what did I spend."
+- `[ENFORCED]` Dates are always displayed as `mm/dd/yyyy`. Storage format is `YYYY-MM-DD` (ISO) for sortability; conversion happens at the input/display boundary.
 
 ## 10. Agent Implementation Rules
 - `[ENFORCED]` Reuse existing components and Quasar primitives before creating new components.

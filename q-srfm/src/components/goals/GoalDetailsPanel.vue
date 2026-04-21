@@ -5,7 +5,9 @@
         <h2 class="category-title">{{ goal.name }}</h2>
       </div>
       <div class="col-auto">
-        <q-btn flat dense icon="close" class="q-mt-sm" @click="$emit('close')" />
+        <q-btn flat dense icon="close" class="q-mt-sm" @click="$emit('close')">
+          <q-tooltip>Close</q-tooltip>
+        </q-btn>
       </div>
     </div>
     <div class="row q-mt-sm">
@@ -46,7 +48,7 @@
               class="transaction-item"
             >
               <q-item-section>
-                <div class="row q-pa-sm align-center no-gutters">
+                <div class="row q-pa-sm items-center no-gutters">
                   <div class="col q-pt-sm font-weight-bold text-primary col-2" style="min-width: 60px; font-size: 10px">
                     {{ row.txDate ? formatDate(row.txDate) : formatDateMonthYYYY(row.month || '') }}
                   </div>
@@ -85,7 +87,7 @@
           <q-list dense>
             <q-item v-for="row in spendRows" :key="row.txId" class="transaction-item">
               <q-item-section>
-                <div class="row q-pa-sm align-center no-gutters">
+                <div class="row q-pa-sm items-center no-gutters">
                   <div class="col q-pt-sm font-weight-bold text-primary col-2" style="min-width: 60px; font-size: 10px">
                     {{ formatDate(row.txDate) }}
                   </div>

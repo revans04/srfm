@@ -2,7 +2,7 @@
 <template>
   <q-page class="bg-grey-1 q-pa-lg">
     <h1 class="page-title">Setup Wizard</h1>
-    <div class="text-subtitle-1 q-mb-sm">Step {{ currentStepIndex + 1 }} of {{ wizardSteps.length }}</div>
+    <div class="text-subtitle1 q-mb-sm">Step {{ currentStepIndex + 1 }} of {{ wizardSteps.length }}</div>
     <q-stepper v-model="currentStepValue" class="q-mt-lg wizard-stepper" hide-actions aria-label="Setup Wizard Steps">
       <template v-for="step in wizardSteps" :key="`item-${step.value}`">
         <q-stepper-item
@@ -40,10 +40,12 @@
                   budgets and expenses related to that entity. You will also be able to run reports that are isolated to entities. Each entity will have monthly
                   budgets with expense categories. Each entity should also have some income source.<br /><br />
                   <q-list v-if="savedEntities.length > 0" class="q-mb-lg full-width">
-                    <div class="row full-width align-center" >
+                    <div class="row full-width items-center" >
                       <div class="col text-h6" >Saved Entities</div>
                       <div class="col text-right col-auto" >
-                        <q-btn dense flat icon="add" color="primary" @click="initNewEntity" aria-label="Add New Entity"></q-btn>
+                        <q-btn dense flat icon="add" color="primary" @click="initNewEntity" aria-label="Add New Entity">
+                          <q-tooltip>Add new entity</q-tooltip>
+                        </q-btn>
                       </div>
                     </div>
                     <q-item
@@ -77,7 +79,7 @@
 
             <template v-else-if="step.accountType">
               <q-card flat class="wizard-step-card">
-                <q-card-section class="text-h5 d-flex justify-space-between align-center">
+                <q-card-section class="text-h5 row items-center justify-between">
                   <span>{{ step.title }}</span>
                 </q-card-section>
                 <q-card-section>
@@ -527,7 +529,7 @@ async function finishSetup() {
       };
       await dataAccess.saveAccount(family.value.id, newAccountToSave);
     }
-    showSnackbarMessage("Setup completed successfully! Redirecting...", "success");
+    showSnackbarMessage("Setup complete. Redirecting…", "success");
     setTimeout(() => void router.push("/budget"), 1500);
   } catch (error: unknown) {
     showSnackbarMessage(`Error saving accounts: ${errorMessage(error)}`, "error");

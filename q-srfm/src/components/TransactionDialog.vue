@@ -7,7 +7,9 @@
           <div class="text-h6 transaction-dialog__title">{{ dialogTitle }}</div>
           <div v-if="helperText" class="text-caption text-grey-6">{{ helperText }}</div>
         </div>
-        <q-btn flat round dense icon="close" size="sm" color="grey-6" @click="handleCancel" />
+        <q-btn flat round dense icon="close" size="sm" color="grey-6" @click="handleCancel">
+          <q-tooltip>Close</q-tooltip>
+        </q-btn>
       </q-card-section>
 
       <q-card-section class="transaction-dialog__body">
