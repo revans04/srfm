@@ -90,8 +90,8 @@ watch(
 
 /* Style for the inactive button */
 .inactive {
-  background-color: #e0e0e0; /* Light gray for inactive */
-  color: #555;
+  background-color: var(--color-surface-muted);
+  color: var(--color-text-muted);
 }
 
 /* Ensure the buttons are seamlessly connected */

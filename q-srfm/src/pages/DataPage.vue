@@ -294,8 +294,7 @@
                             :caption="diffSummaryCaption(diff)"
                             :default-opened="true"
                             header-class="text-weight-medium"
-                            class="q-mb-sm"
-                            style="border: 1px solid #e0e0e0; border-radius: 8px;"
+                            class="q-mb-sm diff-expansion"
                           >
                             <div class="q-pa-md">
                               <!-- Budget status banner -->
@@ -369,8 +368,7 @@
                                 <div
                                   v-for="row in diff.changedCategories"
                                   :key="row.name"
-                                  class="q-mb-xs q-pa-sm"
-                                  style="border-left: 2px solid #fdd835; background: #fffde7;"
+                                  class="q-mb-xs q-pa-sm changed-category-row"
                                 >
                                   <div class="text-weight-medium">{{ row.name }}</div>
                                   <div
@@ -3601,3 +3599,15 @@ function showSnackbar(text: string, color = "success") {
   });
 }
 </script>
+
+<style scoped>
+.diff-expansion {
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-sm);
+}
+
+.changed-category-row {
+  border-left: 2px solid var(--q-warning);
+  background: var(--color-warning-soft);
+}
+</style>

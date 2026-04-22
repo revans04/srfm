@@ -1356,10 +1356,12 @@ function showSnackbar(text: string, color = 'success') {
 
 <style>
 .q-table tbody tr.amount-mismatch td {
-  background-color: #fff7e6;
+  background-color: var(--color-warning-soft);
 }
 .q-table tbody tr.amount-mismatch.q-tr--selected td,
 .q-table tbody tr.amount-mismatch.selected td {
+  /* Deeper amber-tint for selected amount-mismatch rows to distinguish from
+     the un-selected amount-mismatch background. Intentional two-step tint. */
   background-color: #ffe5cc;
 }
 .q-table tbody tr.approx-match td {

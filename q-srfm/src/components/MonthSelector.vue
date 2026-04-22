@@ -129,7 +129,7 @@ const selectMonth = (month: string) => {
 }
 .month-option--selected {
   background-color: var(--q-primary);
-  color: #fff;
+  color: var(--color-surface-card);
   font-weight: 600;
   border-color: transparent !important;
 }

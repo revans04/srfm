@@ -2428,11 +2428,11 @@ interface GroupCategory {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 14px;
-  background: #fef3c7;
-  border-radius: 8px;
+  padding: 8px 16px;
+  background: var(--color-warning-soft);
+  border-radius: var(--radius-sm);
   font-size: 13px;
-  color: #92400e;
+  color: var(--color-warning-strong-text);
 }
 
 .non-current-banner__text {
@@ -2441,7 +2441,7 @@ interface GroupCategory {
 
 .non-current-banner__link {
   font-weight: 600;
-  color: #92400e;
+  color: var(--color-warning-strong-text);
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -2449,7 +2449,7 @@ interface GroupCategory {
 }
 
 .non-current-banner__link:hover {
-  color: #78350f;
+  opacity: 0.8;
 }
 
 .budget-page {
@@ -2507,7 +2507,7 @@ interface GroupCategory {
   background: var(--color-surface-card);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-subtle);
-  padding: 16px 20px;
+  padding: 16px;
   min-height: 100px;
 }
 
@@ -2521,7 +2521,7 @@ interface GroupCategory {
   font-size: 28px;
   font-weight: 700;
   line-height: 1.3;
-  margin-top: 6px;
+  margin-top: 4px;
   color: var(--color-text-primary);
 }
 
@@ -2529,13 +2529,13 @@ interface GroupCategory {
   font-size: 11px;
   font-weight: 400;
   color: var(--color-text-muted);
-  margin-top: 2px;
+  margin-top: 4px;
 }
 
 .budget-search :deep(.q-field__control) {
   height: 40px;
   border-radius: var(--radius-md);
-  border-color: #94a3b8;
+  border-color: var(--color-text-subtle);
 }
 
 .income-card {
@@ -2706,8 +2706,8 @@ interface GroupCategory {
 .cat-group-header {
   font-size: 14px;
   font-weight: 600;
-  color: #1d4ed8;
-  padding: 12px 0 6px;
+  color: var(--q-primary);
+  padding: 12px 0 8px;
 }
 
 .cat-row {
@@ -2731,7 +2731,7 @@ interface GroupCategory {
 .cat-progress-track {
   width: 100%;
   height: var(--progress-height, 8px);
-  background: #e2e8f0;
+  background: var(--color-divider);
   border-radius: var(--progress-radius, 4px);
   overflow: hidden;
 }
@@ -2743,15 +2743,15 @@ interface GroupCategory {
 }
 
 .cat-progress--partial {
-  background: #1D4ED8;  /* was #f59e0b — progress uses primary while in-flight */
+  background: var(--q-primary);
 }
 
 .cat-progress--full {
-  background: #16a34a;
+  background: var(--q-positive);
 }
 
 .cat-progress--over {
-  background: #E65100;  /* was #dc2626 — over-budget is warning, not error */
+  background: var(--q-warning);
 }
 
 .budget-tx-toggle :deep(.q-btn-group) {

@@ -9,13 +9,18 @@
   --ledger-actions: 80px;
   --color-surface-page: #f5f7fb;
   --color-surface-card: #ffffff;
-  --color-surface-subtle: #eef2ff;
+  --color-surface-subtle: #eef2ff;        /* primary-soft — selected/hover rows, attention tiles */
   --color-surface-muted: #e2e8f0;
   --color-outline-soft: rgba(148, 163, 184, 0.24);
   --color-text-primary: #0f172a;
   --color-text-muted: #64748b;
   --color-text-subtle: #94a3b8;
   --color-divider: #e2e8f0;
+  /* Soft-tint companions for semantic tokens. Paired with the strong-text
+     variant to keep AA contrast on the light surface. */
+  --color-warning-soft: #fef3c7;
+  --color-warning-strong-text: #92400e;
+  --color-negative-soft: #fce7e7;
   --shadow-soft: 0 18px 36px rgba(15, 23, 42, 0.08);
   --shadow-subtle: 0 6px 16px rgba(15, 23, 42, 0.06);
   --progress-height: 8px;

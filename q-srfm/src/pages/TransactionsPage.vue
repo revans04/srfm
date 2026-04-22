@@ -1382,7 +1382,6 @@ async function performRegisterBatchAction() {
 }
 
 .tx-pill {
-  border: none;
   border-radius: 999px;
   padding: 8px 16px;
   font-size: 11px;
@@ -1391,19 +1390,19 @@ async function performRegisterBatchAction() {
   cursor: pointer;
   transition: all 0.15s ease;
   background: transparent;
-  color: #64748b;
-  border: 1px solid #cbd5e1;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-surface-muted);
 }
 
 .tx-pill--active {
-  background: #1d4ed8;
-  color: #ffffff;
-  border-color: #1d4ed8;
+  background: var(--q-primary);
+  color: var(--color-surface-card);
+  border-color: var(--q-primary);
   font-weight: 600;
 }
 
 .tx-pill:hover:not(.tx-pill--active) {
-  background: #f8fafc;
+  background: var(--color-surface-page);
 }
 
 .transactions-hero__metrics {
@@ -1413,28 +1412,28 @@ async function performRegisterBatchAction() {
 }
 
 .tx-metric {
-  background: #dbeafe;
-  border-radius: 14px;
+  background: var(--color-surface-subtle);
+  border-radius: var(--radius-md);
   padding: 12px 16px;
 }
 
 .tx-metric__label {
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #1e40af;
+  color: var(--q-primary);
   font-weight: 600;
 }
 
 .tx-metric__value {
-  margin-top: 6px;
+  margin-top: 4px;
   font-size: 24px;
   font-weight: 700;
-  color: #1e3a5f;
+  color: var(--color-text-primary);
 }
 
 .transactions-layout {
-  gap: 20px;
+  gap: 16px;
   min-height: 0;
 }
 
@@ -1445,7 +1444,7 @@ async function performRegisterBatchAction() {
 }
 
 .transactions-layout__main {
-  gap: 20px;
+  gap: 16px;
   min-width: 0;
   min-height: 0;
 }

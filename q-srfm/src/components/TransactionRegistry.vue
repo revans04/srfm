@@ -1661,9 +1661,9 @@ function applyFilters() {
 
 <style scoped>
 .status-u {
-  background-color: #fff9e6;
+  background-color: var(--color-warning-soft);
 }
 .status-c {
-  background-color: #e6f4ff;
+  background-color: var(--color-surface-subtle);
 }
 </style>

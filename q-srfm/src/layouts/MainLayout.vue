@@ -108,8 +108,8 @@
           <GettingStartedChecklist />
         </div>
         <div class="q-px-md q-pb-md">
-          <div style="font-size: 11px; color: #64748b;">{{ auth.user?.email }}</div>
-          <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">v{{ appVersion }}</div>
+          <div class="app-drawer__email">{{ auth.user?.email }}</div>
+          <div class="app-drawer__version">v{{ appVersion }}</div>
         </div>
       </q-card>
     </q-dialog>
@@ -180,7 +180,7 @@ onUnmounted(() => {
 }
 
 .app-drawer {
-  background: #ffffff;
+  background: var(--color-surface-card);
   color: var(--color-text-primary);
   box-shadow: 2px 0 16px rgba(15, 23, 42, 0.06);
 }
@@ -211,7 +211,7 @@ onUnmounted(() => {
 .app-drawer__brand-name {
   font-size: 16px;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--color-text-primary);
 }
 
 .app-drawer__nav {
@@ -220,11 +220,11 @@ onUnmounted(() => {
 }
 
 .app-drawer__item {
-  border-radius: 10px;
-  margin-bottom: 2px;
+  border-radius: var(--radius-md);
+  margin-bottom: 4px;
   padding: 10px 12px;
   min-height: 40px;
-  color: #64748b;
+  color: var(--color-text-muted);
   background: transparent;
   font-size: 14px;
   font-weight: 500;
@@ -232,7 +232,7 @@ onUnmounted(() => {
 }
 
 .app-drawer__item:hover {
-  background: #f8fafc;
+  background: var(--color-surface-page);
 }
 
 .app-drawer__item :deep(.q-item__label),
@@ -241,13 +241,13 @@ onUnmounted(() => {
 }
 
 .app-drawer__item--active {
-  background: #eef2ff;
-  color: #1d4ed8;
+  background: var(--color-surface-subtle);
+  color: var(--q-primary);
   font-weight: 600;
 }
 
 .app-drawer__item--active :deep(.q-icon) {
-  color: #1d4ed8;
+  color: var(--q-primary);
 }
 
 .app-drawer__footer {
@@ -257,18 +257,18 @@ onUnmounted(() => {
 
 .app-drawer__email {
   font-size: 11px;
-  color: #64748b;
+  color: var(--color-text-muted);
   cursor: pointer;
   line-height: 1.4;
 }
 
 .app-drawer__email:hover {
-  color: #1d4ed8;
+  color: var(--q-primary);
 }
 
 .app-drawer__version {
   font-size: 10px;
-  color: #94a3b8;
+  color: var(--color-text-subtle);
   margin-top: 4px;
 }
 
@@ -277,18 +277,18 @@ onUnmounted(() => {
 }
 
 .mobile-header {
-  background: #1d4ed8;
-  color: #ffffff;
+  background: var(--q-primary);
+  color: var(--color-surface-card);
   padding: 0;
   min-height: 56px;
 }
 
 .mobile-header img {
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }
 
 .mobile-footer {
-  background: #ffffff;
+  background: var(--color-surface-card);
   color: var(--color-text-primary);
   padding: 8px 0;
   box-shadow: 0 -2px 8px rgba(15, 23, 42, 0.06);
@@ -299,14 +299,14 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 6px 0;
+  gap: 4px;
+  padding: 8px 0;
   cursor: pointer;
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 
 .mobile-tab--active {
-  color: #1d4ed8;
+  color: var(--q-primary);
 }
 
 .mobile-tab__label {
