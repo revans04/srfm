@@ -370,19 +370,51 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
     {
         _logger.LogInformation("Saving budget {BudgetId}", budgetId);
         await using var conn = await _db.GetOpenConnectionAsync();
-        await using var dbTx = await conn.BeginTransactionAsync();
+        await using (var dbTx = await conn.BeginTransactionAsync())
+        {
+            await WriteBudgetAndCategoriesAsync(conn, dbTx, budgetId, budget, _logger);
+            await dbTx.CommitAsync();
+        }
+
+        if (budget.Transactions != null && budget.Transactions.Count > 0)
+        {
+            await BatchSaveTransactions(budgetId, budget.Transactions, userId, userEmail, !skipCarryoverRecalc);
+        }
+        await LogEdit(conn, budgetId, userId, userEmail, "save-budget");
+        _logger.LogInformation("Budget {BudgetId} saved with {CatCount} categories and {TxCount} transactions", budgetId, budget.Categories?.Count ?? 0, budget.Transactions?.Count ?? 0);
+    }
+
+    /// <summary>
+    /// Write the `budgets` row and replace its `budget_categories` rows on an
+    /// existing open connection + transaction. Does NOT manage the
+    /// transaction lifecycle (caller commits/rolls back), does NOT batch
+    /// transactions (they live on a different write path), and does NOT log
+    /// edit history. Used by both <see cref="SaveBudget"/> and
+    /// <c>OnboardingService.SeedAsync</c> so the seed flow can compose budget
+    /// creation with family/entity inserts inside one Postgres transaction
+    /// without re-implementing the group-resolution / sort-order logic.
+    /// </summary>
+    internal static async Task WriteBudgetAndCategoriesAsync(
+        NpgsqlConnection conn,
+        NpgsqlTransaction tx,
+        string budgetId,
+        Budget budget,
+        ILogger logger)
+    {
         const string sql = @"INSERT INTO budgets (id, family_id, entity_id, month, label, income_target, original_budget_id, created_at, updated_at)
 VALUES (@id,@family_id,@entity_id,@month,@label,@income_target,@original_budget_id, now(), now())
 ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.entity_id, month=EXCLUDED.month, label=EXCLUDED.label, income_target=EXCLUDED.income_target, original_budget_id=EXCLUDED.original_budget_id, updated_at=now();";
-        await using var cmd = new NpgsqlCommand(sql, conn, dbTx);
-        cmd.Parameters.AddWithValue("id", budgetId);
-        cmd.Parameters.AddWithValue("family_id", Guid.Parse(budget.FamilyId));
-        SetOptionalGuid(cmd.Parameters, "entity_id", budget.EntityId);
-        cmd.Parameters.AddWithValue("month", budget.Month);
-        cmd.Parameters.AddWithValue("label", (object?)budget.Label ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("income_target", (decimal)budget.IncomeTarget);
-        cmd.Parameters.AddWithValue("original_budget_id", (object?)budget.OriginalBudgetId ?? DBNull.Value);
-        await cmd.ExecuteNonQueryAsync();
+        await using (var cmd = new NpgsqlCommand(sql, conn, tx))
+        {
+            cmd.Parameters.AddWithValue("id", budgetId);
+            cmd.Parameters.AddWithValue("family_id", Guid.Parse(budget.FamilyId));
+            SetOptionalGuid(cmd.Parameters, "entity_id", budget.EntityId);
+            cmd.Parameters.AddWithValue("month", budget.Month);
+            cmd.Parameters.AddWithValue("label", (object?)budget.Label ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("income_target", (decimal)budget.IncomeTarget);
+            cmd.Parameters.AddWithValue("original_budget_id", (object?)budget.OriginalBudgetId ?? DBNull.Value);
+            await cmd.ExecuteNonQueryAsync();
+        }
 
         // Resolve a group_id for every incoming category. Categories may carry
         // either an explicit GroupId (already known) or just a GroupName (newly
@@ -405,12 +437,12 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
 
                 if (gid == null && entityGuid.HasValue && !string.IsNullOrWhiteSpace(cat.GroupName))
                 {
-                    gid = await EnsureGroupAsync(conn, dbTx, entityGuid.Value, cat.GroupName!.Trim(), inferKind(cat.GroupName!));
+                    gid = await EnsureGroupAsync(conn, tx, entityGuid.Value, cat.GroupName!.Trim(), InferGroupKind(cat.GroupName!));
                 }
 
                 if (gid == null && entityGuid.HasValue)
                 {
-                    gid = await EnsureGroupAsync(conn, dbTx, entityGuid.Value, "(Ungrouped)", "expense");
+                    gid = await EnsureGroupAsync(conn, tx, entityGuid.Value, "(Ungrouped)", "expense");
                 }
 
                 if (gid.HasValue)
@@ -420,7 +452,7 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
 
         // Replace existing categories and insert current ones
         const string delCatSql = "DELETE FROM budget_categories WHERE budget_id=@bid";
-        await using (var delCatCmd = new NpgsqlCommand(delCatSql, conn, dbTx))
+        await using (var delCatCmd = new NpgsqlCommand(delCatSql, conn, tx))
         {
             delCatCmd.Parameters.AddWithValue("bid", budgetId);
             await delCatCmd.ExecuteNonQueryAsync();
@@ -441,7 +473,7 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
                 if (!resolvedGroupIds.TryGetValue(i, out var gid))
                 {
                     // Skip categories with no resolvable group (no entity_id + no upsert path).
-                    _logger.LogWarning("Skipping category '{Name}' on budget {BudgetId}: no group_id resolvable", cat.Name, budgetId);
+                    logger.LogWarning("Skipping category '{Name}' on budget {BudgetId}: no group_id resolvable", cat.Name, budgetId);
                     continue;
                 }
 
@@ -450,7 +482,7 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
                 var sortOrder = cat.SortOrder > 0 ? cat.SortOrder : nextOrder;
                 perGroupCounter[gid] = Math.Max(nextOrder, sortOrder) + 1;
 
-                await using var catCmd = new NpgsqlCommand(insCatSql, conn, dbTx);
+                await using var catCmd = new NpgsqlCommand(insCatSql, conn, tx);
                 catCmd.Parameters.AddWithValue("budget_id", budgetId);
                 catCmd.Parameters.AddWithValue("name", (object?)cat.Name ?? DBNull.Value);
                 catCmd.Parameters.AddWithValue("target", (decimal)cat.Target);
@@ -463,23 +495,21 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
                 await catCmd.ExecuteNonQueryAsync();
             }
         }
+    }
 
-        static string inferKind(string name)
-        {
-            var n = name.Trim().ToLowerInvariant();
-            if (n == "income") return "income";
-            if (n == "savings") return "savings";
-            return "expense";
-        }
-
-        await dbTx.CommitAsync();
-
-        if (budget.Transactions != null && budget.Transactions.Count > 0)
-        {
-            await BatchSaveTransactions(budgetId, budget.Transactions, userId, userEmail, !skipCarryoverRecalc);
-        }
-        await LogEdit(conn, budgetId, userId, userEmail, "save-budget");
-        _logger.LogInformation("Budget {BudgetId} saved with {CatCount} categories and {TxCount} transactions", budgetId, budget.Categories?.Count ?? 0, budget.Transactions?.Count ?? 0);
+    /// <summary>
+    /// Heuristic for inferring a budget_group's kind from its name when a
+    /// category arrives with no explicit group_id (e.g. typed-in new group on
+    /// the inline category editor, or a seed payload sourcing from
+    /// `DEFAULT_BUDGET_TEMPLATES`). Lifted out of SaveBudget so the seed
+    /// helper and EnsureGroup-by-kind-callers share the same convention.
+    /// </summary>
+    internal static string InferGroupKind(string name)
+    {
+        var n = (name ?? string.Empty).Trim().ToLowerInvariant();
+        if (n == "income") return "income";
+        if (n == "savings") return "savings";
+        return "expense";
     }
 
     public async Task RecalculateCarryover(string budgetId, IEnumerable<string> categoryNames, string userId, string userEmail)

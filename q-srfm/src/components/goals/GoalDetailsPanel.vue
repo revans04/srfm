@@ -1,127 +1,125 @@
 <template>
-  <q-page class="category-transactions text-black bg-grey-2 q-pa-md">
-    <div class="row header items-center">
-      <div class="col">
-        <h2 class="category-title">{{ goal.name }}</h2>
-      </div>
-      <div class="col-auto">
-        <q-btn flat dense icon="close" class="q-mt-sm" @click="$emit('close')">
-          <q-tooltip>Close</q-tooltip>
-        </q-btn>
-      </div>
-    </div>
-    <div class="row q-mt-sm">
-      <div class="col">
-        <div class="progress-section">
-          <div class="progress-label">
-            <span class="text-weight-bold">{{ formatCurrency(available) }}</span>
-            available
-            <template v-if="target > 0">of {{ formatCurrency(target) }}</template>
-          </div>
-          <q-linear-progress
-            :value="progress"
-            height="10"
-            color="primary"
-            track-color="grey-3"
-            rounded
-          />
-          <div class="progress-breakdown text-caption text-grey-7 q-mt-xs">
-            {{ formatCurrency(saved) }} contributed
-            <span v-if="withdrawn > 0">
-              · {{ formatCurrency(withdrawn) }} withdrawn
-            </span>
+  <div class="goal-panel column">
+    <q-card class="goal-card column">
+      <!-- Hero -->
+      <div class="goal-hero">
+        <div class="hero-main row items-start no-wrap">
+          <q-avatar size="44px" class="hero-avatar" text-color="white" color="primary">
+            <q-icon name="savings" size="24px" />
+          </q-avatar>
+          <div class="hero-text column">
+            <div class="hero-label text-caption text-muted">Savings goal</div>
+            <div class="hero-name text-h6">{{ goal.name }}</div>
+            <div class="hero-summary text-caption text-muted">{{ progressSummary }}</div>
           </div>
         </div>
+        <q-btn flat dense round icon="close" class="hero-close" @click="$emit('close')">
+          <q-tooltip>Close panel</q-tooltip>
+        </q-btn>
       </div>
-    </div>
-    <q-tabs v-model="tab" dense class="bg-grey-2 q-mt-md">
-      <q-tab name="contribs" label="Contributions" />
-      <q-tab name="spend" label="Goal Spend" />
-    </q-tabs>
-    <q-tab-panels v-model="tab" animated class="q-mt-md">
-      <q-tab-panel name="contribs">
-        <q-card flat class="bg-white" rounded>
-          <q-list dense>
-            <q-item
-              v-for="row in contribRows"
-              :key="row.txId || row.month || `${row.txDate}-${row.amount}`"
-              class="transaction-item"
-            >
-              <q-item-section>
-                <div class="row q-pa-sm items-center no-gutters">
-                  <div class="col q-pt-sm font-weight-bold text-primary col-2" style="min-width: 60px; font-size: 10px">
-                    {{ row.txDate ? formatDate(row.txDate) : formatDateMonthYYYY(row.month || '') }}
-                  </div>
-                  <div class="col text-truncate" style="flex: 1; min-width: 0">
-                    {{ row.merchant || 'Contribution' }}
-                  </div>
-                  <div class="col text-right no-wrap col-auto" style="min-width: 60px">
-                    {{ formatCurrency(row.amount) }}
-                  </div>
-                  <div class="col-auto q-ml-sm">
-                    <q-btn
-                      v-if="row.txId && row.budgetId"
-                      flat
-                      dense
-                      round
-                      size="sm"
-                      icon="delete"
-                      color="grey-6"
-                      :loading="deletingTxId === row.txId"
-                      @click="confirmDelete(row.txId, row.budgetId, row.merchant, row.amount, 'contribution')"
-                    >
-                      <q-tooltip>Delete this transaction</q-tooltip>
-                    </q-btn>
-                  </div>
-                </div>
-              </q-item-section>
-            </q-item>
-            <q-item v-if="contribRows.length === 0">
-              <q-item-label>No contributions.</q-item-label>
-            </q-item>
-          </q-list>
-        </q-card>
-      </q-tab-panel>
-      <q-tab-panel name="spend">
-        <q-card flat class="bg-white" rounded>
-          <q-list dense>
-            <q-item v-for="row in spendRows" :key="row.txId" class="transaction-item">
-              <q-item-section>
-                <div class="row q-pa-sm items-center no-gutters">
-                  <div class="col q-pt-sm font-weight-bold text-primary col-2" style="min-width: 60px; font-size: 10px">
-                    {{ formatDate(row.txDate) }}
-                  </div>
-                  <div class="col text-truncate" style="flex: 1; min-width: 0">
-                    {{ row.merchant || 'Transaction' }}
-                  </div>
-                  <div class="col text-right no-wrap col-auto" style="min-width: 60px">
-                    {{ formatCurrency(row.amount) }}
-                  </div>
-                  <div class="col-auto q-ml-sm">
-                    <q-btn
-                      v-if="row.txId && row.budgetId"
-                      flat
-                      dense
-                      round
-                      size="sm"
-                      icon="delete"
-                      color="grey-6"
-                      :loading="deletingTxId === row.txId"
-                      @click="confirmDelete(row.txId, row.budgetId, row.merchant, row.amount, 'spend')"
-                    >
-                      <q-tooltip>Delete this transaction</q-tooltip>
-                    </q-btn>
-                  </div>
-                </div>
-              </q-item-section>
-            </q-item>
-            <q-item v-if="spendRows.length === 0">
-              <q-item-label>No goal spend.</q-item-label>
-            </q-item>
-          </q-list>
-        </q-card>
-      </q-tab-panel>
-    </q-tab-panels>
+
+      <!-- Progress -->
+      <q-card-section class="progress-section">
+        <div class="row items-center justify-between">
+          <div class="text-caption text-muted">Progress</div>
+          <div class="text-caption text-muted">{{ Math.round(progress * 100) }}%</div>
+        </div>
+        <q-linear-progress
+          :value="progress"
+          color="primary"
+          track-color="grey-3"
+          class="goal-progress"
+        />
+      </q-card-section>
+
+      <!-- Summary cards -->
+      <q-card-section class="summary-grid">
+        <div class="summary-item">
+          <div class="summary-label">Available</div>
+          <div class="summary-value">{{ formatCurrency(available) }}</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Contributed</div>
+          <div class="summary-value">{{ formatCurrency(saved) }}</div>
+        </div>
+        <div v-if="withdrawn > 0" class="summary-item">
+          <div class="summary-label">Withdrawn</div>
+          <div class="summary-value">{{ formatCurrency(withdrawn) }}</div>
+        </div>
+      </q-card-section>
+
+      <q-separator class="q-mx-md" />
+
+      <!-- Tabs -->
+      <q-tabs
+        v-model="tab"
+        dense
+        no-caps
+        align="left"
+        active-color="primary"
+        indicator-color="primary"
+        class="goal-tabs"
+      >
+        <q-tab name="contribs" :label="`Contributions (${contribRows.length})`" />
+        <q-tab name="spend" :label="`Goal spend (${spendRows.length})`" />
+      </q-tabs>
+
+      <q-separator />
+
+      <!-- Activity list -->
+      <q-card-section class="goal-activity-scroll q-pt-none q-px-md q-pb-md">
+        <q-list separator class="q-pa-none">
+          <q-item
+            v-for="row in activeRows"
+            :key="row.txId || rowMonth(row) || `${row.txDate}-${row.amount}`"
+            clickable
+            class="tx-item"
+          >
+            <q-item-section avatar class="tx-item__date-col">
+              <div class="tx-date">
+                <div class="tx-date__month">{{ formatRowMonth(row.txDate || rowMonth(row)) }}</div>
+                <div class="tx-date__day">{{ formatRowDay(row.txDate, rowMonth(row)) }}</div>
+              </div>
+            </q-item-section>
+
+            <q-item-section>
+              <q-item-label class="tx-item__merchant">
+                {{ row.merchant || (tab === 'contribs' ? 'Contribution' : 'Transaction') }}
+              </q-item-label>
+            </q-item-section>
+
+            <q-item-section side class="tx-item__right">
+              <span
+                class="tx-item__amount"
+                :class="tab === 'contribs' ? 'text-positive' : 'text-negative'"
+              >
+                {{ tab === 'contribs' ? '+' : '-' }}{{ formatCurrency(Math.abs(row.amount)) }}
+              </span>
+            </q-item-section>
+
+            <q-item-section v-if="row.txId && row.budgetId" side class="tx-item__action">
+              <q-btn
+                flat
+                round
+                dense
+                icon="delete_outline"
+                color="grey-5"
+                size="xs"
+                :loading="deletingTxId === row.txId"
+                @click.stop="confirmDelete(row.txId, row.budgetId, row.merchant, row.amount, tab === 'contribs' ? 'contribution' : 'spend')"
+                style="min-width: 36px; min-height: 36px;"
+              >
+                <q-tooltip>Delete this transaction</q-tooltip>
+              </q-btn>
+            </q-item-section>
+          </q-item>
+        </q-list>
+
+        <div v-if="activeRows.length === 0" class="q-pa-lg text-center text-grey-6">
+          {{ tab === 'contribs' ? 'No contributions yet.' : 'No goal spend yet.' }}
+        </div>
+      </q-card-section>
+    </q-card>
 
     <q-dialog v-model="showDeleteDialog">
       <q-card style="min-width: 320px">
@@ -133,7 +131,7 @@
           <span class="text-weight-bold">{{ pendingDelete?.kind === 'spend' ? 'goal spend' : 'contribution' }}</span>
           for
           <span class="text-weight-bold">{{ pendingDelete?.merchant || 'this transaction' }}</span>
-          ({{ pendingDelete ? formatCurrency(pendingDelete.amount) : '' }})?
+          ({{ pendingDelete ? formatCurrency(Math.abs(pendingDelete.amount)) : '' }})?
           <div class="text-caption q-mt-sm text-grey-7">
             This permanently removes the underlying transaction from its budget.
           </div>
@@ -144,22 +142,26 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
-  </q-page>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
-import { formatCurrency, formatDate, formatDateMonthYYYY } from '../../utils/helpers';
+import { formatCurrency } from '../../utils/helpers';
 import { useGoals } from '../../composables/useGoals';
 import { useFamilyStore } from '../../store/family';
 import { dataAccess } from '../../dataAccess';
-import type { Goal } from '../../types';
+import type { Goal, GoalContribution, GoalSpend } from '../../types';
+
+function rowMonth(row: GoalContribution | GoalSpend): string | undefined {
+  return (row as GoalContribution).month;
+}
 
 const props = defineProps<{ goal: Goal }>();
 defineEmits<{ (e: 'close'): void }>();
 
-const tab = ref('contribs');
+const tab = ref<'contribs' | 'spend'>('contribs');
 const $q = useQuasar();
 const familyStore = useFamilyStore();
 
@@ -167,14 +169,10 @@ const { listContributions, listGoalSpends, loadGoalDetails, loadGoals, getGoal }
 
 const contribRows = computed(() => listContributions(props.goal.id));
 const spendRows = computed(() => listGoalSpends(props.goal.id));
+const activeRows = computed(() => (tab.value === 'contribs' ? contribRows.value : spendRows.value));
 
 // Pull the live goal from the cache so rollups update after a delete.
 const liveGoal = computed(() => getGoal(props.goal.id) || props.goal);
-// `saved` and `withdrawn` are the gross deposit/withdrawal sums maintained
-// by GoalService. `available` is the current net balance (deposits minus
-// withdrawals) — this is what the user is asking "how much is in this goal".
-// Progress is measured against the net balance, so spending from a goal
-// rolls the progress bar back, which matches user mental model.
 const saved = computed(() => liveGoal.value.savedToDate || 0);
 const withdrawn = computed(() => liveGoal.value.spentToDate || 0);
 const available = computed(() => Math.max(saved.value - withdrawn.value, 0));
@@ -182,6 +180,14 @@ const target = computed(() => liveGoal.value.totalTarget || 0);
 const progress = computed(() => {
   if (!target.value) return available.value > 0 ? 1 : 0;
   return Math.min(available.value / target.value, 1);
+});
+
+const progressSummary = computed(() => {
+  const availStr = formatCurrency(available.value);
+  if (target.value > 0) {
+    return `${availStr} of ${formatCurrency(target.value)} saved`;
+  }
+  return `${availStr} available`;
 });
 
 const showDeleteDialog = ref(false);
@@ -211,7 +217,6 @@ async function executeDelete() {
   deletingTxId.value = txId;
   try {
     await dataAccess.deleteTransactionById(budgetId, txId);
-    // Refresh goal details list and goal roll-ups (savedToDate / spentToDate)
     await loadGoalDetails(props.goal.id);
     if (familyStore.selectedEntityId) {
       await loadGoals(familyStore.selectedEntityId, true);
@@ -227,20 +232,210 @@ async function executeDelete() {
   }
 }
 
+function formatRowMonth(dateStr?: string): string {
+  if (!dateStr) return '--';
+  const [yearStr, monthStr] = dateStr.split('-');
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  if (!year || !month) return '--';
+  const date = new Date(year, month - 1);
+  if (Number.isNaN(date.getTime())) return '--';
+  return date.toLocaleDateString('en-US', { month: 'short' });
+}
+
+function formatRowDay(txDate?: string, month?: string): string {
+  // If only a month is provided (recurring contribution rollup), show the year's last 2 digits
+  if (!txDate && month) {
+    const [yearStr] = month.split('-');
+    return yearStr ? yearStr.slice(-2) : '--';
+  }
+  if (!txDate) return '--';
+  const [, , dayStr] = txDate.split('-');
+  const day = Number(dayStr);
+  if (!day) return '--';
+  return String(day).padStart(2, '0');
+}
+
 onMounted(() => {
   console.log('GoalDetailsPanel opened for goal', props.goal.id);
 });
 </script>
 
 <style scoped>
-.category-title {
-  margin: 0;
+.goal-panel {
+  min-height: 100%;
 }
+
+.goal-card {
+  height: 100%;
+  background: var(--color-surface-card);
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  padding: 0;
+}
+
+/* Hero */
+.goal-hero {
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.hero-main {
+  gap: 12px;
+}
+
+.hero-avatar {
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.2);
+}
+
+.hero-text {
+  gap: 6px;
+}
+
+.hero-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.hero-name {
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.hero-summary {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.hero-close {
+  flex-shrink: 0;
+}
+
+/* Progress */
 .progress-section {
-  margin-bottom: 8px;
+  padding: 8px 20px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
-.progress-label {
-  font-size: 14px;
-  margin-bottom: 4px;
+
+.goal-progress {
+  height: 6px;
+  border-radius: 999px;
+}
+
+/* Summary cards */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.summary-item {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  background: var(--color-surface-card);
+}
+
+.summary-label {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+}
+
+.summary-value {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+/* Tabs */
+.goal-tabs {
+  padding: 0 12px;
+}
+
+/* Activity scroll */
+.goal-activity-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Transaction row — mirrors BudgetTransactionItem */
+.tx-item {
+  min-height: 48px;
+  padding: 4px 8px;
+}
+
+.tx-item__date-col {
+  min-width: 40px;
+  padding-right: 8px;
+}
+
+.tx-date {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-outline-soft);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+}
+
+.tx-date__month {
+  font-size: 0.6rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  line-height: 1;
+  color: var(--color-text-muted);
+}
+
+.tx-date__day {
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--color-text-primary);
+}
+
+.tx-item__merchant {
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.tx-item__right {
+  padding-left: 4px;
+}
+
+.tx-item__amount {
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tx-item__action {
+  padding-left: 0;
+  min-width: 36px;
+}
+
+@media (max-width: 1023px) {
+  /* Same fix as CategoryTransactions: keep card filling its parent so the
+     background extends to the bottom of the maximized mobile dialog. */
+  .goal-card {
+    height: 100%;
+  }
 }
 </style>

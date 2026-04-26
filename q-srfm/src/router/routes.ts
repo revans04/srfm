@@ -21,7 +21,16 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/login',
     component: () => import('layouts/AuthLayout.vue'),
-    children: [{ path: '', component: () => import('pages/LoginPage.vue'), meta: { title: 'Login' } }],
+    children: [{ path: '', component: () => import('pages/LoginPage.vue'), meta: { title: 'Login', mode: 'login' } }],
+  },
+  {
+    // /signup is rendered by LoginPage with meta.mode='signup' so the headline
+    // and CTAs read as "create account" — used by AcceptInvitePage when an
+    // unauthenticated invitee clicks "Sign Up". Auth itself is Google-only,
+    // so the flow is identical to /login under the hood.
+    path: '/signup',
+    component: () => import('layouts/AuthLayout.vue'),
+    children: [{ path: '', component: () => import('pages/LoginPage.vue'), meta: { title: 'Sign Up', mode: 'signup' } }],
   },
   { path: '/:catchAll(.*)*', component: () => import('pages/ErrorNotFound.vue'), meta: { title: 'Not Found' } },
 ];

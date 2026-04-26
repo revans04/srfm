@@ -10,16 +10,23 @@
 
     <!-- No Budgets Found -->
     <div v-else-if="!loading && budgets.length === 0" class="row justify-center q-mt-lg">
-      <div class="col-12 text-center">
-        <q-card  class="q-pa-md">
+      <div class="col-12 col-md-8">
+        <q-card class="q-pa-md">
           <q-card-section>
-            <div class="row items-center">
-              <div class="col">
-                No budgets found for {{ selectedEntity?.name || 'selected entity' }}. Would you like to create a default budget for
-                {{ formatLongMonth(currentMonth) }}? You can also import budget information from the Data Page.
+            <h2 class="text-h6 q-mt-none q-mb-sm">Let's set up your first budget</h2>
+            <p class="q-mb-md text-body2 text-grey-8">
+              No budgets exist yet for
+              <strong>{{ selectedEntity?.name || 'the selected entity' }}</strong>
+              in {{ formatLongMonth(currentMonth) }}. Pick the entity you want to budget for and we'll
+              seed a starter set of categories. You can also import existing data from the
+              <router-link to="/data">Data page</router-link>.
+            </p>
+            <div class="row items-center q-gutter-md">
+              <div class="col-12 col-sm-auto">
+                <EntitySelector @change="loadBudgets" />
               </div>
-              <div class="col-auto">
-                <q-btn color="primary" @click="createDefaultBudget">Create Default Budget</q-btn>
+              <div class="col-12 col-sm-auto">
+                <q-btn color="primary" unelevated icon="add" label="Create Default Budget" @click="createDefaultBudget" :disable="!familyStore.selectedEntityId" />
               </div>
             </div>
           </q-card-section>
@@ -689,6 +696,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { useQuasar, QSpinner, Loading } from 'quasar';
 import { dataAccess } from '../dataAccess';
 import CurrencyInput from '../components/CurrencyInput.vue';
@@ -723,6 +731,7 @@ function log(...args: unknown[]) {
 }
 
 const $q = useQuasar();
+const router = useRouter();
 const budgetStore = useBudgetStore();
 const merchantStore = useMerchantStore();
 const familyStore = useFamilyStore();
@@ -1740,6 +1749,16 @@ onMounted(async () => {
       entities: familyStore.family?.entities?.length || 0,
       selectedEntityId: familyStore.selectedEntityId,
     });
+    // Onboarding guard: a brand-new user with no family (or a family with no
+    // entities) has nothing to render here. Send them to the setup wizard
+    // instead of stranding them on an empty budget page with disabled CTAs.
+    const hasFamily = !!familyStore.family;
+    const hasEntity = !!familyStore.family?.entities?.length;
+    if (!hasFamily || !hasEntity) {
+      log('No family or no entity — redirecting to /setup');
+      void router.replace('/setup');
+      return;
+    }
     if (familyStore.selectedEntityId) {
       await familyStore.loadGroups(familyStore.selectedEntityId);
     }

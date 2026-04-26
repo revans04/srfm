@@ -88,6 +88,7 @@ builder.Services.AddSingleton<BrevoService>();
 builder.Services.AddSingleton<StatementService>();
 builder.Services.AddSingleton<GoalService>();
 builder.Services.AddSingleton<GroupService>();
+builder.Services.AddSingleton<OnboardingService>();
 
 // Configure CORS policies
 builder.Services.AddCors(options =>

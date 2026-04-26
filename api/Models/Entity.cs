@@ -33,8 +33,19 @@ namespace FamilyBudgetApi.Models
 
         public List<UserRef> Members { get; set; } = new();
 
+        /// <summary>
+        /// Optional per-entity budget template (categories + targets) used as
+        /// the seed for new monthly budgets. Persisted as JSONB on
+        /// `entities.template_budget` (added in the 2026-04-21 migration).
+        /// </summary>
         public TemplateBudget? TemplateBudget { get; set; }
 
+        /// <summary>
+        /// Optional list of opaque tax-form IDs (e.g. "form_1040",
+        /// "schedule_e", "ca_form_540") this entity files. Persisted as TEXT[]
+        /// on `entities.tax_form_ids` with column default `'{}'` — null and
+        /// empty list both round-trip to an empty array.
+        /// </summary>
         public List<string>? TaxFormIds { get; set; }
     }
 }

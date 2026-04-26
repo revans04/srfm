@@ -5,19 +5,27 @@
       <div class="col-xs-12 col-sm-8 col-md-4">
         <q-card class="shadow-3">
           <q-toolbar class="bg-primary text-white" flat>
-            <q-toolbar-title><h1 class="login-title">Steady Rise Login</h1></q-toolbar-title>
+            <q-toolbar-title><h1 class="login-title">{{ headline }}</h1></q-toolbar-title>
           </q-toolbar>
           <q-card-section>
-            <p class="text-center">Sign in with your Google account to manage your finances.</p>
+            <p class="text-center">{{ subhead }}</p>
           </q-card-section>
           <q-card-actions class="column items-center q-pb-lg q-gutter-sm">
             <div id="google-signin-button"></div>
             <q-btn
               color="primary"
               icon="login"
-              label="Sign in with Google"
+              :label="ctaLabel"
               :loading="loading"
               @click="loginWithPopup"
+            />
+            <q-btn
+              flat
+              dense
+              no-caps
+              :label="altLinkLabel"
+              color="primary"
+              :to="{ path: altLinkPath, query: $route.query }"
             />
           </q-card-actions>
           <q-card-section v-if="error">
@@ -30,16 +38,47 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed, onMounted } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../store/auth';
 
 const loading = ref(false);
 const error = ref('');
 const googleLoaded = ref(false);
 const router = useRouter();
+const route = useRoute();
 const authStore = useAuthStore();
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+
+// /signup uses the same component but rephrases the surface as account
+// creation. Auth itself is Google-only, so the underlying flow is identical.
+const isSignup = computed(() => route.meta?.mode === 'signup');
+const headline = computed(() => (isSignup.value ? 'Create your Steady Rise account' : 'Steady Rise Login'));
+const subhead = computed(() =>
+  isSignup.value
+    ? 'Sign up with your Google account to start managing your finances.'
+    : 'Sign in with your Google account to manage your finances.',
+);
+const ctaLabel = computed(() => (isSignup.value ? 'Sign up with Google' : 'Sign in with Google'));
+const altLinkLabel = computed(() => (isSignup.value ? 'Already have an account? Sign in' : 'New here? Create an account'));
+const altLinkPath = computed(() => (isSignup.value ? '/login' : '/signup'));
+
+// Where to send the user after a successful sign-in. Honors ?redirect=… so
+// AcceptInvitePage can round-trip an unauthenticated user through login and
+// land them back on the invite to complete it. All sibling query params (e.g.
+// `token` for the invite) are forwarded onto the redirect target.
+function resolvePostLoginTarget() {
+  const redirect = route.query.redirect;
+  if (typeof redirect !== 'string' || !redirect.startsWith('/')) {
+    return { path: '/' };
+  }
+  const forwarded: Record<string, string> = {};
+  for (const [key, value] of Object.entries(route.query)) {
+    if (key === 'redirect' || key === 'mode') continue;
+    if (typeof value === 'string') forwarded[key] = value;
+  }
+  return { path: redirect, query: forwarded };
+}
 
 onMounted(() => {
   const checkGoogle = () => {
@@ -87,7 +126,7 @@ const handleCredentialResponse = async (response: { credential: string }) => {
 
     await authStore.loginWithCustomToken(token);
     await authStore.user?.reload();
-    await router.push('/');
+    await router.push(resolvePostLoginTarget());
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     error.value = msg || 'Failed to sign in with Google';
@@ -102,7 +141,7 @@ const loginWithPopup = async () => {
   error.value = '';
   try {
     await authStore.loginWithGoogle();
-    await router.push('/');
+    await router.push(resolvePostLoginTarget());
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     error.value = msg || 'Failed to sign in with Google';

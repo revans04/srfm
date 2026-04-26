@@ -1,6 +1,9 @@
 using FamilyBudgetApi.Models;
 using Google.Cloud.Firestore;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
+using Npgsql;
+using NpgsqlTypes;
 using System;
 using System.Collections.Generic;
 
@@ -106,15 +109,42 @@ public class FamilyService
 
         // Performance: defer loading accounts to dedicated endpoints
 
-        // Load entities
+        // Load entities. `template_budget` is a JSONB blob shaped like the
+        // frontend `TemplateBudget` interface; `tax_form_ids` is TEXT[].
+        // Both columns were silently dropped before the 2026-04-21 migration
+        // (see CLAUDE.md Risk #1) — now they round-trip.
         const string sqlEntities =
-            "SELECT id, name, type, created_at, updated_at FROM entities WHERE family_id=@fid";
+            "SELECT id, name, type, created_at, updated_at, template_budget, tax_form_ids FROM entities WHERE family_id=@fid";
         await using (var entCmd = new Npgsql.NpgsqlCommand(sqlEntities, conn))
         {
             entCmd.Parameters.AddWithValue("fid", fid);
             await using var entReader = await entCmd.ExecuteReaderAsync();
             while (await entReader.ReadAsync())
             {
+                TemplateBudget? templateBudget = null;
+                if (!entReader.IsDBNull(5))
+                {
+                    var json = entReader.GetString(5);
+                    if (!string.IsNullOrWhiteSpace(json))
+                    {
+                        try
+                        {
+                            templateBudget = JsonConvert.DeserializeObject<TemplateBudget>(json);
+                        }
+                        catch (JsonException ex)
+                        {
+                            _logger.LogWarning(ex, "Malformed template_budget JSON on entity {EntityId}; skipping", entReader.GetGuid(0));
+                        }
+                    }
+                }
+
+                List<string>? taxFormIds = null;
+                if (!entReader.IsDBNull(6))
+                {
+                    var arr = entReader.GetFieldValue<string[]>(6);
+                    taxFormIds = new List<string>(arr);
+                }
+
                 family.Entities.Add(new Entity
                 {
                     Id = entReader.GetGuid(0).ToString(),
@@ -122,7 +152,9 @@ public class FamilyService
                     Type = entReader.GetString(2),
                     CreatedAt = Timestamp.FromDateTime(entReader.IsDBNull(3) ? DateTime.UtcNow : entReader.GetDateTime(3).ToUniversalTime()),
                     UpdatedAt = Timestamp.FromDateTime(entReader.IsDBNull(4) ? DateTime.UtcNow : entReader.GetDateTime(4).ToUniversalTime()),
-                    Members = new List<UserRef>()
+                    Members = new List<UserRef>(),
+                    TemplateBudget = templateBudget,
+                    TaxFormIds = taxFormIds
                 });
             }
         }
@@ -199,12 +231,15 @@ public class FamilyService
     {
         _logger.LogInformation("Creating entity {EntityId} for family {FamilyId}", entity.Id, familyId);
         await using var conn = await _db.GetOpenConnectionAsync();
-        const string sql = "INSERT INTO entities (id, family_id, name, type, created_at, updated_at) VALUES (@id, @fid, @name, @type, now(), now())";
-        await using var cmd = new Npgsql.NpgsqlCommand(sql, conn);
+        const string sql = @"INSERT INTO entities (id, family_id, name, type, created_at, updated_at, template_budget, tax_form_ids)
+                             VALUES (@id, @fid, @name, @type, now(), now(), @template_budget, @tax_form_ids)";
+        await using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("id", Guid.Parse(entity.Id));
         cmd.Parameters.AddWithValue("fid", Guid.Parse(familyId));
         cmd.Parameters.AddWithValue("name", entity.Name);
         cmd.Parameters.AddWithValue("type", entity.Type);
+        AddTemplateBudgetParam(cmd, entity.TemplateBudget);
+        AddTaxFormIdsParam(cmd, entity.TaxFormIds);
         await cmd.ExecuteNonQueryAsync();
     }
 
@@ -212,13 +247,42 @@ public class FamilyService
     {
         _logger.LogInformation("Updating entity {EntityId} for family {FamilyId}", entity.Id, familyId);
         await using var conn = await _db.GetOpenConnectionAsync();
-        const string sql = "UPDATE entities SET name=@name, type=@type, updated_at=NOW() WHERE id=@id AND family_id=@fid";
-        await using var cmd = new Npgsql.NpgsqlCommand(sql, conn);
+        const string sql = @"UPDATE entities
+                                SET name=@name,
+                                    type=@type,
+                                    template_budget=@template_budget,
+                                    tax_form_ids=@tax_form_ids,
+                                    updated_at=NOW()
+                              WHERE id=@id AND family_id=@fid";
+        await using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("id", Guid.Parse(entity.Id));
         cmd.Parameters.AddWithValue("fid", Guid.Parse(familyId));
         cmd.Parameters.AddWithValue("name", entity.Name);
         cmd.Parameters.AddWithValue("type", entity.Type);
+        AddTemplateBudgetParam(cmd, entity.TemplateBudget);
+        AddTaxFormIdsParam(cmd, entity.TaxFormIds);
         await cmd.ExecuteNonQueryAsync();
+    }
+
+    /// <summary>
+    /// Bind a JSONB parameter for the entity's template_budget. Null when the
+    /// caller didn't supply a template (the existing column default is NULL).
+    /// </summary>
+    private static void AddTemplateBudgetParam(NpgsqlCommand cmd, TemplateBudget? template)
+    {
+        var param = cmd.Parameters.Add("template_budget", NpgsqlDbType.Jsonb);
+        param.Value = template == null ? (object)DBNull.Value : JsonConvert.SerializeObject(template);
+    }
+
+    /// <summary>
+    /// Bind a TEXT[] parameter for tax_form_ids. Null callers and empty lists
+    /// both serialize to an empty array so the column NOT NULL DEFAULT '{}'
+    /// invariant holds without forcing the caller to pre-normalize.
+    /// </summary>
+    private static void AddTaxFormIdsParam(NpgsqlCommand cmd, List<string>? ids)
+    {
+        var param = cmd.Parameters.Add("tax_form_ids", NpgsqlDbType.Array | NpgsqlDbType.Text);
+        param.Value = ids == null ? Array.Empty<string>() : ids.ToArray();
     }
 
     public async Task DeleteEntity(string familyId, string entityId)
