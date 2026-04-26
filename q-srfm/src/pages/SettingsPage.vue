@@ -975,25 +975,33 @@ async function validateImportedTransactions() {
   }
 }
 
+// Member "Last active" / invite "Invited on" — mm/dd/yyyy per design system
+// (no time). If we later need relative time ("2h ago"), add a dedicated helper
+// rather than mixing formats here.
 function formatDate(
   timestamp: Timestamp | { seconds: number; nanoseconds: number } | string | Date | null | undefined,
 ): string {
   if (!timestamp) return 'N/A';
+  let d: Date | null = null;
   if (typeof timestamp === 'object') {
     if (timestamp instanceof Timestamp) {
       try {
-        return timestamp.toDate().toLocaleString();
+        d = timestamp.toDate();
       } catch (err) {
         console.error('Failed to convert timestamp:', err);
       }
-    }
-    if ('seconds' in timestamp && 'nanoseconds' in timestamp) {
+    } else if ('seconds' in timestamp && 'nanoseconds' in timestamp) {
       const ms = Number(timestamp.seconds) * 1000 + Number(timestamp.nanoseconds) / 1e6;
-      return new Date(ms).toLocaleString();
+      d = new Date(ms);
     }
   }
-  const d = new Date(timestamp as string | number | Date);
-  return isNaN(d.getTime()) ? 'N/A' : d.toLocaleString();
+  if (!d) d = new Date(timestamp as string | number | Date);
+  if (!d || isNaN(d.getTime())) return 'N/A';
+  return d.toLocaleDateString('en-US', {
+    month: '2-digit',
+    day: '2-digit',
+    year: 'numeric',
+  });
 }
 
 function showSnackbar(text: string, color = "success") {

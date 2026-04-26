@@ -47,7 +47,12 @@
 - `[ENFORCED]` Extend existing components when differences are minor; create a new component only when behavior/state is materially different and reused in 2+ contexts.
 - `[ENFORCED]` Props/emits must be explicitly typed.
 - `[ENFORCED]` Use Quasar variant system first (`flat`, `outlined`, `unelevated`, `dense`); new variants require token-backed styles plus this document update.
-- `[ENFORCED]` Button hierarchy must be consistent across all pages: **Primary** actions (Save, Create, Finish) use filled `color="primary"`. **Secondary** actions (Cancel, Back, Skip) use `flat` or `outlined` variant. **Destructive** actions (Delete, Remove) use `color="negative"` with filled or outlined variant — never plain text links. **Tertiary/filter** actions use `outline` with consistent coloring. The current inconsistency across pages (Settings "Invite" outlined, "Add Entity" filled blue, "Find Smart Matches" filled green, filter buttons mixed) is a known violation.
+- `[ENFORCED]` Button hierarchy (three tiers, outline retired):
+  - **Primary (filled)** — the single most important action on a surface. `color="primary" unelevated`. One per surface.
+  - **Soft (tonal)** — standalone secondary and destructive-secondary actions. Filled with the semantic color's soft tint + strong-color text/icon. Classes: `btn-soft--primary`, `btn-soft--negative`, `btn-soft--warning` (defined in `app.scss`). Canonical treatment for page-header action clusters (Edit, Delete, Archive). Safe to pair primary-soft with negative-soft as a coordinated action pair.
+  - **Flat (tertiary)** — `flat` or `flat color="primary"`. Used for: dialog Cancel, inline/row-level icon actions (edit, delete, refresh inside tables), close X buttons, repeated actions. Icon-only flat **must** have `<q-tooltip>` on desktop.
+  - Destructive variant by context: page-header → soft-negative (`btn-soft--negative`); final-confirm dialog primary → filled-negative (`color="negative" unelevated`); row-level trash → flat-negative-icon with tooltip + confirm dialog.
+  - **Outline is retired.** Never used anywhere in the codebase by the time it was evaluated. Do not introduce new `outline`/`outlined` buttons. If you see one during a refactor, migrate to soft or flat based on context.
 - `[ENFORCED]` Inconsistency: some files mix Vuetify-era APIs/classes (`variant`, `.v-stepper-*`, `.v-table`) in Quasar code; canonical direction is Quasar-only API/classes. The `SetupWizardPage.vue` is a known offender using Vuetify CSS selectors and variables.
 
 ## 5. Interaction & States

@@ -43,37 +43,62 @@
               <MonthSelector v-model="currentMonth" :entity-id="familyStore.selectedEntityId" :existing-months="selectedEntityMonthSet" @select="selectMonth" />
             </div>
           </div>
-          <div class="row items-center q-gutter-xs">
+          <!-- Desktop: inline soft-filled action buttons. Hidden when editing
+               since the Edit button is what triggers edit mode. -->
+          <div v-if="!isMobile" class="row items-center q-gutter-sm">
             <q-btn
               v-if="!isEditing"
-              outline
-              dense
+              unelevated
               no-caps
-              color="primary"
+              class="btn-soft--primary"
               icon="edit"
               label="Edit"
               @click="isEditing = true"
             />
             <q-btn
               v-else
-              outline
-              dense
+              unelevated
               no-caps
-              color="primary"
+              class="btn-soft--primary"
               icon="close"
               label="Close"
               @click="isEditing = false"
             />
             <q-btn
               v-if="!isEditing"
-              outline
-              dense
+              unelevated
               no-caps
-              color="negative"
+              class="btn-soft--negative"
               icon="delete_outline"
               label="Delete"
               @click="confirmDeleteBudget"
             />
+          </div>
+
+          <!-- Mobile: overflow menu to keep the header row uncluttered. -->
+          <div v-else class="row items-center">
+            <q-btn v-if="isEditing" flat dense round icon="close" color="primary" @click="isEditing = false">
+              <q-tooltip>Exit edit mode</q-tooltip>
+            </q-btn>
+            <q-btn v-else flat dense round icon="more_vert" color="grey-7" aria-label="Budget actions">
+              <q-menu anchor="bottom right" self="top right">
+                <q-list style="min-width: 180px">
+                  <q-item clickable v-close-popup @click="isEditing = true">
+                    <q-item-section avatar>
+                      <q-icon name="edit" />
+                    </q-item-section>
+                    <q-item-section>Edit budget</q-item-section>
+                  </q-item>
+                  <q-separator />
+                  <q-item clickable v-close-popup @click="confirmDeleteBudget" class="text-negative">
+                    <q-item-section avatar>
+                      <q-icon name="delete_outline" color="negative" />
+                    </q-item-section>
+                    <q-item-section>Delete budget</q-item-section>
+                  </q-item>
+                </q-list>
+              </q-menu>
+            </q-btn>
           </div>
         </div>
 

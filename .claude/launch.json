@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "q-srfm",
+      "runtimeExecutable": "yarn",
+      "runtimeArgs": ["--cwd", "q-srfm", "dev"],
+      "port": 9000
+    }
+  ]
+}

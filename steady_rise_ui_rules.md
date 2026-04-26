@@ -607,13 +607,14 @@ Rules:
 
 Steady Rise uses three action tiers:
 
-1. **Primary** — the main next step (solid)
-2. **Secondary** — alternative actions (outline or flat)
-3. **Tertiary** — low-emphasis actions (text/flat)
+1. **Primary** — the main next step (solid filled)
+2. **Secondary** — standalone alternative or destructive action (soft-filled)
+3. **Tertiary** — low-emphasis, inline, or row-level action (flat)
 
 Rules:
 - Do not place multiple primary actions adjacent
 - Avoid mixing more than two action tiers in the same small area
+- **Outline is not used in Steady Rise.** Earlier drafts allowed it as a secondary variant; in practice it was never adopted and secondary actions resolved into either soft (for anchored page-level actions) or flat (for inline ones). Do not introduce new outline buttons.
 
 ---
 
@@ -627,20 +628,20 @@ Preferred component: `QBtn`
 
 Recommended defaults:
 - Height: Quasar default (or consistent app-wide)
-- Radius: inherit app style (avoid per-button rounding)
+- Radius: inherit app style (avoid per-button rounding) — `q-btn` is globally pilled via `app.scss`
 
 **Quasar guidance**
 - Use `unelevated` for primary buttons (modern, calm)
-- Use `outline` for secondary buttons
-- Use `flat` for tertiary buttons
+- Use `unelevated` + `class="btn-soft--{primary|negative|warning}"` for secondary / destructive-secondary buttons
+- Use `flat` for tertiary, inline, and row-level icon buttons
 - Use `dense` only in tables, filter bars, and tight toolbars
 
 ---
 
 ### 8.4 Button Variants
 
-#### Primary
-Used for the single most important action.
+#### Primary (filled)
+Used for the single most important action on a surface.
 
 Rules:
 - One primary per surface
@@ -652,40 +653,55 @@ Quasar examples:
 
 ---
 
-#### Secondary
-Used for alternative actions.
+#### Soft (tonal) — secondary / destructive secondary
+Used for standalone secondary actions that need visual anchoring without dominating. The canonical pattern for page-header action clusters (Edit, Delete, Archive) and for destructive actions that aren't the primary verb of the surface. Soft buttons are filled with the semantic color's *soft* tint (from `app.scss`) and use the semantic color for text + icon.
 
 Rules:
-- Secondary buttons are quieter than primary
-- Use outline or flat depending on density
+- Prefer soft over flat when the action is important enough to read at a glance (page-level, not row-level)
+- Destructive soft (`btn-soft--negative`) is the default destructive treatment outside of final-confirm dialogs
+- Never pair two soft buttons of the *same* color on one surface; it reads as indecision
+- Safe to pair a primary-soft with a negative-soft (e.g., Edit + Delete) — they read as a coordinated action pair
 
-Quasar examples:
-- `color="primary" outline`
+Tokens:
+- `--color-surface-subtle` (primary-soft bg), `--q-primary` (text)
+- `--color-negative-soft` (negative-soft bg), `--q-negative` (text)
+- `--color-warning-soft` (warning-soft bg), `--color-warning-strong-text` (text)
+
+Quasar + class:
+- `<q-btn unelevated no-caps class="btn-soft--primary" icon="edit" label="Edit" />`
+- `<q-btn unelevated no-caps class="btn-soft--negative" icon="delete_outline" label="Delete" />`
+- `<q-btn unelevated no-caps class="btn-soft--warning" icon="schedule" label="Ignore" />`
 
 ---
 
-#### Tertiary
-Used for low-emphasis actions, links, and inline controls.
+#### Tertiary (flat)
+Used for low-emphasis actions, inline controls, close X buttons, dialog Cancel, and all icon-only row-level actions (edit, delete, refresh inside tables/lists).
 
 Rules:
-- Prefer text/flat styling
-- Do not use tertiary for key flows
+- Prefer flat for any action that appears more than once on a surface (row-level, repeated)
+- Icon-only flat buttons **must** have `<q-tooltip>` on desktop
+- Do not use flat for key flows — if the action matters enough to be seen, use soft or primary
 
 Quasar examples:
-- `flat` or `flat color="primary"`
+- `flat color="primary"` (labeled tertiary)
+- `flat dense round icon="edit"` + `<q-tooltip>…</q-tooltip>` (row-level icon action)
 
 ---
 
-#### Destructive
-Used for irreversible actions.
+#### Destructive (general)
+Destructive actions should never be the default primary action on a surface. Choose the variant based on context:
+
+| Where | Variant | Example |
+|---|---|---|
+| Page-header "Delete budget/account" | **Soft-negative** | `class="btn-soft--negative" icon="delete_outline" label="Delete"` |
+| Final confirmation dialog primary button | **Filled negative** | `color="negative" unelevated label="Delete account"` |
+| Row-level trash in a table | **Flat-negative icon** | `flat dense round icon="delete_outline" color="negative"` + tooltip + confirm dialog |
+| Bulk action in a dense toolbar | **Flat-negative with label** | `flat dense size="sm" color="negative" label="Mark Deleted"` |
 
 Rules:
-- Destructive actions should never be the default primary action
-- Use clear labels (Delete budget, Remove member)
-- Require confirmation for irreversible actions
-
-Quasar examples:
-- `color="negative" flat` (or `outline`)
+- Use clear labels (Delete budget, Remove member) — never bare "Delete"
+- Require a confirmation dialog that names the affected item
+- Never destructive-icon-only without tooltip AND confirmation
 
 ---
 

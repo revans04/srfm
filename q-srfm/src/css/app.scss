@@ -110,6 +110,26 @@ h4 { font-size: 1.25rem; line-height: 1.4; }
   border-radius: 999px;
 }
 
+/* Soft-filled button variant. Use with `q-btn unelevated no-caps` for secondary
+   actions where `outline` is too loud and `flat` is too quiet. Keeps the brand
+   color on text + icon while resting the button on a tinted surface.
+   Rule of thumb:
+     - outline: secondary action adjacent to a primary
+     - soft:    standalone secondary / destructive action (page-level actions)
+     - flat:    tertiary inline action (row-level, repeated) */
+.btn-soft--primary {
+  background: var(--color-surface-subtle);
+  color: var(--q-primary);
+}
+.btn-soft--negative {
+  background: var(--color-negative-soft);
+  color: var(--q-negative);
+}
+.btn-soft--warning {
+  background: var(--color-warning-soft);
+  color: var(--color-warning-strong-text);
+}
+
 .q-chip {
   background: rgba(37, 99, 235, 0.08);
   color: var(--color-text-primary);
@@ -162,6 +182,21 @@ h4 { font-size: 1.25rem; line-height: 1.4; }
 
 @media (max-width: 430px) {
   html, body {
+    font-size: 16px;
+  }
+}
+
+/* iOS Safari auto-zooms any input whose computed font-size is < 16px and
+   does NOT zoom back out when the field loses focus — this leaves the
+   entire page zoomed-in after closing a dialog. Quasar's default field
+   font-size is 14px (12px when dense), so bump the native control to 16px
+   across the full mobile range (matches $q.screen.lt.md). Labels and hints
+   keep their smaller scale because we target only the native input. */
+@media (max-width: 1023px) {
+  .q-field__native,
+  .q-field__input,
+  .q-field--dense .q-field__native,
+  .q-field--dense .q-field__input {
     font-size: 16px;
   }
 }

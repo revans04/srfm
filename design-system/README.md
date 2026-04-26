@@ -233,6 +233,26 @@ There is effectively no imagery in-app. The only image asset is the mascot (a fr
 - **Inspector pattern** (right-side drawer) preferred over modals for ledger editing on desktop. On mobile, the same component re-renders as a full-screen dialog.
 - **One primary action per surface.** Secondary actions quieter. Destructive actions separated.
 
+### Buttons — three tiers, no outline
+
+Steady Rise uses **three** button variants. Earlier drafts included `outline`; it was never adopted in practice and is retired.
+
+| Tier | Visual | Where | Quasar |
+|---|---|---|---|
+| **Primary** (filled) | Solid brand-blue pill, white text | The single most important action on a surface (Save, Create, Add Transaction) | `color="primary" unelevated` |
+| **Soft** (tonal) | Soft-tint bg + strong-color text/icon, pill-rounded | Standalone secondary / destructive-secondary actions in page headers and action clusters (Edit, Delete, Archive) | `unelevated no-caps class="btn-soft--primary"` (or `--negative` / `--warning`) |
+| **Flat** (tertiary) | Transparent bg, brand-color text/icon | Cancel in dialogs, close X, row-level icon actions, repeated inline controls | `flat` or `flat color="primary"` |
+
+**Tokens used by soft:** `--color-surface-subtle` (primary-soft bg), `--color-negative-soft` (negative-soft bg), `--color-warning-soft` (warning-soft bg) + `--color-warning-strong-text`. All defined in `q-srfm/src/css/app.scss`.
+
+**Pairing rules:**
+- One primary per surface.
+- Soft pairs are allowed across colors (Edit + Delete reads as a coordinated pair).
+- Never two soft buttons of the *same* color on one surface — reads as indecision.
+- Destructive → soft-negative for page-level, filled-negative only for final-confirm dialog primaries, flat-negative for row-level icons (always + tooltip + confirm dialog).
+
+**Icon-only rule:** any icon-only button must have `<q-tooltip>` on desktop. Row-level destructive icons additionally require a confirmation dialog that names the affected item.
+
 ### Cards vs Tables — the rule that defines everything
 
 > **Cards summarize. Tables audit.**
