@@ -125,9 +125,23 @@ export default function persistedState({ store }: PiniaPluginContext) {
   onAuthStateChanged(auth, (firebaseUser) => {
     const newUid = firebaseUser?.uid ?? null;
     if (newUid === lastUid) return;
+    const previousUid = lastUid;
     lastUid = newUid;
 
     if (!isUserScoped) return;
+
+    // On logout (newUid === null) wipe the previous user's persisted
+    // snapshot off disk. Without this, signing out leaves
+    // `pinia-<storeId>-<previousUid>` sitting in localStorage indefinitely
+    // — inaccessible to the next user that signs in (their UID generates a
+    // different key) but a privacy concern on shared devices.
+    if (newUid === null && previousUid) {
+      try {
+        localStorage.removeItem(`pinia-${storeId}-${previousUid}`);
+      } catch (err) {
+        console.warn('Failed to clear persisted state on logout for', storeId, err);
+      }
+    }
 
     resetToInitialSnapshot();
     loadFromStorage(newUid);

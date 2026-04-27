@@ -48,7 +48,45 @@
           </div>
         </div>
         <div class="app-drawer__footer">
-          <div class="app-drawer__email" @click="signOut" role="button" tabindex="0">{{ auth.user?.email }}</div>
+          <!-- Account button. Opens a popover with the signed-in email and a
+               labeled "Sign out" item. The email-only div used to BE the
+               click target with no affordance — users couldn't tell it was
+               actionable. The button + caret + tooltip makes the action
+               discoverable; the menu also leaves room to add account
+               settings / theme switcher later without re-architecting. -->
+          <q-btn
+            flat
+            no-caps
+            align="left"
+            class="app-drawer__account-btn full-width"
+            :ripple="false"
+          >
+            <div class="column items-start full-width">
+              <div class="app-drawer__email-line row items-center no-wrap full-width">
+                <q-icon name="account_circle" size="18px" class="q-mr-xs text-grey-7" />
+                <span class="app-drawer__email ellipsis">{{ auth.user?.email || 'Signed in' }}</span>
+                <q-icon name="expand_more" size="14px" class="q-ml-xs text-grey-7" />
+              </div>
+            </div>
+            <q-tooltip>Account menu</q-tooltip>
+            <q-menu anchor="top right" self="bottom right" :offset="[0, 4]">
+              <q-list dense style="min-width: 220px">
+                <q-item>
+                  <q-item-section>
+                    <q-item-label caption>Signed in as</q-item-label>
+                    <q-item-label class="text-body2 ellipsis">{{ auth.user?.email || '—' }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+                <q-separator />
+                <q-item clickable v-close-popup @click="signOut">
+                  <q-item-section avatar>
+                    <q-icon name="logout" color="negative" />
+                  </q-item-section>
+                  <q-item-section class="text-negative">Sign out</q-item-section>
+                </q-item>
+              </q-list>
+            </q-menu>
+          </q-btn>
           <div class="app-drawer__version">v{{ appVersion }}</div>
         </div>
       </div>
@@ -258,12 +296,26 @@ onUnmounted(() => {
 .app-drawer__email {
   font-size: 11px;
   color: var(--color-text-muted);
-  cursor: pointer;
   line-height: 1.4;
 }
 
-.app-drawer__email:hover {
-  color: var(--q-primary);
+.app-drawer__account-btn {
+  padding: 6px 8px;
+  border-radius: 8px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.app-drawer__account-btn :deep(.q-btn__content) {
+  width: 100%;
+}
+
+.app-drawer__account-btn:hover {
+  background: var(--q-grey-2, #f1f5f9);
+}
+
+.app-drawer__email-line {
+  width: 100%;
 }
 
 .app-drawer__version {
