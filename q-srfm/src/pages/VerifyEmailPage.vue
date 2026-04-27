@@ -10,7 +10,16 @@
           </q-card-section>
           <q-card-section v-else-if="error">{{ error }}</q-card-section>
           <q-card-section v-else>
-            Email verified. You can now <router-link to="/login">log in</router-link>.
+            <div class="row items-center q-gutter-sm q-mb-sm">
+              <q-icon name="check_circle" color="positive" size="24px" />
+              <span class="text-weight-medium">Email verified.</span>
+            </div>
+            <div v-if="authStore.user" class="text-body2 text-grey-8">
+              Sending you back to your budget…
+            </div>
+            <div v-else class="text-body2 text-grey-8">
+              You can now <router-link to="/login">sign in</router-link>.
+            </div>
           </q-card-section>
         </q-card>
       </div>
@@ -20,9 +29,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
+import { useAuthStore } from '../store/auth';
 
 const route = useRoute();
+const router = useRouter();
+const authStore = useAuthStore();
+
 const loading = ref(true);
 const error = ref('');
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
@@ -41,6 +54,22 @@ onMounted(async () => {
       throw new Error(await response.text());
     }
     loading.value = false;
+
+    // If the user is authenticated in this tab (clicked the link from
+    // their email while still signed in), refresh the Firebase user record
+    // so `emailVerified` flips true in the auth store, then send them back
+    // to the budget. The brief "Email verified" notice is enough — no
+    // confetti per design system rules ("calm, not cheerleading").
+    if (authStore.user) {
+      try {
+        await authStore.user.reload();
+      } catch {
+        // Token may be stale; non-fatal.
+      }
+      setTimeout(() => {
+        void router.replace('/budget');
+      }, 1500);
+    }
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Verification failed';
     loading.value = false;

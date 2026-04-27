@@ -1,5 +1,15 @@
 <template>
   <q-page class="bg-grey-1 q-pa-lg" :class="['budget-page', { 'budget-page--mobile': isMobile }]">
+    <!-- Email verification nudge. Self-hides once `auth.user.emailVerified`
+         flips true; per-session dismissible so the user isn't nagged on every
+         navigation. -->
+    <EmailVerificationBanner />
+
+    <!-- Post-onboarding welcome banner. Only renders when arriving via the
+         seed redirect (?onboarded=1) AND not previously dismissed for this
+         browser. The banner self-suppresses on subsequent renders. -->
+    <OnboardingWelcomeBanner v-if="showOnboardingWelcome" :month="currentMonth" />
+
     <!-- Loading Animation -->
     <div v-if="loading" class="row justify-center q-mt-lg">
       <q-spinner color="primary" size="50px" />
@@ -696,7 +706,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useQuasar, QSpinner, Loading } from 'quasar';
 import { dataAccess } from '../dataAccess';
 import CurrencyInput from '../components/CurrencyInput.vue';
@@ -707,6 +717,8 @@ import GoalsGroupCard from '../components/goals/GoalsGroupCard.vue';
 import GoalDialog from '../components/goals/GoalDialog.vue';
 import ContributeDialog from '../components/goals/ContributeDialog.vue';
 import GoalDetailsPanel from '../components/goals/GoalDetailsPanel.vue';
+import OnboardingWelcomeBanner from '../components/onboarding/OnboardingWelcomeBanner.vue';
+import EmailVerificationBanner from '../components/onboarding/EmailVerificationBanner.vue';
 import MonthSelector from '../components/MonthSelector.vue';
 import BudgetTransactionItem from '../components/BudgetTransactionItem.vue';
 import GuidedTip from '../components/GuidedTip.vue';
@@ -732,6 +744,12 @@ function log(...args: unknown[]) {
 
 const $q = useQuasar();
 const router = useRouter();
+const route = useRoute();
+
+// Show the post-seed welcome banner when arriving via /budget?onboarded=1.
+// The banner component itself handles per-browser dismissal via localStorage,
+// so this just gates the initial render on the query param.
+const showOnboardingWelcome = computed(() => route.query.onboarded === '1');
 const budgetStore = useBudgetStore();
 const merchantStore = useMerchantStore();
 const familyStore = useFamilyStore();

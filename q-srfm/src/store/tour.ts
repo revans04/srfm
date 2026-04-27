@@ -2,6 +2,8 @@ import { defineStore } from 'pinia';
 import { shallowRef, computed } from 'vue';
 import { useBudgetStore } from './budget';
 import { useFamilyStore } from './family';
+import { useAuthStore } from './auth';
+import { computeChecklistCompletion } from '../utils/onboardingChecklist';
 
 export interface ChecklistItem {
   id: string;
@@ -14,61 +16,36 @@ export const useTourStore = defineStore('tour', () => {
   const completedChecklist = shallowRef<string[]>([]);
   const initialized = shallowRef(false);
 
+  // NB: stable IDs are persisted in localStorage via `completedChecklist`.
+  // Renaming an `id` would orphan a user's existing progress. Adding new
+  // items at the bottom is safe; the IDs `verify-email` and `invite-partner`
+  // were added in PR 4 of the SetupWizard rewrite (extends the bare 5-item
+  // checklist to 7 once the new banners + invite flow start ticking them).
   const checklistItems: { id: string; label: string }[] = [
     { id: 'create-budget', label: 'Create your first budget' },
     { id: 'enter-transaction', label: 'Enter a transaction' },
-    { id: 'import-transactions', label: 'Import bank transactions' },
+    { id: 'import-transactions', label: 'Link or import bank transactions' },
     { id: 'setup-goal', label: 'Set up a savings goal' },
     { id: 'reconcile-account', label: 'Reconcile an account' },
+    { id: 'verify-email', label: 'Verify your email address' },
+    { id: 'invite-partner', label: 'Invite someone to your family' },
   ];
 
-  // Derive completion from actual data in the budget/family stores.
+  // Derive completion from actual data in the budget/family/auth stores.
   // Each check is reactive — as stores hydrate, items tick on automatically.
   // Sticky: once a check goes true, it stays true via completedChecklist
   // (so a user who clears state still sees historical progress).
+  // The pure derivation lives in `utils/onboardingChecklist` so the rules
+  // can be unit-tested without a Pinia harness.
   const derivedCompleted = computed<Record<string, boolean>>(() => {
     const budgetStore = useBudgetStore();
     const familyStore = useFamilyStore();
-    const budgets = Array.from(budgetStore.budgets.values());
-
-    const hasBudget = budgets.length > 0;
-
-    let hasTransaction = false;
-    let hasGoal = false;
-    let hasReconciled = false;
-    let hasImported = false;
-    for (const b of budgets) {
-      const txs = b.transactions || [];
-      for (const t of txs) {
-        if (t.deleted) continue;
-        hasTransaction = true;
-        if (t.status === 'R') hasReconciled = true;
-        if (t.importedMerchant || t.accountNumber) hasImported = true;
-      }
-      const cats = b.categories || [];
-      for (const c of cats) {
-        if (c.isFund) {
-          hasGoal = true;
-          break;
-        }
-      }
-      if (hasTransaction && hasGoal && hasReconciled && hasImported) break;
-    }
-
-    // Fallback signal for imports: family has at least one linked account
-    // with an account number (the user has gone through account setup).
-    if (!hasImported) {
-      const accounts = familyStore.family?.accounts || [];
-      hasImported = accounts.some((a) => Boolean(a.accountNumber));
-    }
-
-    return {
-      'create-budget': hasBudget,
-      'enter-transaction': hasTransaction,
-      'import-transactions': hasImported,
-      'setup-goal': hasGoal,
-      'reconcile-account': hasReconciled,
-    };
+    const authStore = useAuthStore();
+    return computeChecklistCompletion({
+      budgets: Array.from(budgetStore.budgets.values()),
+      family: familyStore.family,
+      authUser: authStore.user,
+    });
   });
 
   const checklist = computed<ChecklistItem[]>(() => {

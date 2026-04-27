@@ -78,10 +78,25 @@ export const useFamilyStore = defineStore('family', () => {
     }
     async function loadFamily(userId = '', options = {}) {
         try {
-            if (family.value && !options.force)
-                return family.value;
             if (!userId)
                 userId = auth.user ? auth.user.uid : '';
+            // Defensive: if a previous user's family is still in memory (e.g.
+            // persisted state survived an auth handoff that the persistence
+            // plugin failed to catch), discard before returning the cache.
+            // The persistence layer has its own UID-namespacing as the primary
+            // protection — this is belt-and-suspenders so a missed auth event
+            // can't leak data across sessions.
+            if (family.value && !options.force) {
+                const cached = family.value;
+                const isOwner = !!userId && cached.ownerUid === userId;
+                const isMember = !!userId && cached.members?.some((m) => m.uid === userId);
+                if (isOwner || isMember) {
+                    return cached;
+                }
+                family.value = undefined;
+                selectedEntityId.value = '';
+                groupsByEntity.value = {};
+            }
             const f = await dataAccess.getUserFamily(userId);
             if (f) {
                 family.value = f;

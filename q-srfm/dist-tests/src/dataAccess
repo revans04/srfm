@@ -644,6 +644,60 @@ export class DataAccess {
         const f = await response.json();
         return f;
     }
+    /**
+     * One-shot transactional onboarding: creates the user's family,
+     * `family_members` row, first entity (with persisted templateBudget +
+     * taxFormIds), Income group, optional first budget, and optional starter
+     * accounts in a single Postgres transaction. See
+     * `api/Controllers/OnboardingController.cs`.
+     *
+     * Returns `{ created: true, ... }` on a fresh seed (HTTP 200) and
+     * `{ created: false, ... }` when the user already had a family (HTTP 409
+     * — surfaced as success here so the UI can short-circuit straight to the
+     * existing budget). Throws on validation (400) or server errors (500).
+     */
+    /**
+     * Trigger a fresh verification email for the currently-signed-in user.
+     * Backend: `POST /api/auth/resend-verification-email` — no body, auth
+     * derived from the Firebase token. Throws on the "already verified" case
+     * (400) so the caller can show a tailored message.
+     */
+    async resendVerificationEmail() {
+        const headers = await this.getAuthHeaders();
+        const response = await fetch(`${this.apiBaseUrl}/auth/resend-verification-email`, {
+            method: 'POST',
+            headers,
+        });
+        if (!response.ok) {
+            let msg = response.statusText;
+            try {
+                const body = await response.json();
+                if (body?.Error)
+                    msg = body.Error;
+                else if (body?.error)
+                    msg = body.error;
+            }
+            catch {
+                // body wasn't JSON; fall through to statusText
+            }
+            throw new Error(msg);
+        }
+    }
+    async seedOnboarding(payload) {
+        const headers = await this.getAuthHeaders();
+        const response = await fetch(`${this.apiBaseUrl}/onboarding/seed`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(payload),
+        });
+        // 200 = fresh seed; 409 = already onboarded (still parse the body — it
+        // carries the existing FamilyId / EntityId / BudgetId for navigation).
+        if (response.status !== 200 && response.status !== 409) {
+            const msg = await response.text();
+            throw new Error(`Onboarding seed failed (${response.status}): ${msg || response.statusText}`);
+        }
+        return response.json();
+    }
     async addFamilyMember(familyId, memberUid, memberEmail) {
         const headers = await this.getAuthHeaders();
         const response = await fetch(`${this.apiBaseUrl}/family/${familyId}/members`, {
@@ -731,15 +785,6 @@ export class DataAccess {
         });
         if (!response.ok)
             throw new Error(`Failed to save user: ${response.statusText}`);
-    }
-    async resendVerificationEmail() {
-        const headers = await this.getAuthHeaders();
-        const response = await fetch(`${this.apiBaseUrl}/auth/resend-verification-email`, {
-            method: 'POST',
-            headers,
-        });
-        if (!response.ok)
-            throw new Error(`Failed to resend verification email: ${response.statusText}`);
     }
     async batchReconcileTransactions(budgetId, budget, reconcileData) {
         const headers = await this.getAuthHeaders();

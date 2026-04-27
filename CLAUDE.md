@@ -114,9 +114,12 @@ rg "🎉|Great job|All good"         q-srfm/src/   # celebration copy — violat
 
 ### Onboarding
 
-- `SetupWizardPage` handles initial family → entities → accounts. **Do not expand** it with budget/goal steps.
-- Instead, implement a **guided tour system**: auto-triggered contextual prompts + persistent "Getting Started" checklist (sidebar/settings).
-- `SetupWizardPage` is Vuetify-era and must migrate to Quasar-native styling before feature expansion.
+- **Hybrid model.** `/setup` is a single-page seed form (`q-srfm/src/components/onboarding/SetupSeedForm.vue` mounted by `SetupPage.vue`) that creates family + entity + Income group + first budget + optional accounts in one transactional submit via `POST /api/onboarding/seed` (`OnboardingService.SeedAsync`). It uses a dedicated `OnboardingLayout.vue` — no sidebar, no bottom tab bar, just a small SRFM header and a Sign-out escape — so brand-new users can focus.
+- **Two modes.** `seed` (fresh user, no family yet — entered via the auto-redirect from `BudgetPage` when `family` or `entities[]` is empty) and `add-entity` (existing user from Settings → "Quick setup with starter budget"). Both render the same form; mode just toggles the family-name input and the headline copy.
+- **Persistent checklist.** Everything past the seed (link a bank, set up a goal, verify email, reconcile, invite a partner) is surfaced via the existing `GettingStartedChecklist` component backed by `useTourStore` (`q-srfm/src/store/tour.ts`). The store has 7 derived items as of PR 4 of the SetupWizard rewrite. Items tick automatically as the underlying data appears (e.g. `verify-email` ticks when `auth.user.emailVerified === true`).
+- **Email verification.** `EmailVerificationBanner.vue` mounts on Budget + Dashboard whenever `auth.user.emailVerified === false`. Resend has a 60s cooldown to avoid Brevo rate-limits. `VerifyEmailPage` auto-redirects authenticated users back to `/budget` after a 1.5s confirmation.
+- **`SetupWizardPage` and `GroupNamingForm` are deleted** (Vuetify-era stepper that silently dropped `templateBudget` and `taxFormIds`). Don't reintroduce a stepper. `EntityForm.vue` is kept for the "edit existing entity" flow accessible from Settings.
+- **`Entity.templateBudget` and `Entity.taxFormIds` are persisted** as of the 2026-04-21 migration (JSONB + TEXT[] on `entities`). Forms that collect these fields can rely on round-trip persistence.
 
 ---
 
@@ -284,7 +287,7 @@ Unclear: no established integration-test harness, no CI-enforced gates visible i
 - Statement/account import paths with `NotImplementedException`.
 - Feature-flagged optional tables (`budget_edit_history`, `goals_budget_categories`).
 - `BudgetService.EnsureGroupAsync(conn, tx, entityId, name, kind)` — canonical inline upsert for a group by name within an entity. Callers can persist a `BudgetCategory` carrying only `groupName`; backend resolves/creates.
-- `q-srfm/src/pages/SetupWizardPage.vue` — Vuetify-era CSS; migrate before expanding.
+- `BudgetService.WriteBudgetAndCategoriesAsync(conn, tx, budgetId, budget, logger)` — `internal static` helper that writes the budget row + replaces its categories within an existing transaction. Used by both `SaveBudget` and `OnboardingService.SeedAsync` so seed flows can compose budget creation with family/entity inserts inside a single Postgres transaction.
 
 **Known UI/UX violations requiring remediation (March 2026 review):**
 - Viewport meta `user-scalable=no` / `maximum-scale=1` — WCAG, one-line fix.

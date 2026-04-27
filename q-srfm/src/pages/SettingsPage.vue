@@ -98,7 +98,24 @@
         <q-card class="q-mt-md">
           <q-card-section>Entities</q-card-section>
           <q-card-section>
-            <q-btn color="primary" @click="openCreateEntityDialog" class="q-mb-lg">Add Entity</q-btn>
+            <div class="row q-gutter-sm q-mb-lg items-center">
+              <q-btn color="primary" @click="openCreateEntityDialog">Add Entity</q-btn>
+              <!-- Bookkeeper escape hatch: hops into the same one-page seed
+                   form used for first-run onboarding, which atomically creates
+                   the entity + an Income group + a starter budget for the
+                   current month. Saves the back-and-forth of dialog → blank
+                   budget → manually picking categories. -->
+              <q-btn
+                flat
+                no-caps
+                color="primary"
+                icon="bolt"
+                label="Quick setup with starter budget"
+                :to="{ path: '/setup', query: { mode: 'add-entity' } }"
+              >
+                <q-tooltip>One-page form that creates the entity and seeds a starter budget in a single step.</q-tooltip>
+              </q-btn>
+            </div>
             <q-list>
               <q-item v-for="entity in entities" :key="entity.id">
                 <div class="row dense">

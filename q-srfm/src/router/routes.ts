@@ -8,7 +8,6 @@ const routes: RouteRecordRaw[] = [
       { path: '', redirect: '/budget' },
       { path: 'dashboard', component: () => import('pages/DashboardPage.vue'), meta: { title: 'Dashboard' } },
       { path: 'budget', component: () => import('pages/BudgetPage.vue'), meta: { title: 'Budget' } },
-      { path: 'setup', component: () => import('pages/SetupWizardPage.vue'), meta: { title: 'Setup' } },
       { path: 'transactions', component: () => import('pages/TransactionsPage.vue'), meta: { title: 'Transactions' } },
       { path: 'settings', component: () => import('pages/SettingsPage.vue'), meta: { title: 'Settings' } },
       { path: 'accounts', component: () => import('pages/AccountsPage.vue'), meta: { title: 'Accounts' } },
@@ -31,6 +30,17 @@ const routes: RouteRecordRaw[] = [
     path: '/signup',
     component: () => import('layouts/AuthLayout.vue'),
     children: [{ path: '', component: () => import('pages/LoginPage.vue'), meta: { title: 'Sign Up', mode: 'signup' } }],
+  },
+  {
+    // /setup uses a minimal-chrome layout (no sidebar, no bottom tab bar)
+    // so a brand-new user can focus on the seed flow without distractions.
+    // Existing users coming via Settings → "Quick setup with starter
+    // budget" land here too; the OnboardingLayout's "Sign out" button is
+    // also their escape hatch back to the rest of the app via /budget on
+    // re-login.
+    path: '/setup',
+    component: () => import('layouts/OnboardingLayout.vue'),
+    children: [{ path: '', component: () => import('pages/SetupPage.vue'), meta: { title: 'Setup' } }],
   },
   { path: '/:catchAll(.*)*', component: () => import('pages/ErrorNotFound.vue'), meta: { title: 'Not Found' } },
 ];

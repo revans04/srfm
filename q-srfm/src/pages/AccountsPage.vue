@@ -7,6 +7,16 @@
       Add your bank accounts, credit cards, and investments to track your net worth.
     </GuidedTip>
 
+    <!-- Plain-language intro to reconciliation. Ticks the
+         `reconcile-account` checklist item once the user actually marks any
+         transaction as Reconciled (status='R'). Dismissible per the
+         GuidedTip system. -->
+    <GuidedTip tip-id="reconcile-intro">
+      Reconciling means matching the transactions in Steady Rise to your bank statement so the
+      balances agree. Open an account, find the matching imported transactions, and mark them
+      <strong>Reconciled</strong> &mdash; you'll catch missing entries and duplicates as you go.
+    </GuidedTip>
+
     <!-- Loading handled via $q.loading -->
 
     <!-- Family Prompt -->

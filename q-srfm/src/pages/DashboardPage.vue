@@ -1,5 +1,9 @@
 <template>
   <q-page class="bg-grey-1 q-pa-lg">
+    <!-- Email verification nudge — same component as on BudgetPage. Self-hides
+         once `auth.user.emailVerified` flips true. -->
+    <EmailVerificationBanner />
+
     <div class="row items-center q-gutter-sm q-mb-md">
       <h1 class="page-title q-mb-none">Dashboard</h1>
       <EntitySelector />
@@ -44,6 +48,7 @@ import MonthSelector from '../components/MonthSelector.vue';
 import SpendingByCategoryCard from '../components/charts/SpendingByCategoryCard.vue';
 import IncomeVsExpensesCard from '../components/charts/IncomeVsExpensesCard.vue';
 import GoalDialog from '../components/goals/GoalDialog.vue';
+import EmailVerificationBanner from '../components/onboarding/EmailVerificationBanner.vue';
 import { useFamilyStore } from '../store/family';
 import { useAuthStore } from '../store/auth';
 import { useBudgetStore } from '../store/budget';

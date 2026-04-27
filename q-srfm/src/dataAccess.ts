@@ -739,6 +739,31 @@ export class DataAccess {
    * — surfaced as success here so the UI can short-circuit straight to the
    * existing budget). Throws on validation (400) or server errors (500).
    */
+  /**
+   * Trigger a fresh verification email for the currently-signed-in user.
+   * Backend: `POST /api/auth/resend-verification-email` — no body, auth
+   * derived from the Firebase token. Throws on the "already verified" case
+   * (400) so the caller can show a tailored message.
+   */
+  async resendVerificationEmail(): Promise<void> {
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(`${this.apiBaseUrl}/auth/resend-verification-email`, {
+      method: 'POST',
+      headers,
+    });
+    if (!response.ok) {
+      let msg = response.statusText;
+      try {
+        const body = await response.json();
+        if (body?.Error) msg = body.Error;
+        else if (body?.error) msg = body.error;
+      } catch {
+        // body wasn't JSON; fall through to statusText
+      }
+      throw new Error(msg);
+    }
+  }
+
   async seedOnboarding(payload: {
     familyName: string;
     entityName: string;
@@ -863,15 +888,6 @@ export class DataAccess {
       body: JSON.stringify(userData),
     });
     if (!response.ok) throw new Error(`Failed to save user: ${response.statusText}`);
-  }
-
-  async resendVerificationEmail(): Promise<void> {
-    const headers = await this.getAuthHeaders();
-    const response = await fetch(`${this.apiBaseUrl}/auth/resend-verification-email`, {
-      method: 'POST',
-      headers,
-    });
-    if (!response.ok) throw new Error(`Failed to resend verification email: ${response.statusText}`);
   }
 
   async batchReconcileTransactions(
