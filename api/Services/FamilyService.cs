@@ -231,8 +231,11 @@ public class FamilyService
     {
         _logger.LogInformation("Creating entity {EntityId} for family {FamilyId}", entity.Id, familyId);
         await using var conn = await _db.GetOpenConnectionAsync();
+        // `entities.type` is a Postgres ENUM (`entity_type`); cast the
+        // bound string parameter explicitly. Same pattern AccountService
+        // uses for `account_type`/`account_category`.
         const string sql = @"INSERT INTO entities (id, family_id, name, type, created_at, updated_at, template_budget, tax_form_ids)
-                             VALUES (@id, @fid, @name, @type, now(), now(), @template_budget, @tax_form_ids)";
+                             VALUES (@id, @fid, @name, @type::entity_type, now(), now(), @template_budget, @tax_form_ids)";
         await using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("id", Guid.Parse(entity.Id));
         cmd.Parameters.AddWithValue("fid", Guid.Parse(familyId));
@@ -247,9 +250,11 @@ public class FamilyService
     {
         _logger.LogInformation("Updating entity {EntityId} for family {FamilyId}", entity.Id, familyId);
         await using var conn = await _db.GetOpenConnectionAsync();
+        // See CreateEntity above — cast the bound string to `entity_type` so
+        // the column's enum type accepts it.
         const string sql = @"UPDATE entities
                                 SET name=@name,
-                                    type=@type,
+                                    type=@type::entity_type,
                                     template_budget=@template_budget,
                                     tax_form_ids=@tax_form_ids,
                                     updated_at=NOW()

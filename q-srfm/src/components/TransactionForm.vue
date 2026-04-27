@@ -157,14 +157,20 @@
                 @filter="onCategoryFilter"
               />
             </div>
-            <div class="split-row__amount">
+            <!-- Split amount is only relevant when there's more than one
+                 category. With a single category the amount is always the
+                 transaction's full amount, so we hide the field and keep
+                 it auto-synced via a watcher (see syncSingleSplitAmount).
+                 This eliminates the previous "stale 0 / mismatched value
+                 saved" bug. -->
+            <div v-if="locTrnsx.categories.length > 1" class="split-row__amount">
               <Currency-Input v-model="split.amount" label="Amount" stack-label dense outlined />
             </div>
             <q-btn v-if="locTrnsx.categories.length > 1" dense flat round icon="close" color="negative" size="sm" class="split-row__remove" @click="removeSplit(index)" />
           </div>
           <q-banner v-if="locTrnsx.categories.length > 1 && remainingSplit !== 0" :type="remainingSplit < 0 ? 'negative' : 'warning'">
-            <div v-if="remainingSplit > 0">Remaining ${{ toDollars(toCents(Math.abs(remainingSplit))) }}</div>
-            <div v-else>Over allocated ${{ toDollars(toCents(Math.abs(remainingSplit))) }} ({{ toDollars(toCents(locTrnsx.amount + remainingSplit)) }})</div>
+            <div v-if="remainingSplit > 0">Remaining ${{ toDollars(toCents(Math.abs(remainingSplit))) }} unallocated &mdash; assign it to a category before saving.</div>
+            <div v-else>Over allocated ${{ toDollars(toCents(Math.abs(remainingSplit))) }} (splits total ${{ toDollars(toCents(locTrnsx.amount + remainingSplit)) }} but transaction amount is ${{ toDollars(toCents(locTrnsx.amount)) }}).</div>
           </q-banner>
         </div>
       </div>
@@ -520,6 +526,30 @@ const remainingSplit = computed(() => {
   });
   return Math.round(remaining * 100) / 100.0;
 });
+
+// Keep the lone split's amount in sync with the transaction total whenever
+// there's a single category. With the per-split amount field hidden in that
+// case, this is the source of truth for the saved value — without it, an
+// edit on an existing transaction would persist a stale split amount that
+// no longer matches the new total. Skips transfer mode (which manages its
+// own signed-pair categories via transferSource/transferDest).
+watch(
+  [
+    () => locTrnsx.amount,
+    () => locTrnsx.categories.length,
+    () => transactionMode.value,
+  ],
+  () => {
+    if (transactionMode.value === 'transfer') return;
+    if (locTrnsx.categories.length !== 1) return;
+    const only = locTrnsx.categories[0];
+    if (!only) return;
+    if (only.amount !== locTrnsx.amount) {
+      only.amount = locTrnsx.amount;
+    }
+  },
+  { immediate: true },
+);
 
 onMounted(async () => {
   budget.value = await dataAccess.getBudget(props.budgetId);

@@ -132,7 +132,16 @@
         <div v-if="!isMobile && !isEditing" class="row q-col-gutter-md q-mb-md budget-stats-row">
           <div class="col">
             <div class="budget-stat-card">
-              <div class="budget-stat-card__label">Left to Budget</div>
+              <div class="budget-stat-card__label row items-center no-wrap">
+                <q-icon
+                  v-if="remainingToBudget < 0"
+                  name="warning_amber"
+                  color="warning"
+                  size="14px"
+                  class="q-mr-xs"
+                />
+                <span>{{ remainingToBudget >= 0 ? 'Left to Budget' : 'Over Budget' }}</span>
+              </div>
               <div class="budget-stat-card__value" :class="remainingToBudget >= 0 ? 'text-positive' : 'text-warning'">
                 {{ formatCurrency(Math.abs(remainingToBudget)) }}
               </div>
@@ -154,23 +163,6 @@
           </div>
         </div>
 
-        <!-- Row 3: Search -->
-        <q-input
-          v-model="search"
-          dense
-          outlined
-          clearable
-          ref="searchInput"
-          placeholder="Search categories or groups"
-          hide-bottom-space
-          class="budget-search"
-          @keyup.enter="blurSearchInput"
-          @clear="clearSearch"
-        >
-          <template #prepend>
-            <q-icon name="search" color="grey-5" />
-          </template>
-        </q-input>
       </section>
 
       <q-page-sticky v-if="!isMobile" position="bottom-right" :offset="[24, 24]" class="budget-fab">
@@ -182,6 +174,28 @@
       <div class="row budget-content-row">
         <!-- Main Content -->
         <div :class="isMobile ? 'col-12' : 'col-12 col-lg-8'">
+          <!-- Category / group search. Lives inside the left column (rather
+               than spanning the full page) so its width matches the content
+               it filters and so the sticky right sidebar doesn't visually
+               collide with it during scroll. -->
+          <q-input
+            v-if="!isEditing"
+            v-model="search"
+            dense
+            outlined
+            clearable
+            ref="searchInput"
+            placeholder="Search categories or groups"
+            hide-bottom-space
+            class="budget-search q-mb-md"
+            @keyup.enter="blurSearchInput"
+            @clear="clearSearch"
+          >
+            <template #prepend>
+              <q-icon name="search" color="grey-5" />
+            </template>
+          </q-input>
+
           <!-- Budget Editing Form -->
           <q-card v-if="isEditing" >
             <q-card-section>Edit Budget for {{ selectedEntity?.name || 'selected entity' }}</q-card-section>
@@ -2837,10 +2851,14 @@ interface GroupCategory {
 
 .desktop-sidebar {
   position: sticky;
-  top: 72px;
+  /* Desktop has no fixed top chrome (q-header only renders on mobile in
+     MainLayout), so the sidebar can stick close to the viewport top. The
+     16px offset matches the q-page padding so the panel doesn't kiss the
+     top edge during scroll. */
+  top: 16px;
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 120px);
+  max-height: calc(100vh - 32px);
   overflow-y: auto;
   padding-bottom: 16px;
   gap: 16px;

@@ -118,9 +118,12 @@ public class OnboardingService
                 }
             }
 
+            // `entities.type` is a Postgres ENUM (`entity_type`) — Npgsql binds
+            // strings as text, so we cast at the SQL layer the same way
+            // AccountService does for `account_type`/`account_category`.
             const string sqlEntity = @"INSERT INTO entities
                 (id, family_id, name, type, created_at, updated_at, template_budget, tax_form_ids)
-                VALUES (@id, @fid, @name, @type, now(), now(), @template_budget, @tax_form_ids)";
+                VALUES (@id, @fid, @name, @type::entity_type, now(), now(), @template_budget, @tax_form_ids)";
             await using (var cmd = new NpgsqlCommand(sqlEntity, conn, tx))
             {
                 cmd.Parameters.AddWithValue("id", entityGuid);
