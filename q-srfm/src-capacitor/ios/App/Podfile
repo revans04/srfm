@@ -1,0 +1,101 @@
+require_relative '../../node_modules/@capacitor/ios/scripts/pods_helpers'
+
+platform :ios, '15.0'
+# `:linkage => :static` is required because @capacitor-firebase/authentication's
+# podspec sets `static_framework = true`. With a bare `use_frameworks!` (dynamic
+# linkage), CocoaPods creates no Pods.xcodeproj target for that pod, so its
+# Swift sources never compile and the App target never links against it —
+# manifesting at runtime as `"FirebaseAuthentication" plugin is not implemented
+# on ios`. Static linkage is also Firebase iOS SDK's recommended setup.
+use_frameworks! :linkage => :static
+
+# workaround to avoid Xcode caching of Pods that requires
+# Product -> Clean Build Folder after new Cordova plugins installed
+# Requires CocoaPods 1.6 or newer
+install! 'cocoapods', :disable_input_output_paths => true
+
+def capacitor_pods
+  pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'
+  pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'
+  pod 'CapacitorFirebaseAuthentication', :path => '../../node_modules/@capacitor-firebase/authentication', :subspecs => ['Lite', 'Google']
+  pod 'CapacitorApp', :path => '../../node_modules/@capacitor/app'
+end
+
+target 'App' do
+  capacitor_pods
+  # Add your Pods here
+end
+
+post_install do |installer|
+  assertDeploymentTarget(installer)
+
+  # CocoaPods 1.16 generates an empty `PBXAggregateTarget` for
+  # CapacitorFirebaseAuthentication when the umbrella podspec uses
+  # `default_subspec` and we depend only on a non-default subspec
+  # (`Google`). The aggregate target has no compile phase, so the
+  # plugin's Swift never builds and the App target never gets the
+  # plugin class — Capacitor's bridge then reports
+  # `"FirebaseAuthentication" plugin is not implemented on ios`.
+  #
+  # Workaround: walk the plugin's source tree, add each .swift /
+  # .m / .h file directly to the App target's Sources build phase,
+  # and apply the Google subspec's compile flag so the Google
+  # handler is included. The same flag and dependency chain
+  # (FirebaseAuth, GoogleSignIn) are already brought in via the
+  # other pods, so nothing else needs linking — only the plugin's
+  # own sources are missing.
+  app_target = installer.aggregate_targets.find { |t| t.name == 'Pods-App' }&.user_targets&.first
+  if app_target.nil?
+    raise "post_install: could not locate App target"
+  end
+
+  plugin_root = File.expand_path(
+    '../../node_modules/@capacitor-firebase/authentication/ios/Plugin',
+    __dir__
+  )
+  unless File.directory?(plugin_root)
+    raise "post_install: plugin source not found at #{plugin_root}"
+  end
+
+  project = app_target.project
+  plugin_group = project.main_group.find_subpath('CapacitorFirebaseAuthentication-Sources', true)
+  plugin_group.set_source_tree('SOURCE_ROOT')
+
+  Dir.glob(File.join(plugin_root, '**/*.{swift,m,h}')).each do |path|
+    next if app_target.source_build_phase.files_references.any? { |ref| ref.real_path.to_s == path }
+    file_ref = plugin_group.new_reference(path)
+    if path.end_with?('.swift', '.m')
+      app_target.add_file_references([file_ref])
+    end
+  end
+
+  # Apply the Google subspec's compile flag on the App target
+  # itself so the conditional `#if RGCFA_INCLUDE_GOOGLE` branches
+  # in the plugin's Swift compile in.
+  app_target.build_configurations.each do |config|
+    flags = config.build_settings['OTHER_SWIFT_FLAGS'] || '$(inherited)'
+    unless flags.include?('-DRGCFA_INCLUDE_GOOGLE')
+      config.build_settings['OTHER_SWIFT_FLAGS'] = "#{flags} -DRGCFA_INCLUDE_GOOGLE"
+    end
+  end
+
+  # Bundle GoogleService-Info.plist as a resource. Firebase iOS SDK
+  # auto-discovers it at FirebaseApp.configure() time by reading the
+  # main bundle. Without it, Firebase init fails with "The default
+  # Firebase app has not yet been configured."
+  plist_path = File.expand_path('App/GoogleService-Info.plist', __dir__)
+  if File.exist?(plist_path)
+    already_bundled = app_target.resources_build_phase.files_references.any? do |ref|
+      ref.real_path.to_s == plist_path
+    end
+    unless already_bundled
+      app_group = project.main_group.find_subpath('App', false) || project.main_group
+      file_ref = app_group.new_reference(plist_path)
+      app_target.add_resources([file_ref])
+    end
+  else
+    warn "post_install: GoogleService-Info.plist not found at #{plist_path}; Firebase will fail to init"
+  end
+
+  project.save
+end

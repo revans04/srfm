@@ -1,3 +1,7 @@
+/* eslint-disable @typescript-eslint/no-floating-promises */
+// node:test's `test()` and `describe()` return a handle that ESLint sees as
+// a floating promise. The runner manages await internally; the existing
+// test files in this directory follow the same pattern.
 import { strict as assert } from 'node:assert';
 import { test, describe } from 'node:test';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment

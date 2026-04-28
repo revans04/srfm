@@ -125,15 +125,29 @@ public class BudgetService
 
         if (includeTransactions)
         {
+            // Hide transactions that ONLY touch goal-linked categories — those
+            // belong to the Goal panel, not the budget view. A transaction with
+            // at least one non-goal-linked split (e.g. a transfer from a goal
+            // fund to a regular fund, or a goal-funded expense whose destination
+            // is a regular expense category) must still appear here so the
+            // non-goal side is visible in budget rollups and category panels.
+            //
+            // EXISTS-with-LEFT-JOIN-IS-NULL identifies "this transaction has
+            // ≥1 split whose category is not in goals_budget_categories." Pure
+            // goal contributions/withdrawals (every split is goal-linked) stay
+            // hidden from the budget view.
             var sqlTx = hasGoalTable
                 ? @"SELECT t.id, t.date, t.budget_month, t.merchant, t.amount, t.notes, t.recurring, t.recurring_interval, t.user_id, t.is_income, t.account_number, t.account_source, t.transaction_date, t.posted_date, t.imported_merchant, t.status, t.check_number, t.deleted, t.entity_id, t.transaction_type
 FROM transactions t
 WHERE t.budget_id=@id AND t.entity_id=@entity
-AND NOT EXISTS (
+AND EXISTS (
     SELECT 1 FROM transaction_categories tc
-    JOIN budget_categories bc ON bc.budget_id = t.budget_id AND bc.name = tc.category_name
-    JOIN goals_budget_categories gbc ON gbc.budget_cat_id = bc.id
+    LEFT JOIN budget_categories bc
+      ON bc.budget_id = t.budget_id AND bc.name = tc.category_name
+    LEFT JOIN goals_budget_categories gbc
+      ON gbc.budget_cat_id = bc.id
     WHERE tc.transaction_id = t.id
+      AND gbc.id IS NULL
 );" :
                 @"SELECT t.id, t.date, t.budget_month, t.merchant, t.amount, t.notes, t.recurring, t.recurring_interval, t.user_id, t.is_income, t.account_number, t.account_source, t.transaction_date, t.posted_date, t.imported_merchant, t.status, t.check_number, t.deleted, t.entity_id, t.transaction_type
 FROM transactions t
@@ -450,8 +464,27 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
             }
         }
 
-        // Replace existing categories and insert current ones
-        const string delCatSql = "DELETE FROM budget_categories WHERE budget_id=@bid";
+        // Detect the goals_budget_categories table once so the DELETE below
+        // and the EnsureGoalCategoriesForBudget call at the end can both
+        // adapt to migration state.
+        bool hasGoalTable;
+        const string checkGoalTableSql = "SELECT to_regclass('public.goals_budget_categories') IS NOT NULL";
+        await using (var checkCmd = new NpgsqlCommand(checkGoalTableSql, conn, tx))
+        {
+            hasGoalTable = (await checkCmd.ExecuteScalarAsync()) is bool b && b;
+        }
+
+        // Replace existing categories and insert current ones, but PRESERVE
+        // any goal-linked rows. The FE doesn't include goal-linked categories
+        // in its payload because LoadBudgetDetails hides them from the budget
+        // view; without this guard, every save would orphan
+        // goals_budget_categories and break the goal rollup
+        // (`savedToDate` would silently reset to 0).
+        var delCatSql = hasGoalTable
+            ? @"DELETE FROM budget_categories
+                WHERE budget_id=@bid
+                  AND id NOT IN (SELECT budget_cat_id FROM goals_budget_categories)"
+            : "DELETE FROM budget_categories WHERE budget_id=@bid";
         await using (var delCatCmd = new NpgsqlCommand(delCatSql, conn, tx))
         {
             delCatCmd.Parameters.AddWithValue("bid", budgetId);
@@ -493,6 +526,126 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
                 catCmd.Parameters.AddWithValue("favorite", cat.Favorite ?? false);
                 catCmd.Parameters.AddWithValue("funding_source_category", (object?)cat.FundingSourceCategory ?? DBNull.Value);
                 await catCmd.ExecuteNonQueryAsync();
+            }
+        }
+
+        // After the FE categories are in place, make sure every active goal
+        // for this budget's entity has a budget_categories row + goal link
+        // here. Handles two cases without per-call branching:
+        //   • The budget pre-dates the goal (goal was created later) — link
+        //     gets created on first save of this budget.
+        //   • The budget was edited and the bulk DELETE wiped a stale link
+        //     (legacy data only — the conditional DELETE above prevents this
+        //     going forward; this catches anything left over from before).
+        if (hasGoalTable && entityGuid.HasValue)
+        {
+            await EnsureGoalCategoriesForBudgetAsync(conn, tx, budgetId, entityGuid.Value);
+        }
+    }
+
+    /// <summary>
+    /// Ensure every active (non-archived) goal under <paramref name="entityId"/>
+    /// has both a matching <c>budget_categories</c> row in
+    /// <paramref name="budgetId"/> and a <c>goals_budget_categories</c> link
+    /// pointing at it. Idempotent — existing categories/links are left alone,
+    /// missing ones are created in place.
+    ///
+    /// Called from two places to keep goal↔budget links intact across the
+    /// app's lifecycle:
+    ///   • <see cref="WriteBudgetAndCategoriesAsync"/> after FE-supplied
+    ///     categories have been written, so a brand-new budget (or a re-saved
+    ///     budget whose payload omits goal-linked rows because
+    ///     <c>LoadBudgetDetails</c> hides them) re-acquires its goal links.
+    ///   • <c>GoalService.InsertGoal</c> per existing budget, so a freshly-
+    ///     created goal seeds links into all of the entity's existing months.
+    ///
+    /// Silently no-ops when <c>goals_budget_categories</c> doesn't exist
+    /// (migration not yet applied) — the caller's <c>hasGoalTable</c> check
+    /// is the primary guard, but this is defensive in case a future caller
+    /// forgets it.
+    /// </summary>
+    internal static async Task EnsureGoalCategoriesForBudgetAsync(
+        NpgsqlConnection conn,
+        NpgsqlTransaction? tx,
+        string budgetId,
+        Guid entityId)
+    {
+        bool hasGoalTable;
+        const string checkSql = "SELECT to_regclass('public.goals_budget_categories') IS NOT NULL";
+        await using (var checkCmd = new NpgsqlCommand(checkSql, conn, tx))
+        {
+            hasGoalTable = (await checkCmd.ExecuteScalarAsync()) is bool b && b;
+        }
+        if (!hasGoalTable) return;
+
+        // Pull non-archived goals for this entity.
+        var goals = new List<(Guid GoalId, string Name, double MonthlyTarget)>();
+        const string goalsSql = @"SELECT id, name, monthly_target
+                                  FROM goals
+                                  WHERE entity_id=@eid
+                                    AND COALESCE(archived, FALSE) = FALSE";
+        await using (var goalsCmd = new NpgsqlCommand(goalsSql, conn, tx))
+        {
+            goalsCmd.Parameters.AddWithValue("eid", entityId);
+            await using var reader = await goalsCmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var gId = reader.GetGuid(0);
+                var name = reader.IsDBNull(1) ? string.Empty : reader.GetString(1);
+                if (string.IsNullOrWhiteSpace(name)) continue;
+                var mt = reader.IsDBNull(2) ? 0d : (double)reader.GetDecimal(2);
+                goals.Add((gId, name, mt));
+            }
+        }
+        if (goals.Count == 0) return;
+
+        // Resolve (or create) the entity's "Savings" group for any newly-
+        // inserted budget_categories rows.
+        var savingsGroupId = await EnsureGroupAsync(conn, tx, entityId, "Savings", "savings");
+
+        const string findCatSql = "SELECT id FROM budget_categories WHERE budget_id=@bid AND name=@name";
+        const string insertCatSql = @"INSERT INTO budget_categories
+            (budget_id, name, target, is_fund, group_id, sort_order, carryover)
+            VALUES (@bid, @name, @target, true, @group_id, 0, 0)
+            RETURNING id";
+        // Idempotent insert without relying on a unique constraint on
+        // (goal_id, budget_cat_id) — schema may or may not have one.
+        const string insertAssocSql = @"INSERT INTO goals_budget_categories (goal_id, budget_cat_id)
+            SELECT @goal_id, @budget_cat_id
+            WHERE NOT EXISTS (
+                SELECT 1 FROM goals_budget_categories
+                WHERE goal_id = @goal_id AND budget_cat_id = @budget_cat_id
+            )";
+
+        foreach (var (goalId, name, monthlyTarget) in goals)
+        {
+            long budgetCatId;
+            await using (var findCmd = new NpgsqlCommand(findCatSql, conn, tx))
+            {
+                findCmd.Parameters.AddWithValue("bid", budgetId);
+                findCmd.Parameters.AddWithValue("name", name);
+                var idObj = await findCmd.ExecuteScalarAsync();
+                if (idObj != null)
+                {
+                    budgetCatId = idObj is long l ? l : Convert.ToInt64(idObj);
+                }
+                else
+                {
+                    await using var insCmd = new NpgsqlCommand(insertCatSql, conn, tx);
+                    insCmd.Parameters.AddWithValue("bid", budgetId);
+                    insCmd.Parameters.AddWithValue("name", name);
+                    insCmd.Parameters.AddWithValue("target", (decimal)monthlyTarget);
+                    insCmd.Parameters.AddWithValue("group_id", savingsGroupId);
+                    var newId = await insCmd.ExecuteScalarAsync();
+                    budgetCatId = newId is long l2 ? l2 : Convert.ToInt64(newId);
+                }
+            }
+
+            await using (var assocCmd = new NpgsqlCommand(insertAssocSql, conn, tx))
+            {
+                assocCmd.Parameters.AddWithValue("goal_id", goalId);
+                assocCmd.Parameters.AddWithValue("budget_cat_id", budgetCatId);
+                await assocCmd.ExecuteNonQueryAsync();
             }
         }
     }
@@ -1194,6 +1347,8 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
             if (transaction.Categories == null)
                 continue;
 
+            var isTransfer = string.Equals(transaction.TransactionType, "transfer", StringComparison.OrdinalIgnoreCase);
+
             foreach (var split in transaction.Categories)
             {
                 var name = split.Category?.Trim();
@@ -1202,14 +1357,34 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
                 if (!relevantCategories.Contains(name))
                     continue;
 
-                var amount = Math.Abs(split.Amount);
-                if (transaction.IsIncome)
+                if (isTransfer)
                 {
-                    income[name] = income.TryGetValue(name, out var existing) ? existing + amount : amount;
+                    // Per-split signed amount. Negative = money leaving this
+                    // category (debit / spend); positive = money arriving
+                    // (credit / income). Avoids double-counting a fund→fund
+                    // transfer as spend on both sides.
+                    if (split.Amount < 0)
+                    {
+                        var debit = Math.Abs(split.Amount);
+                        spending[name] = spending.TryGetValue(name, out var existing) ? existing + debit : debit;
+                    }
+                    else if (split.Amount > 0)
+                    {
+                        var credit = split.Amount;
+                        income[name] = income.TryGetValue(name, out var existing) ? existing + credit : credit;
+                    }
                 }
                 else
                 {
-                    spending[name] = spending.TryGetValue(name, out var existing) ? existing + amount : amount;
+                    var amount = Math.Abs(split.Amount);
+                    if (transaction.IsIncome)
+                    {
+                        income[name] = income.TryGetValue(name, out var existing) ? existing + amount : amount;
+                    }
+                    else
+                    {
+                        spending[name] = spending.TryGetValue(name, out var existing) ? existing + amount : amount;
+                    }
                 }
             }
         }
@@ -1225,8 +1400,10 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
             spending.TryGetValue(name, out var spent);
             income.TryGetValue(name, out var received);
             var previousCarry = category.Carryover ?? 0;
-            var remainder = previousCarry + category.Target + received - spent;
-            results[name] = remainder > 0 ? remainder : 0;
+            // Allow negative carryover. An overspent fund carries the deficit
+            // forward so subsequent months reflect that the fund is in the
+            // hole, instead of silently resetting to zero.
+            results[name] = previousCarry + category.Target + received - spent;
         }
 
         return results;

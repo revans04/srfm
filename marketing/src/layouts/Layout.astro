@@ -1,0 +1,54 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = 'SteadyRise Family Money — calm, clear household budgeting for the whole family.' } = Astro.props;
+const appUrl = 'https://app.steadyrise.us';
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/png" href="/logo-icon.png" />
+    <link rel="preconnect" href="https://rsms.me/" />
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+    <title>{title}</title>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container row">
+        <a class="brand" href="/">
+          <img src="/logo-icon.png" alt="SteadyRise" />
+          <span>SteadyRise</span>
+        </a>
+        <nav class="nav">
+          <a href="/#features">Features</a>
+          <a href="/privacy">Privacy</a>
+          <a href="/terms">Terms</a>
+          <a class="btn btn-primary" href={appUrl}>Open app</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <slot />
+    </main>
+
+    <footer class="site-footer">
+      <div class="container row">
+        <div>© {new Date().getFullYear()} SteadyRise Family Money</div>
+        <div class="links">
+          <a href="/privacy">Privacy</a>
+          <a href="/terms">Terms</a>
+          <a href={appUrl}>Open app</a>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

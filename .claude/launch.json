@@ -6,6 +6,12 @@
       "runtimeExecutable": "yarn",
       "runtimeArgs": ["--cwd", "q-srfm", "dev"],
       "port": 9000
+    },
+    {
+      "name": "marketing",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "marketing", "run", "dev", "--", "--port", "4321"],
+      "port": 4321
     }
   ]
 }

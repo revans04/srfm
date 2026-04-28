@@ -181,6 +181,13 @@ export interface Goal {
   entityId: string;
   notes?: string;
   archived?: boolean;
+  /**
+   * Money already saved toward this goal at goal-creation time. Folded into
+   * `savedToDate` by the backend rollup so it counts toward progress, but
+   * never produces a transaction — it represents pre-existing savings the
+   * user is bringing in from outside the app.
+   */
+  openingBalance?: number;
 }
 
 export interface GoalContribution {

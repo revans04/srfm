@@ -81,15 +81,46 @@
               label="Close"
               @click="isEditing = false"
             />
+            <!-- Secondary actions tucked into a kebab to keep the row tidy. -->
             <q-btn
               v-if="!isEditing"
-              unelevated
-              no-caps
-              class="btn-soft--negative"
-              icon="delete_outline"
-              label="Delete"
-              @click="confirmDeleteBudget"
-            />
+              flat
+              dense
+              round
+              icon="more_vert"
+              color="grey-7"
+              aria-label="More budget actions"
+            >
+              <q-menu anchor="bottom right" self="top right">
+                <q-list style="min-width: 240px">
+                  <q-item
+                    clickable
+                    v-close-popup
+                    :disable="!priorBudgetMeta"
+                    @click="confirmRecalcCarryover"
+                  >
+                    <q-item-section avatar>
+                      <q-icon name="restart_alt" />
+                    </q-item-section>
+                    <q-item-section>
+                      <q-item-label>Recalculate carryover</q-item-label>
+                      <q-item-label caption>
+                        {{ priorBudgetMeta
+                          ? `From ${formatLongMonth(priorBudgetMeta.month)}`
+                          : 'No earlier budget available' }}
+                      </q-item-label>
+                    </q-item-section>
+                  </q-item>
+                  <q-separator />
+                  <q-item clickable v-close-popup class="text-negative" @click="confirmDeleteBudget">
+                    <q-item-section avatar>
+                      <q-icon name="delete_outline" color="negative" />
+                    </q-item-section>
+                    <q-item-section>Delete budget</q-item-section>
+                  </q-item>
+                </q-list>
+              </q-menu>
+            </q-btn>
           </div>
 
           <!-- Mobile: overflow menu to keep the header row uncluttered. -->
@@ -99,12 +130,30 @@
             </q-btn>
             <q-btn v-else flat dense round icon="more_vert" color="grey-7" aria-label="Budget actions">
               <q-menu anchor="bottom right" self="top right">
-                <q-list style="min-width: 180px">
+                <q-list style="min-width: 220px">
                   <q-item clickable v-close-popup @click="isEditing = true">
                     <q-item-section avatar>
                       <q-icon name="edit" />
                     </q-item-section>
                     <q-item-section>Edit budget</q-item-section>
+                  </q-item>
+                  <q-item
+                    clickable
+                    v-close-popup
+                    :disable="!priorBudgetMeta"
+                    @click="confirmRecalcCarryover"
+                  >
+                    <q-item-section avatar>
+                      <q-icon name="restart_alt" />
+                    </q-item-section>
+                    <q-item-section>
+                      <q-item-label>Recalculate carryover</q-item-label>
+                      <q-item-label caption>
+                        {{ priorBudgetMeta
+                          ? `From ${formatLongMonth(priorBudgetMeta.month)}`
+                          : 'No earlier budget' }}
+                      </q-item-label>
+                    </q-item-section>
                   </q-item>
                   <q-separator />
                   <q-item clickable v-close-popup @click="confirmDeleteBudget" class="text-negative">
@@ -248,7 +297,7 @@
                     <CurrencyInput v-model.number="cat.target" label="Target" class="text-right" dense required />
                   </div>
                   <div class="col-6 col-sm-2 q-pa-xs">
-                    <CurrencyInput v-model="cat.carryover" label="Carryover" class="text-right" dense />
+                    <CurrencyInput v-model="cat.carryover" label="Carryover" class="text-right" dense allow-negative />
                   </div>
                   <div class="col-6 col-sm-1 q-pa-xs">
                     <q-checkbox v-model="cat.isFund" label="Is Fund?" dense />
@@ -518,7 +567,7 @@
 
         <q-dialog v-model="showMobileGoalDialog" maximized transition-show="slide-up" transition-hide="slide-down" no-route-dismiss>
           <q-card class="column full-height">
-            <GoalDetailsPanel v-if="selectedGoal" :goal="selectedGoal" @close="closeMobileGoalDialog" />
+            <GoalDetailsPanel v-if="selectedGoal" :goal="selectedGoal" @close="closeMobileGoalDialog" @edit="onEditGoal" />
           </q-card>
         </q-dialog>
 
@@ -603,7 +652,7 @@
             @add-transaction="addTransactionForCategory(selectedCategory.name)"
             @update-transactions="updateTransactions"
           />
-          <GoalDetailsPanel v-else-if="selectedGoal && !isEditing" :goal="selectedGoal" @close="selectedGoal = null" />
+          <GoalDetailsPanel v-else-if="selectedGoal && !isEditing" :goal="selectedGoal" @close="selectedGoal = null" @edit="onEditGoal" />
           <template v-else>
             <q-card class="column q-pa-none budget-transactions-card full-height" >
               <div class="row items-center justify-between q-pt-md q-px-md q-pb-sm border-bottom">
@@ -707,7 +756,7 @@
           </q-card-actions>
         </q-card>
       </q-dialog>
-      <GoalDialog v-model="goalDialog" :goal="selectedGoal || undefined" @save="saveGoal" />
+      <GoalDialog v-model="goalDialog" :goal="goalDialogGoal" @save="saveGoal" />
       <ContributeDialog
         v-model="contributeDialog"
         :goal="selectedGoal || undefined"
@@ -739,6 +788,7 @@ import GuidedTip from '../components/GuidedTip.vue';
 import type { Transaction, Budget, IncomeTarget, BudgetCategoryTrx, BudgetCategory, Goal, BudgetGroupKind } from '../types';
 import { EntityType } from '../types';
 import { isIncomeCategory, categoryGroupName } from '../utils/groups';
+import { calculateCarryOver } from '../utils/carryover';
 import version from '../version';
 import { toDollars, toCents, formatCurrency, todayISO, currentMonthISO } from '../utils/helpers';
 import { useAuthStore } from '../store/auth';
@@ -809,14 +859,30 @@ const newTransaction = ref<Transaction>({
   isIncome: false,
   taxMetadata: [],
 });
-const { monthlySavingsTotal, createGoal, listGoals, loadGoals, loadGoalDetails } = useGoals();
-const savingsTotal = ref(0);
-const goals = ref<Goal[]>([]);
+const { monthlySavingsTotal, createGoal, updateGoal, listGoals, loadGoals, loadGoalDetails } = useGoals();
+// `goals` and downstream state are computed off the shared `useGoals` store
+// so any write site (contribute, edit, delete, archive — anywhere in the app)
+// re-renders the budget page without each call site needing to remember to
+// reassign these refs. Same fix applied to GoalsGroupCard.
+const goals = computed<Goal[]>(() => {
+  const eid = familyStore.selectedEntityId;
+  return eid ? listGoals(eid) : [];
+});
 const goalMap = computed(() => Object.fromEntries(goals.value.map((g) => [g.id, g])));
+const savingsTotal = computed(() => {
+  const eid = familyStore.selectedEntityId;
+  return eid ? monthlySavingsTotal(eid, currentMonth.value) : 0;
+});
 const goalDialog = ref(false);
 const contributeDialog = ref(false);
 const selectedGoal = ref<Goal | null>(null);
 const convertingCategory = ref<BudgetCategory | null>(null);
+// When set, the goal dialog is in edit mode (vs create / convert-legacy).
+// `selectedGoal` is overloaded — it drives the details panel and used to also
+// drive the dialog — so we keep a separate ref here so opening the edit
+// dialog doesn't accidentally collapse the details panel or vice versa.
+const editingGoal = ref<Goal | null>(null);
+const goalDialogGoal = computed<Goal | undefined>(() => editingGoal.value || selectedGoal.value || undefined);
 const ownerUid = ref<string | null>(null);
 // Prefer the actual budget's id if present; otherwise fall back to derived id for new budgets
 const budgetId = computed(() => {
@@ -843,28 +909,37 @@ watch(
   [() => familyStore.selectedEntityId, currentMonth],
   () => {
     if (familyStore.selectedEntityId) {
-      goals.value = listGoals(familyStore.selectedEntityId);
-      savingsTotal.value = monthlySavingsTotal(familyStore.selectedEntityId, currentMonth.value);
-      // Hydrate the entity's group taxonomy for templates/drag-reorder/etc.
+      // goals + savingsTotal derive from the shared store via computeds —
+      // no manual reassignment needed here. Just kick off the side-effect
+      // hydration that this watcher exists to run.
       void familyStore.loadGroups(familyStore.selectedEntityId);
-    } else {
-      savingsTotal.value = 0;
-      goals.value = [];
     }
   },
   { immediate: true },
 );
 
 watch(goalDialog, (v) => {
-  if (!v) convertingCategory.value = null;
+  if (!v) {
+    convertingCategory.value = null;
+    editingGoal.value = null;
+  }
 });
 
 let clickTimeout: ReturnType<typeof setTimeout> | null = null;
 let touchTimeout: ReturnType<typeof setTimeout> | null = null;
 
 function onAddGoal() {
-  goalDialog.value = true;
+  editingGoal.value = null;
   selectedGoal.value = null;
+  goalDialog.value = true;
+}
+
+function onEditGoal(goal: Goal) {
+  // Open the goal dialog pre-filled with this goal so it routes through
+  // updateGoal on save (vs createGoal). Selected goal stays as-is so the
+  // details panel stays open underneath.
+  editingGoal.value = goal;
+  goalDialog.value = true;
 }
 
 function onContribute(goal: Goal) {
@@ -1131,19 +1206,38 @@ function onConvertLegacy(cat: BudgetCategory) {
 }
 
 async function saveGoal(data: Partial<Goal>) {
-  if (convertingCategory.value) {
-    await convertLegacyCategory(convertingCategory.value, data);
-    convertingCategory.value = null;
-    // Reload budgets so category lists reflect the conversion without a manual refresh
-    await loadBudgets();
-  } else {
-    await createGoal({ ...data, entityId: familyStore.selectedEntityId || '' });
-  }
-  goalDialog.value = false;
-  if (familyStore.selectedEntityId) {
-    await loadGoals(familyStore.selectedEntityId);
-    goals.value = listGoals(familyStore.selectedEntityId);
-    savingsTotal.value = monthlySavingsTotal(familyStore.selectedEntityId, currentMonth.value);
+  // Three modes share this handler:
+  //   1. Convert-legacy: convertingCategory is set (clicked "Convert to goal"
+  //      on a fund category), payload has no id.
+  //   2. Edit: editingGoal is set (clicked the Edit button on the details
+  //      panel), payload carries the existing id.
+  //   3. Create: neither flag set, payload has no id.
+  try {
+    if (convertingCategory.value) {
+      await convertLegacyCategory(convertingCategory.value, data);
+      convertingCategory.value = null;
+      // Reload budgets so category lists reflect the conversion without a manual refresh
+      await loadBudgets();
+    } else if (editingGoal.value) {
+      const id = editingGoal.value.id;
+      await updateGoal(id, data);
+      // Keep the selected/details panel in sync so the hero updates inline.
+      if (selectedGoal.value && selectedGoal.value.id === id) {
+        selectedGoal.value = { ...selectedGoal.value, ...data };
+      }
+      editingGoal.value = null;
+      showSnackbar('Goal updated', 'positive');
+    } else {
+      await createGoal({ ...data, entityId: familyStore.selectedEntityId || '' });
+    }
+    goalDialog.value = false;
+    if (familyStore.selectedEntityId) {
+      await loadGoals(familyStore.selectedEntityId, true);
+    }
+  } catch (err) {
+    const e = err as Error;
+    console.error('Failed to save goal', e);
+    showSnackbar(`Failed to save goal: ${e.message}`, 'negative');
   }
 }
 
@@ -1213,10 +1307,10 @@ async function saveContribution(payload: { amount: number; note?: string; source
     showSnackbar('Contribution saved', 'success');
 
     if (familyStore.selectedEntityId) {
-      // Pull fresh savedToDate/spentToDate for all goals (backend derives from transactions)
-      await loadGoals(familyStore.selectedEntityId);
-      goals.value = listGoals(familyStore.selectedEntityId);
-      savingsTotal.value = monthlySavingsTotal(familyStore.selectedEntityId, currentMonth.value);
+      // Pull fresh savedToDate/spentToDate for all goals (backend derives
+      // from transactions). goals + savingsTotal are computeds off the
+      // shared store, so they re-render automatically once loadGoals lands.
+      await loadGoals(familyStore.selectedEntityId, true);
       // Refresh the details panel cache for this goal so the contribution list updates
       try {
         await loadGoalDetails(goal.id);
@@ -1322,6 +1416,115 @@ const monthOffsetLabel = computed(() => {
 
 async function returnToCurrentMonth() {
   await selectMonth(currentMonthISO());
+}
+
+/**
+ * The most recent budget for the same entity whose month immediately precedes
+ * the current view. Returns null if no such budget exists. Used by the
+ * "Recalculate carryover from prior month" action so the user can rebuild a
+ * single month's incoming carryovers without touching a wider cascade.
+ */
+const priorBudgetMeta = computed<{ budgetId: string; month: string } | null>(() => {
+  const cur = currentMonth.value;
+  if (!cur) return null;
+  const candidates = Array.from(budgetStore.budgets.values())
+    .filter((b) => matchesSelectedEntity(b))
+    .filter((b) => b.month && b.month < cur)
+    .sort((a, b) => b.month.localeCompare(a.month));
+  const top = candidates[0];
+  if (!top || !top.budgetId) return null;
+  return { budgetId: top.budgetId, month: top.month };
+});
+
+function confirmRecalcCarryover() {
+  if (!budgetId.value) {
+    showSnackbar('No budget loaded', 'negative');
+    return;
+  }
+  const prior = priorBudgetMeta.value;
+  if (!prior) {
+    showSnackbar('No earlier budget exists for this entity to recalculate from.', 'warning');
+    return;
+  }
+  $q.dialog({
+    title: 'Recalculate carryover',
+    message:
+      `Replace this month's fund carryover values with the values calculated from <strong>${formatLongMonth(prior.month)}</strong>?<br><br>` +
+      `Only fund categories are affected. Overspent funds will carry a negative deficit forward. ` +
+      `This does not change <strong>${formatLongMonth(prior.month)}</strong> itself, but later months will be re-cascaded automatically.`,
+    html: true,
+    cancel: { label: 'Cancel', flat: true },
+    ok: { label: 'Recalculate', color: 'primary', unelevated: true },
+    persistent: true,
+  }).onOk(() => {
+    void recalcCarryoverFromPriorMonth();
+  });
+}
+
+async function recalcCarryoverFromPriorMonth() {
+  const prior = priorBudgetMeta.value;
+  if (!prior) return;
+  if (!budgetId.value) return;
+
+  saving.value = true;
+  try {
+    // Hydrate the prior budget if the store only has the thin summary —
+    // calculateCarryOver needs full categories + transactions.
+    let priorBudget = budgetStore.getBudget(prior.budgetId);
+    const isThin =
+      !priorBudget ||
+      !priorBudget.categories ||
+      priorBudget.categories.length === 0 ||
+      !priorBudget.transactions;
+    if (isThin) {
+      const fetched = await dataAccess.getBudget(prior.budgetId);
+      if (!fetched) {
+        showSnackbar('Could not load the prior month for recalculation.', 'negative');
+        return;
+      }
+      budgetStore.updateBudget(prior.budgetId, fetched);
+      priorBudget = fetched;
+    }
+    if (!priorBudget) return;
+
+    const incoming = calculateCarryOver(priorBudget);
+
+    // Apply the new carryovers to fund categories on the current budget.
+    // Non-fund categories keep carryover at 0 (they don't accrue).
+    let updated = 0;
+    budget.value.categories = budget.value.categories.map((cat) => {
+      if (!cat.isFund) {
+        return { ...cat, carryover: 0 };
+      }
+      const next = incoming[cat.name] ?? 0;
+      const prev = Number(cat.carryover) || 0;
+      if (Math.abs(prev - next) > 0.009) updated += 1;
+      return { ...cat, carryover: next };
+    });
+
+    budget.value.entityId = familyStore.selectedEntityId || budget.value.entityId;
+    budget.value.budgetId = budgetId.value;
+    await dataAccess.saveBudget(budgetId.value, budget.value);
+    budgetStore.updateBudget(budgetId.value, { ...budget.value });
+
+    if (updated === 0) {
+      showSnackbar(
+        `Already in sync with ${formatLongMonth(prior.month)} — no changes needed.`,
+        'info',
+      );
+    } else {
+      showSnackbar(
+        `Recalculated ${updated} fund ${updated === 1 ? 'category' : 'categories'} from ${formatLongMonth(prior.month)}.`,
+        'positive',
+      );
+    }
+  } catch (err) {
+    const e = err as Error;
+    console.error('Failed to recalculate carryover', e);
+    showSnackbar(`Failed to recalculate: ${e.message}`, 'negative');
+  } finally {
+    saving.value = false;
+  }
 }
 
 const catTransactions = computed(() => {
@@ -1956,12 +2159,9 @@ function onTransactionSaved(transaction: Transaction) {
       goals.value.some((g) => g.name === c.category),
     );
     if (touchesGoal && familyStore.selectedEntityId) {
-      void loadGoals(familyStore.selectedEntityId, true).then(() => {
-        if (familyStore.selectedEntityId) {
-          goals.value = listGoals(familyStore.selectedEntityId);
-          savingsTotal.value = monthlySavingsTotal(familyStore.selectedEntityId, currentMonth.value);
-        }
-      });
+      // goals + savingsTotal are computeds off the shared store; loadGoals
+      // updates that store and the views re-render automatically.
+      void loadGoals(familyStore.selectedEntityId, true);
     }
   } catch (error: unknown) {
     const err = error as Error;

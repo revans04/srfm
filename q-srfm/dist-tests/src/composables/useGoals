@@ -59,6 +59,7 @@ export function useGoals() {
             name: data.name || '',
             totalTarget: data.totalTarget || 0,
             monthlyTarget: data.monthlyTarget || 0,
+            openingBalance: data.openingBalance || 0,
             savedToDate: 0,
             spentToDate: 0,
             status: 'in_progress',

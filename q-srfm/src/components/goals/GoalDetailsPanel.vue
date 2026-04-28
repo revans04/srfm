@@ -13,9 +13,14 @@
             <div class="hero-summary text-caption text-muted">{{ progressSummary }}</div>
           </div>
         </div>
-        <q-btn flat dense round icon="close" class="hero-close" @click="$emit('close')">
-          <q-tooltip>Close panel</q-tooltip>
-        </q-btn>
+        <div class="hero-actions row items-center no-wrap">
+          <q-btn flat dense round icon="edit" color="grey-7" @click="$emit('edit', goal)">
+            <q-tooltip>Edit goal</q-tooltip>
+          </q-btn>
+          <q-btn flat dense round icon="close" class="hero-close" @click="$emit('close')">
+            <q-tooltip>Close panel</q-tooltip>
+          </q-btn>
+        </div>
       </div>
 
       <!-- Progress -->
@@ -41,6 +46,9 @@
         <div class="summary-item">
           <div class="summary-label">Contributed</div>
           <div class="summary-value">{{ formatCurrency(saved) }}</div>
+          <div v-if="openingBalance > 0" class="summary-sub text-caption text-muted">
+            Includes {{ formatCurrency(openingBalance) }} starting balance
+          </div>
         </div>
         <div v-if="withdrawn > 0" class="summary-item">
           <div class="summary-label">Withdrawn</div>
@@ -159,7 +167,10 @@ function rowMonth(row: GoalContribution | GoalSpend): string | undefined {
 }
 
 const props = defineProps<{ goal: Goal }>();
-defineEmits<{ (e: 'close'): void }>();
+defineEmits<{
+  (e: 'close'): void;
+  (e: 'edit', goal: Goal): void;
+}>();
 
 const tab = ref<'contribs' | 'spend'>('contribs');
 const $q = useQuasar();
@@ -175,6 +186,7 @@ const activeRows = computed(() => (tab.value === 'contribs' ? contribRows.value 
 const liveGoal = computed(() => getGoal(props.goal.id) || props.goal);
 const saved = computed(() => liveGoal.value.savedToDate || 0);
 const withdrawn = computed(() => liveGoal.value.spentToDate || 0);
+const openingBalance = computed(() => liveGoal.value.openingBalance || 0);
 const available = computed(() => Math.max(saved.value - withdrawn.value, 0));
 const target = computed(() => liveGoal.value.totalTarget || 0);
 const progress = computed(() => {
@@ -358,6 +370,11 @@ onMounted(() => {
 .summary-value {
   font-size: 1rem;
   font-weight: 600;
+}
+
+.summary-sub {
+  margin-top: 4px;
+  line-height: 1.2;
 }
 
 /* Tabs */

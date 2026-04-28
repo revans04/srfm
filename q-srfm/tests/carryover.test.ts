@@ -105,7 +105,7 @@ describe('calculateCarryOver', () => {
     assert.equal(result['Side Hustle'], 175);
   });
 
-  test('carryover floors at zero (never negative)', () => {
+  test('carryover propagates negative deficit when fund is overspent', () => {
     const budget = makeBudget({
       categories: [
         { name: 'Vacation', target: 50, isFund: true, groupName: 'Savings', carryover: 20 },
@@ -120,8 +120,10 @@ describe('calculateCarryOver', () => {
       ],
     });
     const result = calculateCarryOver(budget);
-    // nextCarryover = max(0, 20 + 50 + 0 - 200) = max(0, -130) = 0
-    assert.equal(result['Vacation'], 0);
+    // nextCarryover = 20 + 50 + 0 - 200 = -130
+    // Negative carryover surfaces overspending in subsequent months instead
+    // of silently resetting to zero.
+    assert.equal(result['Vacation'], -130);
   });
 
   test('handles zero carryover (undefined) gracefully', () => {
@@ -267,6 +269,102 @@ describe('calculateCarryOver', () => {
     const result = calculateCarryOver(budget);
     // nextCarryover = 50 + 100 + 0 - 0 = 150
     assert.equal(result['Fund'], 150);
+  });
+
+  // -------------------------------------------------------------------------
+  // Transfer handling. Transfers are stored as `transactionType: 'transfer'`
+  // with `isIncome: false` and two opposite-signed splits. The previous
+  // implementation summed `Math.abs(split.amount)` per split and bucketed
+  // the whole transaction as spend, which double-counted both sides as
+  // expenses against their fund carryovers. These tests pin the corrected
+  // per-split signed accounting.
+  // -------------------------------------------------------------------------
+
+  test('fund→fund transfer debits the source and credits the destination', () => {
+    const budget = makeBudget({
+      categories: [
+        { name: 'Vacation', target: 0, isFund: true, groupName: 'Savings', carryover: 500 },
+        { name: 'Emergency', target: 0, isFund: true, groupName: 'Savings', carryover: 1000 },
+      ],
+      transactions: [
+        makeTransaction({
+          id: 't-transfer',
+          categories: [
+            { category: 'Vacation', amount: -200 },
+            { category: 'Emergency', amount: 200 },
+          ],
+          amount: 200,
+          isIncome: false,
+          transactionType: 'transfer',
+        }),
+      ],
+    });
+    const result = calculateCarryOver(budget);
+    // Vacation: 500 + 0 + 0 - 200 = 300 (money left)
+    assert.equal(result['Vacation'], 300);
+    // Emergency: 1000 + 0 + 200 - 0 = 1200 (money arrived)
+    assert.equal(result['Emergency'], 1200);
+  });
+
+  test('goal-funded expense transfer debits the source fund only', () => {
+    // Mirrors how TransactionForm rewrites a goal-funded expense: the goal's
+    // fund category is the negative source, the expense category is the
+    // positive destination. The expense category is non-fund so its carryover
+    // is irrelevant; only the source fund should see its carryover reduced.
+    const budget = makeBudget({
+      categories: [
+        { name: 'Vacation', target: 0, isFund: true, groupName: 'Savings', carryover: 500 },
+        { name: 'Travel', target: 100, isFund: false, groupName: 'Expenses' },
+      ],
+      transactions: [
+        makeTransaction({
+          id: 't-funded',
+          categories: [
+            { category: 'Vacation', amount: -150 },
+            { category: 'Travel', amount: 150 },
+          ],
+          amount: 150,
+          isIncome: false,
+          transactionType: 'transfer',
+        }),
+      ],
+    });
+    const result = calculateCarryOver(budget);
+    // Vacation: 500 + 0 + 0 - 150 = 350
+    assert.equal(result['Vacation'], 350);
+    // Travel is non-fund, not in result
+    assert.equal(result['Travel'], undefined);
+  });
+
+  test('transfers and standard transactions on the same fund accumulate correctly', () => {
+    const budget = makeBudget({
+      categories: [
+        { name: 'Vacation', target: 100, isFund: true, groupName: 'Savings', carryover: 0 },
+      ],
+      transactions: [
+        // Direct expense from Vacation: $50 spend
+        makeTransaction({
+          id: 't-spend',
+          categories: [{ category: 'Vacation', amount: 50 }],
+          amount: 50,
+          isIncome: false,
+        }),
+        // Transfer INTO Vacation from Emergency: +$300 credit
+        makeTransaction({
+          id: 't-transfer-in',
+          categories: [
+            { category: 'Emergency', amount: -300 },
+            { category: 'Vacation', amount: 300 },
+          ],
+          amount: 300,
+          isIncome: false,
+          transactionType: 'transfer',
+        }),
+      ],
+    });
+    const result = calculateCarryOver(budget);
+    // Vacation: 0 + 100 + 300 - 50 = 350
+    assert.equal(result['Vacation'], 350);
   });
 });
 
@@ -448,7 +546,7 @@ describe('cascadeCarryover', () => {
     assert.equal(result[1].categories[1].carryover, 0);
   });
 
-  test('carryover floors at zero mid-cascade', () => {
+  test('overspending propagates a deficit through subsequent months', () => {
     const budgets: Budget[] = [
       makeBudget({
         month: '2025-01',
@@ -482,10 +580,11 @@ describe('cascadeCarryover', () => {
 
     const result = cascadeCarryover(budgets, 0);
 
-    // Month 1: max(0, 0 + 50 - 200) = 0 → Month 2 carryover
-    assert.equal(result[1].categories[0].carryover, 0);
-    // Month 2: max(0, 0 + 50 - 0) = 50 → Month 3 carryover (recovery!)
-    assert.equal(result[2].categories[0].carryover, 50);
+    // Month 1: 0 + 50 - 200 = -150 → Month 2 carryover (deficit propagates)
+    assert.equal(result[1].categories[0].carryover, -150);
+    // Month 2: -150 + 50 - 0 = -100 → Month 3 carryover (still in the hole,
+    // climbing back $50/month toward zero as targets accrue without spend).
+    assert.equal(result[2].categories[0].carryover, -100);
   });
 
   test('multiple fund categories cascade independently', () => {

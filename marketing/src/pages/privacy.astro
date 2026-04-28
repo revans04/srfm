@@ -1,0 +1,72 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+<Layout title="Privacy Policy — SteadyRise">
+  <section class="section">
+    <div class="container">
+      <h1>Privacy Policy</h1>
+      <div class="legal">
+        <p class="updated">Last updated: April 27, 2026</p>
+
+        <p>
+          SteadyRise Family Money ("SteadyRise," "we," "us") provides a household
+          finance application at <a href="https://app.steadyrise.us">app.steadyrise.us</a>.
+          This policy explains what we collect, how we use it, and the choices you have.
+        </p>
+
+        <h2>Information we collect</h2>
+        <ul>
+          <li><strong>Account information.</strong> Email address and authentication metadata, provided through Firebase Authentication when you sign in.</li>
+          <li><strong>Financial data you enter.</strong> Family, entity, budget, transaction, account, and goal records you create or import. This data is stored in our managed Postgres database (Supabase).</li>
+          <li><strong>Operational logs.</strong> Standard request logs and error reports for reliability and security monitoring.</li>
+        </ul>
+
+        <h2>How we use your information</h2>
+        <ul>
+          <li>To operate the SteadyRise application and provide the features you request.</li>
+          <li>To authenticate your sessions and protect your family workspace.</li>
+          <li>To send transactional email (verification and invitations).</li>
+          <li>To diagnose problems, prevent abuse, and improve the product.</li>
+        </ul>
+
+        <h2>What we do not do</h2>
+        <ul>
+          <li>We do not sell your personal or financial information.</li>
+          <li>We do not show third-party advertising.</li>
+          <li>We do not share your transactions with marketers or data brokers.</li>
+        </ul>
+
+        <h2>Service providers</h2>
+        <p>
+          We rely on a small set of vetted vendors to operate SteadyRise: Firebase
+          (authentication), Supabase (database hosting), Brevo (transactional
+          email), and Cloudflare (hosting and edge delivery). Each vendor
+          processes data only as needed to provide its service.
+        </p>
+
+        <h2>Data retention</h2>
+        <p>
+          We retain your data for as long as your account is active. You can request
+          deletion of your family workspace at any time by contacting us; backups are
+          purged on our standard rotation thereafter.
+        </p>
+
+        <h2>Your choices</h2>
+        <ul>
+          <li>Export your data at any time from the Data Management page.</li>
+          <li>Request correction or deletion by emailing the address below.</li>
+          <li>Add or remove accounts you've created from the Accounts page.</li>
+        </ul>
+
+        <h2>Children</h2>
+        <p>SteadyRise is intended for adults managing household finances and is not directed to children under 13.</p>
+
+        <h2>Changes to this policy</h2>
+        <p>We will post any changes to this page and update the "Last updated" date above. Material changes will also be communicated by email.</p>
+
+        <h2>Contact</h2>
+        <p>Questions about this policy? Email <a href="mailto:privacy@steadyrise.us">privacy@steadyrise.us</a>.</p>
+      </div>
+    </div>
+  </section>
+</Layout>

@@ -3,7 +3,17 @@
  * budget, based on the current month's categories and transactions.
  *
  * Formula per fund category:
- *   nextCarryover = max(0, previousCarryover + target + income - spent)
+ *   nextCarryover = previousCarryover + target + income - spent
+ *
+ * Negative results propagate forward as a deficit ("the fund is in the hole"),
+ * so an overspent fund stays visibly overspent in subsequent months instead
+ * of silently resetting to zero.
+ *
+ * Transfers (`transactionType === 'transfer'`) are evaluated per split by
+ * sign: a negative split debits the source category (counts as spend), a
+ * positive split credits the destination category (counts as income). The
+ * transaction-level `isIncome` flag is ignored for transfers because both
+ * sides of a transfer share that flag yet the directions are opposite.
  *
  * Only categories with `isFund: true` participate. Non-fund categories are
  * excluded from the result.
@@ -11,29 +21,44 @@
 export function calculateCarryOver(budget) {
     const nextCarryover = {};
     const currTrx = budget.transactions || [];
-    const curSpend = currTrx
-        .filter((t) => !t.deleted && !t.isIncome)
-        .reduce((acc, t) => {
-        t.categories.forEach((split) => {
-            acc[split.category] = (acc[split.category] || 0) + Math.abs(split.amount);
-        });
-        return acc;
-    }, {});
-    const curIncome = currTrx
-        .filter((t) => !t.deleted && t.isIncome)
-        .reduce((acc, t) => {
-        t.categories.forEach((split) => {
-            acc[split.category] = (acc[split.category] || 0) + Math.abs(split.amount);
-        });
-        return acc;
-    }, {});
+    const curSpend = {};
+    const curIncome = {};
+    for (const t of currTrx) {
+        if (t.deleted)
+            continue;
+        const isTransfer = t.transactionType === 'transfer';
+        for (const split of t.categories || []) {
+            const name = split.category;
+            if (!name)
+                continue;
+            const raw = Number(split.amount) || 0;
+            if (isTransfer) {
+                // Per-split signed amount. Negative = money leaving this category;
+                // positive = money arriving. Avoids double-counting a fund→fund
+                // transfer as spend on both sides.
+                if (raw < 0) {
+                    curSpend[name] = (curSpend[name] || 0) + Math.abs(raw);
+                }
+                else if (raw > 0) {
+                    curIncome[name] = (curIncome[name] || 0) + raw;
+                }
+            }
+            else if (t.isIncome) {
+                curIncome[name] = (curIncome[name] || 0) + Math.abs(raw);
+            }
+            else {
+                curSpend[name] = (curSpend[name] || 0) + Math.abs(raw);
+            }
+        }
+    }
     budget.categories.forEach((cat) => {
         if (cat.isFund) {
             const spent = curSpend[cat.name] || 0;
             const income = curIncome[cat.name] || 0;
             const prevCarryover = cat.carryover || 0;
-            const rem = prevCarryover + cat.target + income - spent;
-            nextCarryover[cat.name] = rem > 0 ? rem : 0;
+            // Allow negatives — see jsdoc above. An overspent fund carries the
+            // deficit forward so the user sees they are still in the hole.
+            nextCarryover[cat.name] = prevCarryover + cat.target + income - spent;
         }
     });
     return nextCarryover;

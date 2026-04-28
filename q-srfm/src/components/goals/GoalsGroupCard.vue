@@ -41,31 +41,32 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { computed, onMounted, watch } from 'vue';
 import { useQuasar } from 'quasar';
 import { formatCurrency } from '../../utils/helpers';
 import { useGoals } from '../../composables/useGoals';
-import type { Goal } from '../../types';
 
 const props = defineProps<{ entityId: string }>();
-const goals = ref<Goal[]>([]);
 const { listGoals, loadGoals } = useGoals();
 const $q = useQuasar();
 const isMobile = $q.platform.is.mobile;
 
-async function load() {
-  if (!props.entityId) return;
-  await loadGoals(props.entityId);
-  goals.value = listGoals(props.entityId);
-}
+// Drive the displayed list directly off the shared `useGoals` store via a
+// computed so any write that touches that store (contribute, delete, edit,
+// archive, etc. — anywhere in the app) re-renders this card without
+// requiring its parent to manually call load(). Previously this was a local
+// ref populated only on mount/entityId-change, which is why deleting a
+// contribution from GoalDetailsPanel left the savings-goals card showing
+// stale numbers until the user refreshed the page.
+const goals = computed(() => listGoals(props.entityId));
 
 onMounted(() => {
-  void load();
+  if (props.entityId) void loadGoals(props.entityId);
 });
 watch(
   () => props.entityId,
-  () => {
-    void load();
+  (id) => {
+    if (id) void loadGoals(id);
   },
 );
 </script>

@@ -1,0 +1,67 @@
+---
+import Layout from '../layouts/Layout.astro';
+const appUrl = 'https://app.steadyrise.us';
+---
+<Layout title="SteadyRise — Family Money, Calm and Clear">
+  <section class="hero">
+    <div class="container">
+      <h1>Family money, calm and clear.</h1>
+      <p class="lead">
+        SteadyRise replaces the budget spreadsheet, the envelope app, and the
+        guesswork — one shared view of your family's money that works for budget
+        managers and bookkeepers alike.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href={appUrl}>Open the app</a>
+        <a class="btn btn-outline" href="#features">See what's inside</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="features" class="section alt">
+    <div class="container">
+      <h2 style="text-align:center">Built for real households</h2>
+      <p style="text-align:center; max-width: 620px; margin: 0 auto;">
+        Plain-language budgets for the family. Dense, auditable registers for
+        whoever does the books. Same data, two ways of working.
+      </p>
+
+      <div class="feature-grid">
+        <div class="feature-card">
+          <h3>Monthly budgets that carry forward</h3>
+          <p>Funds remember what's left over — overspend in March and you'll see the deficit in April, not a fresh start that hides the truth.</p>
+        </div>
+        <div class="feature-card">
+          <h3>Goals tied to real categories</h3>
+          <p>Track savings goals against the same categories you budget — no separate sidecar app, no double bookkeeping.</p>
+        </div>
+        <div class="feature-card">
+          <h3>Multi-entity by design</h3>
+          <p>Personal, business, rental — keep entities cleanly separated while sharing one family workspace.</p>
+        </div>
+        <div class="feature-card">
+          <h3>Mobile-first transaction entry</h3>
+          <p>Quick capture on the go, full reconciliation at the desk. Built for the way families actually use a budget.</p>
+        </div>
+        <div class="feature-card">
+          <h3>Reconciliation without the headache</h3>
+          <p>Cleared, uncleared, reconciled — accounting concepts with plain-language tooltips so the whole household can pitch in.</p>
+        </div>
+        <div class="feature-card">
+          <h3>Your data, your call</h3>
+          <p>Export anytime. No ads, no data brokerage. We earn our keep from subscriptions, not from selling what you spend.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container" style="text-align:center;">
+      <h2>Ready when you are.</h2>
+      <p style="max-width: 540px; margin: 0 auto var(--sr-space-xl);">
+        Sign in to start a family workspace and import your first month.
+      </p>
+      <a class="btn btn-primary" href={appUrl}>Open the app</a>
+    </div>
+  </section>
+</Layout>

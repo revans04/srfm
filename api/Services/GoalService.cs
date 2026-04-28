@@ -23,8 +23,8 @@ namespace FamilyBudgetApi.Services
             {
                 _logger.LogInformation("Inserting goal {GoalId}", goal.Id);
                 await using var conn = await _db.GetOpenConnectionAsync();
-                const string insertSql = @"INSERT INTO goals (id, entity_id, name, total_target, monthly_target, target_date, archived, created_at, updated_at)
-VALUES (@id,@entity_id,@name,@total_target,@monthly_target,@target_date,@archived, now(), now());";
+                const string insertSql = @"INSERT INTO goals (id, entity_id, name, total_target, monthly_target, opening_balance, target_date, archived, created_at, updated_at)
+VALUES (@id,@entity_id,@name,@total_target,@monthly_target,@opening_balance,@target_date,@archived, now(), now());";
 
                 if (!Guid.TryParse(goal.Id, out var goalId))
                 {
@@ -43,12 +43,19 @@ VALUES (@id,@entity_id,@name,@total_target,@monthly_target,@target_date,@archive
                     insertCmd.Parameters.AddWithValue("name", (object?)goal.Name ?? DBNull.Value);
                     insertCmd.Parameters.AddWithValue("total_target", (decimal)goal.TotalTarget);
                     insertCmd.Parameters.AddWithValue("monthly_target", (decimal)goal.MonthlyTarget);
+                    insertCmd.Parameters.AddWithValue("opening_balance", (decimal)goal.OpeningBalance);
                     insertCmd.Parameters.AddWithValue("target_date", string.IsNullOrEmpty(goal.TargetDate) ? (object)DBNull.Value : DateTime.Parse(goal.TargetDate));
                     insertCmd.Parameters.AddWithValue("archived", goal.Archived);
                     await insertCmd.ExecuteNonQueryAsync();
                 }
 
-                // Ensure a matching budget category exists for all budgets under the entity
+                // Walk every existing budget under this entity and ensure a
+                // budget_categories row + goals_budget_categories link exists
+                // for the new goal. Shared with BudgetService.SaveBudget so a
+                // budget created LATER (after the goal) also gets linked on
+                // its first save — no special-case code path here for "future
+                // budgets," it just falls out of the same helper running on
+                // every save.
                 var budgetIds = new List<string>();
                 const string budgetSql = "SELECT id FROM budgets WHERE entity_id=@eid";
                 await using (var budgetCmd = new NpgsqlCommand(budgetSql, conn))
@@ -61,62 +68,9 @@ VALUES (@id,@entity_id,@name,@total_target,@monthly_target,@target_date,@archive
                     }
                 }
 
-                // Resolve the entity's "Savings" group once — all the budget_categories
-                // rows we insert/update for this goal share it.
-                var savingsGroupId = await BudgetService.EnsureGroupAsync(conn, null, entityId, "Savings", "savings");
-
-                const string findCatSql = "SELECT id FROM budget_categories WHERE budget_id=@bid AND name=@name";
-                const string updateCatSql = "UPDATE budget_categories SET target=@target, is_fund=true, group_id=@group_id WHERE id=@id";
-                const string insertCatSql = @"INSERT INTO budget_categories (budget_id, name, target, is_fund, group_id, sort_order, carryover)
-VALUES (@bid, @name, @target, true, @group_id, 0, 0) RETURNING id";
-                const string deleteAssocSql = "DELETE FROM goals_budget_categories WHERE budget_cat_id=@catId";
-                const string insertAssocSql = @"INSERT INTO goals_budget_categories (goal_id, budget_cat_id) VALUES (@goal_id, @budget_cat_id)";
-
                 foreach (var bid in budgetIds)
                 {
-                    long budgetCatId;
-
-                    // Look for an existing category with this goal's name
-                    await using (var findCmd = new NpgsqlCommand(findCatSql, conn))
-                    {
-                        findCmd.Parameters.AddWithValue("bid", bid);
-                        findCmd.Parameters.AddWithValue("name", (object?)goal.Name ?? DBNull.Value);
-                        var idObj = await findCmd.ExecuteScalarAsync();
-                        if (idObj != null)
-                        {
-                            budgetCatId = idObj is long l ? l : Convert.ToInt64(idObj);
-                            // Update existing category so transactions remain linked
-                            await using var updCmd = new NpgsqlCommand(updateCatSql, conn);
-                            updCmd.Parameters.AddWithValue("id", budgetCatId);
-                            updCmd.Parameters.AddWithValue("target", (decimal)goal.MonthlyTarget);
-                            updCmd.Parameters.AddWithValue("group_id", savingsGroupId);
-                            await updCmd.ExecuteNonQueryAsync();
-                        }
-                        else
-                        {
-                            await using var insCmd = new NpgsqlCommand(insertCatSql, conn);
-                            insCmd.Parameters.AddWithValue("bid", bid);
-                            insCmd.Parameters.AddWithValue("name", (object?)goal.Name ?? DBNull.Value);
-                            insCmd.Parameters.AddWithValue("target", (decimal)goal.MonthlyTarget);
-                            insCmd.Parameters.AddWithValue("group_id", savingsGroupId);
-                            var newId = await insCmd.ExecuteScalarAsync();
-                            budgetCatId = newId is long l ? l : Convert.ToInt64(newId);
-                        }
-                    }
-
-                    // Ensure the category is associated with this goal
-                    await using (var delAssocCmd = new NpgsqlCommand(deleteAssocSql, conn))
-                    {
-                        delAssocCmd.Parameters.AddWithValue("catId", budgetCatId);
-                        await delAssocCmd.ExecuteNonQueryAsync();
-                    }
-
-                    await using (var assocCmd = new NpgsqlCommand(insertAssocSql, conn))
-                    {
-                        assocCmd.Parameters.AddWithValue("goal_id", goalId);
-                        assocCmd.Parameters.AddWithValue("budget_cat_id", budgetCatId);
-                        await assocCmd.ExecuteNonQueryAsync();
-                    }
+                    await BudgetService.EnsureGoalCategoriesForBudgetAsync(conn, null, bid, entityId);
                 }
 
                 _logger.LogInformation("Goal {GoalId} inserted and categories updated", goal.Id);
@@ -134,7 +88,6 @@ VALUES (@bid, @name, @target, true, @group_id, 0, 0) RETURNING id";
             {
                 _logger.LogInformation("Updating goal {GoalId}", goal.Id);
                 await using var conn = await _db.GetOpenConnectionAsync();
-                const string updateSql = @"UPDATE goals SET entity_id=@entity_id, name=@name, total_target=@total_target, monthly_target=@monthly_target, target_date=@target_date, archived=@archived, updated_at=now() WHERE id=@id";
 
                 if (!Guid.TryParse(goal.Id, out var goalId))
                 {
@@ -146,16 +99,62 @@ VALUES (@bid, @name, @target, true, @group_id, 0, 0) RETURNING id";
                     throw new ArgumentException($"Invalid entity ID: {goal.EntityId}");
                 }
 
-                await using var cmd = new NpgsqlCommand(updateSql, conn);
-                cmd.Parameters.AddWithValue("id", goalId);
-                cmd.Parameters.AddWithValue("entity_id", entityId);
-                cmd.Parameters.AddWithValue("name", (object?)goal.Name ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("total_target", (decimal)goal.TotalTarget);
-                cmd.Parameters.AddWithValue("monthly_target", (decimal)goal.MonthlyTarget);
-                cmd.Parameters.AddWithValue("target_date", string.IsNullOrEmpty(goal.TargetDate) ? (object)DBNull.Value : DateTime.Parse(goal.TargetDate));
-                cmd.Parameters.AddWithValue("archived", goal.Archived);
-                await cmd.ExecuteNonQueryAsync();
+                // Read the existing name first. If the user renames the goal we
+                // must rename every linked budget_categories row too, otherwise
+                // the goal rollup join (which is name-based) silently breaks
+                // and savedToDate resets to 0 — exactly the same failure mode
+                // we just fixed for missing links. Doing it inside one
+                // database transaction so a partial rename can't strand the
+                // data half-renamed.
+                string? existingName = null;
+                const string readNameSql = "SELECT name FROM goals WHERE id=@id";
+                await using (var readCmd = new NpgsqlCommand(readNameSql, conn))
+                {
+                    readCmd.Parameters.AddWithValue("id", goalId);
+                    var obj = await readCmd.ExecuteScalarAsync();
+                    if (obj is string s) existingName = s;
+                }
 
+                await using var dbTx = await conn.BeginTransactionAsync();
+
+                const string updateSql = @"UPDATE goals SET entity_id=@entity_id, name=@name, total_target=@total_target, monthly_target=@monthly_target, opening_balance=@opening_balance, target_date=@target_date, archived=@archived, updated_at=now() WHERE id=@id";
+                await using (var cmd = new NpgsqlCommand(updateSql, conn, dbTx))
+                {
+                    cmd.Parameters.AddWithValue("id", goalId);
+                    cmd.Parameters.AddWithValue("entity_id", entityId);
+                    cmd.Parameters.AddWithValue("name", (object?)goal.Name ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("total_target", (decimal)goal.TotalTarget);
+                    cmd.Parameters.AddWithValue("monthly_target", (decimal)goal.MonthlyTarget);
+                    cmd.Parameters.AddWithValue("opening_balance", (decimal)goal.OpeningBalance);
+                    cmd.Parameters.AddWithValue("target_date", string.IsNullOrEmpty(goal.TargetDate) ? (object)DBNull.Value : DateTime.Parse(goal.TargetDate));
+                    cmd.Parameters.AddWithValue("archived", goal.Archived);
+                    await cmd.ExecuteNonQueryAsync();
+                }
+
+                if (!string.IsNullOrEmpty(existingName)
+                    && !string.IsNullOrEmpty(goal.Name)
+                    && !string.Equals(existingName, goal.Name, StringComparison.Ordinal))
+                {
+                    // Rename every budget_categories row that the goal points
+                    // to. Scoped to (id ∈ goals_budget_categories for this
+                    // goal AND name = old goal name) so we don't accidentally
+                    // overwrite an unrelated category that happens to share
+                    // the bc id (defensive — the link table should be 1:1).
+                    const string renameCatSql = @"UPDATE budget_categories
+                        SET name = @new_name
+                        WHERE id IN (
+                            SELECT budget_cat_id FROM goals_budget_categories WHERE goal_id = @goal_id
+                        )
+                        AND name = @old_name";
+                    await using var renameCmd = new NpgsqlCommand(renameCatSql, conn, dbTx);
+                    renameCmd.Parameters.AddWithValue("goal_id", goalId);
+                    renameCmd.Parameters.AddWithValue("old_name", existingName);
+                    renameCmd.Parameters.AddWithValue("new_name", goal.Name);
+                    await renameCmd.ExecuteNonQueryAsync();
+                    _logger.LogInformation("Renamed budget_categories for goal {GoalId}: '{OldName}' → '{NewName}'", goal.Id, existingName, goal.Name);
+                }
+
+                await dbTx.CommitAsync();
                 _logger.LogInformation("Goal {GoalId} updated", goal.Id);
             }
             catch (Exception ex)
@@ -177,8 +176,12 @@ VALUES (@bid, @name, @target, true, @group_id, 0, 0) RETURNING id";
                 //  - Transfers: signed splits (positive=contribution, negative=withdrawal)
                 //  - Standard income (is_income=true): contribution
                 //  - Standard expense (is_income=false): withdrawal
+                //
+                // `opening_balance` is added into `saved` so a goal pre-seeded
+                // with prior savings reads correctly even when no transactions
+                // exist yet. It carries through GROUP BY (per-row constant).
                 const string sql = @"SELECT g.id, g.entity_id, g.name, g.total_target, g.monthly_target, g.target_date, g.archived,
-                                            COALESCE(SUM(CASE
+                                            COALESCE(g.opening_balance,0) + COALESCE(SUM(CASE
                                                 WHEN COALESCE(t.transaction_type,'standard') = 'transfer' AND tc.amount > 0 THEN tc.amount
                                                 WHEN COALESCE(t.transaction_type,'standard') <> 'transfer' AND COALESCE(t.is_income,FALSE) = TRUE THEN tc.amount
                                                 ELSE 0
@@ -187,7 +190,8 @@ VALUES (@bid, @name, @target, true, @group_id, 0, 0) RETURNING id";
                                                 WHEN COALESCE(t.transaction_type,'standard') = 'transfer' AND tc.amount < 0 THEN -tc.amount
                                                 WHEN COALESCE(t.transaction_type,'standard') <> 'transfer' AND COALESCE(t.is_income,FALSE) = FALSE THEN tc.amount
                                                 ELSE 0
-                                            END),0) AS spent
+                                            END),0) AS spent,
+                                            COALESCE(g.opening_balance,0) AS opening_balance
                                      FROM goals g
                                      LEFT JOIN goals_budget_categories gbc ON gbc.goal_id = g.id
                                      LEFT JOIN budget_categories bc ON bc.id = gbc.budget_cat_id
@@ -195,7 +199,7 @@ VALUES (@bid, @name, @target, true, @group_id, 0, 0) RETURNING id";
                                        AND COALESCE(t.deleted, FALSE) = FALSE
                                      LEFT JOIN transaction_categories tc ON tc.transaction_id = t.id AND tc.category_name = bc.name
                                      WHERE g.entity_id=@eid
-                                     GROUP BY g.id, g.entity_id, g.name, g.total_target, g.monthly_target, g.target_date, g.archived";
+                                     GROUP BY g.id, g.entity_id, g.name, g.total_target, g.monthly_target, g.target_date, g.archived, g.opening_balance";
                 await using var cmd = new NpgsqlCommand(sql, conn);
                 if (!Guid.TryParse(entityId, out var eid))
                 {
@@ -215,7 +219,8 @@ VALUES (@bid, @name, @target, true, @group_id, 0, 0) RETURNING id";
                         TargetDate = reader.IsDBNull(5) ? null : reader.GetDateTime(5).ToString("o"),
                         Archived = reader.IsDBNull(6) ? false : reader.GetBoolean(6),
                         SavedToDate = reader.IsDBNull(7) ? 0 : (double)reader.GetDecimal(7),
-                        SpentToDate = reader.IsDBNull(8) ? 0 : (double)reader.GetDecimal(8)
+                        SpentToDate = reader.IsDBNull(8) ? 0 : (double)reader.GetDecimal(8),
+                        OpeningBalance = reader.IsDBNull(9) ? 0 : (double)reader.GetDecimal(9)
                     });
                 }
             }

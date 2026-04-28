@@ -1,0 +1,14 @@
+{
+  "appId": "com.steadyrise.srfm",
+  "appName": "SteadyRise",
+  "webDir": "www",
+  "server": {
+    "iosScheme": "capacitor"
+  },
+  "plugins": {
+    "FirebaseAuthentication": {
+      "skipNativeAuth": true,
+      "providers": ["google.com"]
+    }
+  }
+}

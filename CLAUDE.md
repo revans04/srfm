@@ -127,7 +127,7 @@ rg "🎉|Great job|All good"         q-srfm/src/   # celebration copy — violat
 
 - Firebase Bearer token is the auth primitive. `AuthorizeFirebase` populates `HttpContext.Items["UserId"]` and `HttpContext.Items["Email"]`.
 - `family_members` membership is the primary authorization relation for family-scoped resources.
-- Budget carryover applies only to `BudgetCategory.IsFund == true` and clamps negative to zero.
+- Budget carryover applies only to `BudgetCategory.IsFund == true`. Negative results propagate forward — an overspent fund carries the deficit into subsequent months instead of resetting to zero, so users see the fund is still in the hole. `CurrencyInput` accepts negative values when `allow-negative` is set (used on the carryover field in the budget editor).
 - Every persisted transaction has ≥ 1 category split (`Income` / `Uncategorized` fallback). Transaction category rows are replaced on write.
 - `entity_id` is a first-class partition key for budgets/goals; stay consistent on merge/derive.
 - Goal-linked budget categories are hidden from regular budget/category queries via `goals_budget_categories` exclusion in `BudgetService.LoadBudgetDetails`.
