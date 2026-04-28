@@ -77,8 +77,8 @@ p { margin: 0 0 var(--sr-space-lg); color: var(--sr-fg-2); }
 .brand { display: flex; align-items: center; gap: var(--sr-space-sm); font-weight: 600; color: var(--sr-fg-1); }
 .brand img { height: 32px; width: auto; }
 .nav { display: flex; align-items: center; gap: var(--sr-space-xl); }
-.nav a { color: var(--sr-fg-2); font-weight: 500; }
-.nav a:hover { color: var(--sr-fg-1); text-decoration: none; }
+.nav a:not(.btn) { color: var(--sr-fg-2); font-weight: 500; }
+.nav a:not(.btn):hover { color: var(--sr-fg-1); text-decoration: none; }
 
 .btn {
   display: inline-flex; align-items: center; justify-content: center;

@@ -1,67 +1,68 @@
 <!-- LoginPage.vue -->
 <template>
-  <q-page class="fill-height">
-    <div class="row justify-center">
-      <div class="col-xs-12 col-sm-8 col-md-4">
-        <q-card class="shadow-3">
-          <q-toolbar class="bg-primary text-white" flat>
-            <q-toolbar-title><h1 class="login-title">{{ headline }}</h1></q-toolbar-title>
-          </q-toolbar>
-          <q-card-section>
-            <p class="text-center">{{ subhead }}</p>
-          </q-card-section>
-          <q-card-actions class="column items-center q-pb-lg q-gutter-sm">
-            <div id="google-signin-button"></div>
+  <q-page class="login-page">
+    <div class="login-page__shell">
+      <q-card class="login-card">
+        <!-- Brand header. Mirrors the lockup the rest of the app uses
+             (sidebar / mobile header) so the login feels like the same product
+             rather than a separate auth surface. -->
+        <div class="login-card__brand">
+          <img
+            src="../assets/logo-sm.png"
+            alt=""
+            aria-hidden="true"
+            class="login-card__brand-mark"
+          />
+          <div class="login-card__brand-name">Steady Rise</div>
+        </div>
+
+        <q-card-section class="login-card__body">
+          <h1 class="login-card__title">Sign in to Steady Rise</h1>
+          <p class="login-card__subtitle">
+            Use your Google account — we'll create one if you're new.
+          </p>
+
+          <div class="login-card__cta">
             <q-btn
+              unelevated
+              no-caps
               color="primary"
               icon="login"
-              :label="ctaLabel"
+              label="Sign in with Google"
               :loading="loading"
+              class="login-card__cta-btn"
               @click="loginWithPopup"
             />
-            <q-btn
-              flat
-              dense
-              no-caps
-              :label="altLinkLabel"
-              color="primary"
-              :to="{ path: altLinkPath, query: $route.query }"
-            />
-          </q-card-actions>
-          <q-card-section v-if="error">
-            <q-banner class="bg-negative text-white" dense>{{ error }}</q-banner>
-          </q-card-section>
-        </q-card>
-      </div>
+          </div>
+
+          <q-banner
+            v-if="error"
+            class="login-card__error bg-negative text-white q-mt-md"
+            dense
+          >
+            {{ error }}
+          </q-banner>
+
+          <p class="login-card__legal">
+            By signing in you agree to our terms of use. Your finances stay
+            private to your family.
+          </p>
+        </q-card-section>
+      </q-card>
     </div>
   </q-page>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../store/auth';
 
 const loading = ref(false);
 const error = ref('');
-const googleLoaded = ref(false);
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-
-// /signup uses the same component but rephrases the surface as account
-// creation. Auth itself is Google-only, so the underlying flow is identical.
-const isSignup = computed(() => route.meta?.mode === 'signup');
-const headline = computed(() => (isSignup.value ? 'Create your Steady Rise account' : 'Steady Rise Login'));
-const subhead = computed(() =>
-  isSignup.value
-    ? 'Sign up with your Google account to start managing your finances.'
-    : 'Sign in with your Google account to manage your finances.',
-);
-const ctaLabel = computed(() => (isSignup.value ? 'Sign up with Google' : 'Sign in with Google'));
-const altLinkLabel = computed(() => (isSignup.value ? 'Already have an account? Sign in' : 'New here? Create an account'));
-const altLinkPath = computed(() => (isSignup.value ? '/login' : '/signup'));
 
 // Where to send the user after a successful sign-in. Honors ?redirect=… so
 // AcceptInvitePage can round-trip an unauthenticated user through login and
@@ -80,62 +81,6 @@ function resolvePostLoginTarget() {
   return { path: redirect, query: forwarded };
 }
 
-onMounted(() => {
-  const checkGoogle = () => {
-    if (window.google && window.google.accounts) {
-      googleLoaded.value = true;
-      window.google.accounts.id.initialize({
-        client_id: '583821970715-53n7g2bv1r3s810vro67vaiqujiek4en.apps.googleusercontent.com',
-        callback: (response) => {
-          void handleCredentialResponse(response);
-        },
-      });
-      const btn = document.getElementById('google-signin-button');
-      if (btn) {
-        window.google.accounts.id.renderButton(btn, {
-          theme: 'outline',
-          size: 'large',
-          text: 'signin_with',
-          logo_alignment: 'left',
-        });
-      }
-    } else {
-      setTimeout(checkGoogle, 100);
-    }
-  };
-  checkGoogle();
-});
-
-const handleCredentialResponse = async (response: { credential: string }) => {
-  loading.value = true;
-  error.value = '';
-
-  try {
-    const googleIdToken = response.credential;
-    const apiResponse = await fetch(`${apiBaseUrl}/auth/google-login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ googleIdToken }),
-    });
-
-    if (!apiResponse.ok) {
-      const errorText = await apiResponse.text();
-      throw new Error(`API login failed: ${errorText}`);
-    }
-    const { token } = await apiResponse.json();
-
-    await authStore.loginWithCustomToken(token);
-    await authStore.user?.reload();
-    await router.push(resolvePostLoginTarget());
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Unknown error';
-    error.value = msg || 'Failed to sign in with Google';
-    console.error('Login error:', err);
-  } finally {
-    loading.value = false;
-  }
-};
-
 const loginWithPopup = async () => {
   loading.value = true;
   error.value = '';
@@ -153,14 +98,85 @@ const loginWithPopup = async () => {
 </script>
 
 <style scoped>
-.fill-height {
-  height: 100vh;
+.login-page {
+  min-height: 100vh;
+  background: var(--color-surface-page);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
 }
 
-.login-title {
-  margin: 0;
-  font-size: 1.125rem;
+.login-page__shell {
+  width: 100%;
+  max-width: 420px;
+}
+
+.login-card {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.login-card__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 24px 8px;
+}
+
+.login-card__brand-mark {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.login-card__brand-name {
+  font-size: 1rem;
   font-weight: 600;
-  color: inherit;
+  color: var(--color-text-primary);
+  letter-spacing: 0.01em;
+}
+
+.login-card__body {
+  padding: 8px 24px 24px;
+}
+
+.login-card__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 6px;
+  line-height: 1.2;
+}
+
+.login-card__subtitle {
+  font-size: 0.95rem;
+  color: var(--color-text-muted);
+  line-height: 1.45;
+  margin: 0 0 20px;
+}
+
+.login-card__cta {
+  display: flex;
+  flex-direction: column;
+}
+
+.login-card__cta-btn {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.login-card__error {
+  border-radius: var(--radius-sm);
+}
+
+.login-card__legal {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  line-height: 1.45;
+  margin: 16px 0 0;
 }
 </style>

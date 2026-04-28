@@ -127,8 +127,36 @@ function getCategoryAmount(): number {
   return Number(split.amount) || 0;
 }
 
+/**
+ * Pick the right amount to display for this row.
+ *
+ * - When a categoryName is supplied (i.e. we're rendering inside a single
+ *   category panel), use that category's split amount — the category-scoped
+ *   value is what the user expects.
+ * - Otherwise (whole-budget transactions list), fall back through:
+ *     1. transaction.amount when set
+ *     2. for transfers: the absolute of the largest single split (= the
+ *        transfer amount, since the two sides cancel in a sum)
+ *     3. for everything else: the sum of |split.amount| across categories
+ *
+ * Step 2 + 3 heal a pre-existing data inconsistency where a transaction was
+ * persisted with amount=0 but populated splits — the row would otherwise
+ * show $0 in the unmatched list while the category panel correctly showed
+ * the split value.
+ */
+function deriveTransactionAmount(): number {
+  const stored = Number(props.transaction.amount || 0);
+  if (stored !== 0) return stored;
+  const splits = props.transaction.categories || [];
+  if (splits.length === 0) return 0;
+  if (props.transaction.transactionType === 'transfer') {
+    return splits.reduce((max, s) => Math.max(max, Math.abs(Number(s.amount) || 0)), 0);
+  }
+  return splits.reduce((sum, s) => sum + Math.abs(Number(s.amount) || 0), 0);
+}
+
 function formatTransactionAmount(): string {
-  const amountSource = props.categoryName ? getCategoryAmount() : Number(props.transaction.amount || 0);
+  const amountSource = props.categoryName ? getCategoryAmount() : deriveTransactionAmount();
   const amount = Math.abs(Number(amountSource) || 0);
   return formatCurrency(toDollars(toCents(amount)));
 }

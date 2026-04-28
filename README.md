@@ -1,9 +1,10 @@
 # SteadyRise Family Money (SRFM)
 
-This repo contains two apps:
+This repo contains three apps:
 
 - API: .NET 8 REST API deployed to Cloud Run (`api/`)
-- Web: Quasar (Vite) SPA deployed to Firebase Hosting (`q-srfm/`)
+- Web app: Quasar (Vite) SPA deployed to Firebase Hosting at `app.steadyrise.us` (`q-srfm/`)
+- Marketing site: Astro static site deployed to Cloudflare Pages at `steadyrise.us` (`marketing/`)
 
 Below are concise instructions to run locally and deploy.
 
@@ -60,6 +61,32 @@ yarn dev
 ```
 
 The app opens in your browser (Vite dev server). All API calls go to your local API at port 8080.
+
+### 3) Run the marketing site locally (port 4321)
+
+The marketing site (`marketing/`) is a standalone Astro static site — landing
+page, Privacy Policy, and Terms of Service. It does not depend on the API or
+the Quasar app.
+
+```
+cd marketing
+npm install        # first time only
+npm run dev        # http://localhost:4321
+```
+
+Pages live in `marketing/src/pages/`:
+
+- `index.astro` — landing page (hero + features + CTA)
+- `privacy.astro` — Privacy Policy
+- `terms.astro` — Terms of Service
+
+Shared chrome (header, footer, fonts) is in `marketing/src/layouts/Layout.astro`.
+Design tokens mirror `design-system/colors_and_type.css` and live in
+`marketing/src/styles/global.css` — keep them in sync if the design system
+changes.
+
+The header CTA links to `https://app.steadyrise.us`. Update `appUrl` in
+`Layout.astro` and `index.astro` if that hostname changes.
 
 ## Deployments
 
@@ -129,6 +156,35 @@ Deploy:
 
 After deploy, direct API URL is printed by `gcloud` (e.g., `https://family-budget-api-...run.app`). Hosting continues to call the API via `/api`.
 
+### Marketing Site Deploy (Cloudflare Pages)
+
+The marketing site builds to static HTML and deploys to Cloudflare Pages at
+the apex domain `steadyrise.us`. The Quasar app stays at `app.steadyrise.us`.
+
+One-time Pages project setup (Cloudflare dashboard → Pages → Create project →
+Connect to Git):
+
+- Production branch: `main`
+- Root directory: `marketing`
+- Build command: `npm run build`
+- Build output directory: `dist`
+- Node version: `20` or `22`
+
+Then attach the apex domain in **Pages → Custom domains → Set up a custom
+domain → `steadyrise.us`** and follow the DNS prompts. Leave the existing
+`app.steadyrise.us` record pointed at Firebase Hosting.
+
+Local production build (sanity check before pushing):
+
+```
+cd marketing
+npm run build      # outputs to marketing/dist
+npm run preview    # serves dist/ on http://localhost:4321
+```
+
+Pushes to `main` that touch `marketing/` will trigger a Cloudflare Pages
+deploy automatically once the project is connected.
+
 ### Hosting → Cloud Run (rewrite)
 
 - `q-srfm/firebase.json` includes:
@@ -156,3 +212,5 @@ After deploy, direct API URL is printed by `gcloud` (e.g., `https://family-budge
 - Quasar app: `q-srfm/`
 - Quasar deploy helper: `q-srfm/scripts/updateVersionAndDeploy.js`
 - Firebase Hosting config: `q-srfm/firebase.json`
+- Marketing site: `marketing/`
+- Marketing site config: `marketing/astro.config.mjs`

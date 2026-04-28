@@ -778,6 +778,19 @@ async function save() {
         const firstCategory = locTrnsx.categories[0];
         if (firstCategory) firstCategory.amount = locTrnsx.amount;
       }
+      // Also sync the other direction. If the user typed the amount only into
+      // a category split row (or an upstream import populated splits but left
+      // the top-level amount at 0), copy from splits → transaction.amount so
+      // the whole-budget transactions list — which falls back to
+      // transaction.amount when no categoryName scope is available — doesn't
+      // render $0 against a $X split.
+      if (transactionMode.value !== 'transfer' && (!locTrnsx.amount || locTrnsx.amount === 0)) {
+        const splitTotal = (locTrnsx.categories || []).reduce(
+          (s, c) => s + Math.abs(Number(c.amount) || 0),
+          0,
+        );
+        if (splitTotal !== 0) locTrnsx.amount = splitTotal;
+      }
       locTrnsx.userId = props.userId;
       if (!locTrnsx.status) {
         locTrnsx.status = 'U';

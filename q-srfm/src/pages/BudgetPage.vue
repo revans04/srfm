@@ -190,6 +190,12 @@
                   class="q-mr-xs"
                 />
                 <span>{{ remainingToBudget >= 0 ? 'Left to Budget' : 'Over Budget' }}</span>
+                <q-icon name="info_outline" size="14px" color="grey-6" class="q-ml-xs">
+                  <q-tooltip max-width="280px">
+                    Planned income ({{ formatCurrency(plannedIncome) }}) − category targets ({{ formatCurrency(budgetedExpenses) }}) − savings goals ({{ formatCurrency(savingsTotal) }}).
+                    Tracks whether your plan balances; the Income Received card tracks actual vs planned receipt.
+                  </q-tooltip>
+                </q-icon>
               </div>
               <div class="budget-stat-card__value" :class="remainingToBudget >= 0 ? 'text-positive' : 'text-warning'">
                 {{ formatCurrency(Math.abs(remainingToBudget)) }}
@@ -1389,8 +1395,14 @@ const budgetedExpenses = computed(() => {
   return totalPlanned;
 });
 
+// "Left to Budget" answers a planning question — does the budget plan
+// allocate every planned dollar without going over? — so it uses PLANNED
+// income, not actual receipts. Comparing against actual income would make
+// the tile flicker red mid-month any time payday hadn't fully landed yet,
+// even though the plan is fine. Actual-vs-planned receipt is its own signal,
+// surfaced separately in the "Income Received" card.
 const remainingToBudget = computed(() => {
-  return actualIncome.value - budgetedExpenses.value - savingsTotal.value;
+  return plannedIncome.value - budgetedExpenses.value - savingsTotal.value;
 });
 
 const formatLongMonth = (month: string) => {
