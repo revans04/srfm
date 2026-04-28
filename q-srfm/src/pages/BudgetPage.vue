@@ -1665,13 +1665,27 @@ const incomeItems = computed(() => {
 
   for (let i = 0; i < incTrx.length; i++) {
     budget.value.transactions.forEach((t) => {
-      if (!t.deleted && t.categories && t.categories.length > 0) {
-        t.categories.forEach((c) => {
-          if (incTrx[i].name == c.category) {
-            incTrx[i].received += c.amount;
-          }
-        });
-      }
+      if (t.deleted || !t.categories || t.categories.length === 0) return;
+      const isTransfer = t.transactionType === 'transfer';
+      t.categories.forEach((c) => {
+        if (incTrx[i].name !== c.category) return;
+        if (isTransfer) {
+          // Money RECEIVED is money received. A transfer OUT of an income
+          // category (negative split — e.g. funding a savings goal from
+          // Allowance) doesn't unreceive the income; it allocates already-
+          // received money. Counting it here would double-deduct against
+          // `remainingToBudget` because the destination goal's monthly
+          // target is already in `savingsTotal`.
+          // Transfers INTO an income category (positive split) DO count —
+          // they reclassify money as income.
+          if (c.amount > 0) incTrx[i].received += c.amount;
+        } else if (t.isIncome) {
+          // Standard income transaction crediting this income category.
+          incTrx[i].received += c.amount;
+        }
+        // A standard non-income transaction landing on an income category
+        // is ill-defined; ignore so it doesn't silently corrupt the total.
+      });
     });
   }
   return incTrx;

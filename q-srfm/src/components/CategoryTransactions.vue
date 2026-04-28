@@ -177,11 +177,17 @@ const spent = computed(() => {
         // amount, the "To" category gets a positive amount.
         //  - Non-income categories track outflow as positive `spent`, so the
         //    From side adds to spent (-(-x)=+x) and the To side reduces it.
-        //  - Income categories track inflow as positive `spent` (received), so
-        //    the To side adds and the From side subtracts.
+        //  - Income categories track only INFLOW as `received` (the spent
+        //    field doubles as "received" here). Outflow from an income
+        //    category — e.g. funding a goal from Allowance — is just an
+        //    allocation of money already received; counting it would
+        //    misrepresent received income. The destination goal's progress
+        //    captures the contribution.
         if (isIncome.value) {
           transaction.categories.forEach((c) => {
-            if (c.category === props.category.name) spentTotal += c.amount;
+            if (c.category === props.category.name && c.amount > 0) {
+              spentTotal += c.amount;
+            }
           });
         } else {
           transaction.categories.forEach((c) => {
