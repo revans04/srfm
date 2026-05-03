@@ -43,7 +43,7 @@
 - Expand deterministic budget merge conflict handling (categories, transactions, fund balances).
 - Add stronger recurring-transaction controls in budget duplication flows.
 - Improve audit coverage for batch transaction operations and admin-triggered maintenance actions.
-- **Introduce a first-class transfer transaction type** to replace the current income-in-destination workaround for inter-category and goal-to-category moves. Transfers should be identifiable so they can be excluded from spending and income aggregates in reporting, preventing category spend from netting to zero.
+- ~~**Introduce a first-class transfer transaction type**~~ ✓ **Shipped (2026-05-02).** `transactionType: 'transfer'` with signed splits is canonical for inter-category moves; aggregations skip transfers in income/expense totals (`q-srfm/src/utils/reportAggregations.ts`). Goal-funded expenses use a different model: a standard `Transaction` with `funded_by_goal_id` persisted on the row, so the expense counts in the destination category and the goal sees a Goal Spend (`GoalService.GetGoals` `funded_agg` sub-aggregation, `GoalService.GetGoalDetails` UNION).
 
 ## 11) Goal Visibility and Fund-to-Spend Traceability
 - Surface goal **current balance** ("what's remaining") prominently — total contributions minus total spends — as a real-time number, not just a progress bar toward a target.

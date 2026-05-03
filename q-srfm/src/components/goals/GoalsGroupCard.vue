@@ -1,5 +1,5 @@
 <template>
-  <q-card class="goals-card">
+  <q-card v-if="!isSearchHidden" class="goals-card">
     <q-card-section class="goals-card__inner">
       <div class="goals-card__header">
         <div class="goals-card__title">Savings Goals</div>
@@ -36,7 +36,7 @@
 
       <ul v-else class="goal-list">
         <li
-          v-for="goal in goals"
+          v-for="goal in visibleGoals"
           :key="goal.id"
           class="goal-row"
           tabindex="0"
@@ -111,7 +111,7 @@ import { formatCurrency } from '../../utils/helpers';
 import { useGoals } from '../../composables/useGoals';
 import type { Goal } from '../../types';
 
-const props = defineProps<{ entityId: string }>();
+const props = defineProps<{ entityId: string; search?: string }>();
 defineEmits<{
   (e: 'add'): void;
   (e: 'view', goal: Goal): void;
@@ -129,6 +129,21 @@ const isMobile = $q.platform.is.mobile;
 // contribution from GoalDetailsPanel left the savings-goals card showing
 // stale numbers until the user refreshed the page.
 const goals = computed(() => listGoals(props.entityId));
+
+// Search-aware visibility. When the budget page's search box has text, narrow
+// the goal list to name matches. Hide the entire card if nothing matches —
+// cleaner than rendering a header with zero rows. Empty/no-search behavior
+// is unchanged so the "Add a goal" CTA still appears for fresh accounts.
+const visibleGoals = computed(() => {
+  const q = (props.search || '').trim().toLowerCase();
+  if (!q) return goals.value;
+  return goals.value.filter((g) => g.name.toLowerCase().includes(q));
+});
+
+const isSearchHidden = computed(() => {
+  const q = (props.search || '').trim();
+  return q.length > 0 && visibleGoals.value.length === 0;
+});
 
 function savedFor(goal: Goal): number {
   // Backend rollup already folds opening_balance into savedToDate; default

@@ -210,7 +210,10 @@
         </q-banner>
       </div>
 
-      <div v-if="transactionMode !== 'transfer'" class="transaction-form__field">
+      <div
+        v-if="transactionMode !== 'transfer' && !hasActiveCategoryDefault"
+        class="transaction-form__field"
+      >
         <q-select
           v-model="locTrnsx.fundedByGoalId"
           :options="goalOptions"
@@ -240,6 +243,25 @@
         />
         <div class="text-caption text-grey-7 q-mt-xs">
           This expense will draw from <strong>{{ inferredFundingSource }}</strong> instead of your monthly income.
+        </div>
+      </div>
+
+      <!-- Category-level default goal funding source ("Vacation Spending is
+           funded from the Vacation goal by default"). Mutually exclusive with
+           the category-level category source via DB CHECK; the dropdowns in
+           BudgetPage disable each other in the UI. Transaction-level
+           fundedByGoalId still wins if explicitly set. -->
+      <div
+        v-if="transactionMode === 'expense' && !locTrnsx.fundedByGoalId && inferredFundingGoal"
+        class="transaction-form__field"
+      >
+        <q-toggle
+          v-model="sourceFromGoalEnabled"
+          :label="`Source from ${inferredFundingGoal.name}`"
+          color="primary"
+        />
+        <div class="text-caption text-grey-7 q-mt-xs">
+          This expense will draw from the <strong>{{ inferredFundingGoal.name }}</strong> goal instead of your monthly income.
         </div>
       </div>
 
@@ -302,6 +324,7 @@ import { useGoals } from '../composables/useGoals';
 import { useFamilyStore } from '../store/family';
 import { isIncomeCategory } from '../utils/groups';
 import { createBudgetForMonth } from '../utils/budget';
+import { inferGoalFundingFromCategory } from '../utils/transactionFunding';
 import { v4 as uuidv4 } from 'uuid';
 
 const merchantStore = useMerchantStore();
@@ -405,12 +428,45 @@ const inferredFundingSource = computed<string | null>(() => {
   return sources.size === 1 ? (Array.from(sources)[0] ?? null) : null;
 });
 
+// Category-default goal funding source. Parallels `inferredFundingSource` but
+// for `fundingSourceGoalId`. When the destination category(ies) all share the
+// same `fundingSourceGoalId`, surface the goal so the form can offer to auto-
+// source the expense from it.
+const sourceFromGoalEnabled = ref(false);
+
+const inferredFundingGoal = computed<Goal | null>(() => {
+  if (transactionMode.value !== 'expense') return null;
+  const b = budget.value;
+  if (!b) return null;
+  const destNames = locTrnsx.categories.map((c) => c.category).filter((n): n is string => !!n);
+  return inferGoalFundingFromCategory(b, destNames, goalList.value);
+});
+
 watch(
   inferredFundingSource,
   (src) => {
     sourceFromCategoryEnabled.value = !!src;
   },
   { immediate: true },
+);
+
+watch(
+  inferredFundingGoal,
+  (g) => {
+    sourceFromGoalEnabled.value = !!g;
+  },
+  { immediate: true },
+);
+
+// True when a category-level default funding source (either another category
+// or a goal) is both inferred and enabled. While true, the per-transaction
+// "Fund from Goal" dropdown is hidden — it would be redundant noise on top of
+// the toggle. Toggling off reveals the dropdown again so the user can pick a
+// different goal as a one-off override.
+const hasActiveCategoryDefault = computed(
+  () =>
+    (sourceFromCategoryEnabled.value && !!inferredFundingSource.value) ||
+    (sourceFromGoalEnabled.value && !!inferredFundingGoal.value),
 );
 
 // Initialize transfer fields from existing categories when editing a transfer
@@ -732,9 +788,29 @@ async function save() {
       locTrnsx.amount = destSum;
     }
 
-    // Goal-funded expense: convert a standard expense into a transfer
-    // whose source is the goal's fund category, so the goal's saved/spent
-    // is derived from the transaction (no in-memory bookkeeping needed).
+    // Category-default goal funding source: when the destination category
+    // has a `fundingSourceGoalId` and no transaction-level `fundedByGoalId`
+    // was set, fold in the inferred goal id and let the next branch perform
+    // the conversion. Skipped if the cat-level category branch above already
+    // converted (transactionType === 'transfer'). Mutually exclusive with
+    // `fundingSourceCategory` at the DB level.
+    if (
+      transactionMode.value === 'expense' &&
+      locTrnsx.transactionType !== 'transfer' &&
+      !locTrnsx.fundedByGoalId &&
+      sourceFromGoalEnabled.value &&
+      inferredFundingGoal.value
+    ) {
+      locTrnsx.fundedByGoalId = inferredFundingGoal.value.id;
+    }
+
+    // Goal-funded expense: leave the transaction as a standard expense
+    // (counts toward the destination category's spent/available) and persist
+    // `fundedByGoalId` so the goal's savedToDate / spentToDate is derived
+    // server-side. We previously rewrote this into a transfer at save time
+    // — that nets the category to zero and shows the row as a transfer
+    // arrow instead of an expense, which doesn't match user intent. Just
+    // validate inputs here.
     if (transactionMode.value !== 'transfer' && locTrnsx.fundedByGoalId) {
       const goal = goalList.value.find((g) => g.id === locTrnsx.fundedByGoalId);
       if (!goal) {
@@ -746,30 +822,6 @@ async function save() {
         showSnackbar('Amount must be greater than 0 when funding from a goal', 'negative');
         return;
       }
-      // Normalize the existing expense categories to positive amounts and
-      // prepend the goal as the negative source. The resulting category set
-      // sums to zero (transfer invariant).
-      const destCategories = locTrnsx.categories
-        .filter((c) => c.category)
-        .map((c) => ({ category: c.category, amount: Math.abs(c.amount || total) }));
-      // If there were no meaningful splits, fall back to a single destination
-      // line using the full amount.
-      if (destCategories.length === 0) {
-        destCategories.push({ category: '', amount: total });
-      }
-      // Guard: destination cannot be the goal itself
-      if (destCategories.some((c) => c.category === goal.name)) {
-        showSnackbar('Destination category cannot be the goal itself', 'negative');
-        return;
-      }
-      const destSum = destCategories.reduce((s, c) => s + c.amount, 0);
-      locTrnsx.categories = [
-        { category: goal.name, amount: -destSum },
-        ...destCategories,
-      ];
-      locTrnsx.transactionType = 'transfer';
-      locTrnsx.isIncome = false;
-      locTrnsx.amount = destSum;
     }
 
     isLoading.value = true;

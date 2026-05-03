@@ -49,7 +49,7 @@
 - Support batch transaction actions with explicit confirmation and affected-count display.
 - Support imported transaction storage and matching workflow to budget transactions.
 - Maintain transaction statuses (`U`, `C`, `R`) with reconciliation-safe behavior.
-- Introduce a first-class transfer transaction type to replace the current income-in-destination workaround for inter-category and goal-to-category moves. Transfers must be identifiable so they can be excluded from spending and income aggregates in reporting, preventing category spend from netting to zero. This is the intended solution for the known anti-pattern documented in `AGENTS.md`.
+- Inter-category moves use a first-class transfer transaction type (`transactionType: 'transfer'` with signed splits) so they can be excluded from spending and income aggregates without netting category spend to zero. Goal-funded expenses use a separate model: a standard `Transaction` with `funded_by_goal_id` persisted on the row — the expense counts in the destination category, and the goal derives Goal Spend from the column. Goal funding is *not* a transfer; do not auto-convert goal-funded expenses at save time. (See `AGENTS.md` anti-patterns.)
 
 ## 6) Reconciliation
 - Support statement-based reconciliation (start/end dates, opening/ending balance).

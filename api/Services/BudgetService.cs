@@ -137,7 +137,7 @@ public class BudgetService
             // goal contributions/withdrawals (every split is goal-linked) stay
             // hidden from the budget view.
             var sqlTx = hasGoalTable
-                ? @"SELECT t.id, t.date, t.budget_month, t.merchant, t.amount, t.notes, t.recurring, t.recurring_interval, t.user_id, t.is_income, t.account_number, t.account_source, t.transaction_date, t.posted_date, t.imported_merchant, t.status, t.check_number, t.deleted, t.entity_id, t.transaction_type
+                ? @"SELECT t.id, t.date, t.budget_month, t.merchant, t.amount, t.notes, t.recurring, t.recurring_interval, t.user_id, t.is_income, t.account_number, t.account_source, t.transaction_date, t.posted_date, t.imported_merchant, t.status, t.check_number, t.deleted, t.entity_id, t.transaction_type, t.funded_by_goal_id
 FROM transactions t
 WHERE t.budget_id=@id AND t.entity_id=@entity
 AND EXISTS (
@@ -149,7 +149,7 @@ AND EXISTS (
     WHERE tc.transaction_id = t.id
       AND gbc.id IS NULL
 );" :
-                @"SELECT t.id, t.date, t.budget_month, t.merchant, t.amount, t.notes, t.recurring, t.recurring_interval, t.user_id, t.is_income, t.account_number, t.account_source, t.transaction_date, t.posted_date, t.imported_merchant, t.status, t.check_number, t.deleted, t.entity_id, t.transaction_type
+                @"SELECT t.id, t.date, t.budget_month, t.merchant, t.amount, t.notes, t.recurring, t.recurring_interval, t.user_id, t.is_income, t.account_number, t.account_source, t.transaction_date, t.posted_date, t.imported_merchant, t.status, t.check_number, t.deleted, t.entity_id, t.transaction_type, t.funded_by_goal_id
 FROM transactions t
 WHERE t.budget_id=@id AND t.entity_id=@entity";
 
@@ -182,7 +182,8 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
                         CheckNumber = txReader.IsDBNull(16) ? null : txReader.GetString(16),
                         Deleted = txReader.IsDBNull(17) ? (bool?)null : txReader.GetBoolean(17),
                         EntityId = txReader.IsDBNull(18) ? null : txReader.GetGuid(18).ToString(),
-                        TransactionType = txReader.IsDBNull(19) ? "standard" : txReader.GetString(19)
+                        TransactionType = txReader.IsDBNull(19) ? "standard" : txReader.GetString(19),
+                        FundedByGoalId = txReader.IsDBNull(20) ? null : txReader.GetGuid(20).ToString()
                     };
                     budget.Transactions.Add(tx);
                 }
@@ -212,14 +213,16 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
 
         var sqlCats = hasGoalTable
             ? @"SELECT bc.id, bc.name, bc.target, bc.is_fund, bc.group_id, bg.name AS group_name,
-                       bc.sort_order, bc.carryover, bc.favorite, bc.funding_source_category
+                       bc.sort_order, bc.carryover, bc.favorite, bc.funding_source_category,
+                       bc.funding_source_goal_id
                   FROM budget_categories bc
                   LEFT JOIN budget_groups bg ON bg.id = bc.group_id
                  WHERE bc.budget_id=@id
                    AND NOT EXISTS (SELECT 1 FROM goals_budget_categories gbc WHERE gbc.budget_cat_id = bc.id)
                  ORDER BY COALESCE(bg.sort_order, 2147483647), bc.sort_order, bc.name"
             : @"SELECT bc.id, bc.name, bc.target, bc.is_fund, bc.group_id, bg.name AS group_name,
-                       bc.sort_order, bc.carryover, bc.favorite, bc.funding_source_category
+                       bc.sort_order, bc.carryover, bc.favorite, bc.funding_source_category,
+                       bc.funding_source_goal_id
                   FROM budget_categories bc
                   LEFT JOIN budget_groups bg ON bg.id = bc.group_id
                  WHERE bc.budget_id=@id
@@ -241,7 +244,8 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
                     SortOrder = catReader.IsDBNull(6) ? 0 : catReader.GetInt32(6),
                     Carryover = catReader.IsDBNull(7) ? null : (double?)catReader.GetDecimal(7),
                     Favorite = catReader.IsDBNull(8) ? (bool?)null : catReader.GetBoolean(8),
-                    FundingSourceCategory = catReader.IsDBNull(9) ? null : catReader.GetString(9)
+                    FundingSourceCategory = catReader.IsDBNull(9) ? null : catReader.GetString(9),
+                    FundingSourceGoalId = catReader.IsDBNull(10) ? null : catReader.GetGuid(10).ToString()
                 });
             }
         }
@@ -384,6 +388,43 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
     {
         _logger.LogInformation("Saving budget {BudgetId}", budgetId);
         await using var conn = await _db.GetOpenConnectionAsync();
+
+        // Entity-scope validation for category-level goal funding sources. Any
+        // FundingSourceGoalId on a category must reference a goal owned by the
+        // same entity as the budget — otherwise a malicious or buggy caller
+        // could link a category to a goal in a different family/entity.
+        var goalIds = budget.Categories?
+            .Where(c => !string.IsNullOrWhiteSpace(c.FundingSourceGoalId))
+            .Select(c => c.FundingSourceGoalId!)
+            .Distinct()
+            .ToList() ?? new List<string>();
+        if (goalIds.Count > 0)
+        {
+            if (string.IsNullOrWhiteSpace(budget.EntityId) || !Guid.TryParse(budget.EntityId, out var entityGuid))
+                throw new ArgumentException("FundingSourceGoalId requires the budget to be entity-scoped.");
+
+            var parsed = new List<Guid>();
+            foreach (var raw in goalIds)
+            {
+                if (!Guid.TryParse(raw, out var gg))
+                    throw new ArgumentException($"FundingSourceGoalId '{raw}' is not a valid UUID.");
+                parsed.Add(gg);
+            }
+
+            const string verifySql = "SELECT id FROM goals WHERE entity_id=@eid AND id = ANY(@ids)";
+            await using var verifyCmd = new NpgsqlCommand(verifySql, conn);
+            verifyCmd.Parameters.AddWithValue("eid", entityGuid);
+            verifyCmd.Parameters.AddWithValue("ids", parsed.ToArray());
+            var found = new HashSet<Guid>();
+            await using (var rd = await verifyCmd.ExecuteReaderAsync())
+            {
+                while (await rd.ReadAsync()) found.Add(rd.GetGuid(0));
+            }
+            var missing = parsed.Where(g => !found.Contains(g)).ToList();
+            if (missing.Count > 0)
+                throw new ArgumentException($"FundingSourceGoalId references goal(s) not owned by entity {budget.EntityId}: {string.Join(", ", missing)}");
+        }
+
         await using (var dbTx = await conn.BeginTransactionAsync())
         {
             await WriteBudgetAndCategoriesAsync(conn, dbTx, budgetId, budget, _logger);
@@ -498,8 +539,8 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
             // 0..N-1 ordering is recomputed on save.
             var perGroupCounter = new Dictionary<Guid, int>();
             const string insCatSql = @"INSERT INTO budget_categories
-                (budget_id, name, target, is_fund, group_id, sort_order, carryover, favorite, funding_source_category)
-                VALUES (@budget_id, @name, @target, @is_fund, @group_id, @sort_order, @carryover, @favorite, @funding_source_category)";
+                (budget_id, name, target, is_fund, group_id, sort_order, carryover, favorite, funding_source_category, funding_source_goal_id)
+                VALUES (@budget_id, @name, @target, @is_fund, @group_id, @sort_order, @carryover, @favorite, @funding_source_category, @funding_source_goal_id)";
             for (var i = 0; i < budget.Categories.Count; i++)
             {
                 var cat = budget.Categories[i];
@@ -525,6 +566,14 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
                 catCmd.Parameters.AddWithValue("carryover", cat.Carryover.HasValue ? (object)(decimal)cat.Carryover.Value : DBNull.Value);
                 catCmd.Parameters.AddWithValue("favorite", cat.Favorite ?? false);
                 catCmd.Parameters.AddWithValue("funding_source_category", (object?)cat.FundingSourceCategory ?? DBNull.Value);
+                if (!string.IsNullOrWhiteSpace(cat.FundingSourceGoalId) && Guid.TryParse(cat.FundingSourceGoalId, out var fsgid))
+                {
+                    catCmd.Parameters.AddWithValue("funding_source_goal_id", fsgid);
+                }
+                else
+                {
+                    catCmd.Parameters.AddWithValue("funding_source_goal_id", DBNull.Value);
+                }
                 await catCmd.ExecuteNonQueryAsync();
             }
         }
@@ -742,6 +791,7 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
         parameters.AddWithValue("deleted", tx.Deleted.HasValue ? (object)tx.Deleted.Value : DBNull.Value);
         SetOptionalGuid(parameters, "entity_id", tx.EntityId);
         parameters.AddWithValue("transaction_type", (object?)tx.TransactionType ?? "standard");
+        SetOptionalGuid(parameters, "funded_by_goal_id", tx.FundedByGoalId);
     }
 
     private static void SetOptionalGuid(NpgsqlParameterCollection parameters, string name, string? value)
@@ -1075,9 +1125,9 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
         if (string.IsNullOrEmpty(transaction.Id))
             transaction.Id = Guid.NewGuid().ToString();
         await using var conn = await _db.GetOpenConnectionAsync();
-        const string sql = @"INSERT INTO transactions (id, budget_id, date, budget_month, merchant, amount, notes, recurring, recurring_interval, user_id, is_income, account_number, account_source, transaction_date, posted_date, imported_merchant, status, check_number, deleted, entity_id, transaction_type, created_at, updated_at)
-VALUES (@id,@budget_id,@date,@budget_month,@merchant,@amount,@notes,@recurring,@recurring_interval,@user_id,@is_income,@account_number,@account_source,@transaction_date,@posted_date,@imported_merchant,@status,@check_number,@deleted,@entity_id,@transaction_type, now(), now())
-ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date, budget_month=EXCLUDED.budget_month, merchant=EXCLUDED.merchant, amount=EXCLUDED.amount, notes=EXCLUDED.notes, recurring=EXCLUDED.recurring, recurring_interval=EXCLUDED.recurring_interval, user_id=EXCLUDED.user_id, is_income=EXCLUDED.is_income, account_number=EXCLUDED.account_number, account_source=EXCLUDED.account_source, transaction_date=EXCLUDED.transaction_date, posted_date=EXCLUDED.posted_date, imported_merchant=EXCLUDED.imported_merchant, status=EXCLUDED.status, check_number=EXCLUDED.check_number, deleted=EXCLUDED.deleted, entity_id=EXCLUDED.entity_id, transaction_type=EXCLUDED.transaction_type, updated_at=now();";
+        const string sql = @"INSERT INTO transactions (id, budget_id, date, budget_month, merchant, amount, notes, recurring, recurring_interval, user_id, is_income, account_number, account_source, transaction_date, posted_date, imported_merchant, status, check_number, deleted, entity_id, transaction_type, funded_by_goal_id, created_at, updated_at)
+VALUES (@id,@budget_id,@date,@budget_month,@merchant,@amount,@notes,@recurring,@recurring_interval,@user_id,@is_income,@account_number,@account_source,@transaction_date,@posted_date,@imported_merchant,@status,@check_number,@deleted,@entity_id,@transaction_type,@funded_by_goal_id, now(), now())
+ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date, budget_month=EXCLUDED.budget_month, merchant=EXCLUDED.merchant, amount=EXCLUDED.amount, notes=EXCLUDED.notes, recurring=EXCLUDED.recurring, recurring_interval=EXCLUDED.recurring_interval, user_id=EXCLUDED.user_id, is_income=EXCLUDED.is_income, account_number=EXCLUDED.account_number, account_source=EXCLUDED.account_source, transaction_date=EXCLUDED.transaction_date, posted_date=EXCLUDED.posted_date, imported_merchant=EXCLUDED.imported_merchant, status=EXCLUDED.status, check_number=EXCLUDED.check_number, deleted=EXCLUDED.deleted, entity_id=EXCLUDED.entity_id, transaction_type=EXCLUDED.transaction_type, funded_by_goal_id=EXCLUDED.funded_by_goal_id, updated_at=now();";
         await using var cmd = new NpgsqlCommand(sql, conn);
         BindTransactionParameters(cmd.Parameters, budgetId, transaction);
         await cmd.ExecuteNonQueryAsync();
@@ -1133,9 +1183,9 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
         await using var conn = await _db.GetOpenConnectionAsync();
         await using var dbTx = await conn.BeginTransactionAsync();
 
-        const string sql = @"INSERT INTO transactions (id, budget_id, date, budget_month, merchant, amount, notes, recurring, recurring_interval, user_id, is_income, account_number, account_source, transaction_date, posted_date, imported_merchant, status, check_number, deleted, entity_id, transaction_type, created_at, updated_at)
-VALUES (@id,@budget_id,@date,@budget_month,@merchant,@amount,@notes,@recurring,@recurring_interval,@user_id,@is_income,@account_number,@account_source,@transaction_date,@posted_date,@imported_merchant,@status,@check_number,@deleted,@entity_id,@transaction_type, now(), now())
-ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date, budget_month=EXCLUDED.budget_month, merchant=EXCLUDED.merchant, amount=EXCLUDED.amount, notes=EXCLUDED.notes, recurring=EXCLUDED.recurring, recurring_interval=EXCLUDED.recurring_interval, user_id=EXCLUDED.user_id, is_income=EXCLUDED.is_income, account_number=EXCLUDED.account_number, account_source=EXCLUDED.account_source, transaction_date=EXCLUDED.transaction_date, posted_date=EXCLUDED.posted_date, imported_merchant=EXCLUDED.imported_merchant, status=EXCLUDED.status, check_number=EXCLUDED.check_number, deleted=EXCLUDED.deleted, entity_id=EXCLUDED.entity_id, transaction_type=EXCLUDED.transaction_type, updated_at=now();";
+        const string sql = @"INSERT INTO transactions (id, budget_id, date, budget_month, merchant, amount, notes, recurring, recurring_interval, user_id, is_income, account_number, account_source, transaction_date, posted_date, imported_merchant, status, check_number, deleted, entity_id, transaction_type, funded_by_goal_id, created_at, updated_at)
+VALUES (@id,@budget_id,@date,@budget_month,@merchant,@amount,@notes,@recurring,@recurring_interval,@user_id,@is_income,@account_number,@account_source,@transaction_date,@posted_date,@imported_merchant,@status,@check_number,@deleted,@entity_id,@transaction_type,@funded_by_goal_id, now(), now())
+ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date, budget_month=EXCLUDED.budget_month, merchant=EXCLUDED.merchant, amount=EXCLUDED.amount, notes=EXCLUDED.notes, recurring=EXCLUDED.recurring, recurring_interval=EXCLUDED.recurring_interval, user_id=EXCLUDED.user_id, is_income=EXCLUDED.is_income, account_number=EXCLUDED.account_number, account_source=EXCLUDED.account_source, transaction_date=EXCLUDED.transaction_date, posted_date=EXCLUDED.posted_date, imported_merchant=EXCLUDED.imported_merchant, status=EXCLUDED.status, check_number=EXCLUDED.check_number, deleted=EXCLUDED.deleted, entity_id=EXCLUDED.entity_id, transaction_type=EXCLUDED.transaction_type, funded_by_goal_id=EXCLUDED.funded_by_goal_id, updated_at=now();";
 
         var batch = new NpgsqlBatch(conn) { Transaction = dbTx };
 

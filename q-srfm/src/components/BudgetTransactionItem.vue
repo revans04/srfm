@@ -18,6 +18,10 @@
       <q-item-label v-if="isTransfer && counterpartCategory" caption class="tx-item__category tx-item__category--transfer">
         {{ transferDirection }}
       </q-item-label>
+      <q-item-label v-else-if="goal" caption class="tx-item__category tx-item__category--goal">
+        <q-icon name="savings" size="12px" class="q-mr-xs" />
+        Funded by {{ goal.name }}
+      </q-item-label>
       <q-item-label v-else-if="categoryLabel" caption class="tx-item__category">{{ categoryLabel }}</q-item-label>
     </q-item-section>
 
@@ -213,6 +217,10 @@ function formatTransactionAmount(): string {
 
 .tx-item__category--transfer {
   color: var(--q-info);
+}
+
+.tx-item__category--goal {
+  color: var(--q-primary);
 }
 
 .tx-item__right {

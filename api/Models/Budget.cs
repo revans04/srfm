@@ -58,6 +58,12 @@ namespace FamilyBudgetApi.Models
         // expense from this category (creating a transfer transaction instead
         // of a standard expense).
         public string? FundingSourceCategory { get; set; }
+
+        // UUID of a savings goal that by default funds expenses in this
+        // category. Same auto-transfer behavior as FundingSourceCategory but
+        // sourced from the goal's auto-synced fund category. The DB enforces
+        // mutual exclusion with FundingSourceCategory.
+        public string? FundingSourceGoalId { get; set; }
     }
 
     public class Transaction
@@ -105,6 +111,12 @@ namespace FamilyBudgetApi.Models
         public string? EntityId { get; set; } // New field
 
         public string? TransactionType { get; set; } // 'standard' or 'transfer'
+
+        // UUID of the savings goal that funded this expense. Persisted on
+        // standard expense rows; goal computation reads it to mark the goal's
+        // savedToDate / spentToDate. Null for income, transfers, and self-
+        // funded expenses.
+        public string? FundedByGoalId { get; set; }
     }
 
     public class TransactionCategory

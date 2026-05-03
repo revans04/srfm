@@ -11,6 +11,7 @@
     <q-tabs v-model="tab" color="primary" class="q-mb-lg" align="left">
       <q-tab name="monthly" label="Monthly Overview" />
       <q-tab name="register" label="Register Report" />
+      <q-tab name="transfers" label="Transfers" />
       <q-tab name="year-over-year" label="Year-over-Year" />
       <q-tab name="net-worth" label="Net Worth" />
     </q-tabs>
@@ -286,6 +287,11 @@
         </div>
       </q-tab-panel>
 
+      <!-- Transfers -->
+      <q-tab-panel name="transfers" class="q-pa-none">
+        <TransfersPanel :budgets="loadedBudgets" :goals="entityGoals" />
+      </q-tab-panel>
+
       <!-- Year-over-Year -->
       <q-tab-panel name="year-over-year" class="q-pa-none">
         <q-card>
@@ -338,7 +344,7 @@
 import { ref, onMounted, computed } from "vue";
 import { auth } from "../firebase/init";
 import { dataAccess } from "../dataAccess";
-import type { Account, Budget, Snapshot } from "../types";
+import type { Account, Budget, Goal, Snapshot } from "../types";
 import GuidedTip from "../components/GuidedTip.vue";
 import { Doughnut, Line } from "vue-chartjs";
 import {
@@ -357,9 +363,12 @@ import {
 import type { TooltipItem } from "chart.js";
 import { useBudgetStore } from "../store/budget";
 import { useFamilyStore } from "../store/family";
+import { useGoals } from "../composables/useGoals";
+import TransfersPanel from "../components/reports/TransfersPanel.vue";
 import "chartjs-adapter-date-fns";
 import { timestampToDate, currentMonthISO, formatDate } from "../utils/helpers";
 import { isIncomeCategory, categoryGroupName } from "../utils/groups";
+import { computeCategoryAverages } from "../utils/reportAggregations";
 
 // Register Chart.js components
 ChartJS.register(
@@ -381,6 +390,12 @@ const LineChart = Line;
 
 const budgetStore = useBudgetStore();
 const familyStore = useFamilyStore();
+const goalsApi = useGoals();
+const loadedBudgets = ref<Budget[]>([]);
+const entityGoals = computed<Goal[]>(() => {
+  const eid = familyStore.selectedEntityId;
+  return eid ? goalsApi.listGoals(eid) : [];
+});
 
 // Chart palette — mirrors the pattern in components/charts/SpendingByCategoryCard.vue.
 // Reads Quasar CSS vars so chart colors stay in sync with quasar.variables.scss.
@@ -876,6 +891,10 @@ onMounted(async () => {
   try {
     // Load budgets into the store
     await budgetStore.loadBudgets(user.uid);
+    // Load goals so the Transfers panel can mark goal-funded rows.
+    if (familyStore.selectedEntityId) {
+      await goalsApi.loadGoals(familyStore.selectedEntityId);
+    }
     budgetOptions.value = Array.from(budgetStore.budgets.values())
       .sort((a, b) => budgetMonthToTimestamp(b.month) - budgetMonthToTimestamp(a.month))
       .map((budget) => ({
@@ -930,6 +949,7 @@ async function updateReportData() {
     groupTransactions.value = {};
     categoryAverages.value = [];
     categoryTransactions.value = {};
+    loadedBudgets.value = [];
     return;
   }
 
@@ -978,6 +998,7 @@ async function updateReportData() {
         return null;
       })
       .filter((budget): budget is Budget => budget !== null);
+    loadedBudgets.value = budgets;
 
     // Resolve group identity per category through the entity's group
     // taxonomy. Categories carry `groupId` (FK) plus a `groupName` snapshot.
@@ -1101,70 +1122,12 @@ async function updateReportData() {
       actual: data.actual,
     }));
 
-    const budgetCount = budgets.length;
-    const allCategoryNames = new Set<string>();
-    budgets.forEach((budget) => {
-      budget.categories.forEach((cat) => {
-        allCategoryNames.add(cat.name);
-      });
-      budget.transactions.forEach((transaction) => {
-        transaction.categories.forEach((cat) => {
-          allCategoryNames.add(cat.category);
-        });
-      });
+    const averages = computeCategoryAverages(budgets, groupList, {
+      groups: new Set(excludedGroups.value),
+      categories: new Set(excludedCategories.value),
     });
-
-    const categoryTotals = new Map<string, { incomeTotal: number; expenseTotal: number }>();
-    const categorySeenTxIds = new Map<string, Set<string>>();
-    const nextCategoryTransactions: Record<
-      string,
-      { id: string; date: string; merchant: string; amount: number; isIncome: boolean }[]
-    > = {};
-    allCategoryNames.forEach((name) => {
-      categoryTotals.set(name, { incomeTotal: 0, expenseTotal: 0 });
-      categorySeenTxIds.set(name, new Set<string>());
-    });
-
-    budgets.forEach((budget) => {
-      budget.transactions.forEach((transaction) => {
-        if (transaction.deleted) return;
-        transaction.categories.forEach((cat) => {
-          const groupName = categoryGroupMap.get(cat.category);
-          if (groupName && excludedGroups.value.includes(groupName)) return;
-          if (excludedCategories.value.includes(cat.category)) return;
-          const seenIds = categorySeenTxIds.get(cat.category) || new Set<string>();
-          if (seenIds.has(transaction.id)) return;
-          seenIds.add(transaction.id);
-          categorySeenTxIds.set(cat.category, seenIds);
-          const totals = categoryTotals.get(cat.category) || { incomeTotal: 0, expenseTotal: 0 };
-          const amount = cat.amount || 0;
-          if (transaction.isIncome) {
-            totals.incomeTotal += amount;
-          } else {
-            totals.expenseTotal += amount;
-          }
-          categoryTotals.set(cat.category, totals);
-          const txList = nextCategoryTransactions[cat.category] || [];
-          txList.push({
-            id: transaction.id,
-            date: transaction.date,
-            merchant: transaction.merchant,
-            amount: amount * (transaction.isIncome ? 1 : -1),
-            isIncome: transaction.isIncome,
-          });
-          nextCategoryTransactions[cat.category] = txList;
-        });
-      });
-    });
-
-    categoryAverages.value = Array.from(categoryTotals.entries())
-      .map(([name, totals]) => ({
-        name,
-        avgIncome: budgetCount ? totals.incomeTotal / budgetCount : 0,
-        avgExpense: budgetCount ? totals.expenseTotal / budgetCount : 0,
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-    categoryTransactions.value = nextCategoryTransactions;
+    categoryAverages.value = averages.categoryAverages;
+    categoryTransactions.value = averages.categoryTransactions;
   } catch (error: unknown) {
     console.error("Error updating report data:", error);
     budgetGroups.value = [];

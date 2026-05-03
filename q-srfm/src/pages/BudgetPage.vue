@@ -322,8 +322,27 @@
                       outlined
                       stack-label
                       clearable
+                      :disable="Boolean(cat.fundingSourceGoalId)"
                       hint="If set, new expenses in this category default to a transfer from the source."
                       @update:model-value="(v) => (cat.fundingSourceCategory = v || undefined)"
+                    />
+                  </div>
+                  <div class="col-12 col-sm-6 q-pa-xs">
+                    <q-select
+                      :model-value="cat.fundingSourceGoalId || null"
+                      :options="fundingGoalOptionsFor()"
+                      option-label="name"
+                      option-value="id"
+                      emit-value
+                      map-options
+                      label="or fund from goal (optional)"
+                      dense
+                      outlined
+                      stack-label
+                      clearable
+                      :disable="Boolean(cat.fundingSourceCategory)"
+                      hint="Money for this category will be drawn from this goal as a transfer."
+                      @update:model-value="(v) => (cat.fundingSourceGoalId = v || undefined)"
                     />
                   </div>
                 </div>
@@ -336,7 +355,7 @@
           </q-card>
 
           <!-- Income Section -->
-          <q-card v-if="!isEditing && incomeItems" id="income-section" class="income-card">
+          <q-card v-if="!isEditing && visibleIncomeItems.length" id="income-section" class="income-card">
             <q-card-section class="q-pa-lg">
               <div class="income-header">
                 <span class="income-title">Income for {{ selectedEntity?.name || 'selected entity' }}</span>
@@ -344,15 +363,15 @@
                 <span class="col-header income-col-received">Received</span>
               </div>
               <div class="income-divider" />
-              <div v-for="item in incomeItems" :key="item.name" class="income-row cursor-pointer" @click="onIncomeRowClick(item)">
+              <div v-for="item in visibleIncomeItems" :key="item.name" class="income-row cursor-pointer" @click="onIncomeRowClick(item)">
                 <span class="income-row__name">{{ item.name }}</span>
                 <span v-if="!isMobile" class="income-row__planned">{{ formatCurrency(toDollars(toCents(item.planned))) }}</span>
                 <span class="income-row__received" :class="item.received > item.planned ? 'text-positive' : ''">
                   {{ formatCurrency(toDollars(toCents(item.received))) }}
                 </span>
               </div>
-              <div class="income-divider" />
-              <div class="income-total">
+              <div v-if="!debouncedSearch" class="income-divider" />
+              <div v-if="!debouncedSearch" class="income-total">
                 <span class="income-total__label">Total Income</span>
                 <span v-if="!isMobile" class="income-total__planned">{{ formatCurrency(toDollars(toCents(plannedIncome))) }}</span>
                 <span class="income-total__received" :class="actualIncome > plannedIncome ? 'text-positive' : ''">
@@ -408,7 +427,7 @@
           </q-card>
 
           <div id="goals-section" class="q-mt-md">
-            <GoalsGroupCard :entity-id="familyStore.selectedEntityId || ''" @add="onAddGoal" @contribute="onContribute" @view="onViewGoal" />
+            <GoalsGroupCard :entity-id="familyStore.selectedEntityId || ''" :search="debouncedSearch" @add="onAddGoal" @contribute="onContribute" @view="onViewGoal" />
           </div>
 
           <!-- Category Tables -->
@@ -1703,6 +1722,17 @@ const incomeItems = computed(() => {
   return incTrx;
 });
 
+// Search-aware income list. When the search box has text, narrow income
+// items to name/group matches. The full `incomeItems` still drives totals
+// elsewhere (sidebar summary, etc.) so search doesn't distort overall numbers.
+const visibleIncomeItems = computed(() => {
+  const q = debouncedSearch.value.trim().toLowerCase();
+  if (!q) return incomeItems.value;
+  return incomeItems.value.filter(
+    (item) => item.name.toLowerCase().includes(q) || (item.group || '').toLowerCase().includes(q),
+  );
+});
+
 const actualIncome = computed(() => {
   return incomeItems.value.reduce((sum, t) => sum + (t.received || 0), 0);
 });
@@ -2304,6 +2334,15 @@ function fundingSourceOptionsFor(cat: BudgetCategory): string[] {
     .filter((c) => c !== cat && c.name && !isIncomeCategory(c, groupList))
     .map((c) => c.name)
     .sort((a, b) => a.localeCompare(b));
+}
+
+// Options for the "fund from goal" dropdown. Scoped to the current entity so
+// goals from other entities can't leak in. Archived goals are filtered by
+// `useGoals.listGoals`.
+function fundingGoalOptionsFor(): { id: string; name: string }[] {
+  return goals.value
+    .map((g) => ({ id: g.id, name: g.name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 async function addCategory() {

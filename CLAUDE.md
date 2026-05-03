@@ -131,6 +131,8 @@ rg "🎉|Great job|All good"         q-srfm/src/   # celebration copy — violat
 - Every persisted transaction has ≥ 1 category split (`Income` / `Uncategorized` fallback). Transaction category rows are replaced on write.
 - `entity_id` is a first-class partition key for budgets/goals; stay consistent on merge/derive.
 - Goal-linked budget categories are hidden from regular budget/category queries via `goals_budget_categories` exclusion in `BudgetService.LoadBudgetDetails`.
+- Goal funding is two-effect, single-entry. A goal-funded expense is a *standard* `Transaction` (counts toward the destination category's spend) carrying `funded_by_goal_id` (persisted FK to `goals.id`). The same column drives the goal's spend rollup. Do not auto-convert goal-funded expenses to transfers — that pattern was removed because it credited the destination category's available and erased the expense.
+- Category-level funding source defaults: `BudgetCategory.fundingSourceCategory` (name of another category) and `BudgetCategory.fundingSourceGoalId` (UUID FK to a goal) are mutually exclusive (DB CHECK). `fundingSourceGoalId` requires the goal to belong to the same entity as the budget — enforced in `BudgetService.SaveBudget`. `TransactionForm` reads these to default the per-transaction source/goal at save time.
 - Account enums: `Bank / CreditCard / Investment / Property / Loan`, `Asset / Liability`. Keep frontend aligned with API/DB.
 - Month ordering is lexicographic `YYYY-MM`.
 
@@ -245,7 +247,8 @@ Known gaps (do not replicate):
 - Creating parallel store implementations for the same domain (existing duplication is already a risk).
 - Ignoring design-system tokens; inline styles, direct hex values, arbitrary spacing/radius.
 - Mixing Vuetify-era classes/APIs into Quasar components.
-- **Extending the transfer-as-income pattern.** Recording an income-like transaction in a destination category to represent a fund/goal draw is a known defect that nets category spending to zero in reports. A first-class transfer transaction type is the intended fix — do not replicate the workaround.
+- **Bypassing the transfer model for true transfers.** A category-to-category move is a `transactionType: 'transfer'` with signed splits — negative on the source, positive on the destination. Aggregations that branch on `transaction.isIncome` must also branch on `transactionType === 'transfer'`; see `q-srfm/src/utils/reportAggregations.ts` for the canonical pattern. Do not record an inter-category transfer as a standard income/expense pair.
+- **Modeling goal-funded expenses as transfers.** Goal funding is *not* a transfer. A goal-funded expense is a regular standard expense recorded on the destination category (so it counts toward that category's spent / available) with `funded_by_goal_id` persisted on the transaction. The goal's savedToDate / spentToDate are derived server-side in `GoalService.GetGoals` (see the `funded_agg` sub-aggregation) and listed in `GoalService.GetGoalDetails`. New write paths must persist `fundedByGoalId` on a standard expense; do not auto-convert to a transfer at save time. Historical goal-funded transfers in the DB still work via the existing transfer-source-split path — the goal reader supports both shapes.
 - Desktop-only UI. Any new page, dialog, or form must be usable at 375px without horizontal scroll or broken tap targets.
 - `user-scalable=no` / `maximum-scale=1` in viewport meta (WCAG violation).
 - Empty states without actionable guidance; error states while data is still loading.

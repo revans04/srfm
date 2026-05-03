@@ -60,7 +60,7 @@ export interface Transaction {
   entityId?: string;
   taxMetadata: TaxMetadata[]; // Array to support multiple forms/entities
   receiptUrl?: string; // Firebase Storage link for receipts
-  fundedByGoalId?: string; // Savings goal funding source
+  fundedByGoalId?: string; // FK to goals.id — persisted on standard expenses to mark the goal that funded this expense (Goal Spend on the goal side, regular spend on the category side).
   transactionType?: 'standard' | 'transfer';
   // Local-only metadata to track previous id during de-duplication workflows
   originalId?: string;
@@ -136,6 +136,14 @@ export interface BudgetCategory {
    * transfer transaction automatically instead of a standard expense.
    */
   fundingSourceCategory?: string;
+  /**
+   * UUID of a savings goal that by default funds expenses in this category.
+   * Mutually exclusive with `fundingSourceCategory` (DB CHECK enforces this).
+   * When set, the transaction form pre-fills `fundedByGoalId` on new
+   * expenses; the saved transaction stays a standard expense (counts toward
+   * the destination category's spend) with the goal id persisted on the row.
+   */
+  fundingSourceGoalId?: string;
 }
 
 export interface Budget {

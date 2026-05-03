@@ -124,6 +124,10 @@ export class DataAccess {
       transactionType: typeof tx.transactionType === 'string'
         ? (tx.transactionType as Transaction['transactionType'])
         : 'standard',
+      fundedByGoalId:
+        typeof tx.fundedByGoalId === 'string' && tx.fundedByGoalId.length > 0
+          ? tx.fundedByGoalId
+          : undefined,
     };
   }
 
@@ -149,6 +153,10 @@ export class DataAccess {
             fundingSourceCategory:
               typeof cat.fundingSourceCategory === 'string' && cat.fundingSourceCategory.length > 0
                 ? cat.fundingSourceCategory
+                : undefined,
+            fundingSourceGoalId:
+              typeof cat.fundingSourceGoalId === 'string' && cat.fundingSourceGoalId.length > 0
+                ? cat.fundingSourceGoalId
                 : undefined,
           };
         })

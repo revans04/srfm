@@ -144,6 +144,7 @@ function openCategoryDialog(categoryName: string) {
   const aggregates = new Map<string, { total: number; count: number }>();
   (budget.value.transactions || []).forEach((tx) => {
     if (tx.deleted) return;
+    if (tx.transactionType === 'transfer') return;
     (tx.categories || []).forEach((cat) => {
       const groupName = categoryToGroup.get(cat.category);
       if (groupName !== categoryName) return;
