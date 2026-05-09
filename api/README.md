@@ -4,10 +4,13 @@ Permissions: The script assumes your Google Cloud credentials are already set up
 
 Environment File: Verify env-vars.yaml exists in the same directory, or adjust the path in the script.
 
-To deploy to Google Cloud Run
-./deploy.sh
+To deploy to Google Cloud Run, use the unified script at the repo root:
 
-To build, run
-./build-api.sh
+  ./deploy.sh --target=api --bump=none      # from the repo root
+
+(`api/deploy.sh.old` is the legacy single-service script, kept for reference.)
+
+To build the Docker image without deploying, run:
+  ./build-api.sh
 
 Supabase: set the SUPABASE_DB_CONNECTION environment variable with your PostgreSQL connection string before running the API.

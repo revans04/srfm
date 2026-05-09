@@ -29,6 +29,9 @@ const providerArg = process.argv.find((a) => a.startsWith('--provider='));
 const projectArg = process.argv.find((a) => a.startsWith('--project='));
 const provider = providerArg ? providerArg.split('=')[1] : 'firebase';
 const fbProjectFromArg = projectArg ? projectArg.split('=')[1] : '';
+// --no-deploy: only bump version + sync .env.production. Used by the
+// repo-root deploy.sh so the bump logic stays in one place.
+const noDeploy = process.argv.includes('--no-deploy');
 
 function bumpVersion(version, type) {
   const m = /^([0-9]+)\.([0-9]+)\.([0-9]+)(?:[-+].*)?$/.exec(version || '0.0.0');
@@ -88,6 +91,11 @@ try {
   ensureEnvVersion(envProdPath, next);
   console.log(`Updated ${path.relative(projectRoot, envProdPath)} with VITE_APP_VERSION=${next}`);
 
+  if (noDeploy) {
+    console.log('--no-deploy set; skipping build/deploy.');
+    process.exit(0);
+  }
+
   // 3) Build and deploy the q-srfm service (uses Docker + Cloud Run)
   if (provider === 'firebase') {
     // Ensure firebase.json exists for SPA hosting
@@ -123,9 +131,15 @@ try {
     execSync(`firebase deploy --only hosting --project ${fbProject}`, { cwd: projectRoot, stdio: 'inherit' });
     console.log('Firebase Hosting deployment successful.');
   } else {
-    console.log('Building and deploying q-srfm (Cloud Run)...');
-    execSync(`bash "${deployScriptPath}"`, { stdio: 'inherit' });
-    console.log('Cloud Run deployment successful.');
+    // The previous Cloud Run path called q-srfm/deploy.sh. That script has
+    // moved into the unified repo-root deploy.sh — use it instead.
+    console.error(
+      'Cloud Run web deploy is no longer handled here.\n' +
+      'Use the unified script from the repo root, e.g.:\n' +
+      '  ./deploy.sh --target=web --web-host=cloudrun --bump=none\n' +
+      '(it will reuse this script for the version bump via --no-deploy).'
+    );
+    process.exit(1);
   }
 } catch (err) {
   console.error('Error during update and deploy:', err?.message || err);

@@ -66,14 +66,14 @@ namespace FamilyBudgetApi.Controllers
 
         [HttpGet("batch")]
         [AuthorizeFirebase]
-        public async Task<IActionResult> GetBudgets([FromQuery] string ids)
+        public async Task<IActionResult> GetBudgets([FromQuery] string ids, [FromQuery] bool includeGoalOnly = false)
         {
             try
             {
                 if (string.IsNullOrWhiteSpace(ids))
                     return BadRequest("ids query parameter is required");
                 var budgetIds = ids.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                var budgets = await _budgetService.GetBudgets(budgetIds);
+                var budgets = await _budgetService.GetBudgets(budgetIds, includeGoalOnly);
                 return Ok(budgets);
             }
             catch (Exception ex)
@@ -85,12 +85,12 @@ namespace FamilyBudgetApi.Controllers
 
         [HttpGet("{budgetId}")]
         [AuthorizeFirebase]
-        public async Task<IActionResult> GetBudget(string budgetId)
+        public async Task<IActionResult> GetBudget(string budgetId, [FromQuery] bool includeGoalOnly = false)
         {
             try
             {
                 var userId = HttpContext.Items["UserId"]?.ToString() ?? throw new Exception("User ID not found");
-                var budget = await _budgetService.GetBudget(budgetId);
+                var budget = await _budgetService.GetBudget(budgetId, includeGoalOnly);
                 if (budget == null)
                 {
                     return NotFound($"Budget {budgetId} not found");

@@ -219,10 +219,12 @@ export class DataAccess {
     return await response.json();
   }
 
-  async getBudgetsBatch(budgetIds: string[]): Promise<Budget[]> {
+  async getBudgetsBatch(budgetIds: string[], opts?: { includeGoalOnly?: boolean }): Promise<Budget[]> {
     if (budgetIds.length === 0) return [];
     const headers = await this.getAuthHeaders();
-    const response = await fetch(`${this.apiBaseUrl}/budget/batch?ids=${budgetIds.join(',')}`, { headers });
+    const params = new URLSearchParams({ ids: budgetIds.join(',') });
+    if (opts?.includeGoalOnly) params.set('includeGoalOnly', 'true');
+    const response = await fetch(`${this.apiBaseUrl}/budget/batch?${params.toString()}`, { headers });
     if (!response.ok) throw new Error(`Failed to get budgets batch: ${response.statusText}`);
     const raw: unknown[] = await response.json();
     return raw.map((r) => this.mapBudget(r)).map((b, i) => {
@@ -231,9 +233,10 @@ export class DataAccess {
     });
   }
 
-  async getBudget(budgetId: string): Promise<Budget | null> {
+  async getBudget(budgetId: string, opts?: { includeGoalOnly?: boolean }): Promise<Budget | null> {
     const headers = await this.getAuthHeaders();
-    const response = await fetch(`${this.apiBaseUrl}/budget/${budgetId}`, { headers });
+    const query = opts?.includeGoalOnly ? '?includeGoalOnly=true' : '';
+    const response = await fetch(`${this.apiBaseUrl}/budget/${budgetId}${query}`, { headers });
     if (!response.ok) {
       if (response.status === 404) return null;
       throw new Error(`Failed to get budget ${budgetId}: ${response.statusText}`);

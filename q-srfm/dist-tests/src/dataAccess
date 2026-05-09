@@ -180,11 +180,14 @@ export class DataAccess {
             throw new Error(`Failed to load accessible budgets: ${response.statusText}`);
         return await response.json();
     }
-    async getBudgetsBatch(budgetIds) {
+    async getBudgetsBatch(budgetIds, opts) {
         if (budgetIds.length === 0)
             return [];
         const headers = await this.getAuthHeaders();
-        const response = await fetch(`${this.apiBaseUrl}/budget/batch?ids=${budgetIds.join(',')}`, { headers });
+        const params = new URLSearchParams({ ids: budgetIds.join(',') });
+        if (opts?.includeGoalOnly)
+            params.set('includeGoalOnly', 'true');
+        const response = await fetch(`${this.apiBaseUrl}/budget/batch?${params.toString()}`, { headers });
         if (!response.ok)
             throw new Error(`Failed to get budgets batch: ${response.statusText}`);
         const raw = await response.json();
@@ -194,9 +197,10 @@ export class DataAccess {
             return b;
         });
     }
-    async getBudget(budgetId) {
+    async getBudget(budgetId, opts) {
         const headers = await this.getAuthHeaders();
-        const response = await fetch(`${this.apiBaseUrl}/budget/${budgetId}`, { headers });
+        const query = opts?.includeGoalOnly ? '?includeGoalOnly=true' : '';
+        const response = await fetch(`${this.apiBaseUrl}/budget/${budgetId}${query}`, { headers });
         if (!response.ok) {
             if (response.status === 404)
                 return null;

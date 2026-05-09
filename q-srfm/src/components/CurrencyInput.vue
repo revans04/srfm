@@ -13,7 +13,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { QInput } from 'quasar';
 
 // Define props with TypeScript types
@@ -22,11 +22,12 @@ const props = withDefaults(
     modelValue: number;
     /**
      * When true, allow the value to be negative. Pressing `-` (or NumPad
-     * Subtract) toggles the sign of the current value. Default false —
-     * most amount fields (transactions, targets) are sign-encoded elsewhere
-     * (e.g. via the income/expense toggle), so they stay locked positive.
-     * Use on fields like fund carryover where a negative value is meaningful
-     * (overspent / in the hole).
+     * Subtract) toggles the sign — including at zero, where it sets a
+     * "negative-intent" state so subsequent digits are entered as negative.
+     * Default false — most amount fields (transactions, targets) are
+     * sign-encoded elsewhere (e.g. via the income/expense toggle) and stay
+     * locked positive. Use on fields like fund carryover where a negative
+     * value is meaningful (overspent / in the hole).
      */
     allowNegative?: boolean;
   }>(),
@@ -41,9 +42,26 @@ const emit = defineEmits<{
 // Reactive reference to the text field component
 const textField = ref<InstanceType<typeof QInput> | null>(null);
 
-// Computed property for displaying the value with two decimal places
+// Tracks whether the user wants the next entered digits to be negative,
+// even when the current numeric value is zero (where the sign cannot be
+// represented in modelValue alone). Kept in sync with the actual sign of
+// modelValue whenever it's non-zero, so external prop changes don't get
+// stuck in stale negative-intent.
+const isNegative = ref(props.modelValue < 0);
+watch(
+  () => props.modelValue,
+  (v) => {
+    if (v < 0) isNegative.value = true;
+    else if (v > 0) isNegative.value = false;
+    // v === 0: keep current intent so `-` then digits works.
+  },
+);
+
+// Computed property for displaying the value with two decimal places.
+// At zero we still surface the negative-intent as `-0.00` so the user
+// gets visual confirmation after pressing `-` on an empty field.
 const displayValue = computed(() => {
-  if (!props.modelValue) return 0.0;
+  if (!props.modelValue) return props.allowNegative && isNegative.value ? '-0.00' : '0.00';
   return props.modelValue.toFixed(2);
 });
 
@@ -57,27 +75,28 @@ function handleKeydown(event: KeyboardEvent) {
   const key = event.key;
   const selection = window.getSelection();
   const selected = selection !== null && selection.toString().length > 0;
+  const sign = props.allowNegative && isNegative.value ? -1 : 1;
   if (selected && /^\d$/.test(key)) {
-    emit('update:modelValue', parseInt(key) / 100);
+    emit('update:modelValue', (sign * parseInt(key)) / 100);
   } else if (/^\d$/.test(key)) {
     event.preventDefault();
     const cents = Math.round(Math.abs(props.modelValue) * 100);
     const newCents = cents * 10 + parseInt(key);
-    const signed = props.modelValue < 0 ? -newCents : newCents;
-    emit('update:modelValue', signed / 100);
+    emit('update:modelValue', (sign * newCents) / 100);
   } else if (key === 'Backspace') {
     event.preventDefault();
     const cents = Math.round(Math.abs(props.modelValue) * 100);
     const newCents = Math.floor(cents / 10);
-    const signed = props.modelValue < 0 && newCents !== 0 ? -newCents : newCents;
-    emit('update:modelValue', signed / 100);
+    emit('update:modelValue', (sign * newCents) / 100);
   } else if (props.allowNegative && (key === '-' || key === 'Subtract')) {
-    // Toggle the sign of the current value. Lets users negate by pressing `-`
-    // anywhere in the field — cursor position is irrelevant since the value
-    // is reformatted on every keypress.
+    // Toggle negative intent. If the current value is non-zero, also flip
+    // its sign so the displayed amount matches. At zero we just toggle
+    // intent — the next digit will pick up the sign.
     event.preventDefault();
-    const next = props.modelValue === 0 ? 0 : -props.modelValue;
-    emit('update:modelValue', next);
+    isNegative.value = !isNegative.value;
+    if (props.modelValue !== 0) {
+      emit('update:modelValue', -props.modelValue);
+    }
   }
   // Ignore other keys
 }

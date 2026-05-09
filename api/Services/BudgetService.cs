@@ -110,7 +110,7 @@ public class BudgetService
         return map.Values.ToList();
     }
 
-    private async Task LoadBudgetDetails(NpgsqlConnection conn, Budget budget, bool includeTransactions = true)
+    private async Task LoadBudgetDetails(NpgsqlConnection conn, Budget budget, bool includeTransactions = true, bool includeGoalOnlyTransactions = false)
     {
         // Determine if the goals_budget_categories table exists so we can
         // gracefully fall back when the migration hasn't run yet.
@@ -136,7 +136,13 @@ public class BudgetService
             // ≥1 split whose category is not in goals_budget_categories." Pure
             // goal contributions/withdrawals (every split is goal-linked) stay
             // hidden from the budget view.
-            var sqlTx = hasGoalTable
+            //
+            // includeGoalOnlyTransactions=true skips this filter for callers
+            // (batch matching, account ledger / statement reconcile) that need
+            // to see every account-tied transaction so the user can match and
+            // clear bank rows that landed on a goal-only split.
+            var applyGoalFilter = hasGoalTable && !includeGoalOnlyTransactions;
+            var sqlTx = applyGoalFilter
                 ? @"SELECT t.id, t.date, t.budget_month, t.merchant, t.amount, t.notes, t.recurring, t.recurring_interval, t.user_id, t.is_income, t.account_number, t.account_source, t.transaction_date, t.posted_date, t.imported_merchant, t.status, t.check_number, t.deleted, t.entity_id, t.transaction_type, t.funded_by_goal_id
 FROM transactions t
 WHERE t.budget_id=@id AND t.entity_id=@entity
@@ -296,8 +302,11 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
 
     /// <summary>
     /// Fetch a budget and its transactions from Supabase.
+    /// Pass <paramref name="includeGoalOnlyTransactions"/>=true from
+    /// reconciliation/match flows that need every account-tied transaction
+    /// regardless of whether every split lands on a goal-linked category.
     /// </summary>
-    public async Task<List<Budget>> GetBudgets(string[] budgetIds)
+    public async Task<List<Budget>> GetBudgets(string[] budgetIds, bool includeGoalOnlyTransactions = false)
     {
         if (budgetIds.Length == 0) return new List<Budget>();
 
@@ -335,7 +344,7 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
             try
             {
                 await using var detailConn = await _db.GetOpenConnectionAsync();
-                await LoadBudgetDetails(detailConn, budget);
+                await LoadBudgetDetails(detailConn, budget, includeTransactions: true, includeGoalOnlyTransactions: includeGoalOnlyTransactions);
             }
             finally
             {
@@ -346,7 +355,7 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
         return budgets;
     }
 
-    public async Task<Budget?> GetBudget(string budgetId)
+    public async Task<Budget?> GetBudget(string budgetId, bool includeGoalOnlyTransactions = false)
     {
         _logger.LogInformation("Fetching budget {BudgetId}", budgetId);
         await using var conn = await _db.GetOpenConnectionAsync();
@@ -375,7 +384,7 @@ WHERE t.budget_id=@id AND t.entity_id=@entity";
         };
         await reader.CloseAsync();
 
-        await LoadBudgetDetails(conn, budget);
+        await LoadBudgetDetails(conn, budget, includeTransactions: true, includeGoalOnlyTransactions: includeGoalOnlyTransactions);
 
         _logger.LogInformation("Loaded budget {BudgetId} with {TxCount} transactions, {CatCount} categories and {MerchCount} merchants", budgetId, budget.Transactions.Count, budget.Categories.Count, budget.Merchants.Count);
         return budget;
@@ -1531,10 +1540,18 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
     public async Task<List<ImportedTransactionDoc>> GetImportedTransactions(string userId)
     {
         await using var conn = await _db.GetOpenConnectionAsync();
+        // Scope by family membership, not by the doc's importer. Any family
+        // member needs to see imports done by other members so reconciliation
+        // works for shared accounts (e.g. Lauri reconciling a statement that
+        // Ray imported). The caller's UID is the access token; we gate by
+        // their presence in family_members for the doc's family.
         const string sql = @"SELECT d.id, d.family_id, d.user_id, t.id, t.account_id, t.account_number, t.account_source, t.payee, t.transaction_date, t.posted_date, t.amount, t.status, t.debit_amount, t.credit_amount, t.check_number, t.deleted, t.matched, t.ignored
                               FROM imported_transaction_docs d
                               LEFT JOIN imported_transactions t ON d.id = t.document_id
-                              WHERE d.user_id=@uid
+                              WHERE EXISTS (
+                                  SELECT 1 FROM family_members fm
+                                  WHERE fm.family_id = d.family_id AND fm.user_id = @uid
+                              )
                               ORDER BY COALESCE(t.transaction_date, t.posted_date) DESC";
         await using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("uid", userId);

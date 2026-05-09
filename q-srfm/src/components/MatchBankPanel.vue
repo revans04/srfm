@@ -63,32 +63,24 @@ async function loadData() {
   const totalBudgets = entries.length;
   progressMsg.value = `Loading budgets (0 of ${totalBudgets})`;
 
-  // Separate budgets that need fetching from those already loaded
-  const loaded: Budget[] = [];
-  const idsToFetch: string[] = [];
-  for (const [id, budget] of entries) {
-    if (budget.transactions && budget.transactions.length > 0) {
-      loaded.push(budget);
-    } else {
-      idsToFetch.push(id);
-    }
-  }
-
-  // Batch-fetch all unloaded budgets in one request
+  // Always re-fetch with includeGoalOnly so pure goal contributions/withdrawals
+  // (every split goal-linked) appear as match candidates. The default budget
+  // store cache hides those transactions for the budget view, which would
+  // otherwise leave bank rows for goal funding/spend permanently unmatchable.
+  // Don't write back into the store — keep the budget view's filtered cache
+  // intact for Budget/Dashboard consumers.
+  const idsToFetch = entries.map(([id]) => id);
   let fetched: Budget[] = [];
   if (idsToFetch.length > 0) {
     try {
-      fetched = await dataAccess.getBudgetsBatch(idsToFetch);
-      for (const b of fetched) {
-        if (b.budgetId) budgetStore.updateBudget(b.budgetId, b);
-      }
+      fetched = await dataAccess.getBudgetsBatch(idsToFetch, { includeGoalOnly: true });
     } catch (error) {
       console.error('Error batch-loading budgets', error);
     }
   }
   progressMsg.value = `Loading budgets (${totalBudgets} of ${totalBudgets})`;
 
-  const budgets = [...loaded, ...fetched];
+  const budgets = fetched;
 
   for (const budget of budgets) {
     if (!budget) continue;

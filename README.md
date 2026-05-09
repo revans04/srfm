@@ -90,35 +90,27 @@ The header CTA links to `https://app.steadyrise.us`. Update `appUrl` in
 
 ## Deployments
 
-You can deploy the web app to Firebase Hosting and the API to Cloud Run.
+The unified `deploy.sh` at the repo root handles both:
 
-### Quick Web Deploy (Firebase Hosting)
+- API (.NET) → Cloud Run (Docker)
+- Web (Quasar SPA) → Firebase Hosting (default) or Cloud Run (Docker)
 
-From `q-srfm/`:
-
-- Default provider is Firebase Hosting. This bumps the version, writes `VITE_APP_VERSION`, builds, and deploys.
-
-```
-cd q-srfm
-npm run update-version-and-deploy           # default bump: patch
-# or choose bump type
-npm run update-version-and-deploy -- minor
-```
-
-Alternatively, just deploy current build:
+It optionally bumps the q-srfm version + syncs `.env.production` before building.
 
 ```
-yarn deploy:firebase
+./deploy.sh                                          # patch bump, deploy API + Web (Firebase)
+./deploy.sh --bump=none                              # deploy without bumping
+./deploy.sh --target=api --bump=none                 # API only
+./deploy.sh --target=web                             # web only (defaults to Firebase)
+./deploy.sh --target=web --web-host=cloudrun         # web only, Cloud Run instead of Firebase
+./deploy.sh --bump=minor --firebase-project=foo-bar  # minor bump + explicit project
 ```
 
 Hosting site is pinned to `budget-buddy-a6b6c` in `q-srfm/firebase.json`. The SPA uses `VITE_API_BASE_URL=/api` and Firebase Hosting rewrites `/api/**` to the Cloud Run service.
 
-### API Deploy (Cloud Run)
+The Firebase Hosting path runs `yarn build` on the host. If your host Node isn't an LTS major (`^18 ^20 ^22 ^24`), `deploy.sh` will source nvm and `nvm use --lts` automatically; if nvm isn't installed it errors out and tells you to switch Node manually.
 
-There are two options:
-
-- Deploy only API: `./api/deploy.sh`
-- Deploy both API (Cloud Run) and a web container (Cloud Run): `./deploy.sh`
+### API Deploy
 
 By default, the API is deployed publicly (`--allow-unauthenticated --ingress all`) and reads secrets from Secret Manager.
 
@@ -147,10 +139,10 @@ gcloud secrets add-iam-policy-binding firebase-credentials-json \
 Deploy:
 
 ```
-# API only
-./api/deploy.sh
+# API only (no version bump)
+./deploy.sh --target=api --bump=none
 
-# Both API (Cloud Run) and Web container (Cloud Run)
+# Both API and Web (default: Firebase Hosting for the web)
 ./deploy.sh
 ```
 
@@ -207,10 +199,9 @@ deploy automatically once the project is connected.
 ## File Pointers
 
 - API Dockerfile: `api/Dockerfile`
-- API deploy script: `api/deploy.sh`
-- Unified deploy: `deploy.sh`
+- Unified deploy: `deploy.sh` (use `--target=api` for API only, `--target=web` for web only)
 - Quasar app: `q-srfm/`
-- Quasar deploy helper: `q-srfm/scripts/updateVersionAndDeploy.js`
+- Quasar version-bump helper (called by `deploy.sh --bump=...`): `q-srfm/scripts/updateVersionAndDeploy.js`
 - Firebase Hosting config: `q-srfm/firebase.json`
 - Marketing site: `marketing/`
 - Marketing site config: `marketing/astro.config.mjs`

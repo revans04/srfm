@@ -850,9 +850,25 @@ async function loadData() {
     // Load family to get entities
     await familyStore.loadFamily(user.uid);
 
-    // Load budgets
+    // Load budgets. We fetch full budgets with includeGoalOnly so the account
+    // ledger / statement reconcile view sees pure goal contributions and
+    // withdrawals (every split goal-linked) — those are real bank-tied
+    // transactions that still need to be cleared/reconciled. The default
+    // budget store cache hides them, so we keep that store untouched and
+    // populate the local `budgets.value` from the full-fetch result.
     await budgetStore.loadBudgets(user.uid);
-    budgets.value = Array.from(budgetStore.budgets.values());
+    const summaryIds = Array.from(budgetStore.budgets.keys());
+    if (summaryIds.length > 0) {
+      try {
+        const full = await dataAccess.getBudgetsBatch(summaryIds, { includeGoalOnly: true });
+        budgets.value = full;
+      } catch (err) {
+        console.error('Error loading full budgets for registry', err);
+        budgets.value = Array.from(budgetStore.budgets.values());
+      }
+    } else {
+      budgets.value = [];
+    }
 
     // Load accounts
     const family = await familyStore.getFamily();
