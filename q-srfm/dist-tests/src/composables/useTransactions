@@ -187,17 +187,15 @@ export function useTransactions() {
     }
     async function hydrateBudgets(budgetIds) {
         const out = [];
+        // Always fetch with includeGoalOnly so the budget register surfaces pure
+        // goal contributions/withdrawals (every split goal-linked) alongside
+        // goal-funded expenses. Don't write back to the budget store — Budget
+        // page consumers rely on the goal-filtered cache and this fetch carries
+        // extra rows they shouldn't render.
         const budgets = await Promise.all(budgetIds.map(async (id) => {
             try {
-                let full = budgetStore.getBudget(id);
-                if (!full || !full.transactions || full.transactions.length === 0) {
-                    const fetched = await dataAccess.getBudget(id);
-                    if (fetched) {
-                        budgetStore.updateBudget(id, fetched);
-                        full = fetched;
-                    }
-                }
-                return full ?? null;
+                const fetched = await dataAccess.getBudget(id, { includeGoalOnly: true });
+                return fetched ?? null;
             }
             catch (err) {
                 console.error('Failed to hydrate budget', id, err);

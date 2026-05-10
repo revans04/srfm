@@ -10,6 +10,7 @@
     <!-- Tabs -->
     <q-tabs v-model="tab" color="primary" class="q-mb-lg" align="left">
       <q-tab name="monthly" label="Monthly Overview" />
+      <q-tab name="by-payee" label="By Payee" />
       <q-tab name="register" label="Register Report" />
       <q-tab name="transfers" label="Transfers" />
       <q-tab name="year-over-year" label="Year-over-Year" />
@@ -287,6 +288,16 @@
         </div>
       </q-tab-panel>
 
+      <!-- By Payee -->
+      <q-tab-panel name="by-payee" class="q-pa-none">
+        <SpendingByPayeePanel
+          :entity-id="familyStore.selectedEntityId ?? null"
+          :budgets="loadedBudgets"
+          :group-list="familyStore.currentGroups"
+          :budget-options="budgetOptions"
+        />
+      </q-tab-panel>
+
       <!-- Transfers -->
       <q-tab-panel name="transfers" class="q-pa-none">
         <TransfersPanel :budgets="loadedBudgets" :goals="entityGoals" />
@@ -365,6 +376,7 @@ import { useBudgetStore } from "../store/budget";
 import { useFamilyStore } from "../store/family";
 import { useGoals } from "../composables/useGoals";
 import TransfersPanel from "../components/reports/TransfersPanel.vue";
+import SpendingByPayeePanel from "../components/reports/SpendingByPayeePanel.vue";
 import "chartjs-adapter-date-fns";
 import { timestampToDate, currentMonthISO, formatDate } from "../utils/helpers";
 import { isIncomeCategory, categoryGroupName } from "../utils/groups";

@@ -363,3 +363,14 @@ export interface StatementFinalizePayload {
     transactionId: string;
   }>;
 }
+
+export interface PayeeCategoryBreakdown {
+  name: string;
+  amount: number;
+}
+
+export interface PayeeSpending {
+  payee: string;
+  total: number;
+  categories: PayeeCategoryBreakdown[];
+}

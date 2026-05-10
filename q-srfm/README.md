@@ -57,14 +57,16 @@ Runs `tsc -p tsconfig.tests.json`, the test prep script, and Node's built-in tes
 
 ## Deploy
 
-From this directory:
+**Use the unified `./deploy.sh` at the repo root** — it handles the API and the web app together, takes care of Node-version mismatches (auto-sources nvm and `nvm use --lts` when the host is on a non-LTS Node), and uses `npm` rather than yarn so the engines check passes.
 
 ```bash
-npm run update-version-and-deploy            # default bump: patch
-npm run update-version-and-deploy -- minor   # or minor / major
+# from the repo root
+./deploy.sh                                          # patch bump, API + Web (Firebase)
+./deploy.sh --target=web --bump=none                 # web only, no version bump
+./deploy.sh --bump=minor --firebase-project=foo-bar  # minor bump, explicit project
 ```
 
-Bumps the version, writes `VITE_APP_VERSION`, builds, and deploys to Firebase Hosting (site `budget-buddy-a6b6c`). See the [root README](../README.md#deployments) for the full deploy flow and Cloud Run API deploy.
+The legacy `npm run update-version-and-deploy` from this directory still works, but it shells out to `yarn build` and will fail engines checks on non-LTS Node (e.g. Node 25 "Current"). Prefer the root script. See the [root README](../README.md#deployments) for the full deploy options.
 
 ## Troubleshooting
 

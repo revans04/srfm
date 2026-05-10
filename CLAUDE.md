@@ -130,7 +130,7 @@ rg "🎉|Great job|All good"         q-srfm/src/   # celebration copy — violat
 - Budget carryover applies only to `BudgetCategory.IsFund == true`. Negative results propagate forward — an overspent fund carries the deficit into subsequent months instead of resetting to zero, so users see the fund is still in the hole. `CurrencyInput` accepts negative values when `allow-negative` is set (used on the carryover field in the budget editor).
 - Every persisted transaction has ≥ 1 category split (`Income` / `Uncategorized` fallback). Transaction category rows are replaced on write.
 - `entity_id` is a first-class partition key for budgets/goals; stay consistent on merge/derive.
-- Goal-linked budget categories are hidden from regular budget/category queries via `goals_budget_categories` exclusion in `BudgetService.LoadBudgetDetails`.
+- Goal-linked budget categories are hidden from regular budget/category queries via `goals_budget_categories` exclusion in `BudgetService.LoadBudgetDetails`. Reconciliation/match flows (batch matching, account ledger, Transactions-page Budget Register) opt out via `includeGoalOnlyTransactions=true` so pure goal contributions/withdrawals stay reachable for clearing — those callers must fetch fresh and not write back into `useBudgetStore` (the store keeps the goal-filtered cache for the Budget page).
 - Goal funding is two-effect, single-entry. A goal-funded expense is a *standard* `Transaction` (counts toward the destination category's spend) carrying `funded_by_goal_id` (persisted FK to `goals.id`). The same column drives the goal's spend rollup. Do not auto-convert goal-funded expenses to transfers — that pattern was removed because it credited the destination category's available and erased the expense.
 - Category-level funding source defaults: `BudgetCategory.fundingSourceCategory` (name of another category) and `BudgetCategory.fundingSourceGoalId` (UUID FK to a goal) are mutually exclusive (DB CHECK). `fundingSourceGoalId` requires the goal to belong to the same entity as the budget — enforced in `BudgetService.SaveBudget`. `TransactionForm` reads these to default the per-transaction source/goal at save time.
 - Account enums: `Bank / CreditCard / Investment / Property / Loan`, `Asset / Liability`. Keep frontend aligned with API/DB.
@@ -163,6 +163,10 @@ Known drift (preserve awareness, don't paper over):
 - `StatementService` write/unreconcile are `NotImplementedException`.
 - `AcceptInvitePage` links to `/signup`; router has no `/signup` route.
 
+Recent additions worth knowing:
+- `GET /budget/batch?ids=...&includeGoalOnly=true` and `GET /budget/{id}?includeGoalOnly=true` skip the `LoadBudgetDetails` goal-only-transaction filter. Used by match/registry surfaces. `dataAccess.getBudgetsBatch(ids, { includeGoalOnly: true })` and `dataAccess.getBudget(id, { includeGoalOnly: true })` are the typed entry points.
+- `GET /budget/imported-transactions` is **family-scoped** as of 2026-05-09, not importer-scoped — any family member sees imports done by any other member. `BudgetService.GetImportedTransactions(uid)` filters by `EXISTS family_members fm WHERE fm.family_id = d.family_id AND fm.user_id = @uid`. Don't reintroduce a `d.user_id = @uid` filter on shared-account reads.
+
 Validation assumptions:
 - Some controllers enforce explicit validation (account enums, statement ID match, merge preconditions).
 - Others rely on service/DB failures for invalid IDs (`Guid.Parse`).
@@ -181,9 +185,12 @@ Validation assumptions:
 Known gaps (do not replicate):
 - `BudgetController.GetBudget` does not verify caller access to the requested budget.
 - `GoalController` accepts `entityId` without membership check.
-- `AuthorizeFirebaseAttribute` reads email claim without null guards — malformed tokens can throw.
 - CORS origins are hardcoded allowlist in `Program.cs`.
 - `UseAuthorization()` runs without ASP.NET auth scheme middleware — security relies on the custom filter.
+
+Resolved gaps (kept here as guardrails — don't regress):
+- `AuthorizeFirebaseAttribute` reads the `email` claim with `?.Value` so tokens without an email (e.g. anonymous, phone, custom-token sign-in) don't throw NRE. `HttpContext.Items["Email"]` may legitimately be `null`; consumers must handle that.
+- `AuthorizeFirebaseAttribute` invokes `await next()` *outside* the token-verification try/catch. Don't merge them — that previously masked controller exceptions as "Token verification failed" and made debugging unrelated NREs nearly impossible.
 
 ---
 
@@ -240,6 +247,7 @@ Known gaps (do not replicate):
 ## Anti-Patterns to Avoid
 
 - Bypassing `family_members` / owner checks for new family-scoped endpoints.
+- **User-scoping shared family resources.** Family-shared data (imported transactions, budgets, accounts, goals) must be visible to every member of the family, not just the importer/creator. Filter by `family_id` membership, never by the doc's `user_id`. `BudgetService.GetImportedTransactions` was bug-fixed in this direction (2026-05-09); don't add new endpoints that scope by `user_id` for shared resources.
 - UI components calling `fetch` directly instead of extending `dataAccess`.
 - Persisting large budget datasets to localStorage.
 - Mixing entity-scoped and non-entity-scoped data in one query without explicit `entity_id` logic.
@@ -291,6 +299,7 @@ Unclear: no established integration-test harness, no CI-enforced gates visible i
 - Feature-flagged optional tables (`budget_edit_history`, `goals_budget_categories`).
 - `BudgetService.EnsureGroupAsync(conn, tx, entityId, name, kind)` — canonical inline upsert for a group by name within an entity. Callers can persist a `BudgetCategory` carrying only `groupName`; backend resolves/creates.
 - `BudgetService.WriteBudgetAndCategoriesAsync(conn, tx, budgetId, budget, logger)` — `internal static` helper that writes the budget row + replaces its categories within an existing transaction. Used by both `SaveBudget` and `OnboardingService.SeedAsync` so seed flows can compose budget creation with family/entity inserts inside a single Postgres transaction.
+- `BudgetService.LoadBudgetDetails(conn, budget, includeTransactions, includeGoalOnlyTransactions=false)` — when the second flag is true, the SQL drops the `goals_budget_categories` EXISTS filter so pure goal contributions/withdrawals come through. Threaded into `GetBudgets(ids, includeGoalOnlyTransactions)` and `GetBudget(id, includeGoalOnlyTransactions)`; surfaced as `?includeGoalOnly=true` on the controller routes. Frontend callers using this flag (`MatchBankPanel`, `TransactionRegistry`, `useTransactions.hydrateBudgets`) must NOT write back into `useBudgetStore` — the store stays goal-filtered for Budget/Dashboard consumers.
 
 **Known UI/UX violations requiring remediation (March 2026 review):**
 - Viewport meta `user-scalable=no` / `maximum-scale=1` — WCAG, one-line fix.
@@ -311,6 +320,17 @@ Unclear: no established integration-test harness, no CI-enforced gates visible i
 ## Agent Skill
 
 If you support Skills, invoke `srfm-design` (declared in `design-system/SKILL.md`). It pulls the README, tokens, and UI kit into context so you don't have to re-learn the system each turn.
+
+---
+
+## Deployments
+
+- **Single entry point: repo-root `./deploy.sh`** with `--bump=patch|minor|major|none` (default patch), `--target=all|api|web` (default all), `--web-host=firebase|cloudrun` (default firebase), `--firebase-project=<id>`. API → Cloud Run via Docker; Web → Firebase Hosting (default) or Cloud Run via Docker.
+- `deploy.sh` reuses `q-srfm/scripts/updateVersionAndDeploy.js <bump> --no-deploy` for the version bump + `.env.production` sync — single source of truth for that logic.
+- The Firebase Hosting path runs `npm run build` (not `yarn build`) so the active Node version (set via `nvm use`) is honored. Yarn 1's shebang resolves to whatever Node it was installed under, which often disagrees with the LTS the script just selected.
+- `ensure_lts_node` in `deploy.sh` auto-sources nvm and runs `nvm install --lts && nvm use --lts` if the host's `node -v` isn't an LTS major (`18|20|22|24|26|28`). `q-srfm/package.json` engines are LTS-only — non-LTS hosts (e.g. Node 25 "Current") fail engines checks unless this path runs.
+- Firebase CLI is invoked via `npx --yes --package=firebase-tools firebase deploy ...` because the package's bin (`firebase`) doesn't match its package name; plain `npx firebase` resolves to the JS SDK and fails.
+- `api/deploy.sh.old` and `q-srfm/deploy.sh.old` are kept around as legacy single-service scripts for reference; the unified `deploy.sh` supersedes both.
 
 ---
 

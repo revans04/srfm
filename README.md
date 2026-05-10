@@ -108,7 +108,9 @@ It optionally bumps the q-srfm version + syncs `.env.production` before building
 
 Hosting site is pinned to `budget-buddy-a6b6c` in `q-srfm/firebase.json`. The SPA uses `VITE_API_BASE_URL=/api` and Firebase Hosting rewrites `/api/**` to the Cloud Run service.
 
-The Firebase Hosting path runs `yarn build` on the host. If your host Node isn't an LTS major (`^18 ^20 ^22 ^24`), `deploy.sh` will source nvm and `nvm use --lts` automatically; if nvm isn't installed it errors out and tells you to switch Node manually.
+The Firebase Hosting path builds with `npm run build` on the host (not `yarn build` — yarn 1's binary often resolves to a different Node than the active one and fails the engines check). If your host Node isn't an LTS major (`^18 ^20 ^22 ^24 ^26 ^28`), `deploy.sh` will source nvm and run `nvm install --lts && nvm use --lts` automatically; if nvm isn't installed it errors out and tells you to switch Node manually.
+
+Firebase CLI is invoked via `npx --yes --package=firebase-tools firebase deploy ...`, so no global firebase install is required and per-Node-version setup is handled by npx.
 
 ### API Deploy
 

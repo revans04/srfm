@@ -20,6 +20,7 @@ import type {
   BudgetGroup,
   BudgetGroupKind,
   CategoryReorderItem,
+  PayeeSpending,
 } from './types';
 import { useBudgetStore } from './store/budget';
 import { Timestamp } from 'firebase/firestore';
@@ -1318,6 +1319,47 @@ export class DataAccess {
       headers,
     });
     if (!response.ok) throw new Error(`Failed to remove entity member: ${response.statusText}`);
+  }
+
+  // Reports
+  async getSpendingByPayee(
+    entityId: string,
+    fromMonth: string,
+    toMonth: string,
+    opts?: {
+      excludeGroupIds?: string[];
+      excludeCategoryNames?: string[];
+      excludeMerchants?: string[];
+    },
+  ): Promise<PayeeSpending[]> {
+    const headers = await this.getAuthHeaders();
+    const params = new URLSearchParams({ entityId, from: fromMonth, to: toMonth });
+    if (opts?.excludeGroupIds?.length) params.set('excludeGroupIds', opts.excludeGroupIds.join(','));
+    if (opts?.excludeCategoryNames?.length) {
+      params.set('excludeCategoryNames', opts.excludeCategoryNames.join(','));
+    }
+    if (opts?.excludeMerchants?.length) {
+      params.set('excludeMerchants', opts.excludeMerchants.join(','));
+    }
+    const response = await fetch(`${this.apiBaseUrl}/reports/by-payee?${params.toString()}`, { headers });
+    if (!response.ok) throw new Error(`Failed to load spending by payee: ${response.statusText}`);
+    const raw: unknown = await response.json();
+    if (!Array.isArray(raw)) return [];
+    return raw.map((row) => {
+      const r = (row ?? {}) as Record<string, unknown>;
+      const cats = Array.isArray(r.categories) ? r.categories : [];
+      return {
+        payee: typeof r.payee === 'string' ? r.payee : '',
+        total: typeof r.total === 'number' ? r.total : Number(r.total) || 0,
+        categories: cats.map((c) => {
+          const cc = (c ?? {}) as Record<string, unknown>;
+          return {
+            name: typeof cc.name === 'string' ? cc.name : '',
+            amount: typeof cc.amount === 'number' ? cc.amount : Number(cc.amount) || 0,
+          };
+        }),
+      } satisfies PayeeSpending;
+    });
   }
 }
 

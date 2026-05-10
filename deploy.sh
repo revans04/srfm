@@ -87,10 +87,19 @@ ensure_lts_node() {
   if [[ -s "${NVM_DIR:-$HOME/.nvm}/nvm.sh" ]]; then
     # shellcheck disable=SC1091
     . "${NVM_DIR:-$HOME/.nvm}/nvm.sh"
-    nvm use --lts
+    # `nvm use --lts` resolves to nothing when no LTS is installed locally.
+    # Detect that case and install one before retrying.
+    if ! nvm use --lts >/dev/null 2>&1; then
+      echo "No LTS Node available in nvm; running 'nvm install --lts'..."
+      nvm install --lts
+      nvm use --lts
+    else
+      # Print the version we landed on for the deploy log.
+      nvm use --lts
+    fi
   else
     echo "ERROR: nvm not found and host Node is non-LTS." >&2
-    echo "Install/select an LTS Node (e.g. 'nvm use --lts' or 'nvm install --lts') and re-run." >&2
+    echo "Install/select an LTS Node (e.g. 'nvm install --lts' then 'nvm use --lts') and re-run." >&2
     exit 1
   fi
 }
@@ -151,8 +160,12 @@ deploy_web_firebase() {
 
   pushd "${WEB_DIR}" >/dev/null
 
-  echo "Building SPA (yarn build)..."
-  yarn build
+  # Use npm (bundled with Node) rather than a globally-installed yarn:
+  # yarn's shebang can resolve to a different Node binary than the one
+  # `nvm use` just selected, causing it to fail engines checks even when
+  # the active `node` is LTS. npm always tracks the active Node.
+  echo "Building SPA (npm run build)..."
+  npm run build
 
   if [[ -z "${FIREBASE_PROJECT}" ]]; then
     if [[ -f .env.production ]]; then
@@ -165,7 +178,11 @@ deploy_web_firebase() {
   fi
 
   echo "Deploying to Firebase Hosting (project: ${FIREBASE_PROJECT})..."
-  npx firebase deploy --only hosting --project "${FIREBASE_PROJECT}"
+  # `--package=firebase-tools` is required because the bin name (`firebase`)
+  # differs from the package name. Plain `npx firebase` resolves to the JS
+  # SDK package (which has no bin) and fails with "could not determine
+  # executable to run". `--yes` skips the install confirmation prompt.
+  npx --yes --package=firebase-tools firebase deploy --only hosting --project "${FIREBASE_PROJECT}"
 
   popd >/dev/null
 }
