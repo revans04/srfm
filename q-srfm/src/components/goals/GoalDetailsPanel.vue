@@ -56,6 +56,23 @@
         </div>
       </q-card-section>
 
+      <q-separator v-if="hasNotes" class="q-mx-md" />
+
+      <!-- Notes (rich text) — only renders when there's actual content -->
+      <q-expansion-item
+        v-if="hasNotes"
+        v-model="notesExpanded"
+        icon="notes"
+        label="Notes"
+        header-class="goal-notes__header"
+        expand-icon-class="goal-notes__chevron"
+        class="goal-notes"
+      >
+        <div class="goal-notes__body">
+          <div class="goal-notes__content" v-html="sanitizedNotes" />
+        </div>
+      </q-expansion-item>
+
       <q-separator class="q-mx-md" />
 
       <!-- Tabs -->
@@ -156,6 +173,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
+import DOMPurify from 'dompurify';
 import { formatCurrency } from '../../utils/helpers';
 import { useGoals } from '../../composables/useGoals';
 import { useFamilyStore } from '../../store/family';
@@ -201,6 +219,25 @@ const progressSummary = computed(() => {
   }
   return `${availStr} available`;
 });
+
+// Notes are stored as HTML produced by q-editor in the goal dialog. Sanitize
+// at render time (rather than save time) so old data also gets cleaned and
+// the policy can evolve without rewriting stored content. q-editor emits
+// "<br>" or "<p><br></p>" for visually-empty content; strip tags to detect
+// real text and skip the section entirely when there's nothing to show.
+const sanitizedNotes = computed(() =>
+  liveGoal.value.notes ? DOMPurify.sanitize(liveGoal.value.notes) : '',
+);
+const hasNotes = computed(() => {
+  const raw = liveGoal.value.notes ?? '';
+  if (!raw) return false;
+  const stripped = raw
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .trim();
+  return stripped.length > 0;
+});
+const notesExpanded = ref(true);
 
 const showDeleteDialog = ref(false);
 const deletingTxId = ref<string | null>(null);
@@ -454,5 +491,71 @@ onMounted(() => {
   .goal-card {
     height: 100%;
   }
+}
+
+/* ---------- Notes section ---------- */
+.goal-notes :deep(.goal-notes__header) {
+  /* 44px tap target on mobile (Apple HIG / WCAG). Bumped on every viewport
+     because the existing summary cards already give the panel a roomy feel
+     and the tighter default felt cramped against them. */
+  min-height: 44px;
+  padding: 8px 16px;
+  font-weight: 500;
+  color: var(--q-grey-9, #0f172a);
+}
+
+.goal-notes :deep(.goal-notes__chevron) {
+  /* Quasar wraps the chevron in a 44px hit area on q-expansion-item by
+     default, but keep the icon itself sized for the surrounding type. */
+  font-size: 20px;
+}
+
+.goal-notes__body {
+  padding: 4px 20px 16px;
+}
+
+.goal-notes__content {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--q-grey-9, #0f172a);
+  word-break: break-word;
+}
+
+/* Render rich-text primitives with sensible spacing. v-html bypasses
+   scoped-style hashing, so target descendants explicitly via :deep. */
+.goal-notes__content :deep(p) {
+  margin: 0 0 8px;
+}
+
+.goal-notes__content :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.goal-notes__content :deep(ul),
+.goal-notes__content :deep(ol) {
+  margin: 0 0 8px;
+  padding-left: 20px;
+}
+
+.goal-notes__content :deep(li) {
+  margin-bottom: 2px;
+}
+
+.goal-notes__content :deep(h4),
+.goal-notes__content :deep(h5),
+.goal-notes__content :deep(h6) {
+  margin: 12px 0 6px;
+  font-weight: 600;
+}
+
+.goal-notes__content :deep(h4) { font-size: 1.05rem; }
+.goal-notes__content :deep(h5) { font-size: 1rem; }
+.goal-notes__content :deep(h6) { font-size: 0.95rem; }
+
+.goal-notes__content :deep(a) {
+  color: var(--q-primary, #2563eb);
+  text-decoration: underline;
+  /* Ensure tap targets when the link occupies its own line on mobile. */
+  padding: 2px 0;
 }
 </style>

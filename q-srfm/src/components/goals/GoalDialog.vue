@@ -71,17 +71,17 @@
           stack-label
         />
 
-        <q-input
-          v-model="form.notes"
-          label="Notes"
-          type="textarea"
-          autogrow
-          dense
-          outlined
-          stack-label
-          input-style="min-height: 64px"
-          placeholder="Optional"
-        />
+        <div class="goal-dialog__field">
+          <div class="goal-dialog__editor-label text-caption text-muted">Notes</div>
+          <q-editor
+            v-model="form.notes"
+            :toolbar="editorToolbar"
+            min-height="120px"
+            content-class="goal-dialog__editor-content"
+            class="goal-dialog__editor"
+            placeholder="Add details — vendor, trip, school, why this matters."
+          />
+        </div>
       </q-card-section>
 
       <q-separator />
@@ -112,6 +112,25 @@ const emit = defineEmits<{ (e: 'update:modelValue', v: boolean): void; (e: 'save
 
 const $q = useQuasar();
 const isEditMode = computed(() => Boolean(props.goal && props.goal.id));
+
+// Focused toolbar — enough for narrative notes (vendor / trip / school /
+// rationale) without overwhelming the dialog. Skip image upload (out of
+// scope for this field; would need storage wiring) and color/alignment
+// controls (rarely useful for short prose).
+const editorToolbar = [
+  ['bold', 'italic', 'underline', 'strike'],
+  [
+    {
+      label: $q.lang.editor.formatting,
+      icon: $q.iconSet.editor.formatting,
+      list: 'no-icons',
+      options: ['p', 'h4', 'h5', 'h6'],
+    },
+  ],
+  ['unordered', 'ordered'],
+  ['link'],
+  ['undo', 'redo'],
+];
 const model = ref(props.modelValue);
 watch(
   () => props.modelValue,
@@ -275,5 +294,53 @@ function onSave() {
   justify-content: flex-end;
   gap: 8px;
   padding: 12px 20px;
+}
+
+.goal-dialog__editor-label {
+  /* Match the stack-label appearance of the other inputs above. */
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+  padding: 0 2px;
+}
+
+.goal-dialog__editor {
+  width: 100%;
+}
+
+/* Tap targets: Quasar's default toolbar buttons are < 44px on mobile.
+   Bumping them only on narrow viewports keeps desktop dense. WCAG / Apple
+   guidance is 44×44 minimum for primary touch surfaces. */
+@media (max-width: 599px) {
+  .goal-dialog__editor :deep(.q-editor__toolbar) {
+    flex-wrap: wrap;
+    /* Allow the toolbar to scroll horizontally if it still overflows. */
+    overflow-x: auto;
+  }
+
+  .goal-dialog__editor :deep(.q-editor__toolbar .q-btn) {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .goal-dialog__editor :deep(.q-editor__toolbar .q-btn-dropdown) {
+    min-height: 44px;
+  }
+}
+
+/* Content area: comfortable line-height + a little internal padding so the
+   typing surface doesn't feel cramped. */
+.goal-dialog__editor :deep(.goal-dialog__editor-content) {
+  padding: 8px 10px;
+  line-height: 1.45;
+}
+
+.goal-dialog__editor :deep(.goal-dialog__editor-content p) {
+  margin: 0 0 8px;
+}
+
+.goal-dialog__editor :deep(.goal-dialog__editor-content p:last-child) {
+  margin-bottom: 0;
 }
 </style>

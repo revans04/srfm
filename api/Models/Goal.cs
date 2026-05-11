@@ -28,5 +28,13 @@ namespace FamilyBudgetApi.Models
         /// starting balance, not an event.
         /// </summary>
         public double OpeningBalance { get; set; }
+
+        /// <summary>
+        /// Free-form narrative context for the goal — vendor, trip, school,
+        /// rationale. Stored as HTML produced by Quasar's q-editor and
+        /// sanitized on the frontend at render time via DOMPurify. Nullable
+        /// so "never set" is distinct from an empty edit.
+        /// </summary>
+        public string? Notes { get; set; }
     }
 }

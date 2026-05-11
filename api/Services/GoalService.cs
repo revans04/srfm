@@ -23,8 +23,8 @@ namespace FamilyBudgetApi.Services
             {
                 _logger.LogInformation("Inserting goal {GoalId}", goal.Id);
                 await using var conn = await _db.GetOpenConnectionAsync();
-                const string insertSql = @"INSERT INTO goals (id, entity_id, name, total_target, monthly_target, opening_balance, target_date, archived, created_at, updated_at)
-VALUES (@id,@entity_id,@name,@total_target,@monthly_target,@opening_balance,@target_date,@archived, now(), now());";
+                const string insertSql = @"INSERT INTO goals (id, entity_id, name, total_target, monthly_target, opening_balance, target_date, archived, notes, created_at, updated_at)
+VALUES (@id,@entity_id,@name,@total_target,@monthly_target,@opening_balance,@target_date,@archived,@notes, now(), now());";
 
                 if (!Guid.TryParse(goal.Id, out var goalId))
                 {
@@ -46,6 +46,7 @@ VALUES (@id,@entity_id,@name,@total_target,@monthly_target,@opening_balance,@tar
                     insertCmd.Parameters.AddWithValue("opening_balance", (decimal)goal.OpeningBalance);
                     insertCmd.Parameters.AddWithValue("target_date", string.IsNullOrEmpty(goal.TargetDate) ? (object)DBNull.Value : DateTime.Parse(goal.TargetDate));
                     insertCmd.Parameters.AddWithValue("archived", goal.Archived);
+                    insertCmd.Parameters.AddWithValue("notes", (object?)goal.Notes ?? DBNull.Value);
                     await insertCmd.ExecuteNonQueryAsync();
                 }
 
@@ -117,7 +118,7 @@ VALUES (@id,@entity_id,@name,@total_target,@monthly_target,@opening_balance,@tar
 
                 await using var dbTx = await conn.BeginTransactionAsync();
 
-                const string updateSql = @"UPDATE goals SET entity_id=@entity_id, name=@name, total_target=@total_target, monthly_target=@monthly_target, opening_balance=@opening_balance, target_date=@target_date, archived=@archived, updated_at=now() WHERE id=@id";
+                const string updateSql = @"UPDATE goals SET entity_id=@entity_id, name=@name, total_target=@total_target, monthly_target=@monthly_target, opening_balance=@opening_balance, target_date=@target_date, archived=@archived, notes=@notes, updated_at=now() WHERE id=@id";
                 await using (var cmd = new NpgsqlCommand(updateSql, conn, dbTx))
                 {
                     cmd.Parameters.AddWithValue("id", goalId);
@@ -128,6 +129,7 @@ VALUES (@id,@entity_id,@name,@total_target,@monthly_target,@opening_balance,@tar
                     cmd.Parameters.AddWithValue("opening_balance", (decimal)goal.OpeningBalance);
                     cmd.Parameters.AddWithValue("target_date", string.IsNullOrEmpty(goal.TargetDate) ? (object)DBNull.Value : DateTime.Parse(goal.TargetDate));
                     cmd.Parameters.AddWithValue("archived", goal.Archived);
+                    cmd.Parameters.AddWithValue("notes", (object?)goal.Notes ?? DBNull.Value);
                     await cmd.ExecuteNonQueryAsync();
                 }
 
@@ -202,7 +204,8 @@ VALUES (@id,@entity_id,@name,@total_target,@monthly_target,@opening_balance,@tar
                                                 WHEN COALESCE(t.transaction_type,'standard') <> 'transfer' AND COALESCE(t.is_income,FALSE) = FALSE THEN tc.amount
                                                 ELSE 0
                                             END),0) + COALESCE(MAX(funded_agg.spent), 0) AS spent,
-                                            COALESCE(g.opening_balance,0) AS opening_balance
+                                            COALESCE(g.opening_balance,0) AS opening_balance,
+                                            g.notes
                                      FROM goals g
                                      LEFT JOIN goals_budget_categories gbc ON gbc.goal_id = g.id
                                      LEFT JOIN budget_categories bc ON bc.id = gbc.budget_cat_id
@@ -219,7 +222,7 @@ VALUES (@id,@entity_id,@name,@total_target,@monthly_target,@opening_balance,@tar
                                          GROUP BY funded_by_goal_id
                                      ) funded_agg ON funded_agg.goal_id = g.id
                                      WHERE g.entity_id=@eid
-                                     GROUP BY g.id, g.entity_id, g.name, g.total_target, g.monthly_target, g.target_date, g.archived, g.opening_balance";
+                                     GROUP BY g.id, g.entity_id, g.name, g.total_target, g.monthly_target, g.target_date, g.archived, g.opening_balance, g.notes";
                 await using var cmd = new NpgsqlCommand(sql, conn);
                 if (!Guid.TryParse(entityId, out var eid))
                 {
@@ -240,7 +243,8 @@ VALUES (@id,@entity_id,@name,@total_target,@monthly_target,@opening_balance,@tar
                         Archived = reader.IsDBNull(6) ? false : reader.GetBoolean(6),
                         SavedToDate = reader.IsDBNull(7) ? 0 : (double)reader.GetDecimal(7),
                         SpentToDate = reader.IsDBNull(8) ? 0 : (double)reader.GetDecimal(8),
-                        OpeningBalance = reader.IsDBNull(9) ? 0 : (double)reader.GetDecimal(9)
+                        OpeningBalance = reader.IsDBNull(9) ? 0 : (double)reader.GetDecimal(9),
+                        Notes = reader.IsDBNull(10) ? null : reader.GetString(10)
                     });
                 }
             }
