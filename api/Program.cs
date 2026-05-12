@@ -106,7 +106,12 @@ builder.Services.AddCors(options =>
             "http://family-budget.local:8081",
             "https://budget-buddy-a6b6c.web.app",
             "https://app.steadyrise.us",
-            "https://budget-buddy-a6b6c.firebaseapp.com")
+            "https://budget-buddy-a6b6c.firebaseapp.com",
+            // Capacitor WebView origins: iOS WKWebView serves the app from
+            // `capacitor://localhost`; Android WebView uses
+            // `https://localhost` (per `androidScheme` default).
+            "capacitor://localhost",
+            "https://localhost")
             .AllowAnyMethod()
             .AllowAnyHeader()
             .SetPreflightMaxAge(TimeSpan.FromDays(1));

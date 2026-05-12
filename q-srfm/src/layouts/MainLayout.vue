@@ -332,7 +332,11 @@ onUnmounted(() => {
   background: var(--q-primary);
   color: var(--color-surface-card);
   padding: 0;
-  min-height: 56px;
+  /* Reserve space for the iOS status bar / notch when running in a
+     Capacitor WebView (viewport-fit=cover). env(safe-area-inset-top)
+     is 0 in browsers without a notch, so this is a no-op for web. */
+  padding-top: env(safe-area-inset-top);
+  min-height: calc(56px + env(safe-area-inset-top));
 }
 
 .mobile-header img {
@@ -342,7 +346,9 @@ onUnmounted(() => {
 .mobile-footer {
   background: var(--color-surface-card);
   color: var(--color-text-primary);
-  padding: 8px 0;
+  /* Reserve space for the iOS home-indicator area on the bottom.
+     env(safe-area-inset-bottom) is 0 on web. */
+  padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
   box-shadow: 0 -2px 8px rgba(15, 23, 42, 0.06);
 }
 

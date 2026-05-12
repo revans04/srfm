@@ -1,14 +1,14 @@
 {
   "name": "q-srfm",
-  "version": "1.4.42",
+  "version": "1.4.64",
   "description": "A Quasar Project",
   "author": "Ray Evans <ray.evans@flippengroup.com>",
   "private": true,
   "dependencies": {
     "@capacitor-firebase/authentication": "^8.2.0",
-    "@capacitor/app": "^7.0.0",
-    "@capacitor/cli": "^7.0.0",
-    "@capacitor/core": "^8.3.1",
-    "@capacitor/ios": "^7.0.0"
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/cli": "^8.3.3",
+    "@capacitor/core": "^8.3.3",
+    "@capacitor/ios": "^8.3.3"
   }
 }

@@ -17,72 +17,101 @@ install! 'cocoapods', :disable_input_output_paths => true
 def capacitor_pods
   pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'
   pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'
-  pod 'CapacitorFirebaseAuthentication', :path => '../../node_modules/@capacitor-firebase/authentication', :subspecs => ['Lite', 'Google']
+  pod 'CapacitorFirebaseAuthentication', :path => '../../node_modules/@capacitor-firebase/authentication'
   pod 'CapacitorApp', :path => '../../node_modules/@capacitor/app'
 end
 
 target 'App' do
   capacitor_pods
-  # Add your Pods here
+  # GoogleSignIn is the dependency declared by the plugin's `Google`
+  # subspec, but the source-injection workaround below bypasses the
+  # subspec — so we declare it directly to keep `import GoogleSignIn`
+  # resolvable from the injected plugin sources. We use ~> 9.1 rather
+  # than the plugin's pinned 9.0.0 because 9.0.0 requires
+  # GTMSessionFetcher/Core ~> 3.3, which conflicts with FirebaseAuth
+  # 12.7.0's `>= 3.4, < 6.0` constraint.
+  pod 'GoogleSignIn', '~> 9.1'
 end
 
 post_install do |installer|
   assertDeploymentTarget(installer)
 
-  # CocoaPods 1.16 generates an empty `PBXAggregateTarget` for
-  # CapacitorFirebaseAuthentication when the umbrella podspec uses
-  # `default_subspec` and we depend only on a non-default subspec
-  # (`Google`). The aggregate target has no compile phase, so the
-  # plugin's Swift never builds and the App target never gets the
-  # plugin class — Capacitor's bridge then reports
-  # `"FirebaseAuthentication" plugin is not implemented on ios`.
-  #
-  # Workaround: walk the plugin's source tree, add each .swift /
-  # .m / .h file directly to the App target's Sources build phase,
-  # and apply the Google subspec's compile flag so the Google
-  # handler is included. The same flag and dependency chain
-  # (FirebaseAuth, GoogleSignIn) are already brought in via the
-  # other pods, so nothing else needs linking — only the plugin's
-  # own sources are missing.
   app_target = installer.aggregate_targets.find { |t| t.name == 'Pods-App' }&.user_targets&.first
-  if app_target.nil?
-    raise "post_install: could not locate App target"
-  end
-
-  plugin_root = File.expand_path(
-    '../../node_modules/@capacitor-firebase/authentication/ios/Plugin',
-    __dir__
-  )
-  unless File.directory?(plugin_root)
-    raise "post_install: plugin source not found at #{plugin_root}"
-  end
-
+  raise "post_install: could not locate App target" if app_target.nil?
   project = app_target.project
-  plugin_group = project.main_group.find_subpath('CapacitorFirebaseAuthentication-Sources', true)
-  plugin_group.set_source_tree('SOURCE_ROOT')
 
-  Dir.glob(File.join(plugin_root, '**/*.{swift,m,h}')).each do |path|
-    next if app_target.source_build_phase.files_references.any? { |ref| ref.real_path.to_s == path }
-    file_ref = plugin_group.new_reference(path)
-    if path.end_with?('.swift', '.m')
-      app_target.add_file_references([file_ref])
+  # ---- Clean up the Cap-7-era source-injection workaround ----
+  # A previous Podfile (when the CapacitorFirebaseAuthentication pod
+  # target was generating as an empty aggregate target under
+  # CocoaPods 1.16 + the Google subspec) injected the plugin's
+  # `.swift`/`.m` files directly into the App target. Under Cap 8
+  # the pod target compiles correctly on its own, so leaving the
+  # injected references in place produces duplicate-symbol linker
+  # errors (e.g. `_OBJC_CLASS_$_FirebaseAuthenticationPlugin`).
+  # Remove the injected group and any matching build-file references.
+  legacy_group = project.main_group.find_subpath('CapacitorFirebaseAuthentication-Sources', false)
+  if legacy_group
+    legacy_paths = legacy_group.recursive_children_groups.flat_map(&:files) + legacy_group.files
+    legacy_real_paths = legacy_paths.map { |f| f.real_path.to_s }
+    [app_target.source_build_phase, app_target.resources_build_phase].each do |phase|
+      phase.files.dup.each do |bf|
+        next unless bf.file_ref && legacy_real_paths.include?(bf.file_ref.real_path.to_s)
+        phase.remove_build_file(bf)
+      end
     end
+    legacy_group.recursive_children_groups.each(&:remove_from_project)
+    legacy_group.files.each(&:remove_from_project)
+    legacy_group.remove_from_project
   end
 
-  # Apply the Google subspec's compile flag on the App target
-  # itself so the conditional `#if RGCFA_INCLUDE_GOOGLE` branches
-  # in the plugin's Swift compile in.
+  # ---- Remove `-DRGCFA_INCLUDE_GOOGLE` from the App target ----
+  # The flag belongs on the plugin's own pod target (set below), not
+  # on the App target. Leaving it here is harmless but misleading.
   app_target.build_configurations.each do |config|
-    flags = config.build_settings['OTHER_SWIFT_FLAGS'] || '$(inherited)'
-    unless flags.include?('-DRGCFA_INCLUDE_GOOGLE')
-      config.build_settings['OTHER_SWIFT_FLAGS'] = "#{flags} -DRGCFA_INCLUDE_GOOGLE"
+    flags = config.build_settings['OTHER_SWIFT_FLAGS']
+    next unless flags
+    cleaned = Array(flags).flat_map { |f| f.to_s.split(' ') }.reject { |tok| tok == '-DRGCFA_INCLUDE_GOOGLE' }.join(' ')
+    config.build_settings['OTHER_SWIFT_FLAGS'] = cleaned
+  end
+
+  # ---- Apply Google-handler compile flag to the plugin pod ----
+  # The plugin's source code wraps GoogleSignIn-using paths in
+  # `#if RGCFA_INCLUDE_GOOGLE`. That flag is normally set by the
+  # plugin's `Google` subspec, but we cannot request that subspec
+  # because it pins GoogleSignIn 9.0.0 — which conflicts with
+  # FirebaseAuth 12.7.0's GTMSessionFetcher constraint. So we
+  # declare GoogleSignIn ourselves (target line above) and stamp
+  # the compile flag onto the plugin's pod target here.
+  installer.pods_project.targets.each do |t|
+    next unless t.name == 'CapacitorFirebaseAuthentication'
+    t.build_configurations.each do |config|
+      flags = config.build_settings['OTHER_SWIFT_FLAGS'] || '$(inherited)'
+      flags = Array(flags).join(' ')
+      unless flags.include?('-DRGCFA_INCLUDE_GOOGLE')
+        config.build_settings['OTHER_SWIFT_FLAGS'] = "#{flags} -DRGCFA_INCLUDE_GOOGLE"
+      end
+
+      # The plugin's umbrella podspec does not list GoogleSignIn as
+      # a dependency (only its Google subspec does), so the pod's
+      # target does not see the GoogleSignIn framework headers.
+      # Inject the search path so `import GoogleSignIn` resolves.
+      # GoogleSignIn is brought in as a real pod via the explicit
+      # `pod 'GoogleSignIn'` line in the target above.
+      gsi_search = '"${PODS_CONFIGURATION_BUILD_DIR}/GoogleSignIn"'
+      ['FRAMEWORK_SEARCH_PATHS', 'SWIFT_INCLUDE_PATHS'].each do |key|
+        existing = config.build_settings[key] || '$(inherited)'
+        existing = Array(existing).join(' ')
+        unless existing.include?('GoogleSignIn')
+          config.build_settings[key] = "#{existing} #{gsi_search}"
+        end
+      end
     end
   end
 
-  # Bundle GoogleService-Info.plist as a resource. Firebase iOS SDK
-  # auto-discovers it at FirebaseApp.configure() time by reading the
-  # main bundle. Without it, Firebase init fails with "The default
-  # Firebase app has not yet been configured."
+  # ---- Bundle GoogleService-Info.plist ----
+  # Firebase iOS SDK auto-discovers it at `FirebaseApp.configure()`
+  # via the main bundle. Without it, Firebase init fails with
+  # "The default Firebase app has not yet been configured."
   plist_path = File.expand_path('App/GoogleService-Info.plist', __dir__)
   if File.exist?(plist_path)
     already_bundled = app_target.resources_build_phase.files_references.any? do |ref|

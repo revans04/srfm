@@ -25,6 +25,26 @@ public class FamilyService
     }
 
     /// <summary>
+    /// True when <paramref name="userId"/> appears in <c>family_members</c>
+    /// for <paramref name="familyId"/>. Used as the standard authorization
+    /// check for family-scoped operations that don't require owner rights.
+    /// </summary>
+    public async Task<bool> IsFamilyMember(string familyId, string userId)
+    {
+        await using var conn = await _db.GetOpenConnectionAsync();
+        if (!Guid.TryParse(familyId, out var fid))
+        {
+            return false;
+        }
+        const string sql = "SELECT 1 FROM family_members WHERE family_id::uuid=@fid AND user_id=@uid LIMIT 1";
+        await using var cmd = new Npgsql.NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("fid", fid);
+        cmd.Parameters.AddWithValue("uid", userId);
+        var result = await cmd.ExecuteScalarAsync();
+        return result != null;
+    }
+
+    /// <summary>
     /// Retrieve the family for which the given user is a member.
     /// </summary>
     public async Task<Family?> GetUserFamily(string uid)

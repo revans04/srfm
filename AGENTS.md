@@ -50,6 +50,7 @@ Dependency direction:
 - Goal-linked budget categories are intentionally hidden from regular budget/category queries via `goals_budget_categories` exclusion logic in `BudgetService.LoadBudgetDetails`.
 - Numeric/account enum domains are constrained in API logic and/or DB enum casting (`account_type`, `account_category`); keep frontend values aligned (`Bank/CreditCard/Investment/Property/Loan`, `Asset/Liability`).
 - Date/month ordering is semantic (`YYYY-MM` strings); many flows assume lexicographic sort works for chronology.
+- `goals.notes` is persisted HTML emitted by Quasar `q-editor` (`GoalDialog.vue`). The client MUST sanitize via DOMPurify before any `v-html` rendering (see `GoalDetailsPanel.vue`). Sanitization is render-side, not save-side — legacy plaintext and any future policy tightening stay safe; never `v-html` raw `goal.notes`.
 
 ## 4. Module Responsibilities
 `/api/Program.cs`
@@ -90,7 +91,7 @@ Dependency direction:
 
 ## 5. Data & State Ownership Rules
 Server ownership:
-- Source of truth: Supabase/Postgres tables (`families`, `family_members`, `entities`, `budgets`, `budget_groups`, `budget_categories`, `transactions`, `transaction_categories`, `goals`, `goals_budget_categories`, `accounts`, `snapshots`, `imported_*`, etc.).
+- Source of truth: Supabase/Postgres tables (`families`, `family_members`, `entities`, `budgets`, `budget_groups`, `budget_categories`, `transactions`, `transaction_categories`, `goals` (incl. `notes TEXT` as of 2026-05-11), `goals_budget_categories`, `accounts`, `snapshots`, `imported_*`, etc.).
 - **Group taxonomy is entity-scoped:** every category group lives in `budget_groups (entity_id, name UNIQUE, sort_order, kind)` with `kind IN ('income','expense','savings')`. `budget_categories.group_id` FKs to it; `budget_categories.sort_order` orders categories within a group. Renaming or reordering a group applies to every month for the entity automatically. Income detection uses `kind === 'income'`, never string equality on the group name. Frontend helpers in `q-srfm/src/utils/groups.ts` (`isIncomeCategory`, `categoryGroupKind`, `categoryGroupName`) wrap the lookup.
 - Firestore remains source for auth-related user verification metadata in `AuthController`.
 
@@ -109,6 +110,9 @@ Behavioral rules inferred from implementation:
 - Protected endpoints expect `Authorization: Bearer <Firebase ID Token>`.
 - IDs are predominantly UUIDs in DB, but some API fields use string IDs (`budget.id` stored as string).
 - Several routes accept/return mixed casing and optional fields; frontend uses mappers to normalize.
+
+Recent additions worth knowing:
+- `GET /reports/by-payee?entityId=&from=&to=&excludeGroupIds=&excludeCategoryNames=&excludeMerchants=` (2026-05-10). Aggregates net spend by payee over a `YYYY-MM` range. `ReportsService` enforces entity-membership via a single JOIN against `entities → family_members` (closes the `GoalController`-style gap — do not copy that gap into new report endpoints). The canonical payee key in SQL trims, collapses whitespace, folds curly/grave/acute apostrophe variants to ASCII `'`, then `LOWER()`s for case-insensitive grouping; display value comes from `MODE() WITHIN GROUP (ORDER BY …)`. The same `LOWER(payeeCanonical)` is reused in the `excludeMerchants` `WHERE`, and `ReportsService.NormalizePayeeKey` mirrors the SQL transform for client-supplied strings — keep them in lockstep. Typed entry point: `dataAccess.getSpendingByPayee(entityId, from, to, opts)`.
 
 Important contract mismatches/drift to preserve awareness of:
 - Frontend calls `POST /api/statements/finalize` (`dataAccess.finalizeStatement`) but no matching API controller route exists.
@@ -243,6 +247,8 @@ Error handling conventions:
 - Setting base font below 16px on mobile viewports.
 - Opening the sidebar drawer automatically on mobile page navigation.
 - Adding accounting terminology without accompanying tooltips or plain-language help.
+- **Grouping by free-text user input (merchant/payee names) without normalization.** Raw `transactions.merchant` carries curly vs ASCII apostrophes ("McDonald's" vs "McDonald's"), case differences ("COSTCO" vs "Costco"), and stray whitespace — each variant hashes to its own row and the report fragments. Reuse the `ReportsService` `payeeCanonical` pattern (trim → collapse whitespace → fold apostrophe variants → `LOWER`) for any aggregation, and mirror the same transform server-side on user-supplied filter strings so exclusions match the grouped key.
+- **`v-html` on user-supplied content without DOMPurify.** Any field that round-trips through Quasar `q-editor` (today: `goals.notes`) is HTML and must be sanitized at render time. Don't move sanitization to the save path; sanitizing on render also cleans legacy plaintext and lets policy tighten without rewriting stored content.
 
 ## 11. Testing Expectations
 Current baseline:

@@ -26,11 +26,20 @@ import { useBudgetStore } from './store/budget';
 import { Timestamp } from 'firebase/firestore';
 import { toStatementFinalizeRequestBody } from './utils/statements';
 import { calculateCarryOver } from './utils/carryover';
+import { Capacitor } from '@capacitor/core';
 
 type RawAccount = Account & { createdAt?: unknown; updatedAt?: unknown };
 
 export class DataAccess {
   private apiBaseUrl = ((): string => {
+    // On Capacitor native, the WebView origin is `capacitor://localhost`
+    // and a relative `/api` URL resolves to the WebView itself — there's
+    // no Firebase Hosting rewrite to bridge to Cloud Run. Use the
+    // absolute Cloud Run URL directly. Web (browser / Firebase Hosting)
+    // path is unchanged.
+    if (Capacitor.isNativePlatform()) {
+      return 'https://family-budget-api-wcttesuqaa-uc.a.run.app/api';
+    }
     const env = (import.meta as unknown as { env?: Record<string, string> }).env || {};
     if (env.VITE_API_BASE_URL) return env.VITE_API_BASE_URL;
     const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost';

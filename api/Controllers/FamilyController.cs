@@ -170,9 +170,19 @@ namespace FamilyBudgetApi.Controllers
         public async Task<IActionResult> UpdateEntity(string familyId, string entityId, [FromBody] Entity entity)
         {
             var uid = HttpContext.Items["UserId"]?.ToString();
+            if (uid == null) return Unauthorized();
             var family = await _familyService.GetFamilyById(familyId);
-            if (family == null || family.OwnerUid != uid)
-                return Unauthorized("Only the family owner can update entities");
+            if (family == null) return NotFound();
+            // Any family member can update an entity. The most common
+            // non-owner mutation in practice is adding categories to the
+            // entity's templateBudget when saving a budget month
+            // (BudgetPage.applyFutureCategories) — gating that on owner
+            // broke routine multi-member budget editing. Rename/retype
+            // are also allowed here since members already collaborate on
+            // every other family-scoped resource (budgets, transactions,
+            // accounts, goals).
+            if (!await _familyService.IsFamilyMember(familyId, uid))
+                return Unauthorized("Only family members can update entities");
 
             // Validate EntityType
             if (!Enum.TryParse<EntityType>(entity.Type, true, out _))
