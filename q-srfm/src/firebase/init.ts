@@ -39,11 +39,15 @@ const firebaseConfig = {
   projectId: env.VITE_FIREBASE_PROJECT_ID ?? '',
 };
 // On Capacitor native the WebView origin is `capacitor://localhost`, so a
-// relative `/api` URL has no real backend to hit. Use the absolute Cloud
-// Run URL directly. Web path is unchanged. Kept in sync with the same
-// branch in `src/dataAccess.ts`.
+// relative `/api` URL has no real backend to hit. Read the absolute API
+// URL from `VITE_API_BASE_URL_NATIVE`. Web path is unchanged. Kept in
+// sync with the same branch in `src/dataAccess.ts`.
+const nativeApiUrl = env.VITE_API_BASE_URL_NATIVE;
+if (isNative && !nativeApiUrl) {
+  throw new Error('VITE_API_BASE_URL_NATIVE is required for Capacitor builds');
+}
 const apiBaseUrl = isNative
-  ? 'https://family-budget-api-wcttesuqaa-uc.a.run.app/api'
+  ? (nativeApiUrl as string)
   : (env.VITE_API_BASE_URL
       || (typeof window !== 'undefined' && window.location.hostname === 'localhost'
             ? 'http://localhost:8080/api'

@@ -32,15 +32,19 @@ type RawAccount = Account & { createdAt?: unknown; updatedAt?: unknown };
 
 export class DataAccess {
   private apiBaseUrl = ((): string => {
+    const env = (import.meta as unknown as { env?: Record<string, string> }).env || {};
     // On Capacitor native, the WebView origin is `capacitor://localhost`
     // and a relative `/api` URL resolves to the WebView itself — there's
     // no Firebase Hosting rewrite to bridge to Cloud Run. Use the
-    // absolute Cloud Run URL directly. Web (browser / Firebase Hosting)
-    // path is unchanged.
+    // absolute API URL configured in VITE_API_BASE_URL_NATIVE. Web
+    // (browser / Firebase Hosting) path is unchanged.
     if (Capacitor.isNativePlatform()) {
-      return 'https://family-budget-api-wcttesuqaa-uc.a.run.app/api';
+      const nativeUrl = env.VITE_API_BASE_URL_NATIVE;
+      if (!nativeUrl) {
+        throw new Error('VITE_API_BASE_URL_NATIVE is required for Capacitor builds');
+      }
+      return nativeUrl;
     }
-    const env = (import.meta as unknown as { env?: Record<string, string> }).env || {};
     if (env.VITE_API_BASE_URL) return env.VITE_API_BASE_URL;
     const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost';
     return isLocal ? 'http://localhost:8080/api' : '/api';
