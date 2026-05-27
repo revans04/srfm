@@ -182,10 +182,14 @@ VALUES (@id,@entity_id,@name,@total_target,@monthly_target,@opening_balance,@tar
                 // Two spend signals contribute to `spent`:
                 //  (a) Existing path — splits on the goal's auto-synced budget
                 //      category (joined via goals_budget_categories).
-                //  (b) New path — standard expenses anywhere whose
-                //      `funded_by_goal_id` matches this goal. The whole expense
-                //      counts (the field is on the transaction, not the split),
-                //      modeling "Housekeeping spent $150 funded from Bonus."
+                //  (b) Funded path — standard transactions anywhere whose
+                //      `funded_by_goal_id` matches this goal. Both polarities
+                //      count as goal spend: an expense funded from the goal
+                //      ("Housekeeping spent $150 funded from Bonus") and an
+                //      income credit funded from the goal ("Vacation received
+                //      $2,515.51 from Bonus to cover an overspend") both mean
+                //      money left the goal. The whole transaction amount counts
+                //      (the field is on the transaction, not on a split).
                 // Aggregated separately in `funded_agg` so the cross-product
                 // with the existing path doesn't multiply rows; folded in via
                 // MAX (constant within each goal's group).
@@ -218,7 +222,6 @@ VALUES (@id,@entity_id,@name,@total_target,@monthly_target,@opening_balance,@tar
                                          WHERE COALESCE(deleted, FALSE) = FALSE
                                            AND funded_by_goal_id IS NOT NULL
                                            AND COALESCE(transaction_type, 'standard') = 'standard'
-                                           AND COALESCE(is_income, FALSE) = FALSE
                                          GROUP BY funded_by_goal_id
                                      ) funded_agg ON funded_agg.goal_id = g.id
                                      WHERE g.entity_id=@eid
@@ -272,15 +275,17 @@ VALUES (@id,@entity_id,@name,@total_target,@monthly_target,@opening_balance,@tar
                 //   (a) `linked` — transactions whose split lands on the goal's
                 //       auto-synced category (joined via goals_budget_categories).
                 //       Classified by transaction type / is_income.
-                //   (b) `funded` — standard expenses whose `funded_by_goal_id`
-                //       points at this goal. Always spend (the user funded an
-                //       expense from the goal). Use t.amount because the field
-                //       is on the transaction, not on a split.
+                //   (b) `funded` — standard transactions whose `funded_by_goal_id`
+                //       points at this goal. Always spend regardless of polarity
+                //       (an expense funded from the goal AND an income credit
+                //       sourced from the goal both mean money left the goal).
+                //       Use t.amount because the field is on the transaction,
+                //       not on a split.
                 // UNION ALL is safe because the two paths don't overlap in
                 // practice — the `linked` path joins on the goal's own category
-                // name, while `funded` rows record the expense on a different
-                // category (e.g., Housekeeping) and only carry the goal id as
-                // metadata.
+                // name, while `funded` rows record the transaction on a
+                // different category (e.g., Housekeeping, Vacation) and only
+                // carry the goal id as metadata.
                 const string sql = @"
                     SELECT t.id, t.date, t.merchant, tc.amount, t.budget_id,
                            COALESCE(t.is_income, FALSE) AS is_income,
@@ -303,7 +308,6 @@ VALUES (@id,@entity_id,@name,@total_target,@monthly_target,@opening_balance,@tar
                     WHERE t.funded_by_goal_id=@gid
                       AND COALESCE(t.deleted, FALSE) = FALSE
                       AND COALESCE(t.transaction_type, 'standard') = 'standard'
-                      AND COALESCE(t.is_income, FALSE) = FALSE
 
                     ORDER BY date DESC";
                 await using var cmd = new NpgsqlCommand(sql, conn);
