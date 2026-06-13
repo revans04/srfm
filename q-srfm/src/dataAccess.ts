@@ -25,6 +25,7 @@ import type {
 import { useBudgetStore } from './store/budget';
 import { Timestamp } from 'firebase/firestore';
 import { toStatementFinalizeRequestBody } from './utils/statements';
+import { buildUnmatchImportedPath } from './utils/unmatch';
 import { calculateCarryOver } from './utils/carryover';
 import { Capacitor } from '@capacitor/core';
 
@@ -933,6 +934,23 @@ export class DataAccess {
 
     const budgetStore = useBudgetStore();
     budgetStore.updateBudget(budgetId, budget);
+  }
+
+  /**
+   * Unmatch an imported (bank) transaction by its id. Server-side and
+   * account-agnostic: reverts the bank row to Uncleared and resets every linked
+   * budget transaction (via the explicit imported_transaction_id link, with a
+   * legacy heuristic fallback). Returns how many budget transactions were reset.
+   */
+  async unmatchImported(importedTransactionId: string): Promise<number> {
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(
+      `${this.apiBaseUrl}/${buildUnmatchImportedPath(importedTransactionId)}`,
+      { method: 'POST', headers },
+    );
+    if (!response.ok) throw new Error(`Failed to unmatch imported transaction: ${response.statusText}`);
+    const result = (await response.json()) as { budgetTransactionsReset?: number };
+    return result.budgetTransactionsReset ?? 0;
   }
 
   unsubscribeAll(): void {

@@ -2,11 +2,25 @@ import { useAuthStore } from './store/auth';
 import { useBudgetStore } from './store/budget';
 import { Timestamp } from 'firebase/firestore';
 import { toStatementFinalizeRequestBody } from './utils/statements';
+import { buildUnmatchImportedPath } from './utils/unmatch';
 import { calculateCarryOver } from './utils/carryover';
+import { Capacitor } from '@capacitor/core';
 export class DataAccess {
     constructor() {
         this.apiBaseUrl = (() => {
             const env = import.meta.env || {};
+            // On Capacitor native, the WebView origin is `capacitor://localhost`
+            // and a relative `/api` URL resolves to the WebView itself — there's
+            // no Firebase Hosting rewrite to bridge to Cloud Run. Use the
+            // absolute API URL configured in VITE_API_BASE_URL_NATIVE. Web
+            // (browser / Firebase Hosting) path is unchanged.
+            if (Capacitor.isNativePlatform()) {
+                const nativeUrl = env.VITE_API_BASE_URL_NATIVE;
+                if (!nativeUrl) {
+                    throw new Error('VITE_API_BASE_URL_NATIVE is required for Capacitor builds');
+                }
+                return nativeUrl;
+            }
             if (env.VITE_API_BASE_URL)
                 return env.VITE_API_BASE_URL;
             const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost';
@@ -808,6 +822,20 @@ export class DataAccess {
         const budgetStore = useBudgetStore();
         budgetStore.updateBudget(budgetId, budget);
     }
+    /**
+     * Unmatch an imported (bank) transaction by its id. Server-side and
+     * account-agnostic: reverts the bank row to Uncleared and resets every linked
+     * budget transaction (via the explicit imported_transaction_id link, with a
+     * legacy heuristic fallback). Returns how many budget transactions were reset.
+     */
+    async unmatchImported(importedTransactionId) {
+        const headers = await this.getAuthHeaders();
+        const response = await fetch(`${this.apiBaseUrl}/${buildUnmatchImportedPath(importedTransactionId)}`, { method: 'POST', headers });
+        if (!response.ok)
+            throw new Error(`Failed to unmatch imported transaction: ${response.statusText}`);
+        const result = (await response.json());
+        return result.budgetTransactionsReset ?? 0;
+    }
     unsubscribeAll() {
         // Placeholder for future subscription cleanup if needed
     }
@@ -1175,6 +1203,40 @@ export class DataAccess {
         });
         if (!response.ok)
             throw new Error(`Failed to remove entity member: ${response.statusText}`);
+    }
+    // Reports
+    async getSpendingByPayee(entityId, fromMonth, toMonth, opts) {
+        const headers = await this.getAuthHeaders();
+        const params = new URLSearchParams({ entityId, from: fromMonth, to: toMonth });
+        if (opts?.excludeGroupIds?.length)
+            params.set('excludeGroupIds', opts.excludeGroupIds.join(','));
+        if (opts?.excludeCategoryNames?.length) {
+            params.set('excludeCategoryNames', opts.excludeCategoryNames.join(','));
+        }
+        if (opts?.excludeMerchants?.length) {
+            params.set('excludeMerchants', opts.excludeMerchants.join(','));
+        }
+        const response = await fetch(`${this.apiBaseUrl}/reports/by-payee?${params.toString()}`, { headers });
+        if (!response.ok)
+            throw new Error(`Failed to load spending by payee: ${response.statusText}`);
+        const raw = await response.json();
+        if (!Array.isArray(raw))
+            return [];
+        return raw.map((row) => {
+            const r = (row ?? {});
+            const cats = Array.isArray(r.categories) ? r.categories : [];
+            return {
+                payee: typeof r.payee === 'string' ? r.payee : '',
+                total: typeof r.total === 'number' ? r.total : Number(r.total) || 0,
+                categories: cats.map((c) => {
+                    const cc = (c ?? {});
+                    return {
+                        name: typeof cc.name === 'string' ? cc.name : '',
+                        amount: typeof cc.amount === 'number' ? cc.amount : Number(cc.amount) || 0,
+                    };
+                }),
+            };
+        });
     }
 }
 export const dataAccess = new DataAccess();

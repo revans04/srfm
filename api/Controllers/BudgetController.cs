@@ -313,6 +313,24 @@ namespace FamilyBudgetApi.Controllers
             }
         }
 
+        [HttpPost("imported-transactions/{importedId}/unmatch")]
+        [AuthorizeFirebase]
+        public async Task<IActionResult> UnmatchImported(string importedId)
+        {
+            try
+            {
+                var userId = HttpContext.Items["UserId"]?.ToString() ?? throw new Exception("User ID not found");
+                var userEmail = HttpContext.Items["Email"]?.ToString() ?? string.Empty;
+                var reset = await _budgetService.UnmatchImported(importedId, userId, userEmail);
+                return Ok(new { budgetTransactionsReset = reset });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in UnmatchImported: {ex.Message}");
+                return BadRequest(ex.Message);
+            }
+        }
+
         [HttpGet("imported-transactions")]
         [AuthorizeFirebase]
         public async Task<IActionResult> GetImportedTransactions()

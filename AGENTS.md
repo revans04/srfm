@@ -44,12 +44,13 @@ Dependency direction:
 ## 3. Core Invariants (Must Not Be Broken)
 - Firebase Bearer token is the auth primitive for protected endpoints; `AuthorizeFirebase` populates `HttpContext.Items["UserId"]` and `HttpContext.Items["Email"]`.
 - `family_members` membership is the primary authorization relation for family-scoped resources (accounts, snapshots, statements endpoints).
-- Budget carryover logic only applies to `BudgetCategory.IsFund == true` and clamps negative carryover to zero.
+- Budget carryover logic only applies to `BudgetCategory.IsFund == true`. Negative carryover is **not** clamped — an overspent fund propagates its deficit into subsequent months so the household sees the fund is still in the hole.
 - Transaction category rows are replaced on write; every persisted transaction must have at least one category split (`Income` or `Uncategorized` fallback in backend).
 - `entity_id` is a first-class partition key for budgets/goals and must stay consistent when merging budgets or creating derived transactions.
 - Goal-linked budget categories are intentionally hidden from regular budget/category queries via `goals_budget_categories` exclusion logic in `BudgetService.LoadBudgetDetails`.
 - Numeric/account enum domains are constrained in API logic and/or DB enum casting (`account_type`, `account_category`); keep frontend values aligned (`Bank/CreditCard/Investment/Property/Loan`, `Asset/Liability`).
 - Date/month ordering is semantic (`YYYY-MM` strings); many flows assume lexicographic sort works for chronology.
+- Transaction `status` (`U`/`C`/`R`) and `matched` are independent. Matching links a bank row to a budget transaction; reconciling finalizes a statement. Unmatch reverts status `C → U` on **both** the imported row and the linked budget transaction (and clears the budget row's bank-linkage fields); the revert is unconditional and the `R` guard lives in the UI. The link is the explicit `transactions.imported_transaction_id` (composite TEXT id of `imported_transactions`), set on match and nulled on unmatch. See `docs/adr/0001-unmatch-reverts-status-to-uncleared.md`.
 - `goals.notes` is persisted HTML emitted by Quasar `q-editor` (`GoalDialog.vue`). The client MUST sanitize via DOMPurify before any `v-html` rendering (see `GoalDetailsPanel.vue`). Sanitization is render-side, not save-side — legacy plaintext and any future policy tightening stay safe; never `v-html` raw `goal.notes`.
 
 ## 4. Module Responsibilities
@@ -113,6 +114,7 @@ Behavioral rules inferred from implementation:
 
 Recent additions worth knowing:
 - `GET /reports/by-payee?entityId=&from=&to=&excludeGroupIds=&excludeCategoryNames=&excludeMerchants=` (2026-05-10). Aggregates net spend by payee over a `YYYY-MM` range. `ReportsService` enforces entity-membership via a single JOIN against `entities → family_members` (closes the `GoalController`-style gap — do not copy that gap into new report endpoints). The canonical payee key in SQL trims, collapses whitespace, folds curly/grave/acute apostrophe variants to ASCII `'`, then `LOWER()`s for case-insensitive grouping; display value comes from `MODE() WITHIN GROUP (ORDER BY …)`. The same `LOWER(payeeCanonical)` is reused in the `excludeMerchants` `WHERE`, and `ReportsService.NormalizePayeeKey` mirrors the SQL transform for client-supplied strings — keep them in lockstep. Typed entry point: `dataAccess.getSpendingByPayee(entityId, from, to, opts)`.
+- `POST /budget/imported-transactions/{importedId}/unmatch` (2026-06-12). Canonical, account-agnostic unmatch keyed on the imported transaction id: reverts the bank row to `U` and resets every linked budget transaction (via `transactions.imported_transaction_id`, with the legacy account+payee+date heuristic as fallback for NULL-link rows), clearing bank-linkage fields. `BudgetService.UnmatchImported` returns the count of budget rows reset. Typed entry point: `dataAccess.unmatchImported(importedId)`. Replaces the old client-side heuristic in `TransactionsPage.confirmUnmatch` that bailed when no single account was selected. `BatchReconcileTransactions` likewise maintains the link and reverts status on its match/unmatch branches.
 
 Important contract mismatches/drift to preserve awareness of:
 - Frontend calls `POST /api/statements/finalize` (`dataAccess.finalizeStatement`) but no matching API controller route exists.
@@ -270,14 +272,14 @@ High-risk zones:
 - `api/Controllers/FamilyController.cs` + `api/Services/FamilyService.cs`: tenancy and ownership boundaries.
 - `api/Filters/AuthorizeFirebaseAttribute.cs`: authentication context foundation for most protected routes.
 - `q-srfm/src/dataAccess.ts`: single frontend API contract adapter; drift here breaks multiple pages.
-- `q-srfm/src/pages/TransactionsPage.vue` and `q-srfm/src/components/TransactionRegistry.vue`: reconciliation workflows depend on many interrelated assumptions.
+- `q-srfm/src/pages/TransactionsPage.vue` + `q-srfm/src/components/MatchBankPanel.vue` / `MatchBankTransactionsDialog.vue`: the live reconciliation/match workflows, with many interrelated assumptions. (`q-srfm/src/components/TransactionRegistry.vue` is **dead code** — not imported or mounted anywhere; don't extend it.)
 
 Migration-sensitive zones:
 - Firestore/Supabase seam in `AuthController` and Firebase profile setup.
 - Statement/account import paths with partial implementations (`NotImplementedException`).
 - Optional-table feature flags (`budget_edit_history`, `goals_budget_categories`) that allow mixed schema states.
 - `BudgetService.EnsureGroupAsync(conn, tx, entityId, name, kind)` is the canonical inline upsert for a group by name within an entity. `SaveBudget` and `GoalService` use it so that callers can persist a `BudgetCategory` carrying only `groupName` (no `groupId`) and the backend resolves/creates the row.
-- `q-srfm/src/pages/SetupWizardPage.vue`: uses Vuetify-era CSS selectors and variables in a Quasar app; needs migration to Quasar-native styling before feature expansion.
+- `transactions.imported_transaction_id` TEXT column (2026-06-12 migration). Soft link to the composite `imported_transactions.id`; indexed; best-effort backfill of unambiguous matches. The match/unmatch SQL references it unconditionally, so the migration must run before deploying that backend code.
 
 Known UI/UX violations requiring remediation (from March 2026 review):
 - Viewport meta `user-scalable=no` and `maximum-scale=1` — WCAG violation, one-line fix.
