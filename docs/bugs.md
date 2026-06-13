@@ -63,3 +63,11 @@ _None currently._
 **Fix:** Replaced the native `<datalist>` with a Quasar `q-select` using `use-input` and `new-value-mode="add-unique"` for proper autocomplete with type-to-filter from the merchant store.
 
 ---
+
+### BUG-008 — Unmatch on the Account Register doesn't mark the transaction uncleared
+**Status:** Resolved
+**Area:** Transaction Matching / Reconciliation
+**Description:** On the Account Register, unmatching a transaction flipped `matched=false` but never reverted `status`, so the bank row stayed **Cleared** and the linked budget transaction kept its bank-linkage fields. The fix path also bailed silently when the account filter was "All" (`if (!accountId) return;`) and relied on a fragile `account_number` + payee + date heuristic to find the linked budget row.
+**Fix:** `BatchReconcileTransactions` now reverts the imported row `C → U` and resets the linked budget transaction to `U` (shedding bank-linkage fields). Added an explicit `transactions.imported_transaction_id` link (migration + indexed, best-effort backfill), set on match and nulled on unmatch. New canonical, account-agnostic `BudgetService.UnmatchImported` (`POST /budget/imported-transactions/{importedId}/unmatch`) keyed on the imported id with a legacy heuristic fallback; `TransactionsPage.confirmUnmatch` reduced to a single call that works with "All accounts." Status revert is unconditional — the reconciled-row guard lives in the UI. See `docs/adr/0001-unmatch-reverts-status-to-uncleared.md`. **Investigated alongside a report that "recurring transactions won't batch-match" — that turned out to be correct behavior (a real amount difference outside the ±$0.05 tolerance), not a bug.**
+
+---

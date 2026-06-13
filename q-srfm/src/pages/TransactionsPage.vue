@@ -716,29 +716,11 @@ async function confirmUnmatch() {
   if (!imp) return;
   unmatching.value = true;
   try {
-    // Set matched=false on the imported transaction via batch-reconcile
-    // We need to find which budget has the linked transaction
-    const accountId = filters.value.accountId;
-    if (!accountId) return;
-    const budgetTxs = await dataAccess.getBudgetTransactionsMatchedToImported(accountId);
-    const linked = budgetTxs.find(
-      (bt) => bt.transaction.importedMerchant === imp.payee
-        && (bt.transaction.postedDate === (imp.transactionDate || imp.postedDate) || bt.transaction.transactionDate === (imp.transactionDate || imp.postedDate)),
-    );
-    if (linked) {
-      const budget = budgetStore.getBudget(linked.budgetId) || await dataAccess.getBudget(linked.budgetId);
-      if (budget) {
-        await dataAccess.batchReconcileTransactions(linked.budgetId, budget, {
-          budgetId: linked.budgetId,
-          reconciliations: [{
-            budgetTransactionId: linked.transaction.id || '',
-            importedTransactionId: imp.id,
-            match: false,
-            ignore: false,
-          }],
-        });
-      }
-    }
+    // Unmatch is keyed solely on the imported transaction id — the backend
+    // reverts the bank row to Uncleared and resets the linked budget
+    // transaction via its explicit link (with a legacy fallback). No account
+    // filter or payee/date heuristic needed, so it works with "All accounts".
+    await dataAccess.unmatchImported(imp.id);
     showUnmatchDialog.value = false;
     rowToUnmatch.value = null;
     $q.notify({ type: 'positive', message: 'Transaction unmatched.' });

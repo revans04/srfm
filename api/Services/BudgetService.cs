@@ -1749,10 +1749,15 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
         var matches = reconciliations.Select(r => r.Match).ToArray();
         var ignores = reconciliations.Select(r => r.Ignore).ToArray();
 
+        // Match clears the bank row (C); unmatch reverts it to Uncleared (U).
+        // We intentionally do NOT guard the Reconciled (R) state here: the UI
+        // hides the Unmatch control on reconciled rows (LedgerTable: matched &&
+        // status !== 'R'), so a plain unmatch can never reach an R row. See
+        // docs/adr/0001-unmatch-reverts-status-to-uncleared.md.
         const string sqlImported = @"UPDATE imported_transactions i
             SET matched = d.match,
                 ignored = d.ignore,
-                status = CASE WHEN d.match THEN 'C' ELSE i.status END
+                status = CASE WHEN d.match THEN 'C' ELSE 'U' END
             FROM UNNEST(@ids, @matches, @ignores) AS d(id, match, ignore)
             WHERE i.id = d.id";
 
@@ -1780,7 +1785,8 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
                     posted_date = it.posted_date,
                     imported_merchant = it.payee,
                     status = 'C',
-                    check_number = it.check_number
+                    check_number = it.check_number,
+                    imported_transaction_id = it.id
                 FROM UNNEST(@budgetIds, @importedIds) AS m(budget_id, imported_id)
                 JOIN imported_transactions it ON it.id = m.imported_id
                 WHERE t.id = m.budget_id";
@@ -1793,6 +1799,121 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
             }
         }
 
+        // Unmatch: revert the linked budget transaction to Uncleared and shed the
+        // bank-linkage fields it picked up when matched, so it no longer claims a
+        // link to a bank row that is now unlinked. Mirrors the C->U revert applied
+        // to the imported row above.
+        var unmatched = reconciliations
+            .Where(r => !r.Match && !string.IsNullOrEmpty(r.BudgetTransactionId))
+            .ToList();
+
+        if (unmatched.Count > 0)
+        {
+            var unmatchedBudgetIds = unmatched.Select(r => r.BudgetTransactionId!).ToArray();
+
+            const string sqlUnmatchBudget = @"UPDATE transactions t
+                SET account_number = NULL,
+                    account_source = NULL,
+                    transaction_date = NULL,
+                    posted_date = NULL,
+                    imported_merchant = NULL,
+                    check_number = NULL,
+                    imported_transaction_id = NULL,
+                    status = 'U'
+                FROM UNNEST(@budgetIds) AS m(budget_id)
+                WHERE t.id = m.budget_id";
+
+            await using (var unCmd = new NpgsqlCommand(sqlUnmatchBudget, conn))
+            {
+                unCmd.Parameters.AddWithValue("budgetIds", unmatchedBudgetIds);
+                await unCmd.ExecuteNonQueryAsync();
+            }
+        }
+
         await LogEdit(conn, budgetId, userId, userEmail, "batch-reconcile");
+    }
+
+    /// <summary>
+    /// Canonical, account-agnostic unmatch keyed solely on the imported (bank)
+    /// transaction id. Reverts the imported row to Uncleared and resets every
+    /// budget transaction linked to it back to Uncleared, shedding the bank
+    /// linkage fields. Uses the explicit `imported_transaction_id` link; for
+    /// legacy rows that predate the link column (NULL link) it falls back to the
+    /// account_number + payee + date heuristic the link replaced. Returns the
+    /// number of budget transactions reset.
+    /// </summary>
+    public async Task<int> UnmatchImported(string importedTransactionId, string userId, string userEmail)
+    {
+        await using var conn = await _db.GetOpenConnectionAsync();
+
+        // Fields needed for the legacy fallback (rows with no explicit link).
+        const string sqlImp = @"SELECT account_number, payee, COALESCE(transaction_date, posted_date)
+                                FROM imported_transactions WHERE id=@iid";
+        string? acctNum = null;
+        string? payee = null;
+        DateTime? impDate = null;
+        await using (var impCmd = new NpgsqlCommand(sqlImp, conn))
+        {
+            impCmd.Parameters.AddWithValue("iid", importedTransactionId);
+            await using var r = await impCmd.ExecuteReaderAsync();
+            if (await r.ReadAsync())
+            {
+                acctNum = r.IsDBNull(0) ? null : r.GetString(0);
+                payee = r.IsDBNull(1) ? null : r.GetString(1);
+                impDate = r.IsDBNull(2) ? (DateTime?)null : r.GetDateTime(2);
+            }
+        }
+
+        // Reset linked budget transactions. Primary: explicit link. Fallback:
+        // legacy heuristic, scoped to rows that never got a link populated.
+        const string sqlBudget = @"UPDATE transactions t
+            SET account_number = NULL,
+                account_source = NULL,
+                transaction_date = NULL,
+                posted_date = NULL,
+                imported_merchant = NULL,
+                check_number = NULL,
+                imported_transaction_id = NULL,
+                status = 'U'
+            WHERE t.imported_transaction_id = @iid
+               OR (
+                    t.imported_transaction_id IS NULL
+                    AND @acct IS NOT NULL AND @payee IS NOT NULL AND @idate IS NOT NULL
+                    AND t.account_number = @acct
+                    AND t.imported_merchant = @payee
+                    AND COALESCE(t.transaction_date, t.posted_date) = @idate
+                    AND t.status IN ('C', 'R')
+               )
+            RETURNING t.budget_id";
+
+        var affectedBudgetIds = new HashSet<string>();
+        await using (var budCmd = new NpgsqlCommand(sqlBudget, conn))
+        {
+            budCmd.Parameters.AddWithValue("iid", importedTransactionId);
+            budCmd.Parameters.AddWithValue("acct", (object?)acctNum ?? DBNull.Value);
+            budCmd.Parameters.AddWithValue("payee", (object?)payee ?? DBNull.Value);
+            budCmd.Parameters.AddWithValue("idate", (object?)impDate ?? DBNull.Value);
+            await using var r = await budCmd.ExecuteReaderAsync();
+            while (await r.ReadAsync())
+            {
+                if (!r.IsDBNull(0)) affectedBudgetIds.Add(r.GetString(0));
+            }
+        }
+
+        // Revert the imported (bank) row to Uncleared and unlink it.
+        const string sqlImported = @"UPDATE imported_transactions
+            SET matched = false, status = 'U' WHERE id=@iid";
+        await using (var impUpd = new NpgsqlCommand(sqlImported, conn))
+        {
+            impUpd.Parameters.AddWithValue("iid", importedTransactionId);
+            await impUpd.ExecuteNonQueryAsync();
+        }
+
+        foreach (var bid in affectedBudgetIds)
+        {
+            await LogEdit(conn, bid, userId, userEmail, "unmatch-imported");
+        }
+
+        return affectedBudgetIds.Count;
     }
 }
