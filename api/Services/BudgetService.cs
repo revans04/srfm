@@ -1745,6 +1745,35 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
     {
         await using var conn = await _db.GetOpenConnectionAsync();
 
+        // Never match a bank row to a soft-deleted budget transaction. Those rows
+        // are still returned by the budget loader (the Budget page "Deleted" tab
+        // restores them), so a stale client candidate or a direct API call could
+        // submit one. Drop any such match up front so neither the imported row is
+        // marked matched/cleared nor the (deleted) budget row is written below.
+        var candidateBudgetIds = reconciliations
+            .Where(r => r.Match && !string.IsNullOrEmpty(r.BudgetTransactionId))
+            .Select(r => r.BudgetTransactionId!)
+            .Distinct()
+            .ToArray();
+
+        var deletedBudgetIds = new HashSet<string>();
+        if (candidateBudgetIds.Length > 0)
+        {
+            const string sqlDeleted = @"SELECT id FROM transactions
+                WHERE id = ANY(@ids) AND COALESCE(deleted, false) = true";
+            await using var delCmd = new NpgsqlCommand(sqlDeleted, conn);
+            delCmd.Parameters.AddWithValue("ids", candidateBudgetIds);
+            await using var delReader = await delCmd.ExecuteReaderAsync();
+            while (await delReader.ReadAsync()) deletedBudgetIds.Add(delReader.GetString(0));
+        }
+
+        if (deletedBudgetIds.Count > 0)
+        {
+            reconciliations = reconciliations
+                .Where(r => !(r.Match && r.BudgetTransactionId != null && deletedBudgetIds.Contains(r.BudgetTransactionId)))
+                .ToList();
+        }
+
         var ids = reconciliations.Select(r => r.ImportedTransactionId).ToArray();
         var matches = reconciliations.Select(r => r.Match).ToArray();
         var ignores = reconciliations.Select(r => r.Ignore).ToArray();
@@ -1789,7 +1818,8 @@ ON CONFLICT (id) DO UPDATE SET budget_id=EXCLUDED.budget_id, date=EXCLUDED.date,
                     imported_transaction_id = it.id
                 FROM UNNEST(@budgetIds, @importedIds) AS m(budget_id, imported_id)
                 JOIN imported_transactions it ON it.id = m.imported_id
-                WHERE t.id = m.budget_id";
+                WHERE t.id = m.budget_id
+                  AND COALESCE(t.deleted, false) = false";
 
             await using (var budCmd = new NpgsqlCommand(sqlBudget, conn))
             {

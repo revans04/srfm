@@ -180,7 +180,15 @@ CREATE TABLE IF NOT EXISTS email_verification_tokens (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_email_verification_tokens_token
-  ON email_verification_tokens(token);";
+  ON email_verification_tokens(token);
+-- Security: this table holds verification tokens and must never be reachable
+-- via the Supabase/PostgREST anon path. The API reaches it only through the
+-- privileged postgres role (which bypasses RLS), so enabling RLS with no
+-- policies blocks PostgREST while leaving the backend unaffected. Self-healing
+-- if the table is ever recreated in a fresh environment. See also
+-- db/migrations/20260624_email_verification_tokens_rls.sql.
+ALTER TABLE email_verification_tokens ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON email_verification_tokens FROM anon, authenticated;";
 
             await using var cmd = new NpgsqlCommand(createSql, conn);
             await cmd.ExecuteNonQueryAsync();
