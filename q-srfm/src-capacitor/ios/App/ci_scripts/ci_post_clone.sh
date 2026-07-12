@@ -5,19 +5,14 @@ echo "==> ci_post_clone: installing JS dependencies and building Capacitor iOS a
 
 REPO_ROOT="$CI_PRIMARY_REPOSITORY_PATH"
 
-if ! command -v yarn >/dev/null 2>&1; then
-  corepack enable
-  corepack prepare yarn@1.22.22 --activate
-fi
-
 cd "$REPO_ROOT/q-srfm"
-yarn install --frozen-lockfile
+npm install
 
 cd src-capacitor
-yarn install --frozen-lockfile
+npm install
 cd ..
 
-yarn build -m capacitor -T ios
+npx quasar build -m capacitor -T ios
 
 cd src-capacitor/ios/App
 pod install --repo-update
