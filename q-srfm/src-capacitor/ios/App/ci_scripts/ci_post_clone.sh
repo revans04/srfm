@@ -27,7 +27,4 @@ cd src-capacitor
 npm install
 cd ..
 
-npx quasar build -m capacitor -T ios
-
-cd src-capacitor/ios/App
-pod install --repo-update
+npx quasar build -m capacitor -T ios --skip-pkg
