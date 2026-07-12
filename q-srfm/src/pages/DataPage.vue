@@ -9,6 +9,7 @@
     <q-tabs v-model="activeTab" color="primary" class="bg-white q-mb-md rounded-sm">
       <q-tab name="import" label="Import" />
       <q-tab name="export" label="Export" />
+      <q-tab name="merchants" label="Merchants" />
     </q-tabs>
 
     <q-tab-panels v-model="activeTab">
@@ -614,6 +615,113 @@
           </div>
         </div>
       </q-tab-panel>
+
+      <!-- Merchants Tab -->
+      <q-tab-panel name="merchants">
+        <div class="row">
+          <div class="col col-12">
+            <q-card class="bg-white q-pa-md" rounded>
+              <q-card-section>
+                <div class="text-subtitle1">Merge Merchants</div>
+                <div class="text-caption text-grey-7">
+                  Combine misspelled or inconsistent merchant names (e.g. "Chickfila" and "CFA") into one name across every
+                  transaction for this entity.
+                  <q-icon name="info" size="16px" class="q-ml-xs">
+                    <q-tooltip>
+                      Merging rewrites the merchant name on all matching past transactions and keeps future months in sync,
+                      since recurring transactions carry the merchant name forward from prior months.
+                    </q-tooltip>
+                  </q-icon>
+                </div>
+              </q-card-section>
+              <q-card-section>
+                <div class="col col-12 col-md-6">
+                  <q-select
+                    v-model="merchantsEntityId"
+                    :options="entityOptions"
+                    option-label="name"
+                    option-value="id"
+                    emit-value
+                    map-options
+                    label="Select Entity"
+                    outlined
+                    dense
+                    class="q-mb-lg"
+                  ></q-select>
+                </div>
+
+                <q-banner v-if="!merchantsEntityId" class="bg-info text-white q-mb-lg">
+                  Select an entity to see its merchant list.
+                </q-banner>
+
+                <template v-else>
+                  <q-table
+                    :rows="merchantSuggestions"
+                    :columns="merchantColumns"
+                    row-key="name"
+                    selection="multiple"
+                    v-model:selected="selectedMerchants"
+                    :loading="merchantsLoading"
+                    dense
+                    flat
+                    bordered
+                    :pagination="{ rowsPerPage: 10 }"
+                    class="q-mb-md"
+                  >
+                    <template v-slot:no-data>
+                      <div class="full-width text-center text-grey-7 q-pa-md">No merchants found for this entity yet.</div>
+                    </template>
+                  </q-table>
+
+                  <div class="row items-end q-col-gutter-md">
+                    <div class="col col-12 col-md-6">
+                      <q-input
+                        v-model="canonicalName"
+                        label="Merge into name"
+                        outlined
+                        dense
+                        hint="Selecting rows above suggests the most-used name; you can type any name instead."
+                      ></q-input>
+                    </div>
+                    <div class="col col-auto">
+                      <q-btn
+                        color="primary"
+                        :disable="selectedMerchants.length === 0 || !canonicalName.trim()"
+                        :loading="merging"
+                        @click="confirmMerge"
+                      >
+                        Merge Selected
+                      </q-btn>
+                    </div>
+                  </div>
+                </template>
+
+                <!-- Merge Confirm Dialog -->
+                <q-dialog v-model="showMergeConfirm" max-width="500px">
+                  <q-card>
+                    <q-card-section class="text-h6">Merge merchants</q-card-section>
+                    <q-card-section>
+                      This will rename
+                      <ul>
+                        <li v-for="m in selectedMerchants" :key="m.name">
+                          "{{ m.name }}" ({{ m.usageCount }} transaction{{ m.usageCount === 1 ? '' : 's' }})
+                        </li>
+                      </ul>
+                      to "<strong>{{ canonicalName.trim() }}</strong>" — approximately {{ mergeImpactCount }} transaction(s)
+                      total. This cannot be undone. Continue?
+                    </q-card-section>
+                    <q-card-actions>
+                      <q-space></q-space>
+                      <q-btn color="primary" flat @click="showMergeConfirm = false">Cancel</q-btn>
+                      <q-btn color="negative" @click="performMerge">Merge</q-btn>
+                    </q-card-actions>
+                  </q-card>
+                </q-dialog>
+              </q-card-section>
+            </q-card>
+          </div>
+        </div>
+      </q-tab-panel>
     </q-tab-panels>
 
     <!-- Snackbar handled via $q.notify -->
@@ -641,6 +749,7 @@ import type {
   ImportedTransactionDoc,
   BudgetCategory,
   BudgetInfo,
+  MerchantSuggestion,
 } from "../types";
 import type { EntityType } from "../types";
 import { useRouter } from "vue-router";
@@ -1040,6 +1149,78 @@ const entityOptions = computed(() => {
   }));
 });
 
+// Merchants tab — merge/rename typo variants (e.g. "Chickfila" / "CFA")
+// into one canonical name across the entity's transaction history.
+const merchantsEntityId = ref<string>('');
+const merchantSuggestions = ref<MerchantSuggestion[]>([]);
+const merchantsLoading = ref(false);
+const selectedMerchants = ref<MerchantSuggestion[]>([]);
+const canonicalName = ref('');
+const showMergeConfirm = ref(false);
+const merging = ref(false);
+const merchantColumns = [
+  { name: 'name', label: 'Merchant', field: 'name', align: 'left' as const, sortable: true },
+  { name: 'usageCount', label: 'Transactions', field: 'usageCount', align: 'right' as const, sortable: true },
+];
+
+const mergeImpactCount = computed(() => selectedMerchants.value.reduce((sum, m) => sum + m.usageCount, 0));
+
+async function loadMerchantSuggestions() {
+  if (!merchantsEntityId.value) {
+    merchantSuggestions.value = [];
+    return;
+  }
+  merchantsLoading.value = true;
+  try {
+    merchantSuggestions.value = await dataAccess.getMerchantSuggestions(merchantsEntityId.value);
+  } catch (err: unknown) {
+    $q.notify({ type: 'negative', message: `Failed to load merchants: ${(err as Error).message}` });
+  } finally {
+    merchantsLoading.value = false;
+  }
+}
+
+watch(merchantsEntityId, () => {
+  selectedMerchants.value = [];
+  canonicalName.value = '';
+  void loadMerchantSuggestions();
+});
+
+watch(selectedMerchants, (sel) => {
+  if (sel.length === 0) {
+    canonicalName.value = '';
+    return;
+  }
+  const top = [...sel].sort((a, b) => b.usageCount - a.usageCount)[0];
+  if (top) canonicalName.value = top.name;
+});
+
+function confirmMerge() {
+  if (selectedMerchants.value.length === 0 || !canonicalName.value.trim()) return;
+  showMergeConfirm.value = true;
+}
+
+async function performMerge() {
+  showMergeConfirm.value = false;
+  merging.value = true;
+  try {
+    const variants = selectedMerchants.value.map((m) => m.name);
+    const target = canonicalName.value.trim();
+    const updated = await dataAccess.mergeMerchants(merchantsEntityId.value, target, variants);
+    $q.notify({
+      type: 'positive',
+      message: `Merged ${variants.length} merchant name(s) into "${target}" — ${updated} transaction(s) updated.`,
+    });
+    selectedMerchants.value = [];
+    canonicalName.value = '';
+    await loadMerchantSuggestions();
+  } catch (err: unknown) {
+    $q.notify({ type: 'negative', message: `Failed to merge merchants: ${(err as Error).message}` });
+  } finally {
+    merging.value = false;
+  }
+}
+
 const formattedAccounts = computed(() => {
   return availableAccounts.value
     .slice()
@@ -1068,6 +1249,13 @@ const isFieldMappingValid = computed(() => {
 
 onMounted(async () => {
   await loadAllData();
+  merchantsEntityId.value = familyStore.selectedEntityId || entityOptions.value[0]?.id || '';
+});
+
+watch(activeTab, (tab) => {
+  if (tab === 'merchants' && merchantsEntityId.value && merchantSuggestions.value.length === 0 && !merchantsLoading.value) {
+    void loadMerchantSuggestions();
+  }
 });
 
 async function loadAllData() {

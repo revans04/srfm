@@ -110,20 +110,12 @@ public class ReportsService
         // Canonical payee key. Without this, "McDonald's" (U+2019 curly
         // apostrophe, common in bank feeds), "McDonald's" (U+0027 ASCII,
         // typed by hand), and "MCDONALD'S" all hash differently and end up
-        // as separate rows. Steps, innermost-out:
-        //   1. regexp_replace folds curly/grave/acute/modifier/prime
-        //      apostrophe variants to ASCII '
-        //   2. regexp_replace collapses runs of whitespace to a single space
-        //   3. TRIM removes leading/trailing whitespace
-        //   4. NULLIF + COALESCE bucket empty strings under "(No payee)"
+        // as separate rows. See PayeeCanonicalExpr for the transform steps.
         // The grouping/comparison key additionally LOWERs this so case-only
         // differences merge. For DISPLAY we use MODE() WITHIN GROUP to pick
         // the most-common original form — keeps the table reading naturally
         // ("McDonald's") instead of all-lowercase ("mcdonald's").
-        const string payeeCanonical =
-            "COALESCE(NULLIF(TRIM(regexp_replace(regexp_replace(t.merchant, " +
-            "'[‘’`´ʼ′]', '''', 'g'), " +
-            "'\\s+', ' ', 'g')), ''), '(No payee)')";
+        var payeeCanonical = PayeeCanonicalExpr("t");
 
         var sql = $@"
             SELECT
@@ -190,6 +182,120 @@ public class ReportsService
 
         return ordered;
     }
+
+    /// <summary>
+    /// Entity-wide merchant suggestions for the transaction-entry autocomplete.
+    /// Aggregates across ALL of the entity's transactions (every month), not
+    /// just the currently-open budget — a single month's transactions were
+    /// the prior source and made merchants disappear from suggestions the
+    /// moment a new month's budget was created (only recurring transactions
+    /// carried a merchant name forward). Reuses the same canonicalization as
+    /// <see cref="GetSpendingByPayee"/> so case/whitespace/apostrophe variants
+    /// of the same merchant collapse into one suggestion.
+    /// </summary>
+    public async Task<List<MerchantSuggestion>> GetMerchantSuggestions(string entityId, string userId)
+    {
+        if (!Guid.TryParse(entityId, out var entityGuid))
+            throw new ArgumentException("Invalid entityId");
+
+        await using var conn = await _db.GetOpenConnectionAsync();
+
+        if (!await UserCanAccessEntity(conn, entityGuid, userId))
+        {
+            _logger.LogWarning("User {UserId} attempted merchant suggestions for entity {EntityId} without membership", userId, entityId);
+            throw new UnauthorizedAccessException("Caller is not a member of the family that owns this entity");
+        }
+
+        var sql = $@"
+            SELECT
+                MODE() WITHIN GROUP (ORDER BY {PayeeCanonicalExpr("t")}) AS name,
+                COUNT(*) AS usage_count
+            FROM transactions t
+            WHERE t.entity_id = @eid
+              AND COALESCE(t.deleted, false) = false
+              AND COALESCE(t.transaction_type, 'standard') <> 'transfer'
+              AND NULLIF(TRIM(t.merchant), '') IS NOT NULL
+            GROUP BY LOWER({PayeeCanonicalExpr("t")})
+            ORDER BY usage_count DESC";
+
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("eid", entityGuid);
+
+        var suggestions = new List<MerchantSuggestion>();
+        await using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            suggestions.Add(new MerchantSuggestion
+            {
+                Name = reader.IsDBNull(0) ? string.Empty : reader.GetString(0),
+                UsageCount = reader.IsDBNull(1) ? 0 : Convert.ToInt32(reader.GetInt64(1)),
+            });
+        }
+
+        return suggestions;
+    }
+
+    /// <summary>
+    /// Collapse merchant name variants (typos, case/punctuation differences —
+    /// e.g. "Chickfila" / "CFA" / "Chick-fil-A") into a single canonical name
+    /// by rewriting <c>transactions.merchant</c> across every matching row
+    /// for the entity. This is a bulk, irreversible rewrite — caller must
+    /// confirm before invoking. Renaming past rows also fixes forward
+    /// carryover, since recurring-transaction regeneration reads the
+    /// merchant string off prior transaction rows.
+    /// </summary>
+    public async Task<int> MergeMerchants(string entityId, string userId, string canonicalName, IReadOnlyList<string> variants)
+    {
+        if (!Guid.TryParse(entityId, out var entityGuid))
+            throw new ArgumentException("Invalid entityId");
+        if (string.IsNullOrWhiteSpace(canonicalName))
+            throw new ArgumentException("canonicalName is required");
+
+        var normalizedVariants = (variants ?? Array.Empty<string>())
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(NormalizePayeeKey)
+            .Distinct()
+            .ToArray();
+        if (normalizedVariants.Length == 0)
+            throw new ArgumentException("At least one variant is required");
+
+        await using var conn = await _db.GetOpenConnectionAsync();
+
+        if (!await UserCanAccessEntity(conn, entityGuid, userId))
+        {
+            _logger.LogWarning("User {UserId} attempted merchant merge for entity {EntityId} without membership", userId, entityId);
+            throw new UnauthorizedAccessException("Caller is not a member of the family that owns this entity");
+        }
+
+        var sql = $@"
+            UPDATE transactions
+            SET merchant = @canonical
+            WHERE entity_id = @eid
+              AND LOWER({PayeeCanonicalExpr("transactions")}) = ANY(@variants)";
+
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("eid", entityGuid);
+        cmd.Parameters.AddWithValue("canonical", canonicalName.Trim());
+        cmd.Parameters.Add(new NpgsqlParameter("variants", NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = normalizedVariants });
+
+        var updated = await cmd.ExecuteNonQueryAsync();
+
+        _logger.LogInformation(
+            "Merged {VariantCount} merchant variant(s) into '{Canonical}' for entity {EntityId}: {UpdatedCount} transaction(s) updated",
+            normalizedVariants.Length, canonicalName, entityId, updated);
+
+        return updated;
+    }
+
+    /// <summary>
+    /// Canonical payee/merchant SQL expression, parameterized by table alias.
+    /// See <see cref="GetSpendingByPayee"/> for the full rationale (folds
+    /// apostrophe variants, collapses whitespace, buckets blanks).
+    /// </summary>
+    private static string PayeeCanonicalExpr(string tableAlias) =>
+        $"COALESCE(NULLIF(TRIM(regexp_replace(regexp_replace({tableAlias}.merchant, " +
+        "'[‘’`´ʼ′]', '''', 'g'), " +
+        "'\\s+', ' ', 'g')), ''), '(No payee)')";
 
     private static readonly Regex WhitespaceRun = new("\\s+", RegexOptions.Compiled);
 

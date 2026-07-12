@@ -21,6 +21,7 @@ import type {
   BudgetGroupKind,
   CategoryReorderItem,
   PayeeSpending,
+  MerchantSuggestion,
 } from './types';
 import { useBudgetStore } from './store/budget';
 import { Timestamp } from 'firebase/firestore';
@@ -1391,6 +1392,40 @@ export class DataAccess {
         }),
       } satisfies PayeeSpending;
     });
+  }
+
+  // Entity-wide merchant suggestions for transaction-entry autocomplete —
+  // aggregates across ALL of the entity's transactions, not just the
+  // currently-open budget/month, so merchants carry forward across months.
+  async getMerchantSuggestions(entityId: string): Promise<MerchantSuggestion[]> {
+    const headers = await this.getAuthHeaders();
+    const params = new URLSearchParams({ entityId });
+    const response = await fetch(`${this.apiBaseUrl}/reports/merchants?${params.toString()}`, { headers });
+    if (!response.ok) throw new Error(`Failed to load merchant suggestions: ${response.statusText}`);
+    const raw: unknown = await response.json();
+    if (!Array.isArray(raw)) return [];
+    return raw.map((row) => {
+      const r = (row ?? {}) as Record<string, unknown>;
+      return {
+        name: typeof r.name === 'string' ? r.name : '',
+        usageCount: typeof r.usageCount === 'number' ? r.usageCount : Number(r.usageCount) || 0,
+      } satisfies MerchantSuggestion;
+    });
+  }
+
+  // Collapse merchant name variants (typos, case/punctuation differences)
+  // into a single canonical name across every matching transaction for the
+  // entity. Returns the number of transactions updated.
+  async mergeMerchants(entityId: string, canonicalName: string, variants: string[]): Promise<number> {
+    const headers = await this.getAuthHeaders();
+    const response = await fetch(`${this.apiBaseUrl}/reports/merchants/merge`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ entityId, canonicalName, variants }),
+    });
+    if (!response.ok) throw new Error(`Failed to merge merchants: ${response.statusText}`);
+    const raw = (await response.json()) as { updated?: number };
+    return raw.updated ?? 0;
   }
 }
 

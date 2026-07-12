@@ -14,7 +14,7 @@
           class="row items-center justify-between q-py-xs"
         >
           <div class="text-body1 text-grey-9">{{ g.name }}</div>
-          <div class="text-body2">{{ formatCurrency(g.savedToDate || 0) }} / {{ formatCurrency(g.totalTarget) }}</div>
+          <div class="text-body2">{{ formatCurrency(availableFor(g)) }} / {{ formatCurrency(g.totalTarget) }}</div>
         </div>
         <div v-if="goals.length > 3" class="text-caption text-grey-6 q-mt-xs">
           +{{ goals.length - 3 }} more
@@ -29,7 +29,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed, watch } from 'vue';
 import { useGoals } from '../../composables/useGoals';
 
 const props = defineProps<{ entityId: string }>();
@@ -37,13 +37,19 @@ defineEmits<{ (e: 'create'): void }>();
 
 const { listGoals, loadGoals } = useGoals();
 
-onMounted(() => {
-  if (props.entityId) {
-    void loadGoals(props.entityId);
-  }
-});
+watch(
+  () => props.entityId,
+  () => {
+    if (props.entityId) void loadGoals(props.entityId);
+  },
+  { immediate: true },
+);
 
 const goals = computed(() => (props.entityId ? listGoals(props.entityId) : []));
+
+function availableFor(goal: { savedToDate?: number; spentToDate?: number }): number {
+  return Math.max((goal.savedToDate || 0) - (goal.spentToDate || 0), 0);
+}
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', {

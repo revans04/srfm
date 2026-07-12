@@ -17,4 +17,11 @@ namespace FamilyBudgetApi.Models
 
         public double Amount { get; set; }
     }
+
+    public class MerchantSuggestion
+    {
+        public string Name { get; set; } = string.Empty;
+
+        public int UsageCount { get; set; }
+    }
 }

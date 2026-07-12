@@ -119,7 +119,6 @@ export async function createBudgetForMonth(
         carryover: cat.isFund ? newCarryover[cat.name] || 0 : 0,
       })),
       label: sourceBudget.label || `Budget for ${month}`,
-      merchants: sourceBudget.merchants || [],
       transactions: [],
       budgetId,
       // Group ordering lives on `budget_groups` (entity-scoped) now, not per
@@ -193,7 +192,6 @@ export async function createBudgetForMonth(
       })),
       transactions: [],
       label: `Template Budget for ${month}`,
-      merchants: [],
       budgetId,
     };
     await dataAccess.saveBudget(budgetId, newBudget);
@@ -213,7 +211,6 @@ export async function createBudgetForMonth(
       })),
       transactions: [],
       label: `Default ${entity?.type ?? 'Family'} Budget for ${month}`,
-      merchants: [],
       budgetId,
     };
     await dataAccess.saveBudget(budgetId, newBudget);
@@ -234,7 +231,6 @@ export async function createBudgetForMonth(
     ],
     transactions: [],
     label: `Default Budget for ${month}`,
-    merchants: [],
     budgetId,
   };
   await dataAccess.saveBudget(budgetId, defaultBudget);

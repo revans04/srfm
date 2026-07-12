@@ -158,7 +158,10 @@ export interface Budget {
   categories: BudgetCategory[];
   transactions: Transaction[];
   originalBudgetId?: string;
-  merchants: Array<{ name: string; usageCount: number }>;
+  /** Legacy per-budget merchant cache; the API never persists writes to it
+   *  so it's effectively always empty. Merchant suggestions instead come
+   *  from dataAccess.getMerchantSuggestions (entity-wide, all months). */
+  merchants?: Array<{ name: string; usageCount: number }>;
   /** Snapshot of the entity's group taxonomy at load time. Renames/reorders
    *  apply to the entity, so this list is the same for every budget in an
    *  entity until a write through useFamilyStore. */
@@ -373,4 +376,9 @@ export interface PayeeSpending {
   payee: string;
   total: number;
   categories: PayeeCategoryBreakdown[];
+}
+
+export interface MerchantSuggestion {
+  name: string;
+  usageCount: number;
 }

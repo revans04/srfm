@@ -146,9 +146,11 @@ const isSearchHidden = computed(() => {
 });
 
 function savedFor(goal: Goal): number {
-  // Backend rollup already folds opening_balance into savedToDate; default
-  // to 0 if the field hasn't loaded yet so the row renders without flicker.
-  return goal.savedToDate || 0;
+  // Backend rollup folds opening_balance into savedToDate as a gross
+  // contributions figure; spentToDate is tracked separately (withdrawals +
+  // goal-funded spend elsewhere). Net them here so the card shows what's
+  // actually available, matching GoalDetailsPanel's `available` computation.
+  return Math.max((goal.savedToDate || 0) - (goal.spentToDate || 0), 0);
 }
 
 function progressFor(goal: Goal): number {

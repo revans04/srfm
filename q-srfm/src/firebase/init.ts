@@ -47,7 +47,7 @@ if (isNative && !nativeApiUrl) {
   throw new Error('VITE_API_BASE_URL_NATIVE is required for Capacitor builds');
 }
 const apiBaseUrl = isNative
-  ? (nativeApiUrl as string)
+  ? nativeApiUrl
   : (env.VITE_API_BASE_URL
       || (typeof window !== 'undefined' && window.location.hostname === 'localhost'
             ? 'http://localhost:8080/api'

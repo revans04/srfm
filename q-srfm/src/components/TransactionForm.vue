@@ -624,8 +624,14 @@ onMounted(async () => {
   transactions.value = await dataAccess.getTransactions(props.budgetId);
   emit('update-transactions', transactions.value);
 
-  if (budget.value?.merchants && budget.value.merchants.length > 0) {
-    merchantStore.updateMerchantsFromCounts(Object.fromEntries(budget.value.merchants.map((m) => [m.name, m.usageCount])));
+  if (budget.value?.entityId) {
+    try {
+      const suggestions = await dataAccess.getMerchantSuggestions(budget.value.entityId);
+      merchantStore.updateMerchantsFromCounts(Object.fromEntries(suggestions.map((m) => [m.name, m.usageCount])));
+    } catch (err) {
+      console.error('Failed to load entity-wide merchant suggestions, falling back to current budget', err);
+      merchantStore.updateMerchants(transactions.value);
+    }
   } else {
     merchantStore.updateMerchants(transactions.value);
   }

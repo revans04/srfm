@@ -71,5 +71,77 @@ namespace FamilyBudgetApi.Controllers
                 return StatusCode(500, ex.Message);
             }
         }
+
+        [HttpGet("merchants")]
+        [AuthorizeFirebase]
+        public async Task<IActionResult> GetMerchantSuggestions([FromQuery] string entityId)
+        {
+            try
+            {
+                var userId = HttpContext.Items["UserId"]?.ToString() ?? throw new Exception("User ID not found");
+
+                if (string.IsNullOrWhiteSpace(entityId))
+                    return BadRequest("entityId is required");
+
+                var suggestions = await _reportsService.GetMerchantSuggestions(entityId, userId);
+                return Ok(suggestions);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in GetMerchantSuggestions: {ex.Message}");
+                Console.WriteLine(ex.StackTrace);
+                return StatusCode(500, ex.Message);
+            }
+        }
+
+        [HttpPost("merchants/merge")]
+        [AuthorizeFirebase]
+        public async Task<IActionResult> MergeMerchants([FromBody] MergeMerchantsRequest request)
+        {
+            try
+            {
+                var userId = HttpContext.Items["UserId"]?.ToString() ?? throw new Exception("User ID not found");
+
+                if (request == null || string.IsNullOrWhiteSpace(request.EntityId))
+                    return BadRequest("entityId is required");
+
+                var updated = await _reportsService.MergeMerchants(
+                    request.EntityId,
+                    userId,
+                    request.CanonicalName,
+                    request.Variants ?? new System.Collections.Generic.List<string>());
+
+                return Ok(new { updated });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in MergeMerchants: {ex.Message}");
+                Console.WriteLine(ex.StackTrace);
+                return StatusCode(500, ex.Message);
+            }
+        }
+
+        public class MergeMerchantsRequest
+        {
+            public string EntityId { get; set; } = string.Empty;
+            public string CanonicalName { get; set; } = string.Empty;
+            public System.Collections.Generic.List<string>? Variants { get; set; }
+        }
     }
 }

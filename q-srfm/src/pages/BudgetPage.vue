@@ -459,11 +459,23 @@
                       />
                       <span
                         v-else
-                        class="group-name-text"
+                        class="group-name-text row items-center no-wrap"
                         @dblclick.stop="startGroupRename(g)"
                       >
                         {{ g.name || '(Ungrouped)' }}
-                        <q-tooltip>Double-click to rename. Renames apply to every month for this entity.</q-tooltip>
+                        <q-btn
+                          flat
+                          dense
+                          round
+                          size="sm"
+                          icon="edit"
+                          color="grey-7"
+                          class="group-rename-btn q-ml-xs"
+                          aria-label="Rename group"
+                          @click.stop="startGroupRename(g)"
+                        >
+                          <q-tooltip>Rename group. Applies to every month for this entity.</q-tooltip>
+                        </q-btn>
                       </span>
                     </span>
                     <span v-if="!isMobile" class="col-header cat-col-progress">Progress</span>
@@ -2312,6 +2324,13 @@ async function saveBudget() {
     if (futureCategories.value.length > 0) {
       await applyFutureCategories();
     }
+    // Category groups can be created inline (typing a new name in the group
+    // select) or reassigned during this save; the backend resolves/creates
+    // the budget_groups row via EnsureGroupAsync, but the client never learns
+    // the new group id until we force-refresh the group cache and reload the
+    // budget — otherwise the new/reassigned group silently fails to appear.
+    await familyStore.loadGroups(familyStore.selectedEntityId, { force: true });
+    await loadBudgets();
     showSnackbar('Budget saved successfully');
     isEditing.value = false;
   } catch (error: unknown) {
