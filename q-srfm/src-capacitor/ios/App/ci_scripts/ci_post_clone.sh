@@ -3,7 +3,20 @@ set -e
 
 echo "==> ci_post_clone: installing JS dependencies and building Capacitor iOS assets"
 
-brew install node
+export HOMEBREW_NO_AUTO_UPDATE=1
+export HOMEBREW_NO_INSTALL_CLEANUP=1
+
+for i in 1 2 3; do
+  if brew install node; then
+    break
+  fi
+  echo "brew install node failed (attempt $i), retrying..."
+  sleep 5
+  if [ "$i" = 3 ]; then
+    echo "brew install node failed after 3 attempts"
+    exit 1
+  fi
+done
 
 REPO_ROOT="$CI_PRIMARY_REPOSITORY_PATH"
 
