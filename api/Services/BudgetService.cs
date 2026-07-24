@@ -524,6 +524,33 @@ ON CONFLICT (id) DO UPDATE SET family_id=EXCLUDED.family_id, entity_id=EXCLUDED.
             hasGoalTable = (await checkCmd.ExecuteScalarAsync()) is bool b && b;
         }
 
+        // Refuse to wipe a budget's categories via an empty/missing payload.
+        // WriteBudgetAndCategoriesAsync used to run the DELETE below
+        // unconditionally and simply skip the INSERT when budget.Categories
+        // was empty, silently reducing an existing month down to just its
+        // goal-linked survivors (see the June 2026 incident on the Evans
+        // Family entity). If the caller sent no categories but the budget
+        // already has non-goal-linked rows, that's treated as a bad request
+        // instead of a destructive no-op.
+        if (budget.Categories == null || budget.Categories.Count == 0)
+        {
+            var existingCountSql = hasGoalTable
+                ? @"SELECT COUNT(*) FROM budget_categories
+                    WHERE budget_id=@bid
+                      AND id NOT IN (SELECT budget_cat_id FROM goals_budget_categories)"
+                : "SELECT COUNT(*) FROM budget_categories WHERE budget_id=@bid";
+            await using (var existingCountCmd = new NpgsqlCommand(existingCountSql, conn, tx))
+            {
+                existingCountCmd.Parameters.AddWithValue("bid", budgetId);
+                var existingCount = Convert.ToInt32(await existingCountCmd.ExecuteScalarAsync());
+                if (existingCount > 0)
+                {
+                    throw new InvalidOperationException(
+                        $"Refusing to save budget {budgetId} with an empty category list: it currently has {existingCount} categor{(existingCount == 1 ? "y" : "ies")} that would be deleted. Send the full category list to make changes.");
+                }
+            }
+        }
+
         // Replace existing categories and insert current ones, but PRESERVE
         // any goal-linked rows. The FE doesn't include goal-linked categories
         // in its payload because LoadBudgetDetails hides them from the budget
