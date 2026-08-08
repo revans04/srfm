@@ -7,6 +7,74 @@ import { adjustTransactionDate, generateDailyTransactions, generateWeeklyTransac
 import { calculateCarryOver } from './carryover';
 import type { Budget, BudgetCategory, Transaction, BudgetInfo } from '../types';
 
+// Yearly is the longest supported recurrence — a 12-month lookback guarantees
+// we can find at least one prior real instance of every interval, as long as
+// budget history isn't itself missing months.
+const RECURRING_LOOKBACK_MONTHS = 12;
+
+function recurringGroupKey(trx: Transaction): string {
+  return `${trx.merchant}-${trx.amount}-${trx.recurringInterval}-${trx.userId}-${trx.isIncome}`;
+}
+
+function shiftMonth(month: string, deltaMonths: number): string {
+  const [year, monthNum] = month.split('-').map(Number);
+  const shifted = new Date(year, monthNum - 1 + deltaMonths, 1);
+  return `${shifted.getFullYear()}-${String(shifted.getMonth() + 1).padStart(2, '0')}`;
+}
+
+/**
+ * Finds the most recent real instance of each recurring transaction across up
+ * to RECURRING_LOOKBACK_MONTHS of budget history before `beforeMonth`.
+ *
+ * A single immediately-prior month isn't enough: Quarterly/Bi-Annual/Yearly
+ * items are only written into the months they're actually due, so they're
+ * absent from most months' transaction lists. Anchoring off just the nearest
+ * prior month loses the recurrence permanently the first time it's skipped.
+ * Any genuine past instance lies on the same due-date lattice as the
+ * original, so the most recent one found is an equally valid anchor for the
+ * modulo-based due-date check below.
+ */
+async function findRecurringTemplates(
+  entityId: string,
+  beforeMonth: string,
+  budgetStore: ReturnType<typeof useBudgetStore>,
+  ensureAccessibleBudgetInfos: () => Promise<BudgetInfo[]>,
+): Promise<Transaction[]> {
+  const earliestMonth = shiftMonth(beforeMonth, -RECURRING_LOOKBACK_MONTHS);
+  const infos = await ensureAccessibleBudgetInfos();
+  const candidateInfos = infos.filter(
+    (b) => b.entityId === entityId && b.budgetId && b.month < beforeMonth && b.month >= earliestMonth,
+  );
+
+  const budgets = await Promise.all(
+    candidateInfos.map(async (info) => {
+      const cached = Array.from(budgetStore.budgets.values()).find((b) => b.budgetId === info.budgetId);
+      if (cached?.transactions?.length) return cached;
+      try {
+        const fetched = await dataAccess.getBudget(info.budgetId);
+        if (fetched) budgetStore.updateBudget(info.budgetId, fetched);
+        return fetched;
+      } catch (error) {
+        console.warn('findRecurringTemplates: failed to load budget', info.budgetId, error);
+        return null;
+      }
+    }),
+  );
+
+  const templatesByGroup = new Map<string, Transaction>();
+  budgets
+    .filter((b): b is Budget => !!b)
+    .sort((a, b) => a.month.localeCompare(b.month)) // oldest first, so later iterations overwrite with the most recent instance
+    .forEach((budget) => {
+      (budget.transactions || []).forEach((trx) => {
+        if (trx.deleted || !trx.recurring) return;
+        templatesByGroup.set(recurringGroupKey(trx), trx);
+      });
+    });
+
+  return Array.from(templatesByGroup.values());
+}
+
 /**
  * Creates a budget for the specified month and entity. If a budget already
  * exists it is returned. Otherwise a new budget is created by copying from a
@@ -127,20 +195,10 @@ export async function createBudgetForMonth(
     };
 
     const recurringTransactions: Transaction[] = [];
-    if (sourceBudget.transactions) {
-      const recurringGroups: Record<string, Transaction[]> = sourceBudget.transactions.reduce(
-        (groups, trx) => {
-          if (!trx.deleted && trx.recurring) {
-            const key = `${trx.merchant}-${trx.amount}-${trx.recurringInterval}-${trx.userId}-${trx.isIncome}`;
-            (groups[key] = groups[key] || []).push(trx);
-          }
-          return groups;
-        },
-        {} as Record<string, Transaction[]>,
-      );
+    {
+      const recurringTemplates = await findRecurringTemplates(entityId, month, budgetStore, ensureAccessibleBudgetInfos);
 
-      Object.values(recurringGroups).forEach((group) => {
-        const firstInstance = group.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
+      recurringTemplates.forEach((firstInstance) => {
         const interval = firstInstance.recurringInterval;
 
         if (interval === 'Daily') {
@@ -168,6 +226,15 @@ export async function createBudgetForMonth(
               date: newDate,
               budgetMonth: month,
               entityId,
+              // Reset bank-linkage/clearing fields — this instance hasn't been
+              // matched or cleared yet, even though the prior month's was.
+              status: undefined,
+              accountNumber: undefined,
+              accountSource: undefined,
+              transactionDate: undefined,
+              postedDate: undefined,
+              importedMerchant: undefined,
+              checkNumber: undefined,
             });
           }
         }
